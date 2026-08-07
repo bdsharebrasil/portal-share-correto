@@ -485,19 +485,19 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
   return (
     <div className="relative min-h-screen bg-[#0b0d12] text-slate-100 antialiased print:bg-white print:text-black">
-      {/* brilho ambiente muito sutil (sem neon) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-white/[0.04] to-transparent print:hidden" />
+      {/* brilho ambiente muito sutil (tom teal) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-teal-500/[0.06] to-transparent print:hidden" />
 
       {/* ══════════════════════════════════════════════════════════════════════
           CABEÇALHO DO RELATÓRIO
           ══════════════════════════════════════════════════════════════════════ */}
-      <div className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0b0d12]/70 backdrop-blur-2xl print:static print:border-none print:bg-white">
+      <div className="sticky top-0 z-30 border-b border-teal-500/10 bg-[#0b0d12]/70 backdrop-blur-2xl print:static print:border-none print:bg-white">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
 
           {/* logo / identificação */}
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]">
-              <Plane className="h-4 w-4 text-slate-200"/>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-teal-500/20 bg-teal-500/[0.08]">
+              <Plane className="h-4 w-4 text-teal-300"/>
             </div>
             <div className="min-w-0">
               <p className="mb-0.5 text-[10px] uppercase leading-none tracking-[0.22em] text-slate-500">
@@ -511,17 +511,17 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
           <div className="flex flex-wrap items-center gap-2">
             {/* período fechado */}
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5 backdrop-blur-xl">
+            <div className="flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/[0.06] px-3.5 py-1.5 backdrop-blur-xl">
               <span className="hidden text-[10px] uppercase tracking-[0.18em] text-slate-500 sm:inline">
                 {mesesSelecionados.length > 1 ? "Meses fechados" : "Mês fechado"}
               </span>
-              <span className="text-xs font-medium text-slate-200 sm:text-sm">{mesLabel}</span>
+              <span className="text-xs font-medium text-teal-200 sm:text-sm">{mesLabel}</span>
             </div>
 
             {/* ações */}
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5 text-xs font-medium text-slate-300 transition-all duration-300 hover:bg-white/[0.09] hover:text-slate-100 active:scale-[0.97] print:hidden"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5 text-xs font-medium text-slate-300 transition-all duration-300 hover:border-teal-500/40 hover:bg-teal-500/[0.09] hover:text-teal-200 active:scale-[0.97] print:hidden"
             >
               <Printer className="h-3.5 w-3.5"/>
               Exportar PDF
@@ -543,7 +543,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       {isLoading && (
         <div className="flex items-center justify-center py-32">
           <div className="flex flex-col items-center gap-3 text-slate-500">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-sky-400" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-teal-400" />
             <p className="text-sm">Carregando relatório...</p>
           </div>
         </div>
@@ -561,21 +561,21 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             {despesasAgrupadas.length === 0 ? (
               <Vazio texto="Nenhum lançamento encontrado para este período."/>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <div className="overflow-x-auto rounded-2xl border border-teal-500/15">
                 <table className="w-full border-collapse text-[11px]">
                   <thead>
                     {/* Linha de grupos */}
-                    <tr className="bg-white/[0.05] text-[9px] uppercase tracking-[0.15em] text-slate-500">
-                      <th colSpan={9} className="border-b border-r border-white/10 py-2 px-3 text-left">
+                    <tr className="bg-teal-500/[0.06] text-[9px] uppercase tracking-[0.15em] text-slate-500">
+                      <th colSpan={9} className="border-b border-r border-teal-500/15 py-2 px-3 text-left">
                         Qualificação de Custo · Pagamento
                       </th>
                       {cotistas.map((c) => (
-                        <th key={`g-pct-${c.id}`} className="border-b border-white/10 py-2 px-2 text-center">
+                        <th key={`g-pct-${c.id}`} className="border-b border-teal-500/15 py-2 px-2 text-center">
                           %
                         </th>
                       ))}
                       {cotistas.map((c) => (
-                        <th key={`g-rat-${c.id}`} className="border-b border-white/10 py-2 px-2 text-center border-l border-white/[0.07]">
+                        <th key={`g-rat-${c.id}`} className="border-b border-teal-500/15 py-2 px-2 text-center border-l border-white/[0.07]">
                           {c.nome.split(" ")[0]}
                         </th>
                       ))}
@@ -592,7 +592,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       <Th>Pago Por</Th>
                       <Th className="border-r border-white/10" right>Valor Pago</Th>
                       {cotistas.map((c) => (
-                        <Th key={`h-pct-${c.id}`} className="text-sky-300/60" right>
+                        <Th key={`h-pct-${c.id}`} className="text-teal-300/60" right>
                           {abrev(c.nome)} %
                         </Th>
                       ))}
@@ -615,8 +615,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                           key={ref.despesa_id || ref.id}
                           className={
                             i % 2 === 0
-                              ? "bg-transparent hover:bg-white/[0.04]"
-                              : "bg-white/[0.02] hover:bg-white/[0.035] backdrop-blur-xl"
+                              ? "bg-transparent hover:bg-teal-500/[0.04]"
+                              : "bg-teal-500/[0.02] hover:bg-teal-500/[0.05] backdrop-blur-xl"
                           }
                         >
                           <Td mono>{fmtDate(dataRef)}</Td>
@@ -654,11 +654,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   </tbody>
 
                   <tfoot>
-                    <tr className="bg-white/[0.06] text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                    <tr className="bg-teal-500/[0.08] text-[10px] font-bold uppercase tracking-wider text-slate-300">
                       <td colSpan={8} className="py-2 px-3 text-right text-slate-400">
                         Total
                       </td>
-                      <td className="py-2 px-3 text-right font-mono border-r border-white/10 text-slate-200">
+                      <td className="py-2 px-3 text-right font-mono border-r border-teal-500/15 text-slate-200">
                         {BRL(totalGeral)}
                       </td>
                       {cotistas.map((c) => (
@@ -684,7 +684,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Tabela pivot */}
-              <div className="lg:col-span-2 overflow-x-auto rounded-2xl border border-white/10">
+              <div className="lg:col-span-2 overflow-x-auto rounded-2xl border border-teal-500/15">
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-white/[0.045] backdrop-blur text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -702,7 +702,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       return (
                         <tr
                           key={cat}
-                          className={i % 2 === 0 ? "bg-transparent" : "bg-white/[0.025]"}
+                          className={i % 2 === 0 ? "bg-transparent" : "bg-teal-500/[0.03]"}
                         >
                           <Td className="font-medium text-slate-300" upper>{cat}</Td>
                           {cotistas.map((c) => (
@@ -718,12 +718,12 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-white/[0.06] font-bold text-xs">
+                    <tr className="bg-teal-500/[0.08] font-bold text-xs">
                       <td className="py-2 px-3 text-slate-300 uppercase tracking-wider">
                         Total Geral
                       </td>
                       {cotistas.map((c) => (
-                        <td key={c.id} className="py-2 px-3 text-right font-mono text-sky-300">
+                        <td key={c.id} className="py-2 px-3 text-right font-mono text-teal-300">
                           {BRL(pivot.cotTot.get(c.id) ?? 0)}
                         </td>
                       ))}
@@ -736,7 +736,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               </div>
 
               {/* Barras por categoria × cotista */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4 flex flex-col gap-3">
+              <div className="rounded-2xl border border-teal-500/15 bg-teal-500/[0.03] backdrop-blur-xl p-4 flex flex-col gap-3">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Distribuição por Categoria
                 </p>
@@ -788,7 +788,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Matriz */}
-              <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <div className="overflow-x-auto rounded-2xl border border-teal-500/15">
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr>
@@ -815,7 +815,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     {saldos.map((row) => {
                       const credoresTotal = saldos.filter((s) => s.saldo > 0).reduce((t, s) => t + s.saldo, 0);
                       return (
-                        <tr key={row.id} className="hover:bg-white/[0.035] backdrop-blur-xl">
+                        <tr key={row.id} className="hover:bg-teal-500/[0.04] backdrop-blur-xl">
                           <td className="border border-white/[0.06] py-2 px-3 font-medium text-slate-300 bg-white/[0.02]">
                             {row.nome}
                           </td>
@@ -837,7 +837,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                                 key={col.id}
                                 className={`border border-white/[0.06] py-2 px-3 text-right font-mono ${
                                   val > 0.01
-                                    ? "text-blue-400 font-semibold bg-blue-500/5"
+                                    ? "text-teal-400 font-semibold bg-teal-500/5"
                                     : "text-slate-600"
                                 }`}
                               >
@@ -903,8 +903,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
             {/* KPIs globais da aeronave */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <KpiCard accent="cyan" label="Total Geral" value={BRL(totalGeral)}/>
-              <KpiCard accent="sky" label="Horas Voadas" value={hhMM(totalHorasAeronave)}/>
+              <KpiCard accent="teal" label="Total Geral" value={BRL(totalGeral)}/>
+              <KpiCard accent="teal" label="Horas Voadas" value={hhMM(totalHorasAeronave)}/>
               <KpiCard accent="indigo" label="Pousos" value={String(totalPousos)}/>
               <KpiCard accent="amber" label="Abastecimento" value={`${NUM(totalLitros, 0)} L`}/>
             </div>
@@ -912,8 +912,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             {/* Um card por cotista */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {resumoCotistas.map((c) => (
-                <div key={c.id} className="rounded-2xl border border-white/10 overflow-hidden">
-                  <div className="bg-white/[0.05] px-4 py-3 border-b border-white/10">
+                <div key={c.id} className="rounded-2xl border border-teal-500/15 overflow-hidden">
+                  <div className="bg-teal-500/[0.06] px-4 py-3 border-b border-teal-500/15">
                     <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 mb-0.5">Cotista</p>
                     <p className="font-semibold text-slate-100">{c.nome}</p>
                   </div>
@@ -974,27 +974,27 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             </p>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-              <KpiCard accent="cyan" label="Custo médio / mês" value={BRL(medias.custoMes)}/>
-              <KpiCard accent="sky" label="Custo médio / hora" value={BRL(medias.custoHora)}/>
+              <KpiCard accent="teal" label="Custo médio / mês" value={BRL(medias.custoMes)}/>
+              <KpiCard accent="teal" label="Custo médio / hora" value={BRL(medias.custoHora)}/>
               <KpiCard accent="indigo" label="Custo médio / pouso" value={BRL(medias.custoPouso)}/>
               <KpiCard accent="amber" label="Valor médio do litro" value={BRL(medias.valorLitro)}/>
-              <KpiCard accent="cyan" label="Litros / hora" value={`${NUM(medias.litrosHora, 1)} L`}/>
-              <KpiCard accent="sky" label="Horas / mês" value={hhMM(medias.horasMes)}/>
+              <KpiCard accent="teal" label="Litros / hora" value={`${NUM(medias.litrosHora, 1)} L`}/>
+              <KpiCard accent="teal" label="Horas / mês" value={hhMM(medias.horasMes)}/>
               <KpiCard accent="indigo" label="Voos / mês" value={NUM(medias.voosMes, 1)}/>
               <KpiCard accent="amber" label="Horas por voo" value={hhMM(medias.horasVoo)}/>
-              <KpiCard accent="cyan" label="Pousos / mês" value={NUM(medias.pousosMes, 1)}/>
-              <KpiCard accent="sky" label="Litros / mês" value={`${NUM(medias.litrosMes, 0)} L`}/>
+              <KpiCard accent="teal" label="Pousos / mês" value={NUM(medias.pousosMes, 1)}/>
+              <KpiCard accent="teal" label="Litros / mês" value={`${NUM(medias.litrosMes, 0)} L`}/>
             </div>
 
             {/* Composição fixo × variável */}
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+              <div className="rounded-2xl border border-teal-500/15 bg-white/[0.035] backdrop-blur-xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">
                   Composição do Custo
                 </p>
                 <div className="flex h-4 overflow-hidden rounded-full bg-white/[0.05]">
                   <div
-                    className="h-full bg-sky-500/70"
+                    className="h-full bg-teal-500/70"
                     style={{ width: `${baseCustos.total > 0 ? (baseCustos.fixo / baseCustos.total) * 100 : 0}%` }}
                     title={`Fixos: ${BRL(baseCustos.fixo)}`}
                   />
@@ -1011,7 +1011,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+              <div className="rounded-2xl border border-teal-500/15 bg-white/[0.035] backdrop-blur-xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">
                   Bases de Cálculo
                 </p>
@@ -1028,7 +1028,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               </div>
 
               {/* Médias por cotista */}
-              <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <div className="overflow-x-auto rounded-2xl border border-teal-500/15">
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-white/[0.045] backdrop-blur text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1040,11 +1040,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   </thead>
                   <tbody>
                     {resumoCotistas.map((c, i) => (
-                      <tr key={c.id} className={i % 2 === 0 ? "bg-transparent" : "bg-white/[0.025]"}>
+                      <tr key={c.id} className={i % 2 === 0 ? "bg-transparent" : "bg-teal-500/[0.03]"}>
                         <Td className="font-medium text-slate-300">{c.nome}</Td>
                         <Td mono right>{hhMM(c.horas)}</Td>
                         <Td mono right>{BRL(c.total)}</Td>
-                        <Td className="text-sky-300" mono right>{BRL(c.custoHora)}</Td>
+                        <Td className="text-teal-300" mono right>{BRL(c.custoHora)}</Td>
                       </tr>
                     ))}
                   </tbody>
@@ -1061,7 +1061,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             {ranking.length === 0 ? (
               <Vazio texto="Sem gastos registrados no período."/>
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl divide-y divide-white/[0.06]">
+              <div className="rounded-2xl border border-teal-500/15 bg-white/[0.035] backdrop-blur-xl divide-y divide-white/[0.06]">
                 {ranking.map((r, i) => (
                   <div key={r.nome} className="flex items-center gap-4 px-4 py-3">
                     <span className="w-8 shrink-0 text-[11px] font-bold text-slate-500">{i + 1}º</span>
@@ -1071,7 +1071,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     <span className="w-28 text-right font-mono text-xs text-slate-100">
                       {BRL(r.valor)}
                     </span>
-                    <span className="w-14 shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-center text-[10px] font-semibold text-sky-300">
+                    <span className="w-14 shrink-0 rounded-full bg-teal-500/[0.1] px-2 py-0.5 text-center text-[10px] font-semibold text-teal-300">
                       {NUM(r.pct, 0)}%
                     </span>
                     <div className="hidden h-1.5 w-40 shrink-0 overflow-hidden rounded-full bg-white/[0.07] sm:block">
@@ -1097,11 +1097,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 {/* Explicação + taxa de projeção */}
                 <div className="lg:col-span-2 space-y-4">
-                  <div className="rounded-2xl border border-sky-400/20 bg-sky-400/[0.06] p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-sky-300/70 mb-1">
+                  <div className="rounded-2xl border border-teal-400/20 bg-teal-400/[0.06] p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-teal-300/70 mb-1">
                       Taxa de projeção
                     </p>
-                    <p className="font-mono text-2xl font-bold text-sky-200">
+                    <p className="font-mono text-2xl font-bold text-teal-200">
                       {BRL(projecao.taxaProjecao)}
                     </p>
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
@@ -1110,7 +1110,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4 text-[11px] leading-relaxed text-slate-400 space-y-2">
+                  <div className="rounded-2xl border border-teal-500/15 bg-white/[0.035] backdrop-blur-xl p-4 text-[11px] leading-relaxed text-slate-400 space-y-2">
                     <p className="text-[10px] uppercase tracking-widest text-slate-500">Como ler a tabela</p>
                     <p>
                       <strong className="text-slate-300">Custo comb./variável:</strong> valor que se repete
@@ -1136,7 +1136,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   </div>
 
                   {/* Curva do índice */}
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+                  <div className="rounded-2xl border border-teal-500/15 bg-white/[0.035] backdrop-blur-xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-3">
                       Curva do custo por hora
                     </p>
@@ -1149,7 +1149,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                           className={`flex-1 rounded-t-sm ${
                             projecao.pontoOtimo && l.horas === projecao.pontoOtimo.horas
                               ? "bg-emerald-400"
-                              : "bg-sky-500/70/60"
+                              : "bg-teal-500/60"
                           }`}
                         />
                       ))}
@@ -1161,7 +1161,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 </div>
 
                 {/* Tabela de projeção */}
-                <div className="lg:col-span-3 max-h-[520px] overflow-auto rounded-2xl border border-white/10">
+                <div className="lg:col-span-3 max-h-[520px] overflow-auto rounded-2xl border border-teal-500/15">
                   <table className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-white/[0.045] backdrop-blur text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1185,13 +1185,13 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                                 ? "bg-emerald-500/10"
                                 : i % 2 === 0
                                 ? "bg-transparent"
-                                : "bg-white/[0.025]"
+                                : "bg-teal-500/[0.03]"
                             }
                           >
                             <Td className="font-semibold text-slate-300" mono right>{l.horas}</Td>
                             <Td dim mono right>{BRL(l.custoVariavel)}</Td>
                             <Td dim mono right>{BRL(l.custoFixoHora)}</Td>
-                            <Td className="text-sky-300 font-medium" mono right>{BRL(l.custoHora)}</Td>
+                            <Td className="text-teal-300 font-medium" mono right>{BRL(l.custoHora)}</Td>
                             <Td mono right>{BRL(l.custoTotal)}</Td>
                             <Td className="text-amber-400" mono right>{NUM(l.indice, 2)}</Td>
                           </tr>
@@ -1214,7 +1214,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             {!data?.voos || data.voos.length === 0 ? (
               <Vazio texto="Nenhum voo registrado neste período."/>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <div className="overflow-x-auto rounded-2xl border border-teal-500/15">
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-white/[0.045] backdrop-blur text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1235,8 +1235,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                         key={v.id}
                         className={
                           i % 2 === 0
-                            ? "bg-transparent hover:bg-white/[0.04]"
-                            : "bg-white/[0.02] hover:bg-white/[0.025]"
+                            ? "bg-transparent hover:bg-teal-500/[0.04]"
+                            : "bg-teal-500/[0.02] hover:bg-teal-500/[0.03]"
                         }
                       >
                         <Td mono>{fmtDate(v.data_registro)}</Td>
@@ -1254,7 +1254,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                         </Td>
                         <Td dim upper>{v.natureza_voo || "—"}</Td>
                         <Td>
-                          <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] text-slate-300">
+                          <span className="rounded-full border border-teal-500/20 bg-teal-500/[0.06] px-2 py-0.5 text-[10px] text-slate-300">
                             {v.socios_nome || "—"}
                           </span>
                         </Td>
@@ -1262,11 +1262,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-white/[0.06] text-[10px] font-bold text-slate-300">
+                    <tr className="bg-teal-500/[0.08] text-[10px] font-bold text-slate-300">
                       <td colSpan={4} className="py-2 px-3 text-right uppercase tracking-wider text-slate-500">
                         Total
                       </td>
-                      <td className="py-2 px-3 text-right font-mono text-sky-300">
+                      <td className="py-2 px-3 text-right font-mono text-teal-300">
                         {hhMM(totalHorasAeronave)}
                       </td>
                       <td className="py-2 px-3 text-right font-mono text-slate-200">
@@ -1304,7 +1304,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BAR_COLORS = [
-  "bg-sky-500/70",
+  "bg-teal-500/70",
   "bg-amber-500/70",
   "bg-emerald-500/70",
   "bg-violet-500/70",
@@ -1332,7 +1332,7 @@ function BottomNav() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] print:hidden">
-      <nav className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.07] px-1.5 py-1.5 shadow-[0_8px_28px_-14px_rgba(0,0,0,0.6)] backdrop-blur-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-teal-500/15 bg-white/[0.07] px-1.5 py-1.5 shadow-[0_8px_28px_-14px_rgba(0,0,0,0.6)] backdrop-blur-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {SECOES.map((s, i) => {
           const n = i + 1;
           const on = ativo === n;
@@ -1343,7 +1343,7 @@ function BottomNav() {
               className={[
                 "shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-medium transition-all duration-300 active:scale-[0.96]",
                 on
-                  ? "bg-white/[0.14] text-slate-50 shadow-sm"
+                  ? "bg-teal-500/[0.18] text-teal-100 shadow-sm"
                   : "text-slate-400 hover:bg-white/[0.07] hover:text-slate-200",
               ].join(" ")}
             >
@@ -1359,13 +1359,13 @@ function BottomNav() {
 function TituloSecao({ numero, titulo }: { numero: number; titulo: string }) {
   return (
     <div className="mb-4 flex items-center gap-3 print:mb-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[11px] font-semibold text-slate-300">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-teal-500/20 bg-teal-500/[0.08] text-[11px] font-semibold text-teal-300">
         {numero}
       </div>
       <h2 className="text-[13px] font-semibold tracking-tight text-slate-100 sm:text-[15px]">
         {titulo}
       </h2>
-      <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+      <div className="h-px flex-1 bg-gradient-to-r from-teal-500/20 to-transparent" />
     </div>
   );
 }
@@ -1380,13 +1380,12 @@ function Vazio({ texto }: { texto: string }) {
 
 function KpiCard({ label, value, accent }: { label: string; value: string; accent: string }) {
   const colors: Record<string, string> = {
-    cyan: "text-slate-100",
-    sky: "text-sky-200",
+    teal: "text-teal-200",
     indigo: "text-indigo-200",
     amber: "text-amber-200",
   };
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl transition-all duration-300 hover:bg-white/[0.06]">
+    <div className="rounded-2xl border border-teal-500/15 bg-white/[0.04] p-4 backdrop-blur-xl transition-all duration-300 hover:bg-teal-500/[0.06]">
       <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className={`font-mono text-lg font-semibold tracking-tight sm:text-xl ${colors[accent] ?? "text-slate-100"}`}>
         {value}
