@@ -24,9 +24,12 @@ interface StatusHistory {
   status_anterior: string | null;
   status_novo: string;
   alterado_por: string | null;
-  alterado_em: string;
+  /** coluna real da tabela: atualizado_em */
+  atualizado_em: string | null;
   observacao: string | null;
 }
+
+
 
 // Mapeamento dos status reais configurados no banco de dados
 function statusLabel(status: string, voo?: Solicitacao) {
@@ -55,16 +58,17 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
 
   const { data: history = [], isLoading: historyLoading } = useQuery<StatusHistory[]>({
     queryKey: ["historico-status", voo?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<StatusHistory[]> => {
       const { data, error } = await supabase
         .from("historico_status_solicitacao")
-        .select("status_anterior, status_novo, alterado_por, alterado_em, observacao")
+        .select("status_anterior, status_novo, alterado_por, atualizado_em, observacao")
         .eq("solicitacao_id", voo!.id)
-        .order("alterado_em", { ascending: false });
+        .order("atualizado_em", { ascending: false });
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as StatusHistory[];
     },
+
     enabled: !!voo?.id && open,
   });
 
@@ -174,7 +178,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
                 {history.map((item, index) => (
                   <div key={index} className="rounded-lg bg-background/50 p-3 border border-border">
                     <div className="flex flex-col gap-1 text-[11px] uppercase text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                      <span>{format(parseISO(item.alterado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                      <span>{item.atualizado_em ? format(parseISO(item.atualizado_em), "dd/MM/yyyy", { locale: ptBR }) : "—"}</span>
                       <span className="break-all sm:text-right">{item.alterado_por ?? "Sistema"}</span>
                     </div>
                     <p className="mt-1 text-sm text-foreground">

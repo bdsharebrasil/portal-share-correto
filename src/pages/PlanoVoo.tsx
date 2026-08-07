@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plane, Shield, FileText, CloudRain, AlertTriangle, Download, Loader2, XCircle, AlertCircle, Info, Radio, CheckCircle, Clock, Fuel, MapPin, Save, Navigation, Route, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Plane, Shield, FileText, CloudRain, AlertTriangle, Download, Loader2, XCircle, AlertCircle, Info, Radio, CheckCircle, Clock, Fuel, MapPin, Save, Navigation, Route, CheckCircle2, ChevronRight, PanelLeftOpen } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAerodromes } from '@/hooks/useAerodromes';
 import { useAeronaves } from '@/hooks/useAeronaves';
@@ -291,12 +291,25 @@ export default function PlanoVooPage() {
               onCalculate={handleCalculate}
               isCalculating={isValidating}
               crewMembers={crewMembers}
+              onCollapse={toggleSidebar}
             />
           )}
         </div>
 
         {/* Map */}
         <div className="flex-1 relative">
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="absolute top-4 left-4 z-[1200] flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card/95 backdrop-blur-md shadow-lg text-xs font-bold text-foreground hover:bg-muted"
+              title="Reabrir plano de voo"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-primary" />
+              Plano de voo
+            </button>
+          )}
+
           <SkyVectorMap
             waypoints={routePoints}
             legs={legCalcs.legs}

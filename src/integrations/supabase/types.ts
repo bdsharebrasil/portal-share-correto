@@ -5919,8 +5919,8 @@ export type Database = {
       }
       historico_status_solicitacao: {
         Row: {
-          alterado_em: string | null
           alterado_por: string | null
+          atualizado_em: string | null
           id: string
           observacao: string | null
           solicitacao_id: string
@@ -5928,8 +5928,8 @@ export type Database = {
           status_novo: string
         }
         Insert: {
-          alterado_em?: string | null
           alterado_por?: string | null
+          atualizado_em?: string | null
           id?: string
           observacao?: string | null
           solicitacao_id: string
@@ -5937,8 +5937,8 @@ export type Database = {
           status_novo: string
         }
         Update: {
-          alterado_em?: string | null
           alterado_por?: string | null
+          atualizado_em?: string | null
           id?: string
           observacao?: string | null
           solicitacao_id?: string

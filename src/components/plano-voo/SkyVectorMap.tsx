@@ -3,8 +3,11 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, LayersControl
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink } from 'lucide-react';
+import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Map as MapIcon } from 'lucide-react';
 import { WeatherPanel } from './WeatherPanel';
+import { FloatingPanel } from './FloatingPanel';
+import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProjectionOverlay';
+import { DECEA_WMS_URL, WAC_LAYERS, REA_LAYERS, ARC_LAYERS, CNAV_LAYERS, AIRSPACE_LAYERS } from './deceaLayers';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService'; 
 import type { AISWebMETARData } from '@/services/aiswebWeather';
 import type { RoutePoint } from './FlightRouteMap';
@@ -18,8 +21,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Camada aeronáutica vem do geoserver da DECEA (mesmo órgão da AISWEB)
-const DECEA_WMS_URL = 'https://geoaisweb.decea.mil.br/geoserver/ICA/wms';
 
 interface LegCalc {
   from: string;
@@ -130,50 +131,42 @@ const CHART_TYPE_LABEL: Record<ChartData['type'], string> = {
   AIRPORT: 'Aeródromo',
 };
 
-const ChartsPanel: React.FC<{ icao: string; label: string; charts: ChartData[]; loading: boolean; error: string | null }> = ({
-  icao, label, charts, loading, error,
-}) => {
-  if (loading) {
-    return (
-      <Card className="p-2 bg-card/95 backdrop-blur-sm border-border text-xs text-muted-foreground">
-        Carregando cartas de {icao}...
-      </Card>
-    );
-  }
-  if (error) {
-    return (
-      <Card className="p-2 bg-card/95 backdrop-blur-sm border-border text-xs text-destructive">
-        Erro ao buscar cartas de {icao}: {error}
-      </Card>
-    );
-  }
-  if (charts.length === 0) return null;
+const ChartsList: React.FC<{
+  icao: string;
+  charts: ChartData[];
+  loading: boolean;
+  error: string | null;
+  onProject: (chart: ChartProjectionItem) => void;
+}> = ({ icao, charts, loading, error, onProject }) => {
+  if (loading) return <div className="text-xs text-muted-foreground">Carregando cartas de {icao}...</div>;
+  if (error) return <div className="text-xs text-destructive">Erro ao buscar cartas de {icao}: {error}</div>;
+  if (charts.length === 0) return <div className="text-xs text-muted-foreground">Nenhuma carta encontrada para {icao}.</div>;
 
   return (
-    <Card className="p-2 bg-card/95 backdrop-blur-sm border-border max-w-[220px]">
-      <div className="text-[10px] uppercase text-muted-foreground font-bold mb-1 flex items-center gap-1">
-        <FileText className="w-3 h-3" /> Cartas {label} ({icao})
-      </div>
-      <div className="space-y-1 max-h-32 overflow-y-auto">
-        {charts.map((chart, i) => (
-          <a
-            key={i}
-            href={chart.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center justify-between text-[11px] gap-1 ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground pointer-events-none'}`}
+    <div className="space-y-1">
+      {charts.map((chart, i) => (
+        <div key={i} className="flex items-center justify-between gap-1 text-[11px]">
+          <button
+            type="button"
+            disabled={!chart.url}
+            onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url })}
+            className={`flex-1 text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`}
+            title="Projetar carta sobre o mapa"
           >
-            <span className="truncate">
-              <span className="font-mono text-[9px] opacity-70 mr-1">[{CHART_TYPE_LABEL[chart.type]}]</span>
-              {chart.title}
-            </span>
-            {chart.url && <ExternalLink className="w-3 h-3 shrink-0" />}
-          </a>
-        ))}
-      </div>
-    </Card>
+            <span className="font-mono text-[9px] opacity-70 mr-1">[{CHART_TYPE_LABEL[chart.type]}]</span>
+            {chart.title}
+          </button>
+          {chart.url && (
+            <a href={chart.url} target="_blank" rel="noopener noreferrer" title="Abrir em nova aba">
+              <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground hover:text-foreground" />
+            </a>
+          )}
+        </div>
+      ))}
+    </div>
   );
 };
+
 
 const MapContainerAny = MapContainer as any;
 const TileLayerAny = TileLayer as any;
@@ -190,6 +183,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
 }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState(0);
+  const [projectedChart, setProjectedChart] = useState<ChartProjectionItem | null>(null);
+
 
   const routePositions = useMemo(() => {
     return waypoints.filter(w => w.type !== 'alternate').map(w => [w.lat, w.lng] as [number, number]);
@@ -258,13 +253,23 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             <TileLayerAny url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" />
           </LayersControl.BaseLayer>
 
-          <LayersControl.Overlay checked name="Carta WAC (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers="ICA:cartas_wac" format="image/png" transparent version="1.1.1" attribution="© DECEA" zIndex={1000} />
+          <LayersControl.Overlay name="Cartas WAC (DECEA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={WAC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={400} />
           </LayersControl.Overlay>
-          <LayersControl.Overlay name="Corredores REA (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers="ICA:cartas_rea" format="image/png" transparent version="1.1.1" attribution="© DECEA" zIndex={1000} />
+          <LayersControl.Overlay name="Corredores Visuais / REA (DECEA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={REA_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={401} />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Cartas de Área ARC (DECEA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={ARC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={402} />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Cartas de Navegação CNAV (DECEA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={CNAV_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={403} />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Espaço aéreo (CTR/CTA/ATZ/TMA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} />
           </LayersControl.Overlay>
         </LayersControl>
+
 
         {hasRoute && <FitBounds waypoints={waypoints} />}
 
@@ -316,20 +321,54 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-[1000] space-y-2 max-w-xs">
-        {departure && (
-          <>
+      {/* Painéis flutuantes arrastáveis (recolhidos em ícones) */}
+      {departure && (
+        <>
+          <FloatingPanel
+            id={`wx-dep`}
+            title={`METAR ${departure.icao}`}
+            icon={<CloudSun className="w-5 h-5 text-green-400" />}
+            defaultPosition={{ x: 16, y: 16 }}
+          >
             <WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} />
-            <ChartsPanel icao={departure.icao} label="Partida" {...departureCharts} />
-          </>
-        )}
-        {arrival && (
-          <>
+          </FloatingPanel>
+          <FloatingPanel
+            id={`charts-dep`}
+            title={`Cartas ${departure.icao}`}
+            icon={<FileText className="w-5 h-5 text-green-400" />}
+            defaultPosition={{ x: 16, y: 76 }}
+            width={280}
+          >
+            <ChartsList icao={departure.icao} {...departureCharts} onProject={setProjectedChart} />
+          </FloatingPanel>
+        </>
+      )}
+      {arrival && (
+        <>
+          <FloatingPanel
+            id={`wx-arr`}
+            title={`METAR ${arrival.icao}`}
+            icon={<CloudSun className="w-5 h-5 text-red-400" />}
+            defaultPosition={{ x: 76, y: 16 }}
+          >
             <WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} />
-            <ChartsPanel icao={arrival.icao} label="Destino" {...arrivalCharts} />
-          </>
-        )}
-      </div>
+          </FloatingPanel>
+          <FloatingPanel
+            id={`charts-arr`}
+            title={`Cartas ${arrival.icao}`}
+            icon={<FileText className="w-5 h-5 text-red-400" />}
+            defaultPosition={{ x: 76, y: 76 }}
+            width={280}
+          >
+            <ChartsList icao={arrival.icao} {...arrivalCharts} onProject={setProjectedChart} />
+          </FloatingPanel>
+        </>
+      )}
+
+      {projectedChart && (
+        <ChartProjectionOverlay chart={projectedChart} onClose={() => setProjectedChart(null)} />
+      )}
+
 
       {legs.length > 0 && (
         <div className="absolute bottom-4 right-4 z-[1000]">
