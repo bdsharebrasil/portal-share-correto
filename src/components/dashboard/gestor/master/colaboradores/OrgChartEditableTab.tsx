@@ -243,9 +243,10 @@ export function OrgChartEditableTab() {
       )}
 
       {/* Estrutura visual do organograma */}
-      <div className="flex flex-col items-center gap-8">
+      <div className="flex min-w-0 flex-col items-center gap-8">
         {/* Empresa no topo */}
-        <Card className="w-64 bg-primary text-primary-foreground">
+        <Card className="w-full max-w-[16rem] bg-primary text-primary-foreground">
+
           <CardContent className="py-4 text-center">
             <Building2 className="h-8 w-8 mx-auto mb-2" />
             <h3 className="font-bold text-lg">Share Brasil</h3>
@@ -259,16 +260,17 @@ export function OrgChartEditableTab() {
         )}
 
         {/* Departamentos */}
-        <div className="flex flex-wrap justify-center gap-6">
+        <div className="flex w-full flex-wrap justify-center gap-6">
           {departamentos?.map((dept, index) => (
-            <div key={dept.id} className="flex flex-col items-center">
+            <div key={dept.id} className="flex w-full max-w-[14rem] flex-col items-center sm:w-56">
               {/* Linha horizontal para conectar */}
               {index === 0 && departamentos.length > 1 && (
                 <div className="absolute top-0 left-1/2 w-full h-0.5 bg-border -translate-y-8"></div>
               )}
 
               <Card
-                className="w-56 relative"
+                className="relative w-full"
+
                 style={{
                   borderTopColor: dept.cor || "#6366f1",
                   borderTopWidth: "4px",
