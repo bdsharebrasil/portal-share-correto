@@ -7,7 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ClienteCard } from "@/components/clientes/ClienteCard";
-import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder, Grid3x3, List, Trash2 } from "lucide-react";
+import {
+  Plus, Search, Building2, FileText, X, ImageIcon, ChevronLeft, Pencil,
+  Phone, Mail, MapPin, Folder, LayoutGrid, List, Trash2, Users, Wallet,
+  IdCard, Plane, ClipboardList, RefreshCw, AlertTriangle, Loader2, Percent
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,7 +19,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
+// ---------------------------------------------------------------------------
+// Design tokens — palette: slate ink/surfaces, cyan→blue signature accent,
+// emerald (ativo) / amber (inativo) / rose (destrutivo). Radius: lg for
+// controls, xl for panels, 2xl reserved for the profile hero only.
+// ---------------------------------------------------------------------------
+const FIELD =
+  "bg-slate-950/60 border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 " +
+  "focus-visible:border-cyan-500/60 focus-visible:ring-1 focus-visible:ring-cyan-500/30 transition-colors";
+const PANEL = "bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 sm:p-6 space-y-4";
+const LABEL = "text-slate-300 font-medium mb-2 block text-sm";
+const EYEBROW = "flex items-center gap-2 mb-1";
+const AVATAR_FALLBACK =
+  "bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-white font-semibold";
 
 interface ClientDocument {
   nome: string;
@@ -51,7 +68,7 @@ interface Cliente {
   status?: string | null;
   tem_socio?: boolean;
   codigo_cliente?: string | null;
-  partners?: Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>;
+  partners?: Array<{ nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string }>;
 }
 
 interface AeronaveOpcao {
@@ -120,6 +137,9 @@ const emptyFormData: FormData = {
   codigo_cliente: null
 };
 
+const initials = (name: string) =>
+  (name || '').split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
 export default function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -153,7 +173,7 @@ export default function Clientes() {
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
   const [loadingAircraft, setLoadingAircraft] = useState(false);
   const [hasPartner, setHasPartner] = useState(false);
-  const [partners, setPartners] = useState<Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>>([]);
+  const [partners, setPartners] = useState<Array<{ nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string }>>([]);
 
   useEffect(() => {
     loadClientes();
@@ -175,7 +195,7 @@ export default function Clientes() {
       const clientIds = rows.map(r => r.id).filter(Boolean);
 
       let clientAircraftMap: Record<string, AeronavePropriedade[]> = {};
-      let clientPartnersMap: Record<string, Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>> = {};
+      let clientPartnersMap: Record<string, Array<{ nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string }>> = {};
 
       if (clientIds.length > 0) {
         const { data: clientAircraftData, error: caError } = await supabase
@@ -328,12 +348,12 @@ export default function Clientes() {
 
   const getTotalOwnershipColor = () => {
     const total = calculateTotalOwnership();
-    if (total === 100) return 'text-green-400';
-    if (total > 100) return 'text-red-400';
-    return 'text-yellow-400';
+    if (total === 100) return 'text-emerald-400';
+    if (total > 100) return 'text-rose-400';
+    return 'text-amber-400';
   };
 
-  const addPartner = () => setPartners([...partners, {nome: "", cpf: "", percentual_participacao: 0, codigo_cliente: ""}]);
+  const addPartner = () => setPartners([...partners, { nome: "", cpf: "", percentual_participacao: 0, codigo_cliente: "" }]);
   const removePartner = (index: number) => setPartners(partners.filter((_, i) => i !== index));
   const updatePartner = (index: number, field: string, value: any) => {
     const updated = [...partners];
@@ -573,202 +593,223 @@ export default function Clientes() {
   const activeClientes = filteredClientes.filter(c => isActive(c.status));
   const inactiveClientes = filteredClientes.filter(c => !isActive(c.status));
 
-  return (
-    <>
-      {!viewingCliente && <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Clientes / Cotistas</h1>
-            <p className="text-muted-foreground mt-1">Gerencie o cadastro de clientes e cotistas</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex border border-border rounded-lg p-1">
-              <Button onClick={() => handleViewModeChange('card')} variant={viewMode === 'card' ? 'default' : 'ghost'} size="sm" className="h-9 w-9 p-0" title="Cards">
-                <Grid3x3 className="h-4 w-4" />
-              </Button>
-              <Button onClick={() => handleViewModeChange('list')} variant={viewMode === 'list' ? 'default' : 'ghost'} size="sm" className="h-9 w-9 p-0" title="Lista">
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md rounded-lg px-[4px] bg-teal-700 hover:bg-teal-600">
-              <Plus className="h-4 w-4" />
-              Novo Cadastro
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card onClick={() => setShowInactive(false)} className={`cursor-pointer transition-all duration-200 hover:shadow-md ${!showInactive ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/50'}`}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Building className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-foreground">{activeClientes.length}</p>
-                  <p className="text-sm text-muted-foreground">Clientes Ativos</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card onClick={() => setShowInactive(true)} className={`cursor-pointer transition-all duration-200 hover:shadow-md ${showInactive ? 'ring-2 ring-muted-foreground/50 shadow-md' : 'hover:border-muted-foreground/30'}`}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-orange-900">
-                  <Folder className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-foreground text-orange-400">{inactiveClientes.length}</p>
-                  <p className="text-sm text-muted-foreground">Clientes Inativos</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, CNPJ ou cidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-11" />
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-muted-foreground text-sm">Carregando clientes...</p>
-            </div>
-          </div>
-        ) : filteredClientes.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Building className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum cliente cadastrado</h3>
-              <p className="text-muted-foreground text-sm mb-4">Comece adicionando seu primeiro cliente</p>
-              <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Cadastrar Cliente
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {!showInactive && activeClientes.length > 0 && viewMode === 'card' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
-              </div>
-            )}
-            {!showInactive && activeClientes.length > 0 && viewMode === 'list' && (
-              <div className="space-y-2 border border-border rounded-lg divide-y divide-border">
-                {activeClientes.map(cliente => (
-                  <button key={cliente.id} onClick={() => handleViewCliente(cliente)} className="w-full p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors text-left group">
-                    <Avatar className="h-10 w-10 flex-shrink-0">
-                      {cliente.url_logo && <AvatarImage src={cliente.url_logo} alt={cliente.razao_social} className="object-contain" />}
-                      <AvatarFallback className="bg-white text-primary font-bold text-xs">
-                        {cliente.razao_social.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{cliente.razao_social}</h3>
-                      {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {cliente.aeronave_ownerships.map((ownership, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5">{ownership.aircraft_registration}</Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {showInactive && inactiveClientes.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Folder className="h-5 w-5 text-muted-foreground" />
-                  <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
-                  <Badge variant="secondary">{inactiveClientes.length}</Badge>
-                </div>
-                {viewMode === 'card' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
-                  </div>
-                )}
-                {viewMode === 'list' && (
-                  <div className="space-y-2 border border-border rounded-lg divide-y divide-border">
-                    {inactiveClientes.map(cliente => (
-                      <button key={cliente.id} onClick={() => handleViewCliente(cliente)} className="w-full p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors text-left group">
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          {cliente.url_logo && <AvatarImage src={cliente.url_logo} alt={cliente.razao_social} className="object-contain" />}
-                          <AvatarFallback className="bg-white text-primary font-bold text-xs">
-                            {cliente.razao_social.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{cliente.razao_social}</h3>
-                          {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {cliente.aeronave_ownerships.map((ownership, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5">{ownership.aircraft_registration}</Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {showInactive && inactiveClientes.length === 0 && (
-              <Card className="border-dashed">
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">Nenhum cliente inativo</p>
-                </CardContent>
-              </Card>
-            )}
+  // Compact row used by the "Lista" view — kept local since it's reused for
+  // both the active and inactive segments below.
+  const ClienteRow = ({ cliente }: { cliente: Cliente }) => (
+    <button
+      onClick={() => handleViewCliente(cliente)}
+      className="w-full p-4 flex items-center gap-4 hover:bg-slate-800/60 transition-colors text-left group first:rounded-t-xl last:rounded-b-xl"
+    >
+      <Avatar className="h-10 w-10 flex-shrink-0 ring-1 ring-slate-700/60">
+        {cliente.url_logo && <AvatarImage src={cliente.url_logo} alt={cliente.razao_social} className="object-contain" />}
+        <AvatarFallback className={`${AVATAR_FALLBACK} text-xs`}>{initials(cliente.razao_social)}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate">{cliente.razao_social}</h3>
+        {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {cliente.aeronave_ownerships.map((ownership, idx) => (
+              <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-slate-800 text-slate-300 border border-slate-700/60 rounded-md">
+                {ownership.aircraft_registration}
+              </Badge>
+            ))}
           </div>
         )}
-      </div>}
+      </div>
+      <ChevronLeft className="h-4 w-4 rotate-180 text-slate-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+    </button>
+  );
+
+  return (
+    <>
+      {!viewingCliente && (
+        <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-50 tracking-tight">Clientes &amp; Cotistas</h1>
+              <p className="text-slate-400 mt-1 text-sm sm:text-base">Gerencie o cadastro de clientes e cotistas</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex border border-slate-800 bg-slate-900/60 rounded-lg p-1">
+                <Button
+                  onClick={() => handleViewModeChange('card')}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-9 w-9 p-0 rounded-md ${viewMode === 'card' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
+                  title="Cards"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => handleViewModeChange('list')}
+                  variant="ghost"
+                  size="sm"
+                  className={`h-9 w-9 p-0 rounded-md ${viewMode === 'list' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
+                  title="Lista"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+              <Button
+                onClick={() => handleOpenDialog()}
+                size="lg"
+                className="gap-2 rounded-lg px-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/10 border-0"
+              >
+                <Plus className="h-4 w-4" />
+                Novo Cadastro
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card
+              onClick={() => setShowInactive(false)}
+              className={`cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${!showInactive ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-6 w-6 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-50">{activeClientes.length}</p>
+                    <p className="text-sm text-slate-400">Clientes Ativos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card
+              onClick={() => setShowInactive(true)}
+              className={`cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${showInactive ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                    <Folder className="h-6 w-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-50">{inactiveClientes.length}</p>
+                    <p className="text-sm text-slate-400">Clientes Inativos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Input
+              placeholder="Buscar por nome, CNPJ ou e-mail..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className={`${FIELD} pl-10 h-11`}
+            />
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-7 w-7 text-cyan-400 animate-spin" />
+                <p className="text-slate-400 text-sm">Carregando clientes...</p>
+              </div>
+            </div>
+          ) : filteredClientes.length === 0 ? (
+            <Card className="border-dashed border-slate-800 bg-slate-900/30 rounded-xl">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="h-16 w-16 rounded-xl bg-slate-800/70 flex items-center justify-center mb-4">
+                  <Building2 className="h-8 w-8 text-slate-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-100 mb-1">Nenhum cliente cadastrado</h3>
+                <p className="text-slate-400 text-sm mb-4">Comece adicionando seu primeiro cliente</p>
+                <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2 rounded-lg bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-slate-100">
+                  <Plus className="h-4 w-4" />
+                  Cadastrar Cliente
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {!showInactive && activeClientes.length > 0 && viewMode === 'card' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
+                </div>
+              )}
+              {!showInactive && activeClientes.length > 0 && viewMode === 'list' && (
+                <div className="border border-slate-800/80 bg-slate-900/40 rounded-xl divide-y divide-slate-800/80 overflow-hidden">
+                  {activeClientes.map(cliente => <ClienteRow key={cliente.id} cliente={cliente} />)}
+                </div>
+              )}
+
+              {showInactive && inactiveClientes.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Folder className="h-5 w-5 text-slate-500" />
+                    <h2 className="text-lg font-semibold text-slate-100">Clientes Inativos</h2>
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-300 border border-slate-700/60 rounded-md">{inactiveClientes.length}</Badge>
+                  </div>
+                  {viewMode === 'card' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
+                    </div>
+                  )}
+                  {viewMode === 'list' && (
+                    <div className="border border-slate-800/80 bg-slate-900/40 rounded-xl divide-y divide-slate-800/80 overflow-hidden">
+                      {inactiveClientes.map(cliente => <ClienteRow key={cliente.id} cliente={cliente} />)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showInactive && inactiveClientes.length === 0 && (
+                <Card className="border-dashed border-slate-800 bg-slate-900/30 rounded-xl">
+                  <CardContent className="py-12 text-center">
+                    <p className="text-slate-400">Nenhum cliente inativo</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Perfil do Cliente */}
       {viewingCliente && (
-        <div className="p-6 space-y-6 max-w-5xl mx-auto">
-          <Button variant="ghost" onClick={handleCloseView} className="gap-2 text-muted-foreground hover:text-foreground -ml-2 text-slate-100">
+        <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
+          <Button variant="ghost" onClick={handleCloseView} className="gap-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 -ml-2 rounded-lg">
             <ChevronLeft className="h-4 w-4" />
             Voltar para Clientes
           </Button>
 
-          <Card className="overflow-hidden border-0 shadow-lg">
-            <div className="relative">
+          <Card className="overflow-hidden border border-slate-800/80 shadow-xl rounded-2xl">
+            <div className="relative bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent" />
-              <CardContent className="relative p-6 sm:p-8 shadow-sm rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700">
+              <CardContent className="relative p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
-                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-cyan-400/50 shadow-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-cyan-400/30 shadow-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
                       {viewingCliente.url_logo && <AvatarImage src={viewingCliente.url_logo} alt={viewingCliente.razao_social} className="object-contain p-2" />}
-                      <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white text-2xl font-bold">
-                        {viewingCliente.razao_social.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
-                      </AvatarFallback>
+                      <AvatarFallback className={`${AVATAR_FALLBACK} text-2xl`}>{initials(viewingCliente.razao_social)}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{viewingCliente.razao_social}</h1>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/40 px-[6px] rounded-md font-semibold">✓ ativo</Badge>
-                        <Badge variant="outline" className="font-mono text-xs shadow-xl bg-slate-800/50 border-slate-600 rounded-lg text-slate-300">{viewingCliente.cnpj}</Badge>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-slate-50 tracking-tight">{viewingCliente.razao_social}</h1>
+                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                        <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-md font-medium">
+                          Ativo
+                        </Badge>
+                        <Badge variant="outline" className="font-mono text-xs bg-slate-800/60 border-slate-700 rounded-md text-slate-300">{viewingCliente.cnpj}</Badge>
                         {viewingCliente.codigo_cliente && (
-                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/40 px-[6px] rounded-md font-semibold font-mono text-xs">
+                          <Badge className="bg-blue-500/15 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-md font-mono text-xs">
                             {viewingCliente.codigo_cliente}
                           </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                  <Button onClick={() => handleOpenDialog(viewingCliente)} className="gap-2 shadow-md bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white">
-                    <Edit className="h-4 w-4" />
+                  <Button
+                    onClick={() => handleOpenDialog(viewingCliente)}
+                    className="gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/10 border-0 w-full sm:w-auto"
+                  >
+                    <Pencil className="h-4 w-4" />
                     Editar
                   </Button>
                 </div>
@@ -777,45 +818,77 @@ export default function Clientes() {
           </Card>
 
           {(viewingCliente.telefone || viewingCliente.email || viewingCliente.endereco || viewingCliente.cidade || viewingCliente.uf || viewingCliente.contato_financeiro) && (
-            <Card>
+            <Card className="bg-slate-900/50 border border-slate-800/80 rounded-xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center"><Phone className="h-4 w-4 text-primary" /></div>
+                <CardTitle className="text-base font-semibold flex items-center gap-3 text-slate-100">
+                  <div className="h-9 w-9 rounded-lg bg-cyan-500/10 flex items-center justify-center"><Phone className="h-4 w-4 text-cyan-400" /></div>
                   Informações de Contato
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {viewingCliente.telefone && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Phone className="h-3 w-3" />Telefone</p><p className="text-sm font-medium text-foreground">{viewingCliente.telefone}</p></div>}
-                  {(viewingCliente.email || (viewingCliente.emails || []).length > 0) && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Mail className="h-3 w-3" />E-mail</p>{Array.from(new Set([viewingCliente.email, ...(viewingCliente.emails || [])].filter(Boolean) as string[])).map((mail) => (<p key={mail} className="text-sm font-medium text-foreground break-all">{mail}</p>))}</div>}
-                  {(viewingCliente.endereco || viewingCliente.cidade || viewingCliente.uf) && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><MapPin className="h-3 w-3" />Endereço</p><p className="text-sm font-medium text-foreground">{[viewingCliente.endereco, [viewingCliente.cidade, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}</p></div>}
-                  {viewingCliente.contato_financeiro && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Building className="h-3 w-3" />Contato Financeiro</p><p className="text-sm font-medium text-foreground">{viewingCliente.contato_financeiro}</p></div>}
+                  {viewingCliente.telefone && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><Phone className="h-3 w-3" />Telefone</p>
+                      <p className="text-sm font-medium text-slate-200">{viewingCliente.telefone}</p>
+                    </div>
+                  )}
+                  {(viewingCliente.email || (viewingCliente.emails || []).length > 0) && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><Mail className="h-3 w-3" />E-mail</p>
+                      {Array.from(new Set([viewingCliente.email, ...(viewingCliente.emails || [])].filter(Boolean) as string[])).map((mail) => (
+                        <p key={mail} className="text-sm font-medium text-slate-200 break-all">{mail}</p>
+                      ))}
+                    </div>
+                  )}
+                  {(viewingCliente.endereco || viewingCliente.cidade || viewingCliente.uf) && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><MapPin className="h-3 w-3" />Endereço</p>
+                      <p className="text-sm font-medium text-slate-200">{[viewingCliente.endereco, [viewingCliente.cidade, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}</p>
+                    </div>
+                  )}
+                  {viewingCliente.contato_financeiro && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><Wallet className="h-3 w-3" />Contato Financeiro</p>
+                      <p className="text-sm font-medium text-slate-200">{viewingCliente.contato_financeiro}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           )}
 
           {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aeronave_ownerships?.length || viewingCliente.tem_socio || viewingCliente.observacoes) && (
-            <Card>
+            <Card className="bg-slate-900/50 border border-slate-800/80 rounded-xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center"><Building className="h-4 w-4 text-primary" /></div>
+                <CardTitle className="text-base font-semibold flex items-center gap-3 text-slate-100">
+                  <div className="h-9 w-9 rounded-lg bg-cyan-500/10 flex items-center justify-center"><Building2 className="h-4 w-4 text-cyan-400" /></div>
                   Informações Adicionais
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {viewingCliente.proprietario && <div><p className="text-xs text-muted-foreground mb-1">Proprietário ou Responsável</p><p className="text-sm font-medium text-foreground">{viewingCliente.proprietario}</p></div>}
-                  {viewingCliente.inscricao_estadual && <div><p className="text-xs text-muted-foreground mb-1">Inscrição Estadual</p><p className="text-sm font-medium text-foreground font-mono">{viewingCliente.inscricao_estadual}</p></div>}
+                  {viewingCliente.proprietario && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Proprietário ou Responsável</p>
+                      <p className="text-sm font-medium text-slate-200">{viewingCliente.proprietario}</p>
+                    </div>
+                  )}
+                  {viewingCliente.inscricao_estadual && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Inscrição Estadual</p>
+                      <p className="text-sm font-medium text-slate-200 font-mono">{viewingCliente.inscricao_estadual}</p>
+                    </div>
+                  )}
                 </div>
                 {viewingCliente.aeronave_ownerships && viewingCliente.aeronave_ownerships.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-3">Aeronaves e Participação</p>
+                    <p className="text-xs text-slate-500 mb-3 flex items-center gap-1.5"><Plane className="h-3 w-3" />Aeronaves e Participação</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {viewingCliente.aeronave_ownerships.map((ownership, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-xl opacity-90 bg-[#080817]/[0.78] shadow-xl border-slate-400">
-                          <span className="text-sm font-medium text-foreground">{ownership.aircraft_registration} - {ownership.aircraft_model}</span>
-                          <Badge variant="secondary" className="font-semibold">{ownership.ownership_percentage}%</Badge>
+                        <div key={idx} className="flex justify-between items-center p-3 bg-slate-950/50 border border-slate-800/80 rounded-lg">
+                          <span className="text-sm font-medium text-slate-200">{ownership.aircraft_registration} - {ownership.aircraft_model}</span>
+                          <Badge variant="secondary" className="bg-slate-800 text-slate-200 border border-slate-700/60 rounded-md font-semibold">{ownership.ownership_percentage}%</Badge>
                         </div>
                       ))}
                     </div>
@@ -823,15 +896,15 @@ export default function Clientes() {
                 )}
                 {viewingCliente.tem_socio && viewingCliente.partners && viewingCliente.partners.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-3 font-semibold">👥 Sócios / Cotistas</p>
+                    <p className="text-xs text-slate-500 mb-3 flex items-center gap-1.5 font-medium"><Users className="h-3 w-3" />Sócios / Cotistas</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {viewingCliente.partners.map((partner, idx) => (
-                        <div key={idx} className="p-3 bg-muted/50 rounded-lg border border-border">
-                          <p className="text-sm font-medium text-foreground">{partner.nome}</p>
+                        <div key={idx} className="p-3 bg-slate-950/50 border border-slate-800/80 rounded-lg">
+                          <p className="text-sm font-medium text-slate-200">{partner.nome}</p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <p className="text-xs text-muted-foreground font-mono">CPF: {partner.cpf}</p>
+                            <p className="text-xs text-slate-500 font-mono">CPF: {partner.cpf}</p>
                             {partner.codigo_cliente && (
-                              <span className="text-xs font-mono bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                              <span className="text-xs font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded">
                                 {partner.codigo_cliente}
                               </span>
                             )}
@@ -844,38 +917,43 @@ export default function Clientes() {
                 )}
                 {viewingCliente.observacoes && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-2">Observações</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">{viewingCliente.observacoes}</p>
+                    <p className="text-xs text-slate-500 mb-2">Observações</p>
+                    <p className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg">{viewingCliente.observacoes}</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           )}
 
-          <Card>
+          <Card className="bg-slate-900/50 border border-slate-800/80 rounded-xl">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center"><FileText className="h-4 w-4 text-primary" /></div>
+              <CardTitle className="text-base font-semibold flex items-center gap-3 text-slate-100">
+                <div className="h-9 w-9 rounded-lg bg-cyan-500/10 flex items-center justify-center"><FileText className="h-4 w-4 text-cyan-400" /></div>
                 Documentos
               </CardTitle>
             </CardHeader>
             <CardContent>
               {viewingCliente.documents && viewingCliente.documents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-[13px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {viewingCliente.documents.map((doc, index) => (
-                    <button key={index} type="button" onClick={() => setPreviewDoc(doc)} className="p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group mx-0 my-[2px] flex items-center justify-start gap-[30px] text-lg px-[9px] py-[28px]">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                        <FileText className="h-5 w-5 text-primary" />
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setPreviewDoc(doc)}
+                      className="p-4 border border-slate-800/80 bg-slate-950/40 rounded-lg hover:bg-slate-800/50 hover:border-cyan-500/40 transition-all text-left group flex items-center gap-3"
+                    >
+                      <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors flex-shrink-0">
+                        <FileText className="h-5 w-5 text-cyan-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{doc.nome}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(doc.enviado_em).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">{doc.nome}</p>
+                        <p className="text-xs text-slate-500">{new Date(doc.enviado_em).toLocaleDateString('pt-BR')}</p>
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento anexado</p>
+                <p className="text-sm text-slate-500 text-center py-8">Nenhum documento anexado</p>
               )}
             </CardContent>
           </Card>
@@ -884,14 +962,16 @@ export default function Clientes() {
 
       {/* Visualizador de Documento */}
       <Dialog open={!!previewDoc} onOpenChange={open => { if (!open) setPreviewDoc(null); }}>
-        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 overflow-hidden bg-slate-950 border border-slate-800 rounded-xl">
           <div className="h-full w-full">
             {previewDoc && (previewDoc.tipo?.includes("pdf") || previewDoc.nome.toLowerCase().endsWith(".pdf")) ? (
               <iframe src={`${previewDoc.url}#toolbar=1&navpanes=0`} className="w-full h-full" title={previewDoc.nome} />
             ) : (
               <div className="p-6 space-y-3">
-                <p className="text-sm text-muted-foreground">Visualização não suportada. Faça o download abaixo.</p>
-                <a href={previewDoc?.url} target="_blank" rel="noopener noreferrer" className="underline">Baixar arquivo</a>
+                <p className="text-sm text-slate-400">Visualização não suportada. Faça o download abaixo.</p>
+                <a href={previewDoc?.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 underline underline-offset-2">
+                  Baixar arquivo
+                </a>
               </div>
             )}
           </div>
@@ -900,10 +980,11 @@ export default function Clientes() {
 
       {/* Dialog de Cadastro/Edição */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-950 to-slate-900 border-slate-800">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-slate-950 border border-slate-800 rounded-xl p-4 sm:p-6">
           <DialogHeader className="border-b border-slate-800 pb-4">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              {editingCliente ? "✏️ Editar Cliente" : "➕ Novo Cliente"}
+            <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-50 flex items-center gap-2.5">
+              {editingCliente ? <Pencil className="h-5 w-5 text-cyan-400" /> : <Plus className="h-5 w-5 text-cyan-400" />}
+              {editingCliente ? "Editar Cliente" : "Novo Cliente"}
             </DialogTitle>
             <DialogDescription className="text-slate-400 mt-1">
               {editingCliente ? "Atualize as informações do cliente / cotista" : "Preencha as informações do novo cliente / cotista"}
@@ -911,80 +992,92 @@ export default function Clientes() {
           </DialogHeader>
 
           <Tabs defaultValue="info" className="w-full mt-4">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
-              <TabsTrigger value="info" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md transition-all">📋 Informações</TabsTrigger>
-              <TabsTrigger value="files" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md transition-all">📁 Logo e Documentos</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-slate-900/70 border border-slate-800 rounded-lg p-1 h-auto">
+              <TabsTrigger
+                value="info"
+                className="gap-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-400 rounded-md transition-all"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Informações
+              </TabsTrigger>
+              <TabsTrigger
+                value="files"
+                className="gap-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-400 rounded-md transition-all"
+              >
+                <Folder className="h-4 w-4" />
+                Logo e Documentos
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="info" className="space-y-6 mt-4">
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Informações Principais</h3>
+            <TabsContent value="info" className="space-y-5 mt-4">
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Informações Principais</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label htmlFor="razao_social" className="text-slate-300 font-semibold mb-2 block">Nome da Empresa *</Label>
-                    <Input id="razao_social" value={formData.razao_social} onChange={e => setFormData({...formData, razao_social: e.target.value})} placeholder="Razão Social" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="razao_social" className={LABEL}>Nome da Empresa *</Label>
+                    <Input id="razao_social" value={formData.razao_social} onChange={e => setFormData({ ...formData, razao_social: e.target.value })} placeholder="Razão Social" className={FIELD} />
                   </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="proprietario" className="text-slate-300 font-semibold mb-2 block">Proprietário ou Responsável</Label>
-                    <Input id="proprietario" value={formData.proprietario} onChange={e => setFormData({...formData, proprietario: e.target.value})} placeholder="Nome do proprietário ou responsável" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
-                  </div>
-                  <div>
-                    <Label htmlFor="cnpj" className="text-slate-300 font-semibold mb-2 block">CNPJ *</Label>
-                    <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({...formData, cnpj: e.target.value})} placeholder="00.000.000/0000-00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="proprietario" className={LABEL}>Proprietário ou Responsável</Label>
+                    <Input id="proprietario" value={formData.proprietario} onChange={e => setFormData({ ...formData, proprietario: e.target.value })} placeholder="Nome do proprietário ou responsável" className={FIELD} />
                   </div>
                   <div>
-                    <Label htmlFor="codigo_cliente" className="text-slate-300 font-semibold mb-2 block">Código Cliente</Label>
-                    <Input id="codigo_cliente" value={formData.codigo_cliente || ''} onChange={e => setFormData({...formData, codigo_cliente: e.target.value.toUpperCase().slice(0, 3) || null})} placeholder="Ex: GAS" maxLength={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                    <Label htmlFor="cnpj" className={LABEL}>CNPJ *</Label>
+                    <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({ ...formData, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className={FIELD} />
                   </div>
                   <div>
-                    <Label htmlFor="inscricao_estadual" className="text-slate-300 font-semibold mb-2 block">Inscrição Estadual</Label>
-                    <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({...formData, inscricao_estadual: e.target.value})} placeholder="000.000.000.000" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                    <Label htmlFor="codigo_cliente" className={LABEL}>Código Cliente</Label>
+                    <Input id="codigo_cliente" value={formData.codigo_cliente || ''} onChange={e => setFormData({ ...formData, codigo_cliente: e.target.value.toUpperCase().slice(0, 3) || null })} placeholder="Ex: GAS" maxLength={3} className={`${FIELD} uppercase`} />
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Endereço</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label htmlFor="endereco" className="text-slate-300 font-semibold mb-2 block">Endereço</Label>
-                    <Input id="endereco" value={formData.endereco} onChange={e => setFormData({...formData, endereco: e.target.value})} placeholder="Rua, número, bairro" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
-                  </div>
-                  <div>
-                    <Label htmlFor="cidade" className="text-slate-300 font-semibold mb-2 block">Cidade</Label>
-                    <Input id="cidade" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} placeholder="São Paulo" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
-                  </div>
-                  <div>
-                    <Label htmlFor="uf" className="text-slate-300 font-semibold mb-2 block">UF</Label>
-                    <Input id="uf" value={formData.uf} onChange={e => setFormData({...formData, uf: e.target.value.toUpperCase().slice(0, 2)})} placeholder="SP" maxLength={2} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="inscricao_estadual" className={LABEL}>Inscrição Estadual</Label>
+                    <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({ ...formData, inscricao_estadual: e.target.value })} placeholder="000.000.000.000" className={FIELD} />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Contato</h3>
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Endereço</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="endereco" className={LABEL}>Endereço</Label>
+                    <Input id="endereco" value={formData.endereco} onChange={e => setFormData({ ...formData, endereco: e.target.value })} placeholder="Rua, número, bairro" className={FIELD} />
+                  </div>
                   <div>
-                    <Label htmlFor="telefone" className="text-slate-300 font-semibold mb-2 block">📱 Telefone</Label>
-                    <Input id="telefone" value={formData.telefone} onChange={e => setFormData({...formData, telefone: formatPhoneNumber(e.target.value)})} placeholder="(00) 00000-0000" maxLength={15} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                    <Label htmlFor="cidade" className={LABEL}>Cidade</Label>
+                    <Input id="cidade" value={formData.cidade} onChange={e => setFormData({ ...formData, cidade: e.target.value })} placeholder="São Paulo" className={FIELD} />
+                  </div>
+                  <div>
+                    <Label htmlFor="uf" className={LABEL}>UF</Label>
+                    <Input id="uf" value={formData.uf} onChange={e => setFormData({ ...formData, uf: e.target.value.toUpperCase().slice(0, 2) })} placeholder="SP" maxLength={2} className={`${FIELD} uppercase`} />
+                  </div>
+                </div>
+              </div>
+
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Contato</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="telefone" className={`${LABEL} flex items-center gap-1.5`}><Phone className="h-3.5 w-3.5" />Telefone</Label>
+                    <Input id="telefone" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: formatPhoneNumber(e.target.value) })} placeholder="(00) 00000-0000" maxLength={15} className={FIELD} />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label htmlFor="email" className="text-slate-300 font-semibold block">📧 E-mail</Label>
-                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-cyan-400 hover:text-cyan-300" onClick={() => setEmailsExtras(prev => [...prev, ""])}>
-                        <Plus className="h-4 w-4 mr-1" /> Adicionar e-mail
+                      <Label htmlFor="email" className="text-slate-300 font-medium flex items-center gap-1.5 text-sm"><Mail className="h-3.5 w-3.5" />E-mail</Label>
+                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-md" onClick={() => setEmailsExtras(prev => [...prev, ""])}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
                       </Button>
                     </div>
-                    <Input id="email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="contato@empresa.com" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                    <Input id="email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="contato@empresa.com" className={FIELD} />
                     {emailsExtras.length > 0 && (
                       <div className="space-y-2 mt-2">
                         {emailsExtras.map((mail, idx) => (
@@ -994,9 +1087,9 @@ export default function Clientes() {
                               value={mail}
                               onChange={e => setEmailsExtras(prev => prev.map((m, i) => (i === idx ? e.target.value : m)))}
                               placeholder={`e-mail adicional ${idx + 1}`}
-                              className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                              className={FIELD}
                             />
-                            <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-400 hover:text-red-300" onClick={() => setEmailsExtras(prev => prev.filter((_, i) => i !== idx))}>
+                            <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg flex-shrink-0" onClick={() => setEmailsExtras(prev => prev.filter((_, i) => i !== idx))}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1004,57 +1097,68 @@ export default function Clientes() {
                       </div>
                     )}
                   </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="contato_financeiro" className="text-slate-300 font-semibold mb-2 block">💼 Contato Financeiro</Label>
-                    <Input id="contato_financeiro" value={formData.contato_financeiro} onChange={e => setFormData({...formData, contato_financeiro: e.target.value})} placeholder="Nome do responsável financeiro" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="contato_financeiro" className={`${LABEL} flex items-center gap-1.5`}><Wallet className="h-3.5 w-3.5" />Contato Financeiro</Label>
+                    <Input id="contato_financeiro" value={formData.contato_financeiro} onChange={e => setFormData({ ...formData, contato_financeiro: e.target.value })} placeholder="Nome do responsável financeiro" className={FIELD} />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                    <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">✈️ Aeronaves</h3>
+              <div className={PANEL}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className={EYEBROW + " mb-0"}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" />Aeronaves</h3>
                   </div>
                   <div className="flex gap-2">
                     {aircraftOptions.length === 0 && (
-                      <Button type="button" variant="outline" size="sm" onClick={loadAircraftOptions} disabled={loadingAircraft} className="flex items-center gap-2 bg-slate-900 border-slate-600 hover:bg-slate-800 text-slate-200">🔄 Recarregar</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={loadAircraftOptions} disabled={loadingAircraft} className="gap-1.5 bg-slate-950/60 border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg">
+                        <RefreshCw className="h-3.5 w-3.5" /> Recarregar
+                      </Button>
                     )}
-                    <Button type="button" variant="outline" size="sm" onClick={addAircraftOwnership} disabled={aircraftOptions.length === 0 || loadingAircraft} className="flex items-center gap-2 bg-slate-900 border-slate-600 hover:bg-slate-800 text-slate-200">
-                      <Plus className="h-4 w-4" />
+                    <Button type="button" variant="outline" size="sm" onClick={addAircraftOwnership} disabled={aircraftOptions.length === 0 || loadingAircraft} className="gap-1.5 bg-slate-950/60 border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg">
+                      <Plus className="h-3.5 w-3.5" />
                       Adicionar
                     </Button>
                   </div>
                 </div>
 
-                {loadingAircraft && <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg text-sm text-blue-300 mb-3">⏳ Carregando aeronaves...</div>}
-                {!loadingAircraft && aircraftOptions.length === 0 && <div className="p-4 border border-yellow-500/30 bg-yellow-500/10 rounded-lg text-sm text-yellow-300 mb-3 space-y-2"><p>⚠️ <strong>Nenhuma aeronave disponível</strong></p><p>Cadastre uma aeronave em "Gestão de Aeronaves" para vincular a este cliente.</p></div>}
+                {loadingAircraft && (
+                  <div className="p-3.5 border border-blue-500/20 bg-blue-500/5 rounded-lg text-sm text-blue-300 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando aeronaves...
+                  </div>
+                )}
+                {!loadingAircraft && aircraftOptions.length === 0 && (
+                  <div className="p-3.5 border border-amber-500/20 bg-amber-500/5 rounded-lg text-sm text-amber-300 space-y-1">
+                    <p className="flex items-center gap-1.5 font-medium"><AlertTriangle className="h-3.5 w-3.5" />Nenhuma aeronave disponível</p>
+                    <p className="text-amber-300/80">Cadastre uma aeronave em "Gestão de Aeronaves" para vincular a este cliente.</p>
+                  </div>
+                )}
 
                 {aircraftOwnerships.length === 0 ? (
-                  <div className="p-4 border border-dashed border-slate-600 rounded-lg text-center text-slate-400">Nenhuma aeronave adicionada</div>
+                  <div className="p-4 border border-dashed border-slate-800 rounded-lg text-center text-slate-500">Nenhuma aeronave adicionada</div>
                 ) : (
                   <div className="space-y-3">
                     {aircraftOwnerships.map((ownership, index) => (
-                      <div key={index} className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                      <div key={index} className="space-y-3 p-4 border border-slate-800 rounded-lg bg-slate-950/40">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <Label className="text-sm font-medium text-slate-300 mb-2 block">Aeronave *</Label>
+                            <Label className={LABEL}>Aeronave *</Label>
                             {loadingAircraft ? (
-                              <div className="p-3 border border-slate-600 rounded text-center text-sm text-slate-400 bg-slate-900">Carregando aeronaves...</div>
+                              <div className="p-3 border border-slate-800 rounded-lg text-center text-sm text-slate-400 bg-slate-950/60">Carregando aeronaves...</div>
                             ) : aircraftOptions.length === 0 ? (
-                              <div className="p-3 border border-yellow-500/30 rounded text-center text-sm text-yellow-300 bg-yellow-500/10">Nenhuma aeronave disponível</div>
+                              <div className="p-3 border border-amber-500/20 rounded-lg text-center text-sm text-amber-300 bg-amber-500/5">Nenhuma aeronave disponível</div>
                             ) : (
                               <Select value={ownership.aircraft} onValueChange={v => updateAircraftOwnership(index, 'aircraft', v)}>
-                                <SelectTrigger className="w-full bg-slate-900 border-slate-600 text-slate-100">
+                                <SelectTrigger className={`w-full ${FIELD}`}>
                                   <SelectValue placeholder="Selecione a aeronave..." />
                                 </SelectTrigger>
-                                <SelectContent className="max-h-64 bg-slate-900 border-slate-600">
+                                <SelectContent className="max-h-64 bg-slate-900 border-slate-800 rounded-lg">
                                   {aircraftOptions.map(a => (
-                                    <SelectItem key={a.id} value={a.id} className="text-slate-100">
+                                    <SelectItem key={a.id} value={a.id} className="text-slate-100 rounded-md focus:bg-slate-800">
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold text-cyan-400">{a.matricula}</span>
-                                        <span className="text-slate-400">-</span>
+                                        <span className="text-slate-500">-</span>
                                         <span>{a.modelo}</span>
                                       </div>
                                     </SelectItem>
@@ -1063,12 +1167,12 @@ export default function Clientes() {
                               </Select>
                             )}
                           </div>
-                          <Button type="button" variant="destructive" size="sm" onClick={() => removeAircraftOwnership(index)} className="h-9 w-9 p-0 mt-7" title="Remover">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeAircraftOwnership(index)} className="h-9 w-9 p-0 mt-7 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg flex-shrink-0" title="Remover">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                         <div>
-                          <Label className="text-sm text-slate-400 mb-1 block">Percentual de Participação (%) - Aceita decimais</Label>
+                          <Label className="text-slate-400 mb-1.5 block text-xs flex items-center gap-1.5"><Percent className="h-3 w-3" />Percentual de Participação — aceita decimais</Label>
                           <Input
                             type="number" min="0" max="100" step="0.01"
                             value={ownership.ownership_percentage}
@@ -1077,7 +1181,7 @@ export default function Clientes() {
                               if (!isNaN(val) && val >= 0) updateAircraftOwnership(index, 'ownership_percentage', Math.min(val, 100));
                             }}
                             placeholder="Ex: 33.33"
-                            className="text-right bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100"
+                            className={`text-right ${FIELD}`}
                           />
                         </div>
                       </div>
@@ -1086,7 +1190,7 @@ export default function Clientes() {
                 )}
 
                 {aircraftOwnerships.length > 0 && (
-                  <div className="mt-4 p-3 bg-slate-900/50 rounded-lg border border-slate-600">
+                  <div className="p-3.5 bg-slate-950/50 rounded-lg border border-slate-800">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-400">Total de Participação:</span>
                       <span className={`text-lg font-semibold ${getTotalOwnershipColor()}`}>{calculateTotalOwnership().toFixed(2)}%</span>
@@ -1100,60 +1204,64 @@ export default function Clientes() {
                 )}
               </div>
 
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Status e Observações</h3>
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status e Observações</h3>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="status" className="text-slate-300 font-semibold mb-2 block">Status</Label>
-                    <Select value={formData.status} onValueChange={v => setFormData({...formData, status: v})}>
-                      <SelectTrigger className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100">
+                    <Label htmlFor="status" className={LABEL}>Status</Label>
+                    <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v })}>
+                      <SelectTrigger className={FIELD}>
                         <SelectValue placeholder="Selecione o status" />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-600">
-                        <SelectItem value="ativo" className="text-slate-100">✅ Ativo</SelectItem>
-                        <SelectItem value="inativo" className="text-slate-100">❌ Inativo</SelectItem>
+                      <SelectContent className="bg-slate-900 border-slate-800 rounded-lg">
+                        <SelectItem value="ativo" className="text-slate-100 rounded-md focus:bg-slate-800">
+                          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Ativo</span>
+                        </SelectItem>
+                        <SelectItem value="inativo" className="text-slate-100 rounded-md focus:bg-slate-800">
+                          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Inativo</span>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="observacoes" className="text-slate-300 font-semibold mb-2 block">Observações</Label>
-                    <Textarea id="observacoes" value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} placeholder="Informações adicionais sobre o cliente" rows={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                    <Label htmlFor="observacoes" className={LABEL}>Observações</Label>
+                    <Textarea id="observacoes" value={formData.observacoes} onChange={e => setFormData({ ...formData, observacoes: e.target.value })} placeholder="Informações adicionais sobre o cliente" rows={3} className={FIELD} />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">👥 Sócios / Cotistas</h3>
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />Sócios / Cotistas</h3>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-slate-300 font-semibold mb-3 block">Esse cliente é uma empresa de sociedade de cotistas?</Label>
+                    <Label className={LABEL}>Esse cliente é uma empresa de sociedade de cotistas?</Label>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="tem_socio" checked={!hasPartner} onChange={() => { setHasPartner(false); setPartners([]); }} className="w-4 h-4" />
-                        <span className="text-slate-300">Não</span>
+                        <input type="radio" name="tem_socio" checked={!hasPartner} onChange={() => { setHasPartner(false); setPartners([]); }} className="w-4 h-4 accent-cyan-500" />
+                        <span className="text-slate-300 text-sm">Não</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="tem_socio" checked={hasPartner} onChange={() => setHasPartner(true)} className="w-4 h-4" />
-                        <span className="text-slate-300">Sim</span>
+                        <input type="radio" name="tem_socio" checked={hasPartner} onChange={() => setHasPartner(true)} className="w-4 h-4 accent-cyan-500" />
+                        <span className="text-slate-300 text-sm">Sim</span>
                       </label>
                     </div>
                   </div>
 
                   {hasPartner && (
-                    <div className="space-y-3 mt-4">
+                    <div className="space-y-3 mt-2">
                       {editingCliente?.tem_socio && editingCliente.partners && editingCliente.partners.length > 0 && (
-                        <div className="p-3 bg-slate-900/70 border border-slate-600 rounded-lg">
-                          <p className="text-xs text-cyan-400 font-semibold mb-2">📋 Sócios Salvos no Banco de Dados:</p>
-                          <div className="space-y-2">
+                        <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-lg">
+                          <p className="text-xs text-cyan-400 font-semibold mb-2 flex items-center gap-1.5"><IdCard className="h-3.5 w-3.5" />Sócios salvos no banco de dados</p>
+                          <div className="space-y-1.5">
                             {editingCliente.partners.map((savedPartner, idx) => (
-                              <div key={idx} className="text-xs text-slate-400 p-2 bg-slate-800 rounded">
-                                <span className="font-medium text-slate-300">{savedPartner.nome}</span> - <span className="font-mono">{savedPartner.cpf}</span>
+                              <div key={idx} className="text-xs text-slate-400 p-2 bg-slate-900/70 rounded-md">
+                                <span className="font-medium text-slate-300">{savedPartner.nome}</span> · <span className="font-mono">{savedPartner.cpf}</span>
                                 {savedPartner.percentual_participacao && <span className="text-cyan-400 ml-2">({savedPartner.percentual_participacao}%)</span>}
                               </div>
                             ))}
@@ -1164,31 +1272,31 @@ export default function Clientes() {
                       <p className="text-sm text-slate-400">Adicione os sócios/cotistas da empresa</p>
 
                       {partners.length === 0 ? (
-                        <div className="p-4 border border-dashed border-slate-600 rounded-lg text-center text-slate-400">Nenhum sócio adicionado</div>
+                        <div className="p-4 border border-dashed border-slate-800 rounded-lg text-center text-slate-500">Nenhum sócio adicionado</div>
                       ) : (
                         <div className="space-y-3">
                           {partners.map((partner, index) => (
-                            <div key={index} className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                            <div key={index} className="space-y-3 p-4 border border-slate-800 rounded-lg bg-slate-950/40">
                               <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 grid grid-cols-4 gap-3">
+                                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
                                   <div>
-                                    <Label className="text-slate-300 mb-2 block text-xs">Nome</Label>
-                                    <Input value={partner.nome} onChange={e => updatePartner(index, 'nome', e.target.value)} placeholder="Nome do sócio" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                                    <Label className="text-slate-400 mb-1.5 block text-xs">Nome</Label>
+                                    <Input value={partner.nome} onChange={e => updatePartner(index, 'nome', e.target.value)} placeholder="Nome do sócio" className={FIELD} />
                                   </div>
                                   <div>
-                                    <Label className="text-slate-300 mb-2 block text-xs">CPF/CNPJ</Label>
-                                    <Input value={partner.cpf} onChange={e => updatePartner(index, 'cpf', formatCPF(e.target.value))} placeholder="000.000.000-00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                                    <Label className="text-slate-400 mb-1.5 block text-xs">CPF/CNPJ</Label>
+                                    <Input value={partner.cpf} onChange={e => updatePartner(index, 'cpf', formatCPF(e.target.value))} placeholder="000.000.000-00" className={FIELD} />
                                   </div>
                                   <div>
-                                    <Label className="text-slate-300 mb-2 block text-xs">% Participação</Label>
-                                    <Input type="number" step="0.01" min="0" max="100" value={partner.percentual_participacao} onChange={e => updatePartner(index, 'percentual_participacao', parseFloat(e.target.value) || 0)} placeholder="0.00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                                    <Label className="text-slate-400 mb-1.5 block text-xs">% Participação</Label>
+                                    <Input type="number" step="0.01" min="0" max="100" value={partner.percentual_participacao} onChange={e => updatePartner(index, 'percentual_participacao', parseFloat(e.target.value) || 0)} placeholder="0.00" className={FIELD} />
                                   </div>
                                   <div>
-                                    <Label className="text-slate-300 mb-2 block text-xs">Código</Label>
-                                    <Input value={partner.codigo_cliente || ''} onChange={e => updatePartner(index, 'codigo_cliente', e.target.value.toUpperCase().slice(0, 3) || null)} placeholder="Ex: DEJ" maxLength={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                                    <Label className="text-slate-400 mb-1.5 block text-xs">Código</Label>
+                                    <Input value={partner.codigo_cliente || ''} onChange={e => updatePartner(index, 'codigo_cliente', e.target.value.toUpperCase().slice(0, 3) || null)} placeholder="Ex: DEJ" maxLength={3} className={`${FIELD} uppercase`} />
                                   </div>
                                 </div>
-                                <Button type="button" variant="destructive" size="sm" onClick={() => removePartner(index)} className="h-9 w-9 p-0 mt-7 flex-shrink-0" title="Remover sócio">
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removePartner(index)} className="h-9 w-9 p-0 mt-6 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg flex-shrink-0" title="Remover sócio">
                                   <X className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -1197,8 +1305,8 @@ export default function Clientes() {
                         </div>
                       )}
 
-                      <Button type="button" variant="outline" onClick={addPartner} className="w-full bg-slate-900 border-slate-600 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300">
-                        <Plus className="h-4 w-4 mr-2" />
+                      <Button type="button" variant="outline" onClick={addPartner} className="w-full gap-2 bg-slate-950/60 border-slate-800 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 rounded-lg">
+                        <Plus className="h-4 w-4" />
                         Adicionar Sócio
                       </Button>
                     </div>
@@ -1207,26 +1315,24 @@ export default function Clientes() {
               </div>
             </TabsContent>
 
-            <TabsContent value="files" className="space-y-6 mt-4">
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">🎨 Logo da Empresa</h3>
+            <TabsContent value="files" className="space-y-5 mt-4">
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" />Logo da Empresa</h3>
                 </div>
-                <p className="text-sm text-slate-400 mb-4">Envie a logo da empresa (formatos: PNG, JPG, SVG)</p>
-                <div className="flex items-center gap-6">
+                <p className="text-sm text-slate-400">Envie a logo da empresa (formatos: PNG, JPG, SVG)</p>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
                   {logoPreview && (
-                    <div className="flex-shrink-0">
-                      <Avatar className="h-24 w-24 border-2 border-cyan-400/50">
-                        <AvatarImage src={logoPreview} alt="Logo" className="object-contain" />
-                        <AvatarFallback className="bg-slate-900"><Image className="h-8 w-8 text-slate-400" /></AvatarFallback>
-                      </Avatar>
-                    </div>
+                    <Avatar className="h-24 w-24 border border-slate-800 ring-2 ring-cyan-400/20 flex-shrink-0">
+                      <AvatarImage src={logoPreview} alt="Logo" className="object-contain" />
+                      <AvatarFallback className="bg-slate-900"><ImageIcon className="h-8 w-8 text-slate-500" /></AvatarFallback>
+                    </Avatar>
                   )}
-                  <div className="flex-1">
+                  <div className="flex-1 w-full">
                     <label className="block cursor-pointer">
-                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 hover:border-cyan-400 transition-colors text-center">
-                        <Image className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <div className="border-2 border-dashed border-slate-800 rounded-xl p-6 hover:border-cyan-500/50 hover:bg-slate-900/30 transition-colors text-center">
+                        <ImageIcon className="h-8 w-8 mx-auto mb-2 text-slate-500" />
                         <p className="text-sm text-slate-300 font-medium">Clique para upload</p>
                         <p className="text-xs text-slate-500 mt-1">PNG, JPG ou SVG</p>
                       </div>
@@ -1236,15 +1342,15 @@ export default function Clientes() {
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">📄 Documentos</h3>
+              <div className={PANEL}>
+                <div className={EYEBROW}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" />Documentos</h3>
                 </div>
-                <p className="text-sm text-slate-400 mb-4">Anexe documentos como CNPJ, contratos, certificados, etc.</p>
+                <p className="text-sm text-slate-400">Anexe documentos como CNPJ, contratos, certificados, etc.</p>
                 <label className="block cursor-pointer">
-                  <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 hover:border-cyan-400 transition-colors text-center">
-                    <FileText className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                  <div className="border-2 border-dashed border-slate-800 rounded-xl p-8 hover:border-cyan-500/50 hover:bg-slate-900/30 transition-colors text-center">
+                    <FileText className="h-8 w-8 mx-auto mb-2 text-slate-500" />
                     <p className="text-sm text-slate-300 font-medium">Clique para upload ou arraste arquivos</p>
                     <p className="text-xs text-slate-500 mt-1">Todos os formatos são suportados</p>
                   </div>
@@ -1252,19 +1358,19 @@ export default function Clientes() {
                 </label>
 
                 {documentFiles.length > 0 && (
-                  <div className="space-y-3 mt-4">
-                    <h4 className="text-sm font-semibold text-slate-300">📥 Novos documentos:</h4>
+                  <div className="space-y-3 mt-2">
+                    <h4 className="text-sm font-semibold text-slate-300">Novos documentos</h4>
                     <div className="space-y-2">
                       {documentFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border border-slate-600 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
-                          <div className="flex items-center gap-3 flex-1">
+                        <div key={index} className="flex items-center justify-between p-3 border border-slate-800 rounded-lg bg-slate-950/40 hover:bg-slate-900/60 transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-slate-200 truncate">{file.name}</p>
                               <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg flex-shrink-0">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -1274,19 +1380,19 @@ export default function Clientes() {
                 )}
 
                 {editingCliente?.documents && editingCliente.documents.length > 0 && (
-                  <div className="space-y-3 mt-6 pt-6 border-t border-slate-700">
-                    <h4 className="text-sm font-semibold text-slate-300">📎 Documentos existentes:</h4>
+                  <div className="space-y-3 mt-4 pt-5 border-t border-slate-800">
+                    <h4 className="text-sm font-semibold text-slate-300">Documentos existentes</h4>
                     <div className="space-y-2">
                       {editingCliente.documents.map((doc, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border border-slate-600 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
-                          <div className="flex items-center gap-3 flex-1">
+                        <div key={index} className="flex items-center justify-between p-3 border border-slate-800 rounded-lg bg-slate-950/40 hover:bg-slate-900/60 transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">{doc.nome}</a>
                               <p className="text-xs text-slate-500">{new Date(doc.enviado_em).toLocaleDateString('pt-BR')}</p>
                             </div>
                           </div>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg flex-shrink-0">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -1298,24 +1404,40 @@ export default function Clientes() {
             </TabsContent>
           </Tabs>
 
-          <DialogFooter className="mt-6 pt-6 border-t border-slate-700 flex gap-3 justify-end">
-            <Button variant="outline" onClick={handleCloseDialog} className="bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-200">❌ Cancelar</Button>
-            <Button onClick={handleSave} disabled={uploadingFiles} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white">
-              {uploadingFiles ? "⏳ Salvando..." : editingCliente ? "✅ Atualizar" : "➕ Cadastrar"}
+          <DialogFooter className="mt-6 pt-5 border-t border-slate-800 flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+            <Button variant="outline" onClick={handleCloseDialog} className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-slate-100 rounded-lg">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={uploadingFiles}
+              className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-lg shadow-lg shadow-cyan-500/10 border-0"
+            >
+              {uploadingFiles && <Loader2 className="h-4 w-4 animate-spin" />}
+              {uploadingFiles ? "Salvando..." : editingCliente ? "Atualizar" : "Cadastrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-slate-950 border border-slate-800 rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
-            <AlertDialogDescription>Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle className="text-slate-50 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-rose-400" />
+              Excluir Cliente
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-slate-100 rounded-lg">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-rose-600 text-white hover:bg-rose-500 rounded-lg">
+              Excluir
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
