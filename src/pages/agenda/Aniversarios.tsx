@@ -2,44 +2,93 @@ import { useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, CalendarIcon, Cake, Plus, Edit, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  CalendarIcon,
+  Cake,
+  Plus,
+  Edit,
+  Trash2,
+  Building2,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useBirthdays } from "@/hooks/useBirthdays";
 import type { Database } from "@/integrations/supabase/types";
 
-type BirthdayRow = Database["public"]["Tables"]["birthdays"]["Row"];
+type BirthdayRow = Database["public"]["Tables"]["birthdays"]["Row"] & {
+  avatar_url?: string | null;
+  displayDate?: string;
+  source?: string;
+};
 
-const getBirthdayCategoryLabel = (category: string | null) => {
-  switch (category) {
+// Configuração visual das categorias
+const getCategoryBadge = (category: string | null) => {
+  switch (category?.toLowerCase()) {
     case "clientes":
     case "cliente":
-      return "Cliente";
+      return {
+        label: "Cliente",
+        className: "bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20",
+      };
     case "colaboradores":
     case "colaborador":
     case "funcionario":
-      return "Colaborador";
+      return {
+        label: "Colaborador",
+        className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20",
+      };
     case "fornecedores":
     case "fornecedor":
-      return "Fornecedor";
+      return {
+        label: "Fornecedor",
+        className: "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20",
+      };
     case "hoteis":
     case "hotel":
-      return "Hotel";
+      return {
+        label: "Hotel",
+        className: "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20",
+      };
     default:
-      return "";
+      return null;
   }
+};
+
+// Gera as iniciais para o fallback do Avatar
+const getInitials = (name?: string) => {
+  if (!name) return "AN";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
 export default function Aniversarios() {
@@ -62,137 +111,219 @@ export default function Aniversarios() {
     nome: "",
     data_aniversario: "",
     empresa: "",
-    category: "cliente" as string,
+    category: "cliente",
+    avatar_url: "",
   });
 
-  const filteredBirthdays = useMemo(() => {
+  const filteredBirthdays: BirthdayRow[] = useMemo(() => {
     return getFilteredBirthdays(filter);
   }, [filter, getFilteredBirthdays]);
 
   return (
-    <div className="p-6 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-2xl bg-slate-900/80 border border-slate-700">
-                <Cake className="h-6 w-6 text-slate-100" />
-              </div>
-              <h1 className="text-4xl font-bold text-slate-100">Aniversários</h1>
+    <div className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 text-primary shadow-inner">
+              <Cake className="h-6 w-6" />
             </div>
-            <p className="text-slate-400 mt-3">
-              Acompanhe e gerencie os aniversários dos seus contatos
-            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-100">
+              Aniversários
+            </h1>
           </div>
-          <Button onClick={() => {
+          <p className="text-slate-400 text-sm pl-1">
+            Acompanhe e comemore as datas especiais dos seus contatos
+          </p>
+        </div>
+
+        <Button
+          onClick={() => {
             setEditingBirthday(null);
-            setFormData({ nome: "", data_aniversario: "", empresa: "", category: "cliente" });
+            setFormData({
+              nome: "",
+              data_aniversario: "",
+              empresa: "",
+              category: "cliente",
+              avatar_url: "",
+            });
             setIsDialogOpen(true);
-          }} className="flex items-center gap-2 h-11 px-6 bg-slate-900/90 text-white border border-slate-700 hover:bg-slate-800 transition-all">
-            <Plus className="h-5 w-5" />
-            Novo Aniversário
-          </Button>
-        </div>
+          }}
+          className="flex items-center gap-2 h-11 px-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-medium rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200"
+        >
+          <Plus className="h-5 w-5" />
+          Novo Aniversário
+        </Button>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card onClick={() => setFilter("month")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-400 mb-2">Este Mês</p>
-                  <p className="text-4xl font-bold text-slate-100">{birthdaysThisMonth}</p>
-                </div>
-                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
-                  <Cake className="h-8 w-8 text-slate-100" />
-                </div>
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card
+          onClick={() => setFilter("month")}
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+            filter === "month"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
+              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+          }`}
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Este Mês
+                </p>
+                <p className="text-3xl font-extrabold text-slate-100">
+                  {birthdaysThisMonth}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                <Cake className="h-6 w-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card onClick={() => setFilter("next7")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-400 mb-2">Próximos 7 dias</p>
-                  <p className="text-4xl font-bold text-slate-100">{birthdaysNextSevenDays}</p>
-                </div>
-                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
-                  <Calendar className="h-8 w-8 text-slate-100" />
-                </div>
+        <Card
+          onClick={() => setFilter("next7")}
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+            filter === "next7"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
+              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+          }`}
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Próximos 7 dias
+                </p>
+                <p className="text-3xl font-extrabold text-slate-100">
+                  {birthdaysNextSevenDays}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <Calendar className="h-6 w-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card onClick={() => setFilter("all")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-400 mb-2">Total de Aniversários</p>
-                  <p className="text-4xl font-bold text-slate-100">{totalBirthdays}</p>
-                </div>
-                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
-                  <Cake className="h-8 w-8 text-slate-100" />
-                </div>
+        <Card
+          onClick={() => setFilter("all")}
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+            filter === "all"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
+              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+          }`}
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Total Geral
+                </p>
+                <p className="text-3xl font-extrabold text-slate-100">
+                  {totalBirthdays}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <Users className="h-6 w-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <Card className="border border-slate-800/80 bg-slate-950/90 shadow-sm rounded-3xl">
-          <CardHeader className="border-b border-slate-800/70 pb-6">
-            <CardTitle className="flex items-center gap-3 text-xl text-slate-100">
-              <div className="p-2 rounded-2xl bg-slate-900/80 border border-slate-800/70">
-                <Cake className="h-5 w-5 text-slate-100" />
+      {/* Main List Card */}
+      <Card className="border border-slate-800/80 bg-slate-950/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="border-b border-slate-800/60 pb-5 pt-6 px-6">
+          <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-100">
+            <Sparkles className="h-5 w-5 text-primary" />
+            {filter === "next7"
+              ? "Aniversários - Próximos 7 dias"
+              : filter === "all"
+              ? "Todos os Aniversários Cadastrados"
+              : "Aniversariantes Deste Mês"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-3 animate-pulse">
+                <Cake className="h-8 w-8 text-primary animate-bounce" />
               </div>
-              {filter === "next7" ? "Aniversários - Próximos 7 dias" : filter === "all" ? "Todos os Aniversários" : "Aniversariantes deste Mês"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <div className="mb-3 p-3 rounded-lg bg-primary/10">
-                  <Cake className="h-8 w-8 text-primary animate-bounce" />
-                </div>
-                <p>Carregando aniversários...</p>
+              <p className="text-sm">Carregando aniversariantes...</p>
+            </div>
+          ) : filteredBirthdays.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-3">
+                <Cake className="h-8 w-8 text-slate-500" />
               </div>
-            ) : filteredBirthdays.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <div className="mb-3 p-3 rounded-lg bg-muted">
-                  <Cake className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="font-medium">Nenhum aniversário registrado.</p>
-                <p className="text-sm mt-1">Clique em "Novo Aniversário" para adicionar.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredBirthdays.map((birthday) => (
+              <p className="font-semibold text-slate-200">
+                Nenhum aniversário encontrado
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Clique em "Novo Aniversário" para cadastrar um contato.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {filteredBirthdays.map((birthday) => {
+                const categoryBadge = getCategoryBadge(birthday.category);
+
+                return (
                   <div
                     key={birthday.id}
-                    className="group relative flex items-center justify-between p-5 border border-slate-800/70 rounded-3xl hover:border-primary/50 hover:bg-slate-900/70 transition-all duration-300 shadow-sm hover:shadow-md bg-slate-950/85"
+                    className="group relative flex items-center justify-between p-4 rounded-xl border border-slate-800/70 bg-slate-900/40 hover:bg-slate-900/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm"
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="w-14 h-14 bg-slate-900/80 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                        <Cake className="h-7 w-7 text-slate-100" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-slate-100">{birthday.nome}</h3>
+                    {/* User Info & Avatar */}
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <Avatar className="h-12 w-12 border border-slate-700/60 shadow-inner flex-shrink-0 group-hover:border-primary/50 transition-colors">
+                        <AvatarImage
+                          src={birthday.avatar_url || undefined}
+                          alt={birthday.nome}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-slate-800 text-slate-200 font-semibold text-sm">
+                          {getInitials(birthday.nome)}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-slate-100 text-base truncate group-hover:text-primary transition-colors">
+                          {birthday.nome}
+                        </h3>
                         {birthday.empresa && (
-                          <p className="text-sm text-slate-400 mt-0.5">{birthday.empresa}</p>
+                          <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                            <Building2 className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                            {birthday.empresa}
+                          </p>
                         )}
                       </div>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <div className="text-xl font-bold text-slate-100">{birthday.displayDate}</div>
-                      {getBirthdayCategoryLabel(birthday.category) && (
-                        <Badge className="bg-slate-900/80 text-slate-100 hover:bg-slate-800">{getBirthdayCategoryLabel(birthday.category)}</Badge>
+
+                    {/* Date & Category Badge */}
+                    <div className="flex flex-col items-end gap-1.5 pl-3">
+                      <span className="text-base font-bold text-slate-100 tracking-tight">
+                        {birthday.displayDate}
+                      </span>
+                      {categoryBadge && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-2 py-0.5 font-medium border ${categoryBadge.className}`}
+                        >
+                          {categoryBadge.label}
+                        </Badge>
                       )}
                     </div>
 
+                    {/* Quick Actions (On Hover) */}
                     {birthday.source !== "user_profiles" && (
-                      <div className="absolute right-4 top-1/4 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-lg p-1 shadow-lg">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md"
                           onClick={() => {
                             setEditingBirthday(birthday);
                             setFormData({
@@ -200,127 +331,165 @@ export default function Aniversarios() {
                               data_aniversario: (birthday.data_aniversario || "").slice(0, 10),
                               empresa: birthday.empresa || "",
                               category: birthday.category || "cliente",
+                              avatar_url: birthday.avatar_url || "",
                             });
                             setIsDialogOpen(true);
                           }}
-                          aria-label="Editar aniversário"
-                          title="Editar aniversário"
+                          title="Editar"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          className="h-7 w-7 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-md"
                           onClick={async () => {
-                            const confirmed = window.confirm(`Excluir aniversário de ${birthday.nome}?`);
+                            const confirmed = window.confirm(
+                              `Excluir o aniversário de ${birthday.nome}?`
+                            );
                             if (!confirmed) return;
                             try {
-                              const { error } = await supabase.from("birthdays").delete().eq("id", birthday.id);
+                              const { error } = await supabase
+                                .from("birthdays")
+                                .delete()
+                                .eq("id", birthday.id);
                               if (error) throw error;
-                              toast({ title: "Excluído", description: "Aniversário excluído com sucesso" });
+                              toast({
+                                title: "Excluído",
+                                description: "Aniversário excluído com sucesso",
+                              });
                               refetch();
                             } catch (err) {
                               console.error("Erro ao excluir aniversário:", err);
-                              toast({ title: "Erro", description: "Não foi possível excluir", variant: "destructive" });
+                              toast({
+                                title: "Erro",
+                                description: "Não foi possível excluir",
+                                variant: "destructive",
+                              });
                             }
                           }}
-                          aria-label="Excluir aniversário"
-                          title="Excluir aniversário"
+                          title="Excluir"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Cake className="h-5 w-5 text-primary" />
-                </div>
+      {/* Modal Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-slate-100 rounded-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                <Cake className="h-5 w-5" />
               </div>
-              <DialogTitle className="text-2xl">
+              <DialogTitle className="text-xl">
                 {editingBirthday ? "Editar Aniversário" : "Novo Aniversário"}
               </DialogTitle>
-              <DialogDescription>
-                {editingBirthday ? "Atualize os dados do aniversário" : "Cadastre um novo aniversário para acompanhar"}
-              </DialogDescription>
-            </DialogHeader>
+            </div>
+            <DialogDescription className="text-slate-400 text-xs">
+              {editingBirthday
+                ? "Atualize os dados do aniversário do seu contato."
+                : "Preencha os campos abaixo para cadastrar um novo aniversário."}
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="nome">Nome *</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  placeholder="Nome completo"
-                />
-              </div>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="nome" className="text-xs font-medium text-slate-300">
+                Nome completo *
+              </Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder="Ex: Maria Silva"
+                className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="data_aniversario">Data de Aniversário *</Label>
-                <Popover open={birthdayDateOpen} onOpenChange={setBirthdayDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                      {formData.data_aniversario
-                        ? format(new Date(formData.data_aniversario), "dd/MM/yyyy", { locale: ptBR })
-                        : "Selecione a data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                    <UICalendar
-                      mode="single"
-                      selected={formData.data_aniversario ? new Date(formData.data_aniversario) : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const formattedDate = `${year}-${month}-${day}`;
-                          setFormData({ ...formData, data_aniversario: formattedDate });
-                          setBirthdayDateOpen(false);
-                        }
-                      }}
-                      disabled={(date) => date > new Date()}
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+            <div>
+              <Label htmlFor="data_aniversario" className="text-xs font-medium text-slate-300">
+                Data de Aniversário *
+              </Label>
+              <Popover open={birthdayDateOpen} onOpenChange={setBirthdayDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal mt-1.5 bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                    {formData.data_aniversario
+                      ? format(new Date(formData.data_aniversario), "dd/MM/yyyy", { locale: ptBR })
+                      : "Selecione a data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-800" align="start">
+                  <UICalendar
+                    mode="single"
+                    selected={formData.data_aniversario ? new Date(formData.data_aniversario) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, "0");
+                        const day = String(date.getDate()).padStart(2, "0");
+                        setFormData({ ...formData, data_aniversario: `${year}-${month}-${day}` });
+                        setBirthdayDateOpen(false);
+                      }
+                    }}
+                    disabled={(date) => date > new Date()}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
+            <div>
+              <Label htmlFor="avatar_url" className="text-xs font-medium text-slate-300">
+                URL da Foto de Perfil (Opcional)
+              </Label>
+              <Input
+                id="avatar_url"
+                value={formData.avatar_url}
+                onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                placeholder="https://exemplo.com/foto.jpg"
+                className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="empresa">Empresa</Label>
+                <Label htmlFor="empresa" className="text-xs font-medium text-slate-300">
+                  Empresa
+                </Label>
                 <Input
                   id="empresa"
                   value={formData.empresa}
                   onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
                   placeholder="Nome da empresa"
+                  className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
                 />
               </div>
 
               <div>
-                <Label htmlFor="categoria">Categoria *</Label>
+                <Label htmlFor="categoria" className="text-xs font-medium text-slate-300">
+                  Categoria *
+                </Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1.5 bg-slate-900 border-slate-800 text-slate-100 focus:ring-primary">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-100">
                     <SelectItem value="cliente">Cliente</SelectItem>
                     <SelectItem value="colaborador">Colaborador</SelectItem>
                     <SelectItem value="fornecedor">Fornecedor</SelectItem>
@@ -329,12 +498,18 @@ export default function Aniversarios() {
                 </Select>
               </div>
             </div>
+          </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="sm:mr-auto">
-                Cancelar
-              </Button>
-              <Button onClick={async () => {
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              className="border-slate-800 text-slate-300 hover:bg-slate-900"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
                 try {
                   if (!formData.nome || !formData.data_aniversario) {
                     toast({
@@ -345,25 +520,36 @@ export default function Aniversarios() {
                     return;
                   }
 
+                  const payload = {
+                    nome: formData.nome,
+                    data_aniversario: formData.data_aniversario,
+                    empresa: formData.empresa,
+                    category: formData.category,
+                    avatar_url: formData.avatar_url || null,
+                  };
+
                   if (editingBirthday) {
                     const { error } = await supabase
                       .from("birthdays")
                       .update({
-                        nome: formData.nome,
-                        data_aniversario: formData.data_aniversario,
-                        empresa: formData.empresa,
-                        category: formData.category as any,
+                        ...payload,
                         updated_at: new Date().toISOString(),
                       })
                       .eq("id", editingBirthday.id);
                     if (error) throw error;
-                    toast({ title: "Atualizado", description: "Aniversário atualizado com sucesso" });
+                    toast({
+                      title: "Atualizado",
+                      description: "Aniversário atualizado com sucesso",
+                    });
                   } else {
                     const { error } = await supabase
                       .from("birthdays")
-                      .insert([formData as any]);
+                      .insert([payload]);
                     if (error) throw error;
-                    toast({ title: "Sucesso", description: "Aniversário cadastrado com sucesso" });
+                    toast({
+                      title: "Sucesso",
+                      description: "Aniversário cadastrado com sucesso",
+                    });
                   }
 
                   setIsDialogOpen(false);
@@ -377,12 +563,14 @@ export default function Aniversarios() {
                     variant: "destructive",
                   });
                 }
-              }} className="bg-gradient-to-r from-primary to-primary/90 hover:shadow-lg transition-all">
-                {editingBirthday ? "Atualizar" : "Cadastrar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              }}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            >
+              {editingBirthday ? "Atualizar" : "Cadastrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
