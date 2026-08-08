@@ -30,36 +30,70 @@ const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reem
 const isReembolso = (m: any) =>
   `${m.descricao ?? ""} ${m.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
 
-const PESSOAL = /(SALARI|SALÁRI|FOLHA|TRIPULANTE|PILOTAGEM|ADM E|ADM SHARE|13|DÉCIMO|DECIMO|FÉRIAS|FERIAS|PRO.?LABORE|BENEF|VALE |CARTÃO ALIMENTA|CARTAO ALIMENTA)/i;
+/* Mapa de categoria_id -> { grupo_categoria, tipo_despesa } construído a partir da tabela categorias_movimentacao */
+let _categoriaMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
+export function setCategoriaMap(map: Map<string, { grupo: string; tipoDespesa: string | null }>) {
+  _categoriaMap = map;
+}
+export function getCategoriaMap() {
+  return _categoriaMap;
+}
 
-/* Contas recorrentes/estruturais da empresa */
-const FIXO_RX =
-  /(ALUGUEL|ENERGIA|ENERGISA|INTERNET|TELEFON|CONTABILIDADE|ASSINATURA|SEGURO|CONSORCIO|CONSÓRCIO|SOFTWARE|SISTEMA|HANGAR|IPTU|ÁGUA|AGUA|CONDOM|LICEN|MENSAL|CONTRATO)/i;
-
-/* Contas que oscilam conforme operação/uso */
-const VARIAVEL_RX =
-  /(COMBUST|ABASTEC|TARIFA|POUSO|NAVEG|DECEA|INFRAERO|MANUTEN|OFICIN|PEÇA|PECA|COMISSARIA|PADARIA|COMPRA|AQUISI|VIAGEM|HOTEL|UBER|TAXI|MATERIAL|FRETE|LIMPEZA|CARTÃO DE CRÉDITO|CARTAO DE CREDITO|CARTÃO COMBUST|CARTAO COMBUST|DESPESAS SHARE|RELATORIO DE VIAGEM|RELATÓRIO DE VIAGEM)/i;
-
+/**
+ * Classifica uma movimentação com base no grupo_categoria + tipo_despesa da tabela categorias_movimentacao.
+ * Grupos DESPESAS EMPRESA / DESPESAS EMPRESA - BANCO são separados em Fixo/Variável pelo tipo_despesa.
+ * Demais grupos (REEMBOLSÁVEIS, FOLHA, IMPOSTOS, RECEITAS OPERACIONAIS, REEMBOLSOS ENTRADAS) usam o próprio nome do grupo.
+ * DESPESAS PARTICULARES são separadas em Fixo/Variável e tratadas como gastos não-empresariais.
+ */
 const naturezaDe = (m: any) => {
-  const cat = String(m.categoria_nome || "").trim();
-  const g = String(m.grupo_custo || "").toUpperCase();
+  // Prioridade: se a movimentação está marcada como reembolsável,
+  // ela é sempre "Despesas Reembolsáveis", independente da categoria
+  // que ela está apontando (evita cair em Fixo/Variável por
+  // categoria mal cadastrada ou categoria legada reaproveitada).
+  if (m.reembolsavel === true) return "Despesas Reembolsáveis";
 
-  if (g.includes("PARTICULAR")) return "Particulares";
-  if (PESSOAL.test(cat)) return "Pessoal";
-  if (g.startsWith("FIXO") || FIXO_RX.test(cat)) return "Fixo";
-  if (g.startsWith("VARIAVEL") || g.startsWith("VARIÁVEL") || VARIAVEL_RX.test(cat)) return "Variável";
-  if (g.startsWith("EXTRA")) return "Extra";
+  const catInfo = m.categoria_id ? _categoriaMap.get(m.categoria_id) : undefined;
+  const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
+  const tipoDespesa = (catInfo?.tipoDespesa || String(m.tipo_despesa || "")).toLowerCase().trim();
+
+  if (grupo === "DESPESAS PARTICULARES") {
+    return tipoDespesa === "variavel" ? "Particulares Variável" : "Particulares Fixo";
+  }
+  if (grupo === "DESPESAS EMPRESA" || grupo === "DESPESAS EMPRESA - BANCO") {
+    return tipoDespesa === "variavel" ? "Despesas Empresa Variável" : "Despesas Empresa Fixo";
+  }
+  if (grupo === "FOLHA DE PAGAMENTO") return "Folha de Pagamento";
+  if (grupo === "DESPESAS REEMBOLSÁVEIS") return "Despesas Reembolsáveis";
+  if (grupo === "IMPOSTOS") return "Impostos";
+  if (grupo === "RECEITAS OPERACIONAIS") return "Receitas Operacionais";
+  if (grupo === "REEMBOLSOS ENTRADAS") return "Reembolsos Entradas";
+
+  /* Fallback para movimentações sem categoria_id ou com grupo_custo legado */
+  if (grupo.includes("PARTICULAR")) return "Particulares Fixo";
+  if (grupo.startsWith("FIXO")) return "Despesas Empresa Fixo";
+  if (grupo.startsWith("VARIAVEL") || grupo.startsWith("VARIÁVEL")) return "Despesas Empresa Variável";
   return "Outros";
 };
 
 const NAT_TONE: Record<string, string> = {
-  Pessoal: "hsl(199 89% 60%)",
-  Fixo: "hsl(217 91% 65%)",
-  "Variável": "hsl(38 95% 60%)",
-  Extra: "hsl(280 75% 68%)",
-  Particulares: "hsl(330 80% 65%)",
-  Outros: "hsl(215 25% 70%)",
+  "Despesas Empresa Fixo": "hsl(217 91% 65%)",
+  "Despesas Empresa Variável": "hsl(38 95% 60%)",
+  "Folha de Pagamento": "hsl(199 89% 60%)",
+  "Despesas Reembolsáveis": "hsl(280 75% 68%)",
+  "Impostos": "hsl(0 72% 60%)",
+  "Receitas Operacionais": "hsl(152 70% 50%)",
+  "Reembolsos Entradas": "hsl(142 72% 45%)",
+  "Particulares Fixo": "hsl(330 80% 65%)",
+  "Particulares Variável": "hsl(330 70% 55%)",
+  "Outros": "hsl(215 25% 70%)",
 };
+
+/* Categorias que representam gastos da empresa (caixa share), excluindo particulares */
+const isDespesaEmpresa = (nat: string) =>
+  ["Despesas Empresa Fixo", "Despesas Empresa Variável", "Folha de Pagamento", "Despesas Reembolsáveis", "Impostos"].includes(nat);
+
+/* Categorias que representam gastos particulares (não são da empresa) */
+const isParticular = (nat: string) => nat.startsWith("Particulares");
 
 
 const chartTooltip = {
@@ -109,7 +143,7 @@ export default function MasterRelatorios() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["master-relatorios", ano],
     queryFn: async () => {
-      const [movRes, clientesRes, salariosRes] = await Promise.all([
+      const [movRes, clientesRes, salariosRes, catRes] = await Promise.all([
         supabase
           .from("movimentacoes")
           .select(
@@ -122,8 +156,17 @@ export default function MasterRelatorios() {
           .limit(5000),
         supabase.from("clientes").select("id, razao_social, proprietario"),
         supabase.from("salarios").select("salario_bruto, beneficios"),
+        supabase.from("categorias_movimentacao").select("id, grupo_categoria, tipo_despesa"),
       ]);
       if (movRes.error) throw movRes.error;
+
+      /* Constrói mapa de categoria_id -> { grupo, tipoDespesa } */
+      const catMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
+      (catRes.data || []).forEach((c: any) => {
+        catMap.set(c.id, { grupo: c.grupo_categoria || "", tipoDespesa: c.tipo_despesa || null });
+      });
+      setCategoriaMap(catMap);
+
       return {
         movimentacoes: movRes.data || [],
         clientes: clientesRes.data || [],
@@ -271,10 +314,12 @@ export default function MasterRelatorios() {
     const somaNat = (nats: string[]) =>
       desp.filter((m) => nats.includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
 
-    const pessoal = somaNat(["Pessoal"]);
-    const contasFixas = somaNat(["Fixo"]);
-    const contasVariaveis = somaNat(["Variável", "Extra", "Outros"]);
-    const particulares = somaNat(["Particulares"]);
+    const pessoal = somaNat(["Folha de Pagamento"]);
+    const contasFixas = somaNat(["Despesas Empresa Fixo"]);
+    const contasVariaveis = somaNat(["Despesas Empresa Variável", "Despesas Reembolsáveis", "Impostos", "Outros"]);
+    const particulares = somaNat(["Particulares Fixo", "Particulares Variável"]);
+    const receitasOperacionais = somaNat(["Receitas Operacionais"]);
+    const reembolsosEntradas = somaNat(["Reembolsos Entradas"]);
 
     const fixoTotal = pessoal + contasFixas;
     const fixoMensal = fixoTotal / mesesNoPeriodo;
@@ -302,6 +347,8 @@ export default function MasterRelatorios() {
       contasFixas,
       contasVariaveis,
       particulares,
+      receitasOperacionais,
+      reembolsosEntradas,
       fixoTotal,
       fixoMensal,
       variavelMensal,
@@ -313,8 +360,8 @@ export default function MasterRelatorios() {
       breakevenDiaUtil: breakevenMes / 22,
       cobertura: breakevenMes > 0 ? (receitaMensal / breakevenMes) * 100 : 0,
       folgaMensal: receitaMensal - breakevenMes,
-      listaFixos: detalhe(["Fixo", "Pessoal"]),
-      listaVariaveis: detalhe(["Variável", "Extra", "Outros"]),
+      listaFixos: detalhe(["Despesas Empresa Fixo", "Folha de Pagamento"]),
+      listaVariaveis: detalhe(["Despesas Empresa Variável", "Despesas Reembolsáveis", "Impostos", "Outros"]),
     };
   }, [share, resumo.receitaShare, mesInicio, mesLimite, data?.folha]);
 
@@ -540,7 +587,7 @@ export default function MasterRelatorios() {
                   <p className="text-xs text-muted-foreground">
                     Despesas particulares pagas pelo caixa da Share (não entram no cálculo de custo da empresa)
                   </p>
-                  <p className="text-lg font-bold" style={{ color: NAT_TONE.Particulares }}>{brl(equilibrio.particulares)}</p>
+                  <p className="text-lg font-bold" style={{ color: NAT_TONE["Particulares Fixo"] }}>{brl(equilibrio.particulares)}</p>
                 </GlassCard>
               )}
 
@@ -554,7 +601,7 @@ export default function MasterRelatorios() {
                           <span className="truncate text-muted-foreground">{c.nome} <span className="text-[10px] opacity-70">({c.qtd})</span></span>
                           <span className="shrink-0 font-semibold text-foreground">{brl(c.total)}</span>
                         </div>
-                        <MiniBar value={c.total} max={categorias.share[0].total} tone={c.natureza === "Pessoal" ? "primary" : c.natureza === "Fixo" ? "neutral" : "warning"} />
+                        <MiniBar value={c.total} max={categorias.share[0].total} tone={c.natureza === "Folha de Pagamento" ? "primary" : c.natureza === "Despesas Empresa Fixo" ? "neutral" : "warning"} />
                       </div>
                     ))}
                   </div>

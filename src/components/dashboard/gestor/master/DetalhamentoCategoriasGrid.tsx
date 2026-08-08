@@ -3,6 +3,7 @@ import { html } from "lit";
 import "apex-grid/define"; // registra <apex-grid> como custom element
 import { Layers } from "lucide-react";
 import { SectionCard, EmptyState } from "./ui/Premium";
+import { getCategoriaMap } from "./MasterRelatorios";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -48,19 +49,29 @@ interface DetalhamentoCategoriasGridProps {
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-const PESSOAL = /(SALARI|SALÁRI|FOLHA|TRIPULANTE|PILOTAGEM|ADM E|ADM SHARE|13|DÉCIMO|DECIMO|FÉRIAS|FERIAS|PRO.?LABORE|BENEF)/i;
-
 const val = (m: MovimentacaoRow) => Number(m.valor_rateado ?? m.valor_original ?? 0);
 const isEntrada = (m: MovimentacaoRow) => ["entrada", "receita"].includes(String(m.tipo || "").toLowerCase());
 const isPago = (m: MovimentacaoRow) => m.status === "pago" || Boolean(m.data_pagamento);
 
+/**
+ * Usa o mesmo sistema de classificação do MasterRelatorios, baseado em grupo_categoria + tipo_despesa.
+ */
 const naturezaDe = (m: MovimentacaoRow) => {
-  const cat = String(m.categoria_nome || "");
-  if (PESSOAL.test(cat)) return "Pessoal";
-  const g = String(m.grupo_custo || "").toUpperCase();
-  if (g.startsWith("FIXO")) return "Fixo";
-  if (g.startsWith("VARIAVEL")) return "Variável";
-  if (g.startsWith("EXTRA")) return "Extra";
+  const catMap = getCategoriaMap();
+  const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
+  const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
+  const tipoDespesa = (catInfo?.tipoDespesa || String((m as any).tipo_despesa || "")).toLowerCase().trim();
+
+  if (grupo === "DESPESAS PARTICULARES") return tipoDespesa === "variavel" ? "Particulares Variável" : "Particulares Fixo";
+  if (grupo === "DESPESAS EMPRESA" || grupo === "DESPESAS EMPRESA - BANCO") return tipoDespesa === "variavel" ? "Despesas Empresa Variável" : "Despesas Empresa Fixo";
+  if (grupo === "FOLHA DE PAGAMENTO") return "Folha de Pagamento";
+  if (grupo === "DESPESAS REEMBOLSÁVEIS") return "Despesas Reembolsáveis";
+  if (grupo === "IMPOSTOS") return "Impostos";
+  if (grupo === "RECEITAS OPERACIONAIS") return "Receitas Operacionais";
+  if (grupo === "REEMBOLSOS ENTRADAS") return "Reembolsos Entradas";
+  if (grupo.includes("PARTICULAR")) return "Particulares Fixo";
+  if (grupo.startsWith("FIXO")) return "Despesas Empresa Fixo";
+  if (grupo.startsWith("VARIAVEL") || grupo.startsWith("VARIÁVEL")) return "Despesas Empresa Variável";
   return "Outros";
 };
 
@@ -93,12 +104,11 @@ export default function DetalhamentoCategoriasGrid({
       .trim();
 
   const isDespesaParticular = (m: MovimentacaoRow) => {
-    const group = normalize(m.grupo_custo);
-    if (group === "despesas particulares") return true;
-
-    const categoryName = normalize(m.categoria_nome);
-    if (categoryName.includes("despesas particulares") || categoryName.includes("particular")) return true;
-
+    const catMap = getCategoriaMap();
+    const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
+    const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
+    if (grupo === "DESPESAS PARTICULARES") return true;
+    if (grupo.includes("PARTICULAR")) return true;
     return false;
   };
 

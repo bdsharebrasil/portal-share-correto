@@ -17,6 +17,7 @@ import { DirectivesTab } from "@/components/dashboard/operador/ctm/DirectivesTab
 import { PecasTab } from "@/components/dashboard/operador/ctm/PecasTab";
 import { MapaComponenteTab } from "@/components/dashboard/operador/ctm/MapaComponenteTab";
 import { PesoBalanceamentoTab } from "@/components/dashboard/operador/ctm/PesoBalanceamentoTab";
+import { DocumentosAeronaveTab } from "@/components/dashboard/operador/ctm/DocumentosAeronaveTab";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-type TabId = "visao" | "programa" | "medias" | "oas" | "ras" | "orcamentos" | "componentes" | "rastreamento" | "oleo" | "diretrizes" | "pecas" | "peso";
+type TabId = "visao" | "programa" | "medias" | "oas" | "ras" | "orcamentos" | "componentes" | "rastreamento" | "oleo" | "diretrizes" | "pecas" | "peso" | "documentos";
 
 const TABS: { id: TabId; label: string; icon: typeof Wrench }[] = [
   { id: "visao", label: "Visão Geral", icon: BarChart3 },
@@ -39,6 +40,7 @@ const TABS: { id: TabId; label: string; icon: typeof Wrench }[] = [
   { id: "rastreamento", label: "Rastreamento", icon: RotateCcw },
   { id: "oleo", label: "Análise de Óleo", icon: Droplets },
   { id: "diretrizes", label: "AD & SB", icon: AlertTriangle },
+  { id: "documentos", label: "Documentos da Aeronave", icon: FileText },
 ];
 
 
@@ -385,6 +387,8 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
         {tab === "oleo" && <AnaliseOleoTab aircraftId={aircraftId} />}
 
         {tab === "diretrizes" && <DirectivesTab aircraftId={aircraftId} />}
+
+        {tab === "documentos" && <DocumentosAeronaveTab aircraftId={aircraftId} />}
       </div>
     </div>
   );
