@@ -266,12 +266,12 @@ export function FeriasDecimosTab() {
   const currentYearThirteenth = thirteenthHistory?.find((t) => t.year === currentYear);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6 overflow-x-hidden">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Férias e 13º Salário</h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-6">
         {/* Lista de colaboradores */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
@@ -311,7 +311,7 @@ export function FeriasDecimosTab() {
         </Card>
 
         {/* Detalhes do colaborador selecionado */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="min-w-0 space-y-6 lg:col-span-3">
           {selectedColaborador ? (
             <>
               {/* Card do colaborador */}
@@ -331,7 +331,7 @@ export function FeriasDecimosTab() {
                   </div>
 
                   {/* Status do 13º atual */}
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground uppercase">Salário Base</p>
                       <p className="text-xl font-bold">
@@ -446,8 +446,9 @@ export function FeriasDecimosTab() {
                   </div>
 
                   <Card>
-                    <CardContent className="p-0">
-                      <Table>
+                    <CardContent className="overflow-x-auto p-0">
+                      <Table className="min-w-[720px]">
+
                         <TableHeader>
                           <TableRow>
                             <TableHead>Ano</TableHead>
@@ -565,8 +566,9 @@ export function FeriasDecimosTab() {
                   </div>
 
                   <Card>
-                    <CardContent className="p-0">
-                      <Table>
+                    <CardContent className="overflow-x-auto p-0">
+                      <Table className="min-w-[720px]">
+
                         <TableHeader>
                           <TableRow>
                             <TableHead>Ano</TableHead>
