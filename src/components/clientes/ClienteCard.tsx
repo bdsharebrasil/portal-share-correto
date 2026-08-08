@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, Phone, MapPin, Plane, Building2 } from "lucide-react";
+import { Mail, Phone, MapPin, Plane, Building2, Pencil, Trash2 } from "lucide-react";
 
 interface AeronavePropriedade {
   aircraft: string;
@@ -24,7 +25,7 @@ interface Cliente {
   contato_financeiro?: string | null;
   observacoes?: string | null;
   url_logo?: string | null;
-  aircraft_ownerships?: AeronavePropriedade[];
+  aeronave_ownerships?: AeronavePropriedade[];
   tem_socio?: boolean;
   status?: string | null;
   codigo_cliente?: string | null;
@@ -37,7 +38,7 @@ interface ClienteCardProps {
   onDelete?: (id: string) => void;
 }
 
-export function ClienteCard({ cliente, onView }: ClienteCardProps) {
+export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardProps) {
   const getInitials = (name: string) =>
     name.split(" ").map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
@@ -45,9 +46,39 @@ export function ClienteCard({ cliente, onView }: ClienteCardProps) {
 
   return (
     <Card
-      className="group cursor-pointer border-slate-800 bg-slate-900/40 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200"
+      className="group relative cursor-pointer rounded-xl border border-slate-800/80 bg-slate-900/40 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200"
       onClick={() => onView?.(cliente)}
     >
+      {/* Ações rápidas — aparecem no hover, sem disparar onView */}
+      {(onEdit || onDelete) && (
+        <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+          {onEdit && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg bg-slate-950/80 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-sm"
+              onClick={(e) => { e.stopPropagation(); onEdit(cliente); }}
+              title="Editar"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg bg-slate-950/80 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 backdrop-blur-sm"
+              onClick={(e) => { e.stopPropagation(); onDelete(cliente.id); }}
+              title="Excluir"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
+
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
           {/* Avatar */}
@@ -59,21 +90,21 @@ export function ClienteCard({ cliente, onView }: ClienteCardProps) {
           </Avatar>
 
           {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white text-base truncate group-hover:text-cyan-400 transition-colors">
+          <div className="flex-1 min-w-0 pr-8">
+            <h3 className="font-semibold text-slate-100 text-base truncate group-hover:text-cyan-400 transition-colors">
               {cliente.razao_social}
             </h3>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{cliente.cnpj}</p>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">{cliente.cnpj}</p>
 
             {/* Badges */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {cliente.tem_socio && (
-                <Badge variant="secondary" className="text-xs bg-violet-500/15 text-violet-300 border-violet-500/30">
+                <Badge variant="secondary" className="text-xs rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30">
                   Cotistas
                 </Badge>
               )}
               {cliente.codigo_cliente && (
-                <Badge variant="secondary" className="text-xs bg-blue-500/15 text-blue-300 border-blue-500/30 font-mono">
+                <Badge variant="secondary" className="text-xs rounded-md bg-blue-500/15 text-blue-300 border border-blue-500/30 font-mono">
                   {cliente.codigo_cliente}
                 </Badge>
               )}
@@ -82,7 +113,7 @@ export function ClienteCard({ cliente, onView }: ClienteCardProps) {
         </div>
 
         {/* Contact details */}
-        <div className="mt-4 pt-4 border-t border-slate-800 space-y-2">
+        <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2">
           {cliente.telefone && (
             <div className="flex items-center gap-2.5 text-sm">
               <Phone className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
@@ -110,21 +141,21 @@ export function ClienteCard({ cliente, onView }: ClienteCardProps) {
         </div>
 
         {/* Aircraft */}
-        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-slate-800">
+        {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-800/80">
             <div className="flex items-center gap-2 mb-2">
               <Plane className="h-3.5 w-3.5 text-cyan-400" />
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Aeronaves</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {cliente.aircraft_ownerships.slice(0, 4).map((ownership, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs bg-slate-800 text-slate-300 border-slate-700">
+              {cliente.aeronave_ownerships.slice(0, 4).map((ownership, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
                   {ownership.aircraft_registration} <span className="text-slate-500 ml-1">({ownership.ownership_percentage}%)</span>
                 </Badge>
               ))}
-              {cliente.aircraft_ownerships.length > 4 && (
-                <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">
-                  +{cliente.aircraft_ownerships.length - 4}
+              {cliente.aeronave_ownerships.length > 4 && (
+                <Badge variant="outline" className="text-xs rounded-md border-slate-700 text-slate-400">
+                  +{cliente.aeronave_ownerships.length - 4}
                 </Badge>
               )}
             </div>
