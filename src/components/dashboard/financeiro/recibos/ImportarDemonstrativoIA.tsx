@@ -226,18 +226,13 @@ export default function ImportarDemonstrativoTab() {
       const accessToken = sessionData?.session?.access_token;
       if (!accessToken) throw new Error("Sessão expirada. Faça login novamente.");
 
-      const resp = await fetch(`${WORKER_URL}/api/demonstrativo-ocr`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ imageBase64: base64, mimeType, tipo }),
+      const { data, error: fnError } = await supabase.functions.invoke("demonstrativo-ocr", {
+        body: { imageBase64: base64, mimeType, tipo },
       });
-
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data?.error || "Falha ao processar o demonstrativo");
+      if (fnError) throw new Error((data as any)?.error || fnError.message || "Falha ao processar o demonstrativo");
+      if ((data as any)?.error) throw new Error((data as any).error);
       const res = data as DemoResult;
+
 
       const datasIso = Array.from(new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[]));
       let diarioRows: DiarioRow[] = [];
