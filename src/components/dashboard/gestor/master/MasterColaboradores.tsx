@@ -9,7 +9,7 @@ export function MasterColaboradores() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-8">
+      <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden px-4 pb-8 sm:px-6">
         {/* Header com botão voltar */}
         <div className="flex items-center gap-3">
           <button
