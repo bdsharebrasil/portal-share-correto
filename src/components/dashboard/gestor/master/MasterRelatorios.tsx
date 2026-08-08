@@ -1,6 +1,6 @@
 // @ts-nocheck — colunas legadas fora dos types gerados
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Wallet, TrendingUp, TrendingDown, Building2, Users, PieChart as PieIcon, Target,
   LineChart as LineIcon, Download, Loader2, FileBarChart, AlertTriangle, Undo2, Layers,
@@ -30,25 +30,37 @@ const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reem
 const isReembolso = (m: any) =>
   `${m.descricao ?? ""} ${m.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
 
-const PESSOAL = /(SALARI|SALÁRI|FOLHA|TRIPULANTE|PILOTAGEM|ADM E|ADM SHARE|13|DÉCIMO|DECIMO|FÉRIAS|FERIAS|PRO.?LABORE|BENEF)/i;
+const PESSOAL = /(SALARI|SALÁRI|FOLHA|TRIPULANTE|PILOTAGEM|ADM E|ADM SHARE|13|DÉCIMO|DECIMO|FÉRIAS|FERIAS|PRO.?LABORE|BENEF|VALE |CARTÃO ALIMENTA|CARTAO ALIMENTA)/i;
+
+/* Contas recorrentes/estruturais da empresa */
+const FIXO_RX =
+  /(ALUGUEL|ENERGIA|ENERGISA|INTERNET|TELEFON|CONTABILIDADE|ASSINATURA|SEGURO|CONSORCIO|CONSÓRCIO|SOFTWARE|SISTEMA|HANGAR|IPTU|ÁGUA|AGUA|CONDOM|LICEN|MENSAL|CONTRATO)/i;
+
+/* Contas que oscilam conforme operação/uso */
+const VARIAVEL_RX =
+  /(COMBUST|ABASTEC|TARIFA|POUSO|NAVEG|DECEA|INFRAERO|MANUTEN|OFICIN|PEÇA|PECA|COMISSARIA|PADARIA|COMPRA|AQUISI|VIAGEM|HOTEL|UBER|TAXI|MATERIAL|FRETE|LIMPEZA|CARTÃO DE CRÉDITO|CARTAO DE CREDITO|CARTÃO COMBUST|CARTAO COMBUST|DESPESAS SHARE|RELATORIO DE VIAGEM|RELATÓRIO DE VIAGEM)/i;
 
 const naturezaDe = (m: any) => {
-  const cat = String(m.categoria_nome || "");
-  if (PESSOAL.test(cat)) return "Pessoal";
+  const cat = String(m.categoria_nome || "").trim();
   const g = String(m.grupo_custo || "").toUpperCase();
-  if (g.startsWith("FIXO")) return "Fixo";
-  if (g.startsWith("VARIAVEL")) return "Variável";
+
+  if (g.includes("PARTICULAR")) return "Particulares";
+  if (PESSOAL.test(cat)) return "Pessoal";
+  if (g.startsWith("FIXO") || FIXO_RX.test(cat)) return "Fixo";
+  if (g.startsWith("VARIAVEL") || g.startsWith("VARIÁVEL") || VARIAVEL_RX.test(cat)) return "Variável";
   if (g.startsWith("EXTRA")) return "Extra";
   return "Outros";
 };
 
 const NAT_TONE: Record<string, string> = {
-  Pessoal: "hsl(var(--primary))",
-  Fixo: "hsl(210 90% 60%)",
-  "Variável": "hsl(38 92% 58%)",
-  Extra: "hsl(280 70% 65%)",
-  Outros: "hsl(var(--muted-foreground))",
+  Pessoal: "hsl(199 89% 60%)",
+  Fixo: "hsl(217 91% 65%)",
+  "Variável": "hsl(38 95% 60%)",
+  Extra: "hsl(280 75% 68%)",
+  Particulares: "hsl(330 80% 65%)",
+  Outros: "hsl(215 25% 70%)",
 };
+
 
 const chartTooltip = {
   contentStyle: {
@@ -64,6 +76,35 @@ export default function MasterRelatorios() {
   const [ano, setAno] = useState(String(hoje.getFullYear()));
   const [periodo, setPeriodo] = useState("ano");
   const [busca, setBusca] = useState("");
+  const [metaInput, setMetaInput] = useState("");
+  const queryClient = useQueryClient();
+
+  const metaKey = `meta_financeira_share_${ano}`;
+  const { data: metaSalva = 0 } = useQuery({
+    queryKey: ["master-meta", metaKey],
+    queryFn: async () => {
+      const { data } = await supabase.from("app_config").select("value").eq("key", metaKey).maybeSingle();
+      return Number((data as any)?.value ?? 0) || 0;
+    },
+  });
+
+  useEffect(() => {
+    setMetaInput(metaSalva ? String(metaSalva) : "");
+  }, [metaSalva]);
+
+  const salvarMeta = useMutation({
+    mutationFn: async (valor: number) => {
+      const { error } = await supabase
+        .from("app_config")
+        .upsert({ key: metaKey, value: String(valor) }, { onConflict: "key" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-meta", metaKey] });
+      toast.success("Meta financeira salva.");
+    },
+    onError: () => toast.error("Não foi possível salvar a meta."),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["master-relatorios", ano],
@@ -121,7 +162,6 @@ export default function MasterRelatorios() {
     const receitaShare = soma(share, (m) => isEntrada(m) && isPago(m));
     const despesaShare = soma(share, (m) => isShareExpense(m));
     const aReceber = soma(share, (m) => isEntrada(m) && !isPago(m));
-    const receitaCliente = soma(cliente, (m) => isEntrada(m) && isPago(m));
     const despesaCliente = soma(cliente, (m) => !isEntrada(m) && isPago(m));
     const reembolsos = soma(movs, (m) => !isEntrada(m) && isPago(m) && isReembolso(m));
     return {
@@ -129,9 +169,7 @@ export default function MasterRelatorios() {
       despesaShare,
       saldoShare: receitaShare - despesaShare,
       aReceber,
-      receitaCliente,
       despesaCliente,
-      saldoCliente: receitaCliente - despesaCliente,
       reembolsos,
       margem: receitaShare > 0 ? ((receitaShare - despesaShare) / receitaShare) * 100 : 0,
     };
@@ -226,19 +264,45 @@ export default function MasterRelatorios() {
     return t ? porCliente.filter((c) => c.nome.toLowerCase().includes(t)) : porCliente;
   }, [porCliente, busca]);
 
-  /* ---------- ponto de equilíbrio ---------- */
+  /* ---------- ponto de equilíbrio (caixa Share) ---------- */
   const equilibrio = useMemo(() => {
     const mesesNoPeriodo = Math.max(1, mesLimite - mesInicio + 1);
     const desp = share.filter((m: any) => isShareExpense(m));
-    const fixoCat = desp.filter((m) => ["Fixo", "Pessoal"].includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
-    const variavel = desp.filter((m) => !["Fixo", "Pessoal"].includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
-    const fixoMensal = fixoCat / mesesNoPeriodo;
-    const variavelMensal = variavel / mesesNoPeriodo;
+    const somaNat = (nats: string[]) =>
+      desp.filter((m) => nats.includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
+
+    const pessoal = somaNat(["Pessoal"]);
+    const contasFixas = somaNat(["Fixo"]);
+    const contasVariaveis = somaNat(["Variável", "Extra", "Outros"]);
+    const particulares = somaNat(["Particulares"]);
+
+    const fixoTotal = pessoal + contasFixas;
+    const fixoMensal = fixoTotal / mesesNoPeriodo;
+    const variavelMensal = contasVariaveis / mesesNoPeriodo;
     const receitaMensal = resumo.receitaShare / mesesNoPeriodo;
     const margemContribuicao = receitaMensal > 0 ? (receitaMensal - variavelMensal) / receitaMensal : 0;
     const breakevenMes = margemContribuicao > 0 ? fixoMensal / margemContribuicao : fixoMensal + variavelMensal;
+
+    const detalhe = (nats: string[]) => {
+      const map = new Map<string, number>();
+      desp
+        .filter((m) => nats.includes(naturezaDe(m)))
+        .forEach((m) => {
+          const nome = (m.categoria_nome || "Sem categoria").trim();
+          map.set(nome, (map.get(nome) || 0) + val(m));
+        });
+      return Array.from(map.entries())
+        .map(([nome, total]) => ({ nome, total, mensal: total / mesesNoPeriodo }))
+        .sort((a, b) => b.total - a.total);
+    };
+
     return {
       mesesNoPeriodo,
+      pessoal,
+      contasFixas,
+      contasVariaveis,
+      particulares,
+      fixoTotal,
       fixoMensal,
       variavelMensal,
       receitaMensal,
@@ -249,6 +313,8 @@ export default function MasterRelatorios() {
       breakevenDiaUtil: breakevenMes / 22,
       cobertura: breakevenMes > 0 ? (receitaMensal / breakevenMes) * 100 : 0,
       folgaMensal: receitaMensal - breakevenMes,
+      listaFixos: detalhe(["Fixo", "Pessoal"]),
+      listaVariaveis: detalhe(["Variável", "Extra", "Outros"]),
     };
   }, [share, resumo.receitaShare, mesInicio, mesLimite, data?.folha]);
 
@@ -262,30 +328,53 @@ export default function MasterRelatorios() {
 
     let acumReceita = 0;
     let acumDespesa = 0;
-    const linha = serieMensal.map((r) => {
+    let resultadoRealizado = 0;
+    const linhaBase = serieMensal.map((r) => {
       const projetado = r.idx > mesLimite;
       const rec = projetado ? mediaReceita : r.receitaShare;
       const des = projetado ? mediaDespesa : r.despesaShare;
       acumReceita += rec;
       acumDespesa += des;
+      if (!projetado) resultadoRealizado = acumReceita - acumDespesa;
       return {
         mes: r.mes,
+        idx: r.idx,
         realizado: projetado ? null : acumReceita - acumDespesa,
         projetado: r.idx >= mesLimite ? acumReceita - acumDespesa : null,
         receita: rec,
         despesa: des,
       };
     });
+
+    const resultadoAnual = acumReceita - acumDespesa;
+    const mesesRestantes = Math.max(0, 11 - mesLimite);
+    const meta = Number(metaSalva) || 0;
+    const faltaParaMeta = meta - resultadoRealizado;
+    const necessarioPorMes = mesesRestantes > 0 ? faltaParaMeta / mesesRestantes : faltaParaMeta;
+    const gapProjecao = resultadoAnual - meta;
+
+    /* linha da meta: evolução linear do zero até a meta ao longo do ano */
+    const linha = linhaBase.map((r) => ({
+      ...r,
+      meta: meta > 0 ? (meta / 12) * (r.idx + 1) : null,
+    }));
+
     return {
       linha,
       mediaReceita,
       mediaDespesa,
-      mesesRestantes: 11 - mesLimite,
-      resultadoAnual: acumReceita - acumDespesa,
+      mesesRestantes,
+      resultadoAnual,
+      resultadoRealizado,
       receitaAnual: acumReceita,
       despesaAnual: acumDespesa,
+      meta,
+      faltaParaMeta,
+      necessarioPorMes,
+      gapProjecao,
+      progressoMeta: meta > 0 ? (resultadoRealizado / meta) * 100 : 0,
     };
-  }, [serieMensal, mesLimite]);
+  }, [serieMensal, mesLimite, metaSalva]);
 
   const exportCsv = () => {
     const header = ["Data", "Caixa", "Tipo", "Categoria", "Natureza", "Descrição", "Cliente", "Status", "Valor"];
@@ -410,23 +499,28 @@ export default function MasterRelatorios() {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="mt-3 space-y-2">
-                        {porNatureza.map((n) => (
-                          <div key={n.nome} className="flex items-center justify-between gap-3 text-xs">
-                            <span className="flex items-center gap-2 text-muted-foreground">
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ background: NAT_TONE[n.nome] || NAT_TONE.Outros }} />
-                              {n.nome}
-                            </span>
-                            <span className="font-semibold text-foreground">{brl(n.total)}</span>
-                          </div>
-                        ))}
+                        {porNatureza.map((n) => {
+                          const totalNat = porNatureza.reduce((t, x) => t + x.total, 0) || 1;
+                          return (
+                            <div key={n.nome} className="flex items-center justify-between gap-3 text-xs">
+                              <span className="flex items-center gap-2 font-medium text-foreground/90">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ background: NAT_TONE[n.nome] || NAT_TONE.Outros }} />
+                                {n.nome}
+                                <span className="text-[10px] text-muted-foreground">
+                                  {((n.total / totalNat) * 100).toFixed(0)}%
+                                </span>
+                              </span>
+                              <span className="font-semibold text-foreground">{brl(n.total)}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </>
                   )}
                 </SectionCard>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <StatTile label="Receitas dos clientes" value={brl(resumo.receitaCliente)} hint="Caixa cliente" icon={Users} tone="success" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <StatTile label="Custos dos clientes" value={brl(resumo.despesaCliente)} hint="Rateios e despesas" icon={TrendingDown} tone="neutral" />
                 <StatTile label="Reembolsos pagos" value={brl(resumo.reembolsos)} hint="Devolvidos pela Share" icon={Undo2} tone="warning" />
               </div>
@@ -435,11 +529,21 @@ export default function MasterRelatorios() {
             {/* ---------------- EMPRESA ---------------- */}
             <TabsContent value="empresa" className="space-y-4 focus-visible:outline-none">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <StatTile label="Pessoal / salários" value={brl(porNatureza.find((n) => n.nome === "Pessoal")?.total || 0)} icon={Users} tone="primary" />
-                <StatTile label="Contas fixas" value={brl(porNatureza.find((n) => n.nome === "Fixo")?.total || 0)} icon={Building2} tone="neutral" delay={60} />
-                <StatTile label="Contas variáveis" value={brl(porNatureza.find((n) => n.nome === "Variável")?.total || 0)} icon={TrendingDown} tone="warning" delay={120} />
+                <StatTile label="Pessoal / salários" value={brl(equilibrio.pessoal)} hint="Folha, benefícios, 13º" icon={Users} tone="primary" />
+                <StatTile label="Contas fixas" value={brl(equilibrio.contasFixas)} hint={`${brl(equilibrio.contasFixas / equilibrio.mesesNoPeriodo)} / mês`} icon={Building2} tone="neutral" delay={60} />
+                <StatTile label="Contas variáveis" value={brl(equilibrio.contasVariaveis)} hint={`${brl(equilibrio.variavelMensal)} / mês`} icon={TrendingDown} tone="warning" delay={120} />
                 <StatTile label="Resultado do caixa" value={brl(resumo.saldoShare)} hint={resumo.saldoShare >= 0 ? "Caixa positivo" : "Caixa negativo"} icon={Wallet} tone={resumo.saldoShare >= 0 ? "success" : "danger"} delay={180} />
               </div>
+
+              {equilibrio.particulares > 0 && (
+                <GlassCard className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Despesas particulares pagas pelo caixa da Share (não entram no cálculo de custo da empresa)
+                  </p>
+                  <p className="text-lg font-bold" style={{ color: NAT_TONE.Particulares }}>{brl(equilibrio.particulares)}</p>
+                </GlassCard>
+              )}
+
 
               <SectionCard title="Gastos internos por categoria" subtitle="Somente despesas do caixa da empresa" icon={Building2}>
                 {categorias.share.length === 0 ? <EmptyState message="Nenhum gasto interno no período." /> : (
@@ -623,8 +727,8 @@ export default function MasterRelatorios() {
 
                 <SectionCard title="Composição do custo fixo" subtitle="Base do cálculo" icon={Layers}>
                   <div className="space-y-3 text-sm">
-                    <Linha label="Pessoal e salários" value={porNatureza.find((n) => n.nome === "Pessoal")?.total || 0} />
-                    <Linha label="Contas fixas" value={porNatureza.find((n) => n.nome === "Fixo")?.total || 0} />
+                    <Linha label="Pessoal e salários" value={equilibrio.pessoal} />
+                    <Linha label="Contas fixas" value={equilibrio.contasFixas} />
                     <Linha label="Folha cadastrada (referência)" value={equilibrio.folha} muted />
                     <div className="border-t border-border/50 pt-3">
                       <Linha label="Custo fixo mensal usado" value={equilibrio.fixoMensal} strong />
@@ -632,7 +736,58 @@ export default function MasterRelatorios() {
                   </div>
                 </SectionCard>
               </div>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <SectionCard
+                  title="Contas fixas do caixa Share"
+                  subtitle={`Recorrentes — média de ${brl(equilibrio.fixoMensal)} por mês`}
+                  icon={Building2}
+                >
+                  {equilibrio.listaFixos.length === 0 ? (
+                    <EmptyState message="Nenhuma conta fixa no período." />
+                  ) : (
+                    <div className="space-y-3">
+                      {equilibrio.listaFixos.slice(0, 12).map((c) => (
+                        <div key={c.nome} className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="truncate text-muted-foreground">{c.nome}</span>
+                            <span className="shrink-0 font-semibold text-foreground">
+                              {brl(c.total)} <span className="text-[10px] text-muted-foreground">({brl(c.mensal)}/mês)</span>
+                            </span>
+                          </div>
+                          <MiniBar value={c.total} max={equilibrio.listaFixos[0].total} tone="primary" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+
+                <SectionCard
+                  title="Contas variáveis do caixa Share"
+                  subtitle={`Oscilam com a operação — média de ${brl(equilibrio.variavelMensal)} por mês`}
+                  icon={TrendingDown}
+                >
+                  {equilibrio.listaVariaveis.length === 0 ? (
+                    <EmptyState message="Nenhuma conta variável no período." />
+                  ) : (
+                    <div className="space-y-3">
+                      {equilibrio.listaVariaveis.slice(0, 12).map((c) => (
+                        <div key={c.nome} className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="truncate text-muted-foreground">{c.nome}</span>
+                            <span className="shrink-0 font-semibold text-foreground">
+                              {brl(c.total)} <span className="text-[10px] text-muted-foreground">({brl(c.mensal)}/mês)</span>
+                            </span>
+                          </div>
+                          <MiniBar value={c.total} max={equilibrio.listaVariaveis[0].total} tone="warning" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
             </TabsContent>
+
 
             {/* ---------------- PROJEÇÃO ---------------- */}
             <TabsContent value="projecao" className="space-y-4 focus-visible:outline-none">
@@ -650,16 +805,96 @@ export default function MasterRelatorios() {
                 />
               </div>
 
-              <SectionCard title="Perspectiva até o fim do ano" subtitle="Saldo acumulado — realizado e projetado mantendo o ritmo atual" icon={LineIcon}>
+              <SectionCard
+                title="Meta financeira do caixa Share"
+                subtitle={`Resultado que a Share quer fechar em ${ano}`}
+                icon={Target}
+                action={
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Ex: 250000"
+                      value={metaInput}
+                      onChange={(e) => setMetaInput(e.target.value)}
+                      className="h-9 w-[160px] rounded-lg"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-9 rounded-lg"
+                      disabled={salvarMeta.isPending}
+                      onClick={() => salvarMeta.mutate(Number(metaInput) || 0)}
+                    >
+                      {salvarMeta.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar meta"}
+                    </Button>
+                  </div>
+                }
+              >
+                {projecao.meta <= 0 ? (
+                  <EmptyState message="Defina uma meta de resultado para acompanhar o fechamento do ano." />
+                ) : (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                        <p className="text-[11px] uppercase text-muted-foreground">Meta {ano}</p>
+                        <p className="mt-1 text-xl font-bold text-primary">{brl(projecao.meta)}</p>
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+                        <p className="text-[11px] uppercase text-muted-foreground">Realizado até agora</p>
+                        <p className={`mt-1 text-xl font-bold ${projecao.resultadoRealizado >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+                          {brl(projecao.resultadoRealizado)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+                        <p className="text-[11px] uppercase text-muted-foreground">Falta para a meta</p>
+                        <p className="mt-1 text-xl font-bold text-foreground">{brl(Math.max(0, projecao.faltaParaMeta))}</p>
+                      </div>
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                        <p className="text-[11px] uppercase text-muted-foreground">Resultado necessário / mês</p>
+                        <p className="mt-1 text-xl font-bold text-amber-400">{brl(Math.max(0, projecao.necessarioPorMes))}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {projecao.mesesRestantes > 0 ? `${projecao.mesesRestantes} mês(es) restantes` : "Ano encerrado"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progresso da meta</span>
+                        <span className={`font-semibold ${projecao.progressoMeta >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                          {projecao.progressoMeta.toFixed(0)}%
+                        </span>
+                      </div>
+                      <MiniBar
+                        value={Math.min(Math.max(projecao.progressoMeta, 0), 100)}
+                        max={100}
+                        tone={projecao.progressoMeta >= 100 ? "success" : "warning"}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {projecao.gapProjecao >= 0
+                          ? `No ritmo atual a meta é superada em ${brl(projecao.gapProjecao)}.`
+                          : `No ritmo atual faltarão ${brl(Math.abs(projecao.gapProjecao))} para bater a meta — é preciso aumentar o resultado em ${brl(
+                              projecao.mesesRestantes > 0 ? Math.abs(projecao.gapProjecao) / projecao.mesesRestantes : Math.abs(projecao.gapProjecao)
+                            )} por mês.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
+
+              <SectionCard title="Perspectiva até o fim do ano" subtitle="Saldo acumulado — realizado, projetado e meta" icon={LineIcon}>
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={projecao.linha}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={compact} width={52} />
                     <Tooltip {...chartTooltip} formatter={(v: number) => brlFull(v)} />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: "hsl(var(--foreground))" }} />
                     <Line name="Realizado" type="monotone" dataKey="realizado" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 3 }} animationDuration={900} />
-                    <Line name="Projetado" type="monotone" dataKey="projetado" stroke="hsl(38 92% 58%)" strokeWidth={2} strokeDasharray="6 5" dot={false} animationDuration={900} />
+                    <Line name="Projetado" type="monotone" dataKey="projetado" stroke="hsl(38 95% 60%)" strokeWidth={2} strokeDasharray="6 5" dot={false} animationDuration={900} />
+                    {projecao.meta > 0 && (
+                      <Line name="Meta" type="monotone" dataKey="meta" stroke="hsl(152 70% 50%)" strokeWidth={2} strokeDasharray="3 4" dot={false} animationDuration={900} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
                 <p className="mt-3 text-xs text-muted-foreground">
@@ -668,6 +903,7 @@ export default function MasterRelatorios() {
                 </p>
               </SectionCard>
             </TabsContent>
+
           </Tabs>
         )}
       </div>
