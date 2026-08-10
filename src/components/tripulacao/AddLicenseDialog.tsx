@@ -87,7 +87,8 @@ export function AddLicenseDialog({
     try {
       const insertData: any = {
         membro_tripulacao_id: crewMemberId,
-        tipo_habilitacao: licenseType,
+        // tipo_habilitacao sempre gravado em maiúsculo, mesmo padrão do tipo_licenca
+        tipo_habilitacao: licenseType.toUpperCase(),
         numero_habilitacao: "",
         data_validade: isCMA ? null : expiryDate,
         observacao: observations || null,
@@ -143,8 +144,8 @@ export function AddLicenseDialog({
             </Label>
             <Input
               value={licenseType}
-              onChange={(e) => setLicenseType(e.target.value)}
-              className="bg-transparent border-[#1d1d72] text-white"
+              onChange={(e) => setLicenseType(e.target.value.toUpperCase())}
+              className="bg-transparent border-[#1d1d72] text-white uppercase"
             />
           </div>
 
