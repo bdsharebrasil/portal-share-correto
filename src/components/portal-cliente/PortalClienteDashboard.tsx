@@ -718,8 +718,7 @@ function PageHeader({
             <ChevronLeft className="h-3 w-3" />
             Aeronaves
           </button>
-          <ChevronRight className="h-3 w-3 text-ink-faint" />
-          <span className="text-xs font-semibold text-ink">Dashboard Financeiro</span>
+      
         </div>
       </div>
 
