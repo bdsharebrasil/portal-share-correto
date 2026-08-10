@@ -25,47 +25,46 @@ import { CrewRegistrationForm } from "@/components/tripulacao/CrewRegistrationFo
 // ── Tipos alinhados ao schema real ────────────────────────────────────────────
 interface CrewMember {
   id: string;
-  nome_completo: string;        // membros_tripulacao.nome_completo
+  nome_completo: string;        
   canac: string;
   email?: string;
   telefone?: string;
-  data_nascimento?: string;     // membros_tripulacao.data_nascimento
+  data_nascimento?: string;     
   status: string;
-  url_avatar?: string;          // membros_tripulacao.url_avatar
-  user_id?: string;             // membros_tripulacao.user_id
+  url_avatar?: string;          
+  user_id?: string;             
   role?: string;
-  cpf?: string;                 // membros_tripulacao.cpf
-  rg?: string;                  // membros_tripulacao.rg
-  endereco?: string;            // membros_tripulacao.endereco
-  tipo_licenca?: string;        // membros_tripulacao.tipo_licenca (sempre maiúsculo)
+  cpf?: string;                 
+  rg?: string;                  
+  endereco?: string;            
+  tipo_licenca?: string;        
 }
 
 interface CrewFlightHours {
   id: string;
   membro_tripulacao_id: string;
   aeronave_id: string;
-  horas_totais: number;         // horas_voo_tripulante.horas_totais
+  horas_totais: number;         
   aeronave?: {
-    matricula: string;          // aeronave.matricula
-    modelo: string;             // aeronave.modelo
+    matricula: string;          
+    modelo: string;             
   };
 }
 
 interface CrewLicense {
   id: string;
-  membro_tripulacao_id: string; // habilitacoes_tripulante.membro_tripulacao_id
-  tipo_habilitacao: string;     // habilitacoes_tripulante.tipo_habilitacao
-  data_validade?: string;       // habilitacoes_tripulante.data_validade
-  observacao?: string;          // habilitacoes_tripulante.observacao
+  membro_tripulacao_id: string; 
+  tipo_habilitacao: string;     
+  data_validade?: string;       
+  observacao?: string;          
   CMA?: string;
   FS_RH?: string;
   validade_cma?: string;
 }
 
-// Voo do logbook usado como "escala"
 interface LogbookFlight {
   id: string;
-  data_registro: string;        // lancamentos_diario_bordo.data_registro
+  data_registro: string;        
   aerodromo_partida: string;
   aerodromo_chegada: string;
   tempo_total: number;
@@ -73,7 +72,6 @@ interface LogbookFlight {
   confirmado: boolean;
 }
 
-// Opções padrão de tipo de licença (ANAC) — sempre gravadas em maiúsculo
 const TIPOS_LICENCA = [
   { value: "PP", label: "PP — Piloto Privado" },
   { value: "PC", label: "PC — Piloto Comercial" },
@@ -105,7 +103,6 @@ export default function GestaoDeTripulacao() {
   useEffect(() => { if (selectedCrew) loadCrewDetails(selectedCrew.id); }, [selectedCrew]);
 
   const loadCrewMembers = async () => {
-    // cpf, rg, endereco, url_avatar, tipo_licenca estão direto em membros_tripulacao
     const { data, error } = await supabase
       .from('membros_tripulacao')
       .select('id, nome_completo, canac, telefone, data_nascimento, status, url_avatar, user_id, cpf, rg, endereco, tipo_licenca')
@@ -120,7 +117,6 @@ export default function GestaoDeTripulacao() {
     const crewWithRoles = await Promise.all((data || []).map(async (crew: CrewMember) => {
       let crewData: CrewMember = { ...crew, role: 'Tripulante' };
 
-      // Buscar role pelo user_id (coluna correta do schema)
       if (crew.user_id) {
         const { data: roleData } = await supabase
           .from('user_roles')
@@ -138,7 +134,6 @@ export default function GestaoDeTripulacao() {
   };
 
   const loadCrewDetails = async (crewId: string) => {
-    // Horas de voo — join com coluna correta da aeronave
     const { data: hoursData } = await supabase
       .from('horas_voo_tripulante')
       .select(`
@@ -148,7 +143,6 @@ export default function GestaoDeTripulacao() {
       .eq('membro_tripulacao_id', crewId);
     setFlightHours(hoursData || []);
 
-    // Habilitações — colunas corretas
     const { data: licensesData } = await (supabase as any)
       .from('habilitacoes_tripulante')
       .select('id, membro_tripulacao_id, tipo_habilitacao, data_validade, observacao, CMA, FS_RH, validade_cma')
@@ -156,7 +150,6 @@ export default function GestaoDeTripulacao() {
       .order('criado_em', { ascending: false });
     setLicenses(licensesData || []);
 
-    // Voos futuros do diário de bordo (substitui flight_schedules inexistente)
     const today = new Date().toISOString().slice(0, 10);
     const { data: schedulesData } = await supabase
       .from('lancamentos_diario_bordo')
@@ -169,7 +162,6 @@ export default function GestaoDeTripulacao() {
   };
 
   const getLicenseStatusBadge = (license: CrewLicense, onEdit?: () => void) => {
-    // Para CMA usar validade_cma; para outros usar data_validade
     const dateStr = license.CMA ? license.validade_cma : license.data_validade;
     if (!dateStr) return <Badge className="bg-gray-500">Sem data de validade</Badge>;
 
@@ -188,9 +180,8 @@ export default function GestaoDeTripulacao() {
   const saveLicense = async (licenseData: Partial<CrewLicense>) => {
     if (!selectedCrew) return;
 
-    // Payload com nomes de coluna corretos do schema
     const payload = {
-      membro_tripulacao_id: selectedCrew.id,   // ✓ FK correta
+      membro_tripulacao_id: selectedCrew.id,
       ...licenseData,
     };
 
@@ -235,7 +226,6 @@ export default function GestaoDeTripulacao() {
     }
   };
 
-  // Filtro usa nome_completo (campo real do schema)
   const filteredCrewMembers = crewMembers.filter(crew =>
     (crew.nome_completo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (crew.canac || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -267,7 +257,6 @@ export default function GestaoDeTripulacao() {
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
-            {/* Busca e filtros */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -290,7 +279,6 @@ export default function GestaoDeTripulacao() {
               </div>
             </div>
 
-            {/* Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredCrewMembers.length === 0 ? (
                 <div className="col-span-full text-center py-20">
@@ -307,13 +295,11 @@ export default function GestaoDeTripulacao() {
               )}
             </div>
 
-            {/* Dialog de detalhes */}
             <Dialog open={!!selectedCrew} onOpenChange={open => !open && setSelectedCrew(null)}>
               <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <User size={24} />
-                    {/* nome_completo — campo real */}
                     Perfil Completo — {selectedCrew?.nome_completo}
                   </DialogTitle>
                 </DialogHeader>
@@ -327,7 +313,6 @@ export default function GestaoDeTripulacao() {
                       <TabsTrigger value="schedule">Escala</TabsTrigger>
                     </TabsList>
 
-                    {/* Perfil */}
                     <TabsContent value="profile">
                       <Card>
                         <CardHeader>
@@ -356,8 +341,6 @@ export default function GestaoDeTripulacao() {
                               onChange={setEditingProfileData}
                               onSave={async () => {
                                 try {
-                                  // Atualiza direto em membros_tripulacao (cpf/rg/endereco/tipo_licenca estão lá)
-                                  // tipo_licenca é sempre normalizado para maiúsculo antes de salvar
                                   const { error } = await supabase
                                     .from('membros_tripulacao')
                                     .update({
@@ -389,14 +372,13 @@ export default function GestaoDeTripulacao() {
                               }}
                             />
                           ) : (
-                            <div className="flex items-center gap-6">
+                            <div className="flex flex-col md:flex-row items-start gap-6">
                               {selectedCrew.url_avatar
-                                ? <img src={selectedCrew.url_avatar} alt={selectedCrew.nome_completo} className="w-32 h-32 rounded-full object-cover" />
-                                : <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center"><User size={48} className="text-primary" /></div>
+                                ? <img src={selectedCrew.url_avatar} alt={selectedCrew.nome_completo} className="w-32 h-32 rounded-full object-cover shrink-0" />
+                                : <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center shrink-0"><User size={48} className="text-primary" /></div>
                               }
-                              <div className="space-y-3 flex-1">
-                                {/* nome_completo — campo real */}
-                                <div className="flex items-center gap-3">
+                              <div className="space-y-4 flex-1 w-full">
+                                <div className="flex flex-wrap items-center gap-3">
                                   <h2 className="text-2xl font-bold">{selectedCrew.nome_completo}</h2>
                                   {selectedCrew.tipo_licenca && (
                                     <Badge className="bg-slate-800/80 text-slate-200 border-slate-700 text-[10px] font-bold uppercase tracking-wide">
@@ -404,47 +386,35 @@ export default function GestaoDeTripulacao() {
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <Award className="text-primary" size={16} />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-muted/40 p-4 rounded-lg">
+                                  <div className="flex items-start gap-2">
+                                    <Award className="text-primary min-w-[16px] mt-0.5" size={16} />
                                     <span><strong>CANAC:</strong> {selectedCrew.canac}</span>
                                   </div>
-                                  {selectedCrew.cpf && (
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="text-primary" size={16} />
-                                      <span><strong>CPF:</strong> {selectedCrew.cpf}</span>
-                                    </div>
-                                  )}
-                                  {selectedCrew.rg && (
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="text-primary" size={16} />
-                                      <span><strong>RG:</strong> {selectedCrew.rg}</span>
-                                    </div>
-                                  )}
-                                  {selectedCrew.email && (
-                                    <div className="flex items-center gap-2">
-                                      <Mail className="text-primary" size={16} />
-                                      <span>{selectedCrew.email}</span>
-                                    </div>
-                                  )}
-                                  {selectedCrew.telefone && (
-                                    <div className="flex items-center gap-2">
-                                      <Phone className="text-primary" size={16} />
-                                      <span>{selectedCrew.telefone}</span>
-                                    </div>
-                                  )}
-                                  {selectedCrew.data_nascimento && (
-                                    <div className="flex items-center gap-2">
-                                      <Calendar className="text-primary" size={16} />
-                                      <span><strong>Nascimento:</strong> {formatDateToBR(selectedCrew.data_nascimento)}</span>
-                                    </div>
-                                  )}
-                                  {selectedCrew.endereco && (
-                                    <div className="flex items-center gap-2 col-span-2">
-                                      <MapPin className="text-primary" size={16} />
-                                      <span><strong>Endereço:</strong> {selectedCrew.endereco}</span>
-                                    </div>
-                                  )}
+                                  <div className="flex items-start gap-2">
+                                    <FileText className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span><strong>CPF:</strong> {selectedCrew.cpf || <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <FileText className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span><strong>RG:</strong> {selectedCrew.rg || <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <Calendar className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span><strong>Nascimento:</strong> {selectedCrew.data_nascimento ? formatDateToBR(selectedCrew.data_nascimento) : <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <Mail className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span className="break-all"><strong>Email:</strong> {selectedCrew.email || <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <Phone className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span><strong>Telefone:</strong> {selectedCrew.telefone || <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2 col-span-1 sm:col-span-2">
+                                    <MapPin className="text-primary min-w-[16px] mt-0.5" size={16} />
+                                    <span><strong>Endereço:</strong> {selectedCrew.endereco || <span className="text-muted-foreground italic">Não informado</span>}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -453,7 +423,6 @@ export default function GestaoDeTripulacao() {
                       </Card>
                     </TabsContent>
 
-                    {/* Horas de Voo */}
                     <TabsContent value="hours">
                       <Card>
                         <CardHeader>
@@ -472,10 +441,8 @@ export default function GestaoDeTripulacao() {
                                 {flightHours.map(h => (
                                   <TableRow key={h.id}>
                                     <TableCell className="font-medium">
-                                      {/* matricula/modelo — colunas reais da aeronave */}
                                       {(h.aeronave as any)?.matricula} — {(h.aeronave as any)?.modelo}
                                     </TableCell>
-                                    {/* horas_totais — coluna real */}
                                     <TableCell className="text-right">{Number(h.horas_totais || 0).toFixed(1)}h</TableCell>
                                   </TableRow>
                                 ))}
@@ -494,7 +461,6 @@ export default function GestaoDeTripulacao() {
                       </Card>
                     </TabsContent>
 
-                    {/* Habilitações */}
                     <TabsContent value="licenses">
                       <Card>
                         <CardHeader>
@@ -527,7 +493,6 @@ export default function GestaoDeTripulacao() {
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1 space-y-3">
                                       <div className="flex items-center gap-3">
-                                        {/* tipo_habilitacao — campo real */}
                                         <h3 className="font-semibold text-lg">{license.tipo_habilitacao}</h3>
                                         {getLicenseStatusBadge(license, canEditHabilitacoes ? () => {
                                           setEditingLicense(license);
@@ -542,7 +507,6 @@ export default function GestaoDeTripulacao() {
                                             {license.validade_cma && <div className="col-span-2"><strong>Validade CMA:</strong> {formatDateToBR(license.validade_cma)}</div>}
                                           </>
                                         ) : (
-                                          // data_validade — campo real
                                           license.data_validade && (
                                             <div className="col-span-2"><strong>Validade:</strong> {formatDateToBR(license.data_validade)}</div>
                                           )
@@ -566,7 +530,6 @@ export default function GestaoDeTripulacao() {
                       </Card>
                     </TabsContent>
 
-                    {/* Escala (usa lancamentos_diario_bordo) */}
                     <TabsContent value="schedule">
                       <Card>
                         <CardHeader>
@@ -616,8 +579,6 @@ export default function GestaoDeTripulacao() {
   );
 }
 
-// ── Formulário de licença ──────────────────────────────────────────────────────
-// Usa os nomes de campo reais do schema: tipo_habilitacao, data_validade
 function LicenseForm({
   license,
   onSave,
@@ -646,7 +607,6 @@ function LicenseForm({
       toast({ title: "Preencha a data de validade", variant: "destructive" });
       return;
     }
-    // tipo_habilitacao sempre gravado em maiúsculo, seguindo o padrão de tipo_licenca
     onSave({ ...formData, tipo_habilitacao: formData.tipo_habilitacao.toUpperCase() });
   };
 
@@ -711,7 +671,6 @@ function LicenseForm({
   );
 }
 
-// ── Formulário de edição de perfil ────────────────────────────────────────────
 function EditProfileForm({
   crew,
   onChange,
@@ -749,7 +708,6 @@ function EditProfileForm({
         </div>
         <div className="col-span-2 space-y-2">
           <Label>Endereço</Label>
-          {/* onChange usa endereco — campo real */}
           <Input value={crew.endereco || ''} onChange={e => onChange({ ...crew, endereco: e.target.value })} placeholder="Rua, número, bairro, cidade" />
         </div>
       </div>
