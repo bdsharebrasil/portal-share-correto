@@ -25,6 +25,7 @@ import {
   Pencil,
   HandCoins,
   CheckCircle2,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -137,6 +138,16 @@ interface Pessoa { id: string; nome: string | null }
 
 const norm = (s?: string | null) =>
   (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+// Meses do ano, usados pelo filtro de "Mês" acima da tabela.
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+/** Extrai o índice do mês (0-11) de uma data no formato YYYY-MM-DD. Retorna null se inválida. */
+const mesIndexFromDate = (d?: string | null): number | null => {
+  if (!d) return null;
+  const idx = Number(String(d).slice(5, 7)) - 1;
+  return Number.isNaN(idx) || idx < 0 || idx > 11 ? null : idx;
+};
 
 const GRUPOS_EMPRESA = [
   "DESPESAS EMPRESA",
@@ -284,6 +295,8 @@ export default function FluxoCaixaTab() {
   const [statusFilter, setStatusFilter] = useState<"todos" | "pendente" | "pago" | "vencido">("todos");
   const [contasCaixa, setContasCaixa] = useState<"share" | "cliente">("share");
   const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
+  // Filtro de mês (estilo apex-grid): null = "Todos os meses".
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa-share", {
     data: 130, descricao: 260, categoria: 150, cliente: 170, valor: 130, status: 130, docs: 90,
   });
@@ -443,8 +456,8 @@ export default function FluxoCaixaTab() {
     [dateMode],
   );
 
-  /* ── filter ── */
-  const filteredMovs = useMemo(() => {
+  /* ── filtro-base (tudo exceto o filtro de mês) ── */
+  const baseFilteredMovs = useMemo(() => {
     let list = movs;
     switch (activeTab) {
       // Caixa Share: lançamentos do caixa share (despesas da empresa) + despesas de
@@ -499,6 +512,32 @@ export default function FluxoCaixaTab() {
         return true;
       });
     }
+    return list;
+  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, contasCaixa, dateOf, grupoOf]);
+
+  /* ── meses disponíveis para o filtro (calculados a partir do filtro-base) ── */
+  const availableMonths = useMemo(() => {
+    const set = new Set<number>();
+    baseFilteredMovs.forEach((m) => {
+      const idx = mesIndexFromDate(dateOf(m));
+      if (idx !== null) set.add(idx);
+    });
+    return Array.from(set).sort((a, b) => a - b);
+  }, [baseFilteredMovs, dateOf]);
+
+  // Se o mês selecionado deixar de existir na lista atual (ex.: trocou de aba), volta para "Todos os meses".
+  useEffect(() => {
+    if (selectedMonth !== null && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(null);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  /* ── filter (aplica o filtro de mês + ordenação por cima do filtro-base) ── */
+  const filteredMovs = useMemo(() => {
+    let list = baseFilteredMovs;
+    if (selectedMonth !== null) {
+      list = list.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+    }
     list = [...list].sort((a, b) => {
       let cmp = 0;
       if (sortBy === "data") {
@@ -509,7 +548,7 @@ export default function FluxoCaixaTab() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa, dateOf, grupoOf]);
+  }, [baseFilteredMovs, selectedMonth, dateOf, sortBy, sortDir, resolveName]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -520,7 +559,7 @@ export default function FluxoCaixaTab() {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [filteredMovs.length, itemsPerPage, totalPages, currentPage]);
 
-  /* ── KPIs ── */
+  /* ── KPIs (já refletem o filtro de mês, pois usam filteredMovs) ── */
   const kpis = useMemo(() => {
     let entradas = 0, saidas = 0, pendentes = 0;
     for (const m of filteredMovs) {
@@ -618,6 +657,7 @@ export default function FluxoCaixaTab() {
       return;
     }
     const tabLabel = TABS.find((t) => t.key === activeTab)?.label || "Fluxo de Caixa";
+    const mesLabel = selectedMonth !== null ? ` — ${MESES[selectedMonth]}` : "";
     const rows = filteredMovs.map((m) => {
       const entrada = isEntrada(m);
       const name = resolveName(m);
@@ -628,11 +668,11 @@ export default function FluxoCaixaTab() {
     }).join("");
     const totalReceita = filteredMovs.filter(isEntrada).reduce((s, m) => s + valorDe(m), 0);
     const totalDespesa = filteredMovs.filter((m) => !isEntrada(m)).reduce((s, m) => s + valorDe(m), 0);
-    win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}${mesLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}${mesLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); }, 500);
-  }, [filteredMovs, activeTab, resolveName]);
+  }, [filteredMovs, activeTab, resolveName, selectedMonth]);
 
   // Cores dinâmicas globais para a Tabela e Tabs
   const isShareActive = activeTab === "caixa_share" || activeTab === "despesas_reembolsaveis" || (activeTab === "contas_pagar" && contasCaixa === "share") || activeTab === "contas_receber";
@@ -677,6 +717,35 @@ export default function FluxoCaixaTab() {
             </button>
           );
         })}
+      </div>
+
+      {/* Filtro de mês + total filtrado */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <span>Mês</span>
+          <select
+            value={selectedMonth ?? "todos"}
+            onChange={(event) => {
+              const v = event.target.value;
+              setSelectedMonth(v === "todos" ? null : Number(v));
+              setCurrentPage(1);
+            }}
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-colors focus:border-primary"
+          >
+            <option value="todos">Todos os meses</option>
+            {availableMonths.map((idx) => (
+              <option key={idx} value={idx}>{MESES[idx]}</option>
+            ))}
+          </select>
+        </label>
+        <div className="text-sm font-semibold text-foreground">
+          Total filtrado:{" "}
+          <span className={kpis.saldo >= 0 ? "text-emerald-400" : "text-red-400"}>
+            {formatBRL(kpis.saldo)}
+          </span>
+          <span className="ml-2 text-xs font-normal text-muted-foreground">({kpis.total} lançamentos)</span>
+        </div>
       </div>
 
       {/* Formulário Expansor */}
@@ -809,8 +878,8 @@ export default function FluxoCaixaTab() {
                 </select>
               </div>
             </div>
-            {(dateFrom || dateTo || statusFilter !== "todos") && (
-              <button onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("todos"); }} className="text-xs text-muted-foreground hover:text-foreground transition">
+            {(dateFrom || dateTo || statusFilter !== "todos" || selectedMonth !== null) && (
+              <button onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("todos"); setSelectedMonth(null); }} className="text-xs text-muted-foreground hover:text-foreground transition">
                 Limpar filtros
               </button>
             )}
