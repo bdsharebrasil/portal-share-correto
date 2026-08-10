@@ -29,6 +29,9 @@ const CATEGORIAS_FIXAS = [
   { value: "IMPOSTOS", label: "IMPOSTOS" },
 ];
 
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
 const parseLocalDate = (dateString: string): Date => {
   if (!dateString) return new Date();
   const [year, month, day] = dateString.split('-').map(Number);
@@ -88,7 +91,7 @@ export function ContasPagar() {
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "all",
-    mes: getCurrentMonth(),
+    mes: null as number | null,
   });
 
   useEffect(() => {
@@ -371,6 +374,17 @@ export function ContasPagar() {
     return [...contas, ...contasRecorrentesVirtuais];
   }, [contas, contasRecorrentesVirtuais]);
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<number>();
+    allContas.forEach(c => {
+      if (c.data_vencimento) {
+        const idx = Number(String(c.data_vencimento).slice(5, 7)) - 1;
+        if (idx >= 0 && idx < 12) months.add(idx);
+      }
+    });
+    return Array.from(months).sort((a, b) => a - b);
+  }, [allContas]);
+
   const filteredContas = useMemo(() => {
     return allContas.filter(c => {
       const search = filters.searchTerm.toLowerCase();
@@ -379,7 +393,7 @@ export function ContasPagar() {
       const filterStatus = (filters as any).status || filters.status;
       const contaStatus = (c as any).status || c.status;
       const statusOk = filterStatus === "all" || (filterStatus === "vencido" ? isVencida(c.data_vencimento, contaStatus) : contaStatus === filterStatus);
-      const mesOk = !filters.mes || filterStatus === "all" || filterStatus === "vencido" || c.data_vencimento?.startsWith(filters.mes);
+      const mesOk = filters.mes === null || (c.data_vencimento && Number(String(c.data_vencimento).slice(5, 7)) - 1 === filters.mes);
       return searchOk && statusOk && mesOk;
     });
   }, [allContas, filters]);
@@ -395,12 +409,16 @@ export function ContasPagar() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-background border-border/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase">Total Pendente</span>
+            <span className="text-xs font-bold text-muted-foreground uppercase">Total Filtrado</span>
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-500">
-              R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {brlFmt.format(totalGeral)}
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {filteredContas.length} de {allContas.length} lançamentos
+              {filters.mes !== null && ` • ${MESES[filters.mes]}`}
             </div>
           </CardContent>
         </Card>
@@ -422,13 +440,17 @@ export function ContasPagar() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase">Mês Ref.</label>
-            <Input
-              type="month"
-              className="h-9"
-              value={filters.mes}
-              onChange={e => setFilters({ ...filters, mes: e.target.value })}
-            />
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Mês</label>
+            <select
+              value={filters.mes ?? ""}
+              onChange={e => setFilters({ ...filters, mes: e.target.value === "" ? null : Number(e.target.value) })}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+            >
+              <option value="">Todos os meses</option>
+              {availableMonths.map((idx) => (
+                <option key={idx} value={idx}>{MESES[idx]}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>

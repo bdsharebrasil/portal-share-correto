@@ -77,7 +77,10 @@ function TableSkeleton() {
   );
 }
 
-export function ContasReceber() {
+export const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+function ContasReceber() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
@@ -145,16 +148,11 @@ export function ContasReceber() {
     return new Date().getFullYear().toString();
   };
 
-  // periodo agora aceita: "todos" | "mes" | "ano" | "personalizado"
-  // "todos" é o padrão para garantir que nenhuma conta fique escondida sem o usuário perceber
+  // periodo agora aceita: "todos" | "mes" — simplificado para Jan-Dez como Despesas Particulares
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "all",
-    periodo: "todos",
-    mes: getCurrentMonth(),
-    ano: getCurrentYear(),
-    dataInicio: "",
-    dataFim: ""
+    mes: null as number | null,
   });
 
   useEffect(() => {
@@ -385,6 +383,17 @@ export function ContasReceber() {
     setEditingConta(null);
   };
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<number>();
+    contas.forEach(c => {
+      if (c.data_vencimento) {
+        const idx = Number(String(c.data_vencimento).slice(5, 7)) - 1;
+        if (idx >= 0 && idx < 12) months.add(idx);
+      }
+    });
+    return Array.from(months).sort((a, b) => a - b);
+  }, [contas]);
+
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
       if ((conta as any).status === "recebido" || conta.status === "recebido") return false;
@@ -398,19 +407,9 @@ export function ContasReceber() {
       const contaStatus = (conta as any).status || conta.status;
       const statusMatch = filterStatus === "all" || contaStatus === filterStatus;
 
-      let periodoMatch = true;
-      if (filters.periodo === "mes") {
-        periodoMatch = (conta.data_vencimento || "").startsWith(filters.mes);
-      } else if (filters.periodo === "ano") {
-        periodoMatch = (conta.data_vencimento || "").startsWith(filters.ano);
-      } else if (filters.periodo === "personalizado") {
-        const venc = conta.data_vencimento || "";
-        if (filters.dataInicio && venc < filters.dataInicio) periodoMatch = false;
-        if (filters.dataFim && venc > filters.dataFim) periodoMatch = false;
-      }
-      // "todos" mantém periodoMatch = true, mostrando todas as contas independente da data
+      const mesMatch = filters.mes === null || (conta.data_vencimento && Number(String(conta.data_vencimento).slice(5, 7)) - 1 === filters.mes);
 
-      return searchMatch && statusMatch && periodoMatch;
+      return searchMatch && statusMatch && mesMatch;
     });
   }, [contas, filters]);
 
@@ -704,8 +703,12 @@ export function ContasReceber() {
                 </div>
               </div>
               <p className="text-2xl font-bold text-emerald-400">
-                R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {brlFmt.format(totals)}
               </p>
+              <div className="mt-1 text-[11px] text-foreground/50">
+                {filteredContas.length} de {contas.length} lançamentos
+                {filters.mes !== null && ` • ${MESES[filters.mes]}`}
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -774,55 +777,19 @@ export function ContasReceber() {
           </div>
 
           <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-            <Select value={filters.periodo} onValueChange={(value) => setFilters((prev) => ({ ...prev, periodo: value }))}>
-              <SelectTrigger className="w-full md:w-[200px] bg-background/50 border-border/40">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os Períodos</SelectItem>
-                <SelectItem value="mes">Este Mês</SelectItem>
-                <SelectItem value="ano">Este Ano</SelectItem>
-                <SelectItem value="personalizado">Período Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {filters.periodo === "mes" && (
-              <Input
-                type="month"
-                value={filters.mes}
-                onChange={(e) => setFilters((prev) => ({ ...prev, mes: e.target.value }))}
-                className="w-full md:w-[180px] bg-background/50 border-border/40"
-              />
-            )}
-
-            {filters.periodo === "ano" && (
-              <Input
-                type="number"
-                value={filters.ano}
-                onChange={(e) => setFilters((prev) => ({ ...prev, ano: e.target.value }))}
-                className="w-full md:w-[140px] bg-background/50 border-border/40"
-                placeholder="Ano"
-              />
-            )}
-
-            {filters.periodo === "personalizado" && (
-              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                <Input
-                  type="date"
-                  value={filters.dataInicio}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, dataInicio: e.target.value }))}
-                  className="w-full sm:w-[160px] bg-background/50 border-border/40"
-                  placeholder="De"
-                />
-                <Input
-                  type="date"
-                  value={filters.dataFim}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, dataFim: e.target.value }))}
-                  className="w-full sm:w-[160px] bg-background/50 border-border/40"
-                  placeholder="Até"
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Mês</label>
+              <select
+                value={filters.mes ?? ""}
+                onChange={(e) => setFilters((prev) => ({ ...prev, mes: e.target.value === "" ? null : Number(e.target.value) }))}
+                className="h-9 w-full md:w-[160px] rounded-md border border-input bg-background/50 px-3 text-sm outline-none transition-colors focus:border-primary"
+              >
+                <option value="">Todos os meses</option>
+                {availableMonths.map((idx) => (
+                  <option key={idx} value={idx}>{MESES[idx]}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>

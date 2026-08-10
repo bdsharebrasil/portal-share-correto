@@ -353,6 +353,11 @@ export default function BaixaPagamentoModal({
       } else {
         updatePayload.reembolsavel = false;
         updatePayload.reembolso_quitado = false;
+        // Para entradas (receita/reembolso recebido), registramos o banco
+        // onde o valor entrou na Share.
+        if (entrada) {
+          updatePayload.banco_nome = bancoNome || null;
+        }
       }
 
       // 1. Update movimentacoes
@@ -389,7 +394,14 @@ export default function BaixaPagamentoModal({
       if (mov.contas_areceber_id) {
         await supabase
           .from("contas_areceber")
-          .update({ status: "recebido", data_pagamento: dataPagamento })
+          .update({
+            status: "recebido",
+            data_pagamento: dataPagamento,
+            data_recebimento: dataPagamento,
+            banco_recebimento: bancoNome || null,
+            comprovante_recebimento_url: comprovante?.file_url || null,
+            metodo_pagamento: mov.forma_pagamento || null,
+          })
           .eq("id", mov.contas_areceber_id);
       }
 
@@ -644,8 +656,9 @@ export default function BaixaPagamentoModal({
             </div>
           </div>
 
-          {/* Banco usado pela Share, apenas quando vira reembolso */}
-          {comReembolso && (
+          {/* Banco usado na baixa — sempre visível para entradas (receita/reembolso)
+              e também quando a Share paga fornecedor com reembolso */}
+          {(comReembolso || entrada) && (
             <div>
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Banco

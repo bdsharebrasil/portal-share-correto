@@ -41,6 +41,8 @@ export default function ReembolsoModal({
   const [valor, setValor] = useState(valorEsperado.toFixed(2));
   const [pagador, setPagador] = useState("");
   const [banco, setBanco] = useState("");
+  const [bancoId, setBancoId] = useState("");
+  const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
   const [obs, setObs] = useState("");
   const [comprovante, setComprovante] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -82,6 +84,15 @@ export default function ReembolsoModal({
         }
       }
       setPagadores(opts);
+
+      // Carrega bancos cadastrados para o seletor
+      const { data: contas } = await supabase
+        .from("contas_bancarias")
+        .select("id, banco")
+        .order("banco");
+      setBancos(
+        (contas ?? []).map((c: any) => ({ id: c.id, label: c.banco || c.id })),
+      );
     })();
   }, [mov.clientes_id, mov.aeronave_id]);
 
@@ -204,11 +215,14 @@ export default function ReembolsoModal({
             </div>
             <div>
               <label className={labelCls}>Banco / conta</label>
-              <input
-                value={banco}
-                onChange={(e) => setBanco(e.target.value)}
-                placeholder="Ex: Itaú 1234"
-                className={inputCls}
+              <SearchableCombobox
+                items={bancos}
+                value={bancoId}
+                onChange={(id, label) => { setBancoId(id); setBanco(label); }}
+                placeholder="Selecione o banco"
+                searchPlaceholder="Buscar banco..."
+                emptyMessage="Nenhum banco encontrado."
+                allowFreeText
               />
             </div>
           </div>
