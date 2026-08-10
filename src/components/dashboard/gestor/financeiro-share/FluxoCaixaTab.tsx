@@ -188,10 +188,18 @@ type StatusKind = "pago" | "pendente" | "vencido" | "deposito" | "reembolsado" |
 function statusOf(m: Movimentacao): { label: string; kind: StatusKind } {
   const s = norm(m.status);
   if (s === "cancelado" || s === "rejeitado") return { label: "Cancelado", kind: "cancelado" };
+  if (s === "pendente" || s === "aguardando_reembolso") {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (m.data_vencimento) {
+      const venc = new Date(m.data_vencimento + "T00:00:00"); venc.setHours(0, 0, 0, 0);
+      if (venc < today) return { label: "Vencido", kind: "vencido" };
+    }
+    return { label: "Pendente", kind: "pendente" };
+  }
   if (m.reembolsavel && m.reembolso_quitado) return { label: "Reembolsado", kind: "reembolsado" };
   const isDeposit = norm(m.tipo) === "deposito" || norm(m.tipo_caixa) === "deposito";
   if (isDeposit) return { label: "Depósito", kind: "deposito" };
-  const pago = !!m.data_pagamento || s === "aprovado" || s === "pago" || s === "quitado" || s === "confirmado" || s === "receita paga" || s === "despesa paga";
+  const pago = s === "aprovado" || s === "pago" || s === "quitado" || s === "confirmado" || s === "receita paga" || s === "despesa paga" || !!m.data_pagamento;
   if (pago) return { label: "Pago", kind: "pago" };
   if (m.data_vencimento) {
     const today = new Date(); today.setHours(0, 0, 0, 0);

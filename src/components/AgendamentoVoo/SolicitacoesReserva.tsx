@@ -101,7 +101,7 @@ export function SolicitacoesReserva({ solicitacoes, disponibilidade }: Props) {
       )}
 
       <Dialog open={!!aprovando} onOpenChange={(o) => !o && setAprovando(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Confirmar voo e escalar tripulação</DialogTitle>
             <DialogDescription>
@@ -147,14 +147,20 @@ export function SolicitacoesReserva({ solicitacoes, disponibilidade }: Props) {
                 Nenhum tripulante apto (férias, CMA vencido ou já escalado).
               </p>
             )}
+            {aptos.length > 0 && !pilotoId && (
+              <p className="text-xs text-amber-500">
+                Selecione o comandante para confirmar o voo.
+              </p>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAprovando(null)}>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setAprovando(null)}>
               Cancelar
             </Button>
             <Button
-              disabled={aprovar.isPending}
+              className="w-full sm:w-auto"
+              disabled={aprovar.isPending || !pilotoId}
               onClick={() =>
                 aprovando &&
                 aprovar.mutate(

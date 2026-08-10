@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plane } from "lucide-react";
-import aviationHero from "@/assets/aviation-hero.jpg";
+import aviationHero from "@/assets/aviation-hero1.jpg";
 
 export function DashboardHero() {
   const { user } = useAuth();
@@ -39,14 +38,11 @@ export function DashboardHero() {
       <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
         <div className="relative z-10 flex flex-col gap-2">
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="p-1.5 md:p-2 rounded-md bg-primary/10 border border-primary/20">
-              <Plane className="h-3 md:h-4 w-3 md:w-4 text-primary" />
-            </div>
-            <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md">
-              Dashboard Operacional
+            <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md mt-[51px] mb-[51px]">
+              Dashboard Operações
             </span>
           </div>
-          <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
+          <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight -mt-[8px] -mb-[8px] pt-0 pb-0">
             {getGreeting()}, {displayName || "Comandante"}
           </h1>
           

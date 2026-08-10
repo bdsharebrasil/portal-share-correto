@@ -7,6 +7,7 @@ import {
   ArrowUp,
   Settings,
   CircleDollarSign,
+  Layers,
 } from "lucide-react";
 import FluxoCaixaTab from "./FluxoCaixaTab";
 import ContasRecorrentesTab from "./ContasRecorrentesTab";
@@ -14,10 +15,12 @@ import SalariosTab from "./SalariosTab";
 import PrestadoresPJTab from "./PrestadoresPJTab";
 import NFSaidaTab from "./NFSaidaTab";
 import ConfiguracoesTab from "./ConfiguracoesTab";
+import DespesasParticularesTab from "./DespesasParticularesTab";
 import { Layout } from "@/components/layout/Layout";
 
 type TabKey =
   | "fluxo"
+  | "despesas-particulares"
   | "contas-recorrentes"
   | "salarios"
   | "prestadores-pj"
@@ -26,6 +29,7 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
   { key: "fluxo",              label: "Gestão Fiscal",     icon: Wallet },
+  { key: "despesas-particulares", label: "Despesas Particulares", icon: Layers },
   { key: "contas-recorrentes", label: "Contas Recorrentes", icon: Repeat },
   { key: "salarios",           label: "Salários CLT",      icon: Users },
   { key: "prestadores-pj",     label: "Prestadores PJ",     icon: Building2 },
@@ -79,6 +83,7 @@ export default function GestaoFiscal() {
         {/* Tab content */}
         <div className="w-full">
           {activeTab === "fluxo" && <FluxoCaixaTab />}
+          {activeTab === "despesas-particulares" && <DespesasParticularesTab />}
           {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}
           {activeTab === "salarios" && <SalariosTab />}
           {activeTab === "prestadores-pj" && <PrestadoresPJTab />}

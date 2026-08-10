@@ -21,6 +21,7 @@ import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-
 
 // Import das páginas
 import AgendaHub from "./pages/AgendaHub";
+import ChecklistPreVoo from "./pages/ChecklistPreVoo";
 
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
@@ -272,7 +273,8 @@ const App = () => {
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />
                           <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
-                          <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
+                         <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
+                         <Route path="/pre-voo/:solicitacaoId" element={renderProtected(<ChecklistPreVoo />)} />
                           <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
                           <Route path="/flight-map-view" element={renderProtected(<FlightMapView />)} />
                           <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />

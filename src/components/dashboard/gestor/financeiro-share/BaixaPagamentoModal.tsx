@@ -26,6 +26,8 @@ interface RateioRow {
   id: string;
   socio_id: string | null;
   socios_nome: string | null;
+  cliente_id?: string | null;
+  clientes_nome?: string | null;
   percentual_uso: number | null;
   valor_rateado: number | null;
   valor_pago_real: number | null;
@@ -233,7 +235,7 @@ export default function BaixaPagamentoModal({
     (async () => {
       const { data } = await supabase
         .from("rateio_despesas")
-        .select("id, socio_id, socios_nome, percentual_uso, valor_rateado, valor_pago_real, pago_por, status")
+        .select("id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, valor_rateado, valor_pago_real, pago_por, status")
         .eq("despesa_id", mov.id);
       setRateioRows((data as RateioRow[]) || []);
     })();
@@ -392,40 +394,74 @@ export default function BaixaPagamentoModal({
       }
 
       // 3b. Despesa passou a ser "Com Reembolso" nesta baixa: a Share adiantou o
-      // pagamento ao fornecedor → gera conta a receber do cliente, aguardando reembolso.
-      if (comReembolso && !mov.contas_areceber_id && mov.clientes_id) {
-        const { data: cli } = await supabase
+      // pagamento ao fornecedor → gera UMA conta a receber por cotista/cliente do rateio.
+      if (comReembolso && !mov.contas_areceber_id) {
+        // Agrupa o rateio por cliente (cada cotista/cliente recebe sua própria cobrança)
+        const porCliente = new Map<string, { nome: string | null; valor: number }>();
+        rateioRows.forEach((r) => {
+          const cid = r.cliente_id || mov.clientes_id;
+          if (!cid) return;
+          const atual = porCliente.get(cid) || { nome: r.clientes_nome || null, valor: 0 };
+          atual.valor += Number(r.valor_rateado) || 0;
+          if (!atual.nome && r.clientes_nome) atual.nome = r.clientes_nome;
+          porCliente.set(cid, atual);
+        });
+        if (porCliente.size === 0 && mov.clientes_id) {
+          porCliente.set(mov.clientes_id, {
+            nome: null,
+            valor: valorRateadoBase || valorTotal,
+          });
+        }
+
+        const clienteIds = Array.from(porCliente.keys());
+        const { data: clientesData } = await supabase
           .from("clientes")
           .select("id, razao_social, proprietario, cnpj")
-          .eq("id", mov.clientes_id)
-          .maybeSingle();
-        const valorReembolso = valorRateadoBase || valorTotal;
-        const { data: novaConta } = await supabase
-          .from("contas_areceber")
-          .insert({
-            cliente_id: mov.clientes_id,
-            cliente_nome: (cli as any)?.razao_social || (cli as any)?.proprietario || "Cliente",
-            cliente_cnpj: (cli as any)?.cnpj || "—",
-            data_criacao: dataPagamento,
-            data_vencimento: dataPagamento,
-            valor: valorReembolso,
-            categoria: mov.categoria_nome || "REEMBOLSO",
-            categoria_id: mov.categoria_id || null,
-            descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
-            status: "aguardando_reembolso",
-            comprovante_url: comprovante?.file_url || null,
-            movimentacao_id: mov.id,
-            reference_type: "reembolso_share",
-            reference_id: mov.id,
-          } as any)
-          .select("id")
-          .maybeSingle();
-        if (novaConta?.id) {
-          updatePayload.contas_areceber_id = novaConta.id;
-          await supabase
-            .from("movimentacoes")
-            .update({ contas_areceber_id: novaConta.id })
-            .eq("id", mov.id);
+          .in("id", clienteIds);
+        const clienteMap = new Map(
+          (clientesData || []).map((c: any) => [c.id, c]),
+        );
+
+        const inserts = clienteIds
+          .filter((cid) => (porCliente.get(cid)!.valor || 0) > 0)
+          .map((cid) => {
+            const info = porCliente.get(cid)!;
+            const cli: any = clienteMap.get(cid);
+            return {
+              cliente_id: cid,
+              cliente_nome:
+                cli?.razao_social || cli?.proprietario || info.nome || "Cliente",
+              cliente_cnpj: cli?.cnpj || "—",
+              data_criacao: dataPagamento,
+              data_vencimento: dataPagamento,
+              valor: info.valor,
+              categoria: mov.categoria_nome || "REEMBOLSO",
+              categoria_id: mov.categoria_id || null,
+              descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
+              status: "aguardando_reembolso",
+              comprovante_url: comprovante?.file_url || null,
+              movimentacao_id: mov.id,
+              reference_type: "reembolso_share",
+              reference_id: mov.id,
+            };
+          });
+
+        if (inserts.length > 0) {
+          const { data: novasContas } = await supabase
+            .from("contas_areceber")
+            .insert(inserts as any)
+            .select("id, cliente_id");
+          const principal =
+            (novasContas || []).find(
+              (c: any) => c.cliente_id === mov.clientes_id,
+            ) || (novasContas || [])[0];
+          if (principal?.id) {
+            updatePayload.contas_areceber_id = principal.id;
+            await supabase
+              .from("movimentacoes")
+              .update({ contas_areceber_id: principal.id })
+              .eq("id", mov.id);
+          }
         }
       }
 

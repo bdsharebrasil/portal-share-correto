@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle } from "lucide-react";
+import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, vooCobreDia } from "@/hooks/useAgendamentoVoo";
 import {
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
+  const navigate = useNavigate();
   const { alterarStatusVoo, excluirSolicitacao } = useAgendamentoMutations();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
@@ -124,6 +126,32 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                   <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
                     {temPouso ? "Pousado" : meta.label}
                   </span>
+
+                  {["confirmado", "em_rota"].includes(voo.status) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/pre-voo/${voo.id}`);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 transition-colors hover:bg-sky-500/20"
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5" /> Iniciar Pré-Voo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIniciarTarget(voo);
+                        }}
+                        disabled={emRota || temPouso}
+                        className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+                      >
+                        <PlayCircle className="h-3.5 w-3.5" /> Iniciar Voo
+                      </button>
+                    </div>
+                  )}
                   
                   {voo.data_partida && voo.data_partida !== voo.data_agendada && (
                     <span className="text-xs text-muted-foreground block mb-1">

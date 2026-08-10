@@ -251,7 +251,7 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
         </div>
         <button
           onClick={() => { setEditingDoc(null); setFormOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-ctm-teal text-[hsl(var(--ctm-navy))] font-semibold rounded-lg hover:bg-ctm-teal-light transition-colors text-sm shrink-0"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#45d1b5] bg-transparent px-4 py-1.5 text-sm font-medium text-[#45d1b5] transition-colors hover:bg-[#45d1b5]/10"
         >
           <Plus className="h-4 w-4" /> Adicionar Documento
         </button>
@@ -272,7 +272,7 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
           <p className="text-sm text-muted-foreground mb-4">Nenhum documento cadastrado para esta aeronave</p>
           <button
             onClick={() => { setEditingDoc(null); setFormOpen(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-ctm-teal text-[hsl(var(--ctm-navy))] font-semibold rounded-lg hover:bg-ctm-teal-light transition-colors text-sm"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#45d1b5] bg-transparent px-4 py-1.5 text-sm font-medium text-[#45d1b5] transition-colors hover:bg-[#45d1b5]/10"
           >
             <Plus className="h-4 w-4" /> Adicionar primeiro documento
           </button>

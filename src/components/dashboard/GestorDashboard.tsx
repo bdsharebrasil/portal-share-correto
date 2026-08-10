@@ -44,9 +44,9 @@ export function GestorDashboard() {
     queryFn: async () => {
       // Buscar voos pendentes
       const { data: flightData } = await supabase
-        .from("flight_schedules")
+        .from("solicitacoes_reserva_voo")
         .select("*")
-        .eq("status", "Pendente");
+        .eq("status", "pendente");
 
       // Buscar orçamentos OAS aguardando aprovação
       const { data: budgetsData } = await (supabase as any)
@@ -65,8 +65,8 @@ export function GestorDashboard() {
       const flights = (flightData || []).map(f => ({
         ...f,
         type: 'flight',
-        title: `${f.origin} → ${f.destination}`,
-        date: f.flight_date
+        title: `${f.origem} → ${f.destino}`,
+        date: f.data_agendada
       }));
 
       const budgets = (budgetsData || []).map((b: any) => ({
@@ -164,10 +164,7 @@ export function GestorDashboard() {
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
             <div className="relative z-10 flex flex-col gap-2">
               <div className="flex items-center gap-2 mb-0.5">
-                <div className="p-1.5 md:p-2 rounded-md bg-primary/10 border border-primary/20">
-                  <Plane className="h-3 md:h-4 w-3 md:w-4 text-primary" />
-                </div>
-                <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md">
+                <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md mt-[41px] mb-[41px]">
                   Dashboard do Gestor
                 </span>
               </div>

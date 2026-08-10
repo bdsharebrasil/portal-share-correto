@@ -1,17 +1,14 @@
-// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
-import type { Database, Tables } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
 
-type FlightScheduleRow = Database["public"]["Tables"]["flight_schedules"]["Row"];
+type FlightScheduleRow = Database["public"]["Tables"]["solicitacoes_reserva_voo"]["Row"];
 type AeronaveRow = Database["public"]["Tables"]["aeronave"]["Row"];
-type ClientRow = Database["public"]["Tables"]["clientes"]["Row"];
 type CrewMemberRow = Database["public"]["Tables"]["membros_tripulacao"]["Row"];
-type FlightPlanRow = Database["public"]["Tables"]["flight_plans"]["Row"];
+type ClientRow = Database["public"]["Tables"]["clientes"]["Row"];
 
 type FlightScheduleRelations = {
-  aircraft?: Pick<AeronaveRow, "id" | "registration" | "model"> | null;
+  aircraft?: Pick<AeronaveRow, "id" | "matricula" | "modelo"> | null;
   clients?: Pick<ClientRow, "id" | "razao_social"> | null;
-  flight_plans?: Pick<FlightPlanRow, "id">[] | null;
 };
 
 export type FlightScheduleWithDetails = FlightScheduleRow &
@@ -21,25 +18,16 @@ export type FlightScheduleWithDetails = FlightScheduleRow &
 
 type FetchFlightSchedulesOptions = {
   status?: FlightScheduleRow["status"];
-  includeFlightPlans?: boolean;
 };
 
 export async function fetchFlightSchedulesWithDetails(
-  options: FetchFlightSchedulesOptions = {}
+  options: FetchFlightSchedulesOptions = {},
 ): Promise<FlightScheduleWithDetails[]> {
-  const { status, includeFlightPlans = false } = options;
-
-  let selectString =
-    "*, aircraft:aeronave_id(id, registration, model)";
-
-  if (includeFlightPlans) {
-    selectString += ", flight_plans(id)";
-  }
-
+  const { status } = options;
   let query = supabase
-    .from("flight_schedules")
-    .select(selectString)
-    .order("flight_date", { ascending: true });
+    .from("solicitacoes_reserva_voo")
+    .select("*")
+    .order("data_agendada", { ascending: true });
 
   if (status) {
     query = query.eq("status", status);
@@ -47,92 +35,50 @@ export async function fetchFlightSchedulesWithDetails(
 
   const { data, error } = await query;
 
-  let schedules: (Tables<'flight_schedules'> & FlightScheduleRelations)[] = [];
-
   if (error) {
-    const isRelationshipError = /relationship|schema cache/i.test(error.message || "");
-    if (!isRelationshipError) {
-      console.error("Error details:", error);
-      throw new Error(`Falha ao buscar agendamentos: ${error.message}`);
-    }
-
-    // Fallback without relational selects: fetch base rows then hydrate
-    let baseQuery = supabase
-      .from("flight_schedules")
-      .select("*")
-      .order("flight_date", { ascending: true });
-    if (status) {
-      baseQuery = baseQuery.eq("status", status);
-    }
-    const { data: baseRows, error: baseErr } = await baseQuery;
-
-    if (baseErr) {
-      console.error("Error details:", baseErr);
-      throw new Error(`Falha ao buscar agendamentos: ${baseErr.message}`);
-    }
-
-    const rows = (baseRows ?? []) as Tables<'flight_schedules'>[];
-
-    // Collect IDs
-    const aircraftIds = Array.from(new Set(rows.map(r => r.aeronave_id).filter((v): v is string => Boolean(v))));
-
-    // Fetch related tables
-    const { data: aircraftRows } = await (aircraftIds.length ? supabase.from('aeronave').select('id, matricula, modelo').in("id", aircraftIds) : Promise.resolve({ data: [], error: null } as any));
-
-    const aircraftMap = new Map<string, Pick<AeronaveRow, "id" | "registration" | "model">>();
-
-    (aircraftRows as Pick<AeronaveRow, "id" | "registration" | "model">[] | undefined)?.forEach(a => aircraftMap.set(a.id, a));
-
-    let plansBySchedule = new Map<string, Pick<FlightPlanRow, "id">[]>();
-    if (includeFlightPlans) {
-      const { data: planRows } = await supabase.from("flight_plans").select("id, flight_schedule_id");
-      (planRows as { id: string; flight_schedule_id: string | null }[] | undefined)?.forEach(p => {
-        if (!p.flight_schedule_id) return;
-        const arr = plansBySchedule.get(p.flight_schedule_id) || [];
-        arr.push({ id: p.id } as Pick<FlightPlanRow, "id">);
-        plansBySchedule.set(p.flight_schedule_id, arr);
-      });
-    }
-
-    schedules = rows.map((r) => ({
-      ...(r as any),
-      aircraft: r.aeronave_id ? aircraftMap.get(r.aeronave_id) ?? null : null,
-      clients: null,
-      flight_plans: includeFlightPlans ? plansBySchedule.get(r.id) ?? [] : null,
-    }));
-  } else {
-    schedules = (data ?? []) as unknown as (Tables<'flight_schedules'> & FlightScheduleRelations)[];
+    throw new Error(`Falha ao buscar solicitações de voo: ${error.message}`);
   }
 
+  const schedules = (data ?? []) as FlightScheduleRow[];
+  const aircraftIds = Array.from(
+    new Set(schedules.map((schedule) => schedule.aeronave_id).filter(Boolean)),
+  );
   const crewIds = Array.from(
     new Set(
       schedules
-        .map((schedule) => schedule.crew_member_id)
-        .filter((id): id is string => Boolean(id))
-    )
+        .flatMap((schedule) => [schedule.piloto_id, schedule.copiloto_id])
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
 
-  let crewMap = new Map<string, CrewMemberRow["nome_completo"] | null>();
+  const aircraftMap = new Map<string, Pick<AeronaveRow, "id" | "matricula" | "modelo">>();
+  if (aircraftIds.length > 0) {
+    const { data: aircraftRows, error: aircraftError } = await supabase
+      .from("aeronave")
+      .select("id, matricula, modelo")
+      .in("id", aircraftIds);
 
+    if (aircraftError) throw aircraftError;
+    (aircraftRows ?? []).forEach((aircraft) => aircraftMap.set(aircraft.id, aircraft));
+  }
+
+  const crewMap = new Map<string, CrewMemberRow["nome_completo"] | null>();
   if (crewIds.length > 0) {
-    const { data: crewData, error: crewError } = await supabase
+    const { data: crewRows, error: crewError } = await supabase
       .from("membros_tripulacao")
       .select("id, nome_completo")
       .in("id", crewIds);
 
-    if (crewError) {
-      throw crewError;
-    }
-
-    (crewData ?? []).forEach((crew) => {
-      crewMap.set(crew.id, crew.nome_completo ?? null);
-    });
+    if (crewError) throw crewError;
+    (crewRows ?? []).forEach((crew) => crewMap.set(crew.id, crew.nome_completo));
   }
 
   return schedules.map((schedule) => ({
     ...schedule,
-    crew_members: schedule.crew_member_id
-      ? { nome_completo: crewMap.get(schedule.crew_member_id) ?? null }
+    aircraft: schedule.aeronave_id ? aircraftMap.get(schedule.aeronave_id) ?? null : null,
+    clients: null,
+    crew_members: schedule.piloto_id
+      ? { nome_completo: crewMap.get(schedule.piloto_id) ?? null }
       : null,
   }));
 }

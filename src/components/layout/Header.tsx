@@ -68,6 +68,15 @@ export const Header: React.FC<HeaderProps> = ({
     });
   };
 
+  const formatUtcTime = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'UTC'
+    });
+  };
+
   // Regras de acesso refinadas
   const canManageUsersGlobal = useMemo(() => roles.includes("admin") || roles.includes("gestor_master"), [roles]);
   const displayName = useMemo(() => profile?.display_name ?? profile?.full_name ?? user?.email ?? "Usuário", [profile?.display_name, profile?.full_name, user?.email]);
@@ -132,6 +141,14 @@ export const Header: React.FC<HeaderProps> = ({
         <Clock className="h-4 w-4 text-primary" />
         <p className="text-xs sm:text-sm font-semibold text-foreground font-mono">
           {formatTime(currentTime)}
+        </p>
+      </div>
+
+      {/* UTC Clock */}
+      <div className="hidden sm:flex items-center gap-2 px-2 sm:px-3 py-1 ml-1 sm:ml-2 rounded-lg bg-background/40 border border-border/50 backdrop-blur-sm">
+        <span className="text-[10px] font-bold tracking-wider text-primary">UTC</span>
+        <p className="text-xs sm:text-sm font-semibold text-foreground font-mono">
+          {formatUtcTime(currentTime)}
         </p>
       </div>
 

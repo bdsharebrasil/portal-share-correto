@@ -56,6 +56,7 @@ export interface Solicitacao {
   aprovado_por?: string | null;
   aprovado_em?: string | null;
   ciclo_voo_id?: string | null;
+  numero_voo?: string | null;
   criado_em: string;
   atualizado_em?: string | null;
   /** alias derivado (somente leitura) de horario_previsto_agendamento */
@@ -88,6 +89,7 @@ const SOLICITACAO_COLUMNS = [
   "horario_corte",
   "ciclo_voo_id",
   "data_partida",
+  "numero_voo",
 ] as const;
 
 /** Remove campos inexistentes no schema e resolve o alias horario_partida */
@@ -175,10 +177,41 @@ async function registrarHistoricoStatus(
     status_anterior: statusAnterior,
     status_novo: statusNovo,
     alterado_por: alteradoPor,
-    alterado_em: new Date().toISOString(),
+    atualizado_em: iso(new Date()),
     observacao: observacao ?? null,
   });
 }
+
+export interface PernaVoo {
+  id: string;
+  solicitacao_id: string;
+  numero_perna: number;
+  data_perna: string;
+  origem: string;
+  destino: string;
+  horario_acionamento: string | null;
+  horario_decolagem: string | null;
+  horario_pouso: string | null;
+  qtd_passageiros: number | null;
+  observacoes: string | null;
+}
+
+export function usePernasVoo(solicitacaoId?: string | null) {
+  return useQuery({
+    queryKey: ["agv", "pernas", solicitacaoId],
+    enabled: !!solicitacaoId,
+    queryFn: async (): Promise<PernaVoo[]> => {
+      const { data, error } = await sb
+        .from("pernas_voo")
+        .select("*")
+        .eq("solicitacao_id", solicitacaoId)
+        .order("numero_perna", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as PernaVoo[];
+    },
+  });
+}
+
 
 /* ------------------------------- Queries -------------------------------- */
 
@@ -468,6 +501,15 @@ export function useAgendamentoMutations() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id ?? null;
 
+      // Generate unique flight number from client code + sequence + year
+      let numeroVoo: string | null = null;
+      if (solicitacao.cliente_id) {
+        const { data: generatedNumero, error: rpcError } = await sb
+          .rpc("gerar_numero_voo", { p_cliente_id: solicitacao.cliente_id });
+        if (rpcError) throw rpcError;
+        numeroVoo = generatedNumero as string;
+      }
+
       const { error } = await sb
         .from("solicitacoes_reserva_voo")
         .update({
@@ -476,6 +518,7 @@ export function useAgendamentoMutations() {
           copiloto_id: copilotoId || null,
           aprovado_por: userId,
           aprovado_em: new Date().toISOString(),
+          numero_voo: numeroVoo,
         })
         .eq("id", solicitacao.id);
       if (error) throw error;
@@ -885,7 +928,79 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir voo"),
   });
 
-  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  /** Edita os dados de um agendamento existente */
+  const atualizarSolicitacao = useMutation({
+    mutationFn: async ({ id, dados }: { id: string; dados: Partial<Solicitacao> }) => {
+      const row = sanitizeSolicitacaoPayload(dados as Record<string, any>);
+      if (Object.keys(row).length === 0) return;
+      const { error } = await sb.from("solicitacoes_reserva_voo").update(row).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Agendamento atualizado");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao atualizar agendamento"),
+  });
+
+  /** Adiciona uma perna de voo (ex.: trecho de volta) a um agendamento */
+  const adicionarPerna = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      dataPerna,
+      origem,
+      destino,
+      horarioAcionamento,
+      horarioDecolagem,
+      horarioPouso,
+      qtdPassageiros,
+      observacoes,
+    }: {
+      solicitacao: Solicitacao;
+      dataPerna: string;
+      origem: string;
+      destino: string;
+      horarioAcionamento?: string | null;
+      horarioDecolagem?: string | null;
+      horarioPouso?: string | null;
+      qtdPassageiros?: number | null;
+      observacoes?: string | null;
+    }) => {
+      const { data: lastLeg, error: lastLegError } = await sb
+        .from("pernas_voo")
+        .select("numero_perna")
+        .eq("solicitacao_id", solicitacao.id)
+        .order("numero_perna", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastLegError) throw lastLegError;
+      const numero = (lastLeg?.numero_perna ?? 0) + 1;
+
+      const perna: PernaVooInsert = {
+        solicitacao_id: solicitacao.id,
+        numero_perna: numero,
+        data_perna: dataPerna,
+        origem: origem.toUpperCase(),
+        destino: destino.toUpperCase(),
+        horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
+        horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
+        horario_pouso: horarioPouso ? `${horarioPouso}:00` : null,
+        qtd_passageiros: qtdPassageiros ?? solicitacao.qtd_passageiros ?? 1,
+        observacoes: observacoes ?? null,
+      };
+      const { error } = await sb.from("pernas_voo").insert(perna);
+      if (error) throw error;
+      return numero;
+    },
+    onSuccess: (numero) => {
+      toast.success(`Perna ${numero} registrada`);
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["agv", "pernas"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar perna de voo"),
+  });
+
+  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(

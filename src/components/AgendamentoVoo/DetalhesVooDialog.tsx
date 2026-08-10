@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
+import { ClipboardCheck, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,8 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, useTripulantes } from "@/hooks/useAgendamentoVoo";
+import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, usePernasVoo, useTripulantes } from "@/hooks/useAgendamentoVoo";
 import { supabase } from "@/integrations/supabase/client";
+import { EditarAgendamentoDialog } from "./EditarAgendamentoDialog";
+import { NovaPernaDialog } from "./NovaPernaDialog";
+import { usePreVooChecklist } from "@/hooks/usePreVooChecklist";
 
 interface Props {
   voo: Solicitacao | null;
@@ -40,7 +46,11 @@ function statusLabel(status: string, voo?: Solicitacao) {
     case "confirmado":
       return "Agendado";
     case "em_rota":
-      return "Em Rota";
+    case "em_voo":
+      return "Em Voo";
+    case "pouso":
+    case "pousado":
+      return "Pousado";
     case "concluido":
       return "Concluído";
     case "rejeitado":
@@ -48,13 +58,22 @@ function statusLabel(status: string, voo?: Solicitacao) {
     case "cancelado":
       return "Cancelado";
     default:
-      return status;
+      return status
+        .split("_")
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(" ");
   }
 }
 
+
 export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
   const { alterarStatusVoo } = useAgendamentoMutations();
+  const navigate = useNavigate();
   const { data: tripulantes = [], isLoading: tripulantesLoading } = useTripulantes();
+  const [editarAberto, setEditarAberto] = useState(false);
+  const [pernaAberta, setPernaAberta] = useState(false);
+  const { data: pernas = [] } = usePernasVoo(open ? voo?.id : null);
+  const { data: checklistPreVoo } = usePreVooChecklist(open ? voo?.id : null);
 
   const { data: history = [], isLoading: historyLoading } = useQuery<StatusHistory[]>({
     queryKey: ["historico-status", voo?.id],
@@ -72,9 +91,27 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
     enabled: !!voo?.id && open,
   });
 
+  const autorIds = [...new Set(history.map((h) => h.alterado_por).filter(Boolean))] as string[];
+  const { data: autores = {} } = useQuery<Record<string, string>>({
+    queryKey: ["historico-status-autores", autorIds.sort().join(",")],
+    enabled: autorIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, display_name, email")
+        .in("id", autorIds);
+      if (error) throw error;
+      return Object.fromEntries(
+        (data ?? []).map((u: any) => [u.id, u.display_name || u.full_name || u.email || "Usuário"]),
+      );
+    },
+  });
+
   if (!voo) return null;
 
   const temPouso = Boolean(voo.horario_pouso);
+  const preVooConcluido = checklistPreVoo?.status === "concluido";
+  const podeEditar = !["concluido", "cancelado", "rejeitado"].includes(voo.status);
   const nomeTripulante = (id: string | null) => {
     if (!id) return "Não informado";
     if (tripulantesLoading) return "Carregando...";
@@ -85,7 +122,9 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
     alterarStatusVoo.mutate({ solicitacao: voo, status: novoStatus });
   };
 
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -168,6 +207,35 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
 
           <div className="rounded-xl border border-border bg-background/80 p-4">
             <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pernas de voo</p>
+              <Button size="sm" variant="outline" onClick={() => setPernaAberta(true)}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Nova perna
+              </Button>
+            </div>
+            {pernas.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Nenhuma perna registrada ainda.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {pernas.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background/50 p-3 text-sm"
+                  >
+                    <span className="font-medium text-foreground">
+                      #{p.numero_perna} · {p.origem} → {p.destino}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.data_perna ? format(parseISO(p.data_perna), "dd/MM/yyyy", { locale: ptBR }) : "—"} ·{" "}
+                      DEP {p.horario_decolagem?.slice(0, 5) ?? "--:--"} · ARR {p.horario_pouso?.slice(0, 5) ?? "--:--"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-background/80 p-4">
+            <div className="flex items-center justify-between">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Histórico de status</p>
               {historyLoading && <span className="text-[11px] text-muted-foreground">Carregando...</span>}
             </div>
@@ -179,7 +247,9 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
                   <div key={index} className="rounded-lg bg-background/50 p-3 border border-border">
                     <div className="flex flex-col gap-1 text-[11px] uppercase text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                       <span>{item.atualizado_em ? format(parseISO(item.atualizado_em), "dd/MM/yyyy", { locale: ptBR }) : "—"}</span>
-                      <span className="break-all sm:text-right">{item.alterado_por ?? "Sistema"}</span>
+                      <span className="sm:text-right">
+                        {item.alterado_por ? autores[item.alterado_por] ?? "Usuário" : "Sistema"}
+                      </span>
                     </div>
                     <p className="mt-1 text-sm text-foreground">
                       {item.status_anterior ? `${statusLabel(item.status_anterior)} → ` : ""}
@@ -197,13 +267,38 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
               Fechar
             </Button>
 
+            {podeEditar && (
+              <Button variant="secondary" onClick={() => setEditarAberto(true)}>
+                <Pencil className="mr-1 h-4 w-4" /> Editar agendamento
+              </Button>
+            )}
+
             {voo.status === "confirmado" && (
+              <Button
+                variant={preVooConcluido ? "outline" : "default"}
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate(`/pre-voo/${voo.id}`);
+                }}
+              >
+                <ClipboardCheck className="mr-1 h-4 w-4" />
+                {preVooConcluido ? "Ver pré-voo (concluído)" : "Iniciar Pré-Voo"}
+              </Button>
+            )}
+
+            {voo.status === "confirmado" && preVooConcluido && (
               <Button
                 onClick={() => handleStatusUpdate("em_rota")}
                 disabled={alterarStatusVoo.isPending}
               >
                 Iniciar Voo (Em Rota)
               </Button>
+            )}
+
+            {voo.status === "confirmado" && !preVooConcluido && (
+              <p className="col-span-full text-xs text-amber-500">
+                Conclua o checklist de pré-voo para liberar o início do voo em rota.
+              </p>
             )}
 
             {voo.status === "em_rota" && (
@@ -225,5 +320,10 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+
+    <EditarAgendamentoDialog voo={voo} open={editarAberto} onOpenChange={setEditarAberto} />
+    <NovaPernaDialog voo={voo} open={pernaAberta} onOpenChange={setPernaAberta} />
+    </>
   );
+
 }

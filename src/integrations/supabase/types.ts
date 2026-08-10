@@ -40,7 +40,9 @@ export type Database = {
           logbook_entry_id: string | null
           nf: string | null
           nota_url: string | null
+          numero_voo: string | null
           observacao: string | null
+          pago_por: string | null
           prazo: string | null
           socio_nome: string | null
           status: string | null
@@ -50,6 +52,7 @@ export type Database = {
           updated_at: string | null
           valor_total: number | null
           valor_unitario: number
+          voo_emprestado: boolean | null
         }
         Insert: {
           abastecedor?: string | null
@@ -76,7 +79,9 @@ export type Database = {
           logbook_entry_id?: string | null
           nf?: string | null
           nota_url?: string | null
+          numero_voo?: string | null
           observacao?: string | null
+          pago_por?: string | null
           prazo?: string | null
           socio_nome?: string | null
           status?: string | null
@@ -86,6 +91,7 @@ export type Database = {
           updated_at?: string | null
           valor_total?: number | null
           valor_unitario?: number
+          voo_emprestado?: boolean | null
         }
         Update: {
           abastecedor?: string | null
@@ -112,7 +118,9 @@ export type Database = {
           logbook_entry_id?: string | null
           nf?: string | null
           nota_url?: string | null
+          numero_voo?: string | null
           observacao?: string | null
+          pago_por?: string | null
           prazo?: string | null
           socio_nome?: string | null
           status?: string | null
@@ -122,6 +130,7 @@ export type Database = {
           updated_at?: string | null
           valor_total?: number | null
           valor_unitario?: number
+          voo_emprestado?: boolean | null
         }
         Relationships: [
           {
@@ -808,6 +817,75 @@ export type Database = {
           tipo_despesa?: string | null
         }
         Relationships: []
+      }
+      checklists_pre_voo: {
+        Row: {
+          abastecimento_id: string | null
+          aeronave_id: string | null
+          atualizado_em: string
+          cliente_id: string | null
+          concluido_em: string | null
+          criado_em: string
+          criado_por: string | null
+          executado_por: string | null
+          executado_por_nome: string | null
+          id: string
+          observacoes: string | null
+          precisa_abastecer: boolean | null
+          respostas: Json
+          solicitacao_id: string | null
+          status: string
+        }
+        Insert: {
+          abastecimento_id?: string | null
+          aeronave_id?: string | null
+          atualizado_em?: string
+          cliente_id?: string | null
+          concluido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          executado_por?: string | null
+          executado_por_nome?: string | null
+          id?: string
+          observacoes?: string | null
+          precisa_abastecer?: boolean | null
+          respostas?: Json
+          solicitacao_id?: string | null
+          status?: string
+        }
+        Update: {
+          abastecimento_id?: string | null
+          aeronave_id?: string | null
+          atualizado_em?: string
+          cliente_id?: string | null
+          concluido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          executado_por?: string | null
+          executado_por_nome?: string | null
+          id?: string
+          observacoes?: string | null
+          precisa_abastecer?: boolean | null
+          respostas?: Json
+          solicitacao_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklists_pre_voo_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "abastecimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklists_pre_voo_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checklists_voo: {
         Row: {
@@ -2062,6 +2140,134 @@ export type Database = {
           },
         ]
       }
+      ctm_carregamento_itens: {
+        Row: {
+          braco_posicao: number
+          carregamento_id: string
+          categoria: string
+          descricao: string
+          estacao_id: string | null
+          id: string
+          momento: number | null
+          peso_kg: number
+        }
+        Insert: {
+          braco_posicao: number
+          carregamento_id: string
+          categoria: string
+          descricao: string
+          estacao_id?: string | null
+          id?: string
+          momento?: number | null
+          peso_kg?: number
+        }
+        Update: {
+          braco_posicao?: number
+          carregamento_id?: string
+          categoria?: string
+          descricao?: string
+          estacao_id?: string | null
+          id?: string
+          momento?: number | null
+          peso_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_carregamento_itens_carregamento_id_fkey"
+            columns: ["carregamento_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_carregamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_carregamento_itens_estacao_id_fkey"
+            columns: ["estacao_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_estacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_carregamentos: {
+        Row: {
+          aeronave_id: string
+          cg_calculado: number | null
+          criado_em: string | null
+          data_voo: string
+          dentro_dos_limites: boolean | null
+          finalizado_em: string | null
+          fuel_litros: number | null
+          id: string
+          numero_voo: string | null
+          peso_balanceamento_id: string
+          peso_total_kg: number | null
+          piloto_responsavel: string
+          snapshot_limites: Json
+          status: string
+        }
+        Insert: {
+          aeronave_id: string
+          cg_calculado?: number | null
+          criado_em?: string | null
+          data_voo: string
+          dentro_dos_limites?: boolean | null
+          finalizado_em?: string | null
+          fuel_litros?: number | null
+          id?: string
+          numero_voo?: string | null
+          peso_balanceamento_id: string
+          peso_total_kg?: number | null
+          piloto_responsavel: string
+          snapshot_limites: Json
+          status?: string
+        }
+        Update: {
+          aeronave_id?: string
+          cg_calculado?: number | null
+          criado_em?: string | null
+          data_voo?: string
+          dentro_dos_limites?: boolean | null
+          finalizado_em?: string | null
+          fuel_litros?: number | null
+          id?: string
+          numero_voo?: string | null
+          peso_balanceamento_id?: string
+          peso_total_kg?: number | null
+          piloto_responsavel?: string
+          snapshot_limites?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_carregamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_carregamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_carregamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_carregamentos_peso_balanceamento_id_fkey"
+            columns: ["peso_balanceamento_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_peso_balanceamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_categoria: {
         Row: {
           ativo: boolean | null
@@ -2300,6 +2506,59 @@ export type Database = {
           },
         ]
       }
+      ctm_estacoes: {
+        Row: {
+          atualizado_em: string | null
+          braço_posicao: number
+          categoria: string | null
+          criado_em: string | null
+          descricao: string
+          id: string
+          incluir_no_calculo: boolean | null
+          momento: number
+          observacao: string | null
+          peso_balanceamento_id: string
+          peso_maximo_estacao: number | null
+          peso_sem_combustivel: number
+        }
+        Insert: {
+          atualizado_em?: string | null
+          braço_posicao: number
+          categoria?: string | null
+          criado_em?: string | null
+          descricao: string
+          id?: string
+          incluir_no_calculo?: boolean | null
+          momento: number
+          observacao?: string | null
+          peso_balanceamento_id: string
+          peso_maximo_estacao?: number | null
+          peso_sem_combustivel: number
+        }
+        Update: {
+          atualizado_em?: string | null
+          braço_posicao?: number
+          categoria?: string | null
+          criado_em?: string | null
+          descricao?: string
+          id?: string
+          incluir_no_calculo?: boolean | null
+          momento?: number
+          observacao?: string | null
+          peso_balanceamento_id?: string
+          peso_maximo_estacao?: number | null
+          peso_sem_combustivel?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weight_balance_items_weight_balance_id_fkey"
+            columns: ["peso_balanceamento_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_peso_balanceamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_execucoes: {
         Row: {
           criado_em: string | null
@@ -2528,56 +2787,6 @@ export type Database = {
             columns: ["servico_id"]
             isOneToOne: false
             referencedRelation: "ctm_orcamentos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_itens_peso_balanceamento: {
-        Row: {
-          atualizado_em: string | null
-          braço_posicao: number
-          categoria: string | null
-          criado_em: string | null
-          descricao: string
-          id: string
-          incluir_no_calculo: boolean | null
-          momento: number
-          observacao: string | null
-          peso_balanceamento_id: string
-          peso_sem_combustivel: number
-        }
-        Insert: {
-          atualizado_em?: string | null
-          braço_posicao: number
-          categoria?: string | null
-          criado_em?: string | null
-          descricao: string
-          id?: string
-          incluir_no_calculo?: boolean | null
-          momento: number
-          observacao?: string | null
-          peso_balanceamento_id: string
-          peso_sem_combustivel: number
-        }
-        Update: {
-          atualizado_em?: string | null
-          braço_posicao?: number
-          categoria?: string | null
-          criado_em?: string | null
-          descricao?: string
-          id?: string
-          incluir_no_calculo?: boolean | null
-          momento?: number
-          observacao?: string | null
-          peso_balanceamento_id?: string
-          peso_sem_combustivel?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weight_balance_items_weight_balance_id_fkey"
-            columns: ["peso_balanceamento_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_peso_balanceamento"
             referencedColumns: ["id"]
           },
         ]
@@ -2983,15 +3192,20 @@ export type Database = {
           cg_limite_traseiro: number
           criado_em: string | null
           criado_por: string | null
+          data_ultima_pesagem: string | null
           id: string
           lemac_distancia: number
+          limite_bagagem_diant_kg: number | null
+          limite_bagagem_tras_kg: number | null
           mac_comprimento: number
           momento_padrao: number | null
           notas: string | null
+          numero_relatorio_pesagem: string | null
           peso_maximo_decolagem: number
           peso_maximo_pouso: number
           peso_maximo_sem_combustivel: number | null
           peso_vazio_padrao: number
+          responsavel_tecnico: string | null
           validado: boolean | null
           validado_em: string | null
           validado_por: string | null
@@ -3006,15 +3220,20 @@ export type Database = {
           cg_limite_traseiro: number
           criado_em?: string | null
           criado_por?: string | null
+          data_ultima_pesagem?: string | null
           id?: string
           lemac_distancia: number
+          limite_bagagem_diant_kg?: number | null
+          limite_bagagem_tras_kg?: number | null
           mac_comprimento: number
           momento_padrao?: number | null
           notas?: string | null
+          numero_relatorio_pesagem?: string | null
           peso_maximo_decolagem: number
           peso_maximo_pouso: number
           peso_maximo_sem_combustivel?: number | null
           peso_vazio_padrao: number
+          responsavel_tecnico?: string | null
           validado?: boolean | null
           validado_em?: string | null
           validado_por?: string | null
@@ -3029,15 +3248,20 @@ export type Database = {
           cg_limite_traseiro?: number
           criado_em?: string | null
           criado_por?: string | null
+          data_ultima_pesagem?: string | null
           id?: string
           lemac_distancia?: number
+          limite_bagagem_diant_kg?: number | null
+          limite_bagagem_tras_kg?: number | null
           mac_comprimento?: number
           momento_padrao?: number | null
           notas?: string | null
+          numero_relatorio_pesagem?: string | null
           peso_maximo_decolagem?: number
           peso_maximo_pouso?: number
           peso_maximo_sem_combustivel?: number | null
           peso_vazio_padrao?: number
+          responsavel_tecnico?: string | null
           validado?: boolean | null
           validado_em?: string | null
           validado_por?: string | null
@@ -5381,68 +5605,85 @@ export type Database = {
         }
         Relationships: []
       }
-      hotel_reservations: {
+      hotel_reservas: {
         Row: {
-          booking_reference: string | null
-          checkin_date: string
-          checkout_date: string
-          city: string | null
-          confirmation_code: string | null
-          country: string | null
-          created_at: string | null
-          guests: number | null
-          hotel_address: string | null
-          hotel_name: string
+          atualizado_em: string | null
+          cidade: string | null
+          codigo_confirmacao: string | null
+          criado_em: string | null
+          data_checkin: string
+          data_checkout: string
+          endereco_hotel: string | null
+          hospede_email: string | null
+          hospede_nome: string | null
+          hospede_telefone: string | null
+          hotel_id: string | null
           id: string
-          nights: number | null
-          notes: string | null
-          room_type: string | null
-          status: string | null
-          total_amount: number | null
-          updated_at: string | null
+          nome_hotel: string
+          observacoes: string | null
+          pais: string | null
+          quantidade_hospedes: number | null
+          quantidade_noites: number | null
+          status_reserva: string | null
+          tipo_quarto: string | null
           user_id: string | null
+          valor_total: number | null
         }
         Insert: {
-          booking_reference?: string | null
-          checkin_date: string
-          checkout_date: string
-          city?: string | null
-          confirmation_code?: string | null
-          country?: string | null
-          created_at?: string | null
-          guests?: number | null
-          hotel_address?: string | null
-          hotel_name: string
+          atualizado_em?: string | null
+          cidade?: string | null
+          codigo_confirmacao?: string | null
+          criado_em?: string | null
+          data_checkin: string
+          data_checkout: string
+          endereco_hotel?: string | null
+          hospede_email?: string | null
+          hospede_nome?: string | null
+          hospede_telefone?: string | null
+          hotel_id?: string | null
           id?: string
-          nights?: number | null
-          notes?: string | null
-          room_type?: string | null
-          status?: string | null
-          total_amount?: number | null
-          updated_at?: string | null
+          nome_hotel: string
+          observacoes?: string | null
+          pais?: string | null
+          quantidade_hospedes?: number | null
+          quantidade_noites?: number | null
+          status_reserva?: string | null
+          tipo_quarto?: string | null
           user_id?: string | null
+          valor_total?: number | null
         }
         Update: {
-          booking_reference?: string | null
-          checkin_date?: string
-          checkout_date?: string
-          city?: string | null
-          confirmation_code?: string | null
-          country?: string | null
-          created_at?: string | null
-          guests?: number | null
-          hotel_address?: string | null
-          hotel_name?: string
+          atualizado_em?: string | null
+          cidade?: string | null
+          codigo_confirmacao?: string | null
+          criado_em?: string | null
+          data_checkin?: string
+          data_checkout?: string
+          endereco_hotel?: string | null
+          hospede_email?: string | null
+          hospede_nome?: string | null
+          hospede_telefone?: string | null
+          hotel_id?: string | null
           id?: string
-          nights?: number | null
-          notes?: string | null
-          room_type?: string | null
-          status?: string | null
-          total_amount?: number | null
-          updated_at?: string | null
+          nome_hotel?: string
+          observacoes?: string | null
+          pais?: string | null
+          quantidade_hospedes?: number | null
+          quantidade_noites?: number | null
+          status_reserva?: string | null
+          tipo_quarto?: string | null
           user_id?: string | null
+          valor_total?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hotel_reservas_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hoteis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hour_transactions: {
         Row: {
@@ -5779,6 +6020,7 @@ export type Database = {
           local_combustivel: string | null
           natureza_voo: string
           numero_sequencial: number | null
+          numero_voo: string | null
           ocorrencias: string | null
           origem_pic: string | null
           origem_sic: string | null
@@ -5844,6 +6086,7 @@ export type Database = {
           local_combustivel?: string | null
           natureza_voo: string
           numero_sequencial?: number | null
+          numero_voo?: string | null
           ocorrencias?: string | null
           origem_pic?: string | null
           origem_sic?: string | null
@@ -5909,6 +6152,7 @@ export type Database = {
           local_combustivel?: string | null
           natureza_voo?: string
           numero_sequencial?: number | null
+          numero_voo?: string | null
           ocorrencias?: string | null
           origem_pic?: string | null
           origem_sic?: string | null
@@ -6336,6 +6580,7 @@ export type Database = {
           rg: string | null
           status: string | null
           telefone: string | null
+          tipo_licenca: string | null
           url_avatar: string | null
           user_id: string | null
         }
@@ -6352,6 +6597,7 @@ export type Database = {
           rg?: string | null
           status?: string | null
           telefone?: string | null
+          tipo_licenca?: string | null
           url_avatar?: string | null
           user_id?: string | null
         }
@@ -6368,6 +6614,7 @@ export type Database = {
           rg?: string | null
           status?: string | null
           telefone?: string | null
+          tipo_licenca?: string | null
           url_avatar?: string | null
           user_id?: string | null
         }
@@ -8778,6 +9025,7 @@ export type Database = {
           horario_previsto_agendamento: string
           id: string
           motivo_rejeicao: string | null
+          numero_voo: string | null
           observacoes: string | null
           origem: string
           piloto_id: string | null
@@ -8804,6 +9052,7 @@ export type Database = {
           horario_previsto_agendamento: string
           id?: string
           motivo_rejeicao?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           origem: string
           piloto_id?: string | null
@@ -8830,6 +9079,7 @@ export type Database = {
           horario_previsto_agendamento?: string
           id?: string
           motivo_rejeicao?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           origem?: string
           piloto_id?: string | null
@@ -8837,6 +9087,27 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "solicitacoes_reserva_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_reserva_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_reserva_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
           {
             foreignKeyName: "solicitacoes_reserva_voo_ciclo_voo_id_fkey"
             columns: ["ciclo_voo_id"]
@@ -10496,6 +10767,7 @@ export type Database = {
         Args: { p_cliente_id: string; p_matricula: string }
         Returns: string
       }
+      gerar_numero_voo: { Args: { p_cliente_id: string }; Returns: string }
       get_partner_by_cpf: {
         Args: { p_cpf: string }
         Returns: {

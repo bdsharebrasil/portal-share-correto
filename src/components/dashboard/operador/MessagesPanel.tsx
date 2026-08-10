@@ -161,7 +161,7 @@ export function MessagesPanel() {
   };
 
   return (
-    <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-4 h-full flex flex-col">
+    <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border py-4 px-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <StickyNote className="h-5 w-5 text-amber-400" />

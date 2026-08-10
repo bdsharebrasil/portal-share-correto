@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AbastecimentosPendentesAlert } from "@/components/PreVoo/AbastecimentosPendentesAlert";
 import {
   Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause,
   ArrowUpRight, CalendarDays, CheckCircle2, Timer,
@@ -303,10 +304,7 @@ export function FinanceiroDashboard() {
         <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
           <div className="relative z-10 flex flex-col gap-2">
             <div className="flex items-center gap-2 mb-0.5">
-              <div className="p-1.5 md:p-2 rounded-md bg-primary/10 border border-primary/20">
-                <Plane className="h-3 md:h-4 w-3 md:w-4 text-primary" />
-              </div>
-              <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md">
+              <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md mt-[28px] mb-[28px]">
                 DASHBOARD FINANCEIRO
               </span>
             </div>
@@ -318,6 +316,8 @@ export function FinanceiroDashboard() {
           </div>
         </div>
       </div>
+
+      <AbastecimentosPendentesAlert />
 
       {/* Discordâncias Alert */}
       {!discordancesLoading && reportDiscordances.length > 0 && (

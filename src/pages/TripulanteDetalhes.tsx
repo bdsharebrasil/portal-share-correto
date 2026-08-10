@@ -46,7 +46,7 @@ export default function TripulanteDetalhes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("membros_tripulacao")
-        .select("id, nome_completo, canac, data_nascimento, telefone, url_avatar, status")
+        .select("id, nome_completo, canac, data_nascimento, data_admissao, telefone, rg, cpf, endereco, url_avatar, status, tipo_licenca")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -69,7 +69,7 @@ export default function TripulanteDetalhes() {
     },
   });
 
-  // ── Escala — usa lancamentos_diario_bordo (flight_schedules não existe) ────
+  // ── Escala — usa lançamentos do diário de bordo ───────────────────────────
   const { data: schedules = [], isLoading: isSchedulesLoading } = useQuery({
     queryKey: ["crew_schedules", id],
     enabled: !!id,
@@ -266,11 +266,7 @@ export default function TripulanteDetalhes() {
                       <Calendar className="h-4 w-4 text-slate-400" />
                       <span>{member.data_nascimento ? formatBirthDateWithAge(member.data_nascimento) : "Data de nascimento não informada"}</span>
                     </div>
-                    {member.status && (
-                      <Badge className="bg-slate-800/70 border-slate-700 text-slate-200 text-xs font-semibold px-3 py-1 rounded-full border">
-                        {member.status.toUpperCase()}
-                      </Badge>
-                    )}
+
                   </div>
                 </div>
               </div>
@@ -313,15 +309,35 @@ export default function TripulanteDetalhes() {
                   <dl className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
                       <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Nome completo</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.nome_completo || "—"}</dd>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.nome_completo || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">CANAC</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.canac || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
                     <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
                       <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Data de nascimento</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.data_nascimento ? formatDateToBR(member.data_nascimento) : "—"}</dd>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.data_nascimento ? formatDateToBR(member.data_nascimento) : <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Data de admissão</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).data_admissao ? formatDateToBR((member as any).data_admissao) : <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Telefone</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.telefone || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">RG</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).rg || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">CPF</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).cpf || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
                     <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4 md:col-span-2">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Telefone</dt>
-                      <dd className="mt-2 text-lg font-semibold text-white">{member.telefone || "—"}</dd>
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Endereço</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).endereco || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
                   </dl>
                 </div>
@@ -519,7 +535,7 @@ export default function TripulanteDetalhes() {
                             )}
                             {report.crew_approval_status === 'pending' && (
                               <Button onClick={() => window.open(`${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`, '_blank')} className="w-full bg-slate-700/90 hover:bg-slate-600/90 text-white shadow-sm">
-                                Revisar e Aprovar
+                                Visualizar resumo relatório
                               </Button>
                             )}
                           </CardContent>

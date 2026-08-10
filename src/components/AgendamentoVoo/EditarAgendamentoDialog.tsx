@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,16 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
-import { useAerodromes } from "@/hooks/useAerodromes";
-import { type Aeronave, type Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { type Solicitacao, useAeronavesAgendamento, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
 
 interface Props {
+  voo: Solicitacao | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  aeronaves: Aeronave[];
-  diaSelecionado: Date;
-  selectedAeronaveId?: string | null;
 }
 
 interface ClienteOption {
@@ -35,26 +30,24 @@ function useClientesLista() {
   return useQuery<ClienteOption[]>({
     queryKey: ["agv", "clientes-lista"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id, razao_social")
-        .order("razao_social");
+      const { data, error } = await supabase.from("clientes").select("id, razao_social").order("razao_social");
       if (error) throw error;
       return (data ?? []) as ClienteOption[];
     },
   });
 }
 
-export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSelecionado, selectedAeronaveId }: Props) {
-  const { criarSolicitacao } = useAgendamentoMutations();
+export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
+  const { atualizarSolicitacao } = useAgendamentoMutations();
   const { data: clientes = [] } = useClientesLista();
-  const { aerodromes } = useAerodromes();
+  const { data: aeronaves = [] } = useAeronavesAgendamento();
+
   const [form, setForm] = useState({
     cliente_id: "",
     aeronave_id: "",
     origem: "",
     destino: "",
-    data_agendada: format(diaSelecionado, "yyyy-MM-dd"),
+    data_agendada: "",
     horario_previsto_agendamento: "",
     dias_duracao: "1",
     qtd_passageiros: "1",
@@ -62,45 +55,52 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
   });
 
   useEffect(() => {
-    if (open) {
-      setForm((f) => ({
-        ...f,
-        data_agendada: format(diaSelecionado, "yyyy-MM-dd"),
-        aeronave_id: selectedAeronaveId ?? f.aeronave_id,
-      }));
+    if (open && voo) {
+      setForm({
+        cliente_id: voo.cliente_id ?? "",
+        aeronave_id: voo.aeronave_id ?? "",
+        origem: voo.origem ?? "",
+        destino: voo.destino ?? "",
+        data_agendada: voo.data_agendada ?? "",
+        horario_previsto_agendamento: (voo.horario_previsto_agendamento ?? "").slice(0, 5),
+        dias_duracao: String(voo.dias_duracao ?? 1),
+        qtd_passageiros: String(voo.qtd_passageiros ?? 1),
+        observacoes: voo.observacoes ?? "",
+      });
     }
-  }, [open, diaSelecionado, selectedAeronaveId]);
+  }, [open, voo]);
 
-  const camposObrigatoriosOk =
-    !!form.aeronave_id &&
-    !!form.origem &&
-    !!form.destino &&
-    !!form.data_agendada &&
-    !!form.horario_previsto_agendamento;
+  if (!voo) return null;
+
+  const ok = !!form.aeronave_id && !!form.origem && !!form.destino && !!form.data_agendada;
 
   const salvar = () => {
-    const payload: Partial<Solicitacao> = {
-      cliente_id: form.cliente_id || null,
-      aeronave_id: form.aeronave_id,
-      origem: form.origem.toUpperCase(),
-      destino: form.destino.toUpperCase(),
-      data_agendada: form.data_agendada,
-      horario_previsto_agendamento: `${form.horario_previsto_agendamento}:00`.slice(0, 8),
-      dias_duracao: Number(form.dias_duracao) || 1,
-      qtd_passageiros: Number(form.qtd_passageiros) || 1,
-      observacoes: form.observacoes || null,
-      status: "pendente",
-    };
-
-    criarSolicitacao.mutate(payload, { onSuccess: () => onOpenChange(false) });
+    atualizarSolicitacao.mutate(
+      {
+        id: voo.id,
+        dados: {
+          cliente_id: form.cliente_id || null,
+          aeronave_id: form.aeronave_id,
+          origem: form.origem.toUpperCase(),
+          destino: form.destino.toUpperCase(),
+          data_agendada: form.data_agendada,
+          horario_previsto_agendamento: form.horario_previsto_agendamento
+            ? `${form.horario_previsto_agendamento}:00`.slice(0, 8)
+            : null,
+          dias_duracao: Number(form.dias_duracao) || 1,
+          qtd_passageiros: Number(form.qtd_passageiros) || 1,
+          observacoes: form.observacoes || null,
+        },
+      },
+      { onSuccess: () => onOpenChange(false) },
+    );
   };
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo agendamento de voo</DialogTitle>
+          <DialogTitle>Editar agendamento</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4">
@@ -137,23 +137,21 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Origem</Label>
-              <AerodromeCombobox
-                aerodromes={aerodromes}
+              <Label>Origem (ICAO)</Label>
+              <Input
                 value={form.origem}
-                onChange={(v) => setForm((f) => ({ ...f, origem: v }))}
-                placeholder="Aeródromo de origem"
+                onChange={(e) => setForm((f) => ({ ...f, origem: e.target.value.toUpperCase() }))}
+                placeholder="SBCY"
               />
             </div>
             <div className="space-y-2">
-              <Label>Destino</Label>
-              <AerodromeCombobox
-                aerodromes={aerodromes}
+              <Label>Destino (ICAO)</Label>
+              <Input
                 value={form.destino}
-                onChange={(v) => setForm((f) => ({ ...f, destino: v }))}
-                placeholder="Aeródromo de destino"
+                onChange={(e) => setForm((f) => ({ ...f, destino: e.target.value.toUpperCase() }))}
+                placeholder="SDLI"
               />
             </div>
           </div>
@@ -176,7 +174,6 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
               />
             </div>
           </div>
-
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -212,8 +209,8 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!camposObrigatoriosOk || criarSolicitacao.isPending} onClick={salvar}>
-            Criar agendamento
+          <Button disabled={!ok || atualizarSolicitacao.isPending} onClick={salvar}>
+            Salvar alterações
           </Button>
         </DialogFooter>
       </DialogContent>

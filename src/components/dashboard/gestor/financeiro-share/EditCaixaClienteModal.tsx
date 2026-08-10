@@ -271,6 +271,16 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
 
   const setLinha = (idx: number, patch: Partial<RateioLinha>) =>
     setLinhas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  const setLinhaStatus = (idx: number, status: string) =>
+    setLinhas((ls) => {
+      const next = ls.map((l, i) => (i === idx ? { ...l, status } : l));
+      const allPending = next.length > 0 && next.every((l) => String(l.status || "").trim().toLowerCase() === "pendente");
+      if (allPending) {
+        setMov((s: any) => ({ ...s, data_pagamento: "" }));
+      }
+      return next;
+    });
   const addLinha = () => setLinhas((ls) => [...ls, novaLinha()]);
   const removeLinha = (idx: number) =>
     setLinhas((ls) => {
@@ -291,12 +301,13 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const handleSave = async () => {
     setSaving(true); setErr(null);
     try {
+      const allRateiosPending = linhas.length > 0 && linhas.every((l) => String(l.status || "").trim().toLowerCase() === "pendente");
       const patch: any = {
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
         data_competencia: mov.data_competencia || null,
         data_vencimento: mov.data_vencimento || null,
-        data_pagamento: mov.data_pagamento || null,
+        data_pagamento: allRateiosPending ? null : mov.data_pagamento || null,
         forma_pagamento: mov.forma_pagamento,
         valor_rateado: numOrNull(mov.valor_rateado),
         observacoes: mov.observacoes || null,
@@ -497,7 +508,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                       <SearchableCombobox
                         items={STATUS_RATEIO}
                         value={l.status || ""}
-                        onChange={(v) => setLinha(idx, { status: v })}
+                        onChange={(v) => setLinhaStatus(idx, v)}
                         placeholder="Status"
                       />
                     </div>

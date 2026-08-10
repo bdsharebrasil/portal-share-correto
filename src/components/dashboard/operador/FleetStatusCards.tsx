@@ -1,197 +1,314 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Plane, MapPin, Wrench, Clock, ArrowRight, AlertCircle, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  Plane, ArrowRight, Radar, Users, ChevronDown, Wrench, Activity, CalendarClock,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
-interface AeronaveStatus {
+const db = supabase as any;
+
+type Booking = {
   id: string;
-  registration: string;
-  model: string;
-  status: string;
-  base?: string;
-  status_atual?: string;
-}
-
-interface VooAtivo {
-  aeronave_id: string;
+  aeronave_id: string | null;
   origem: string | null;
   destino: string | null;
-  status: string | null;
-}
-
-const statusConfig: Record<string, { bg: string; text: string; label: string; borderColor: string; icon: string; textColor: string }> = {
-  ativa: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
-  ativo: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Voo", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
-  em_voo: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Voo", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
-  em_rota: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Rota", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
-  reservado: { bg: "bg-cyan-500/20", text: "text-cyan-400", label: "Reservado", borderColor: "border-l-cyan-400", icon: "plane", textColor: "text-cyan-400" },
-  disponivel: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
-  atrasado: { bg: "bg-destructive/20", text: "text-destructive", label: "Atrasado", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
-  solo: { bg: "bg-primary/20", text: "text-primary", label: "Solo", borderColor: "border-l-primary", icon: "zap", textColor: "text-primary" },
-  manutencao: { bg: "bg-warning/20", text: "text-warning", label: "Em Manutenção", borderColor: "border-l-warning", icon: "wrench", textColor: "text-warning" },
-  indisponivel: { bg: "bg-destructive/20", text: "text-destructive", label: "Indisponível", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
-  inativo: { bg: "bg-muted", text: "text-muted-foreground", label: "Inativo", borderColor: "border-l-muted-foreground", icon: "plane", textColor: "text-muted-foreground" },
+  status: string;
+  data_agendada: string;
+  horario_previsto_agendamento: string | null;
+  qtd_passageiros: number | null;
+  cliente_id: string | null;
+  clientes?: { razao_social: string | null } | null;
+  aeronave?: { id: string; matricula: string; modelo: string | null; status: string | null } | null;
 };
+
+const EM_VOO = ["em_voo", "em_rota"];
+const AGENDADO = ["confirmado", "aprovado", "pendente"];
+
+const STATUS_META: Record<string, { label: string; dot: string; chip: string }> = {
+  em_voo: { label: "Em voo", dot: "bg-emerald-400", chip: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" },
+  em_rota: { label: "Em rota", dot: "bg-emerald-400", chip: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" },
+  confirmado: { label: "Confirmado", dot: "bg-cyan-400", chip: "bg-cyan-500/15 text-cyan-400 border-cyan-500/25" },
+  aprovado: { label: "Confirmado", dot: "bg-cyan-400", chip: "bg-cyan-500/15 text-cyan-400 border-cyan-500/25" },
+  pendente: { label: "Pendente", dot: "bg-amber-400", chip: "bg-amber-500/15 text-amber-400 border-amber-500/25" },
+  manutencao: { label: "Manutenção", dot: "bg-orange-400", chip: "bg-orange-500/15 text-orange-400 border-orange-500/25" },
+  disponivel: { label: "Disponível", dot: "bg-sky-400", chip: "bg-sky-500/15 text-sky-400 border-sky-500/25" },
+};
+
+type Filtro = "todas" | "em_voo" | "agendadas" | "manutencao";
 
 export function FleetStatusCards() {
   const navigate = useNavigate();
-  const [liveStatuses, setLiveStatuses] = useState<Record<string, string>>({});
+  const qc = useQueryClient();
+  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [expandido, setExpandido] = useState(true);
 
-  const { data: aircraft = [] } = useQuery({
-    queryKey: ["aircraft-fleet"],
+  const hoje = format(new Date(), "yyyy-MM-dd");
+
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["frota-tempo-real-bookings", hoje],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('aeronave')
-        .select("*")
-        .eq("status", "ativa")
-        .order("matricula");
-      if (error) throw error;
-      return data || [];
-    },
-    refetchInterval: 5000,
-    refetchIntervalInBackground: true,
-  });
-
-  const aircraftIds = (aircraft as Array<{ id: string }>).map((ac) => ac.id);
-  const { data: activeFlights = [] } = useQuery({
-    queryKey: ["aircraft-fleet-active-bookings", aircraftIds.join(",")],
-    queryFn: async () => {
-      if (!aircraftIds.length) return [];
-
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("solicitacoes_reserva_voo")
-        .select("aeronave_id, origem, destino, status")
-        .in("aeronave_id", aircraftIds)
-        .in("status", ["em_voo", "em_rota"]);
-
+        .select(
+          "id, aeronave_id, origem, destino, status, data_agendada, horario_previsto_agendamento, qtd_passageiros, cliente_id, clientes:cliente_id(razao_social), aeronave:aeronave_id(id, matricula, modelo, status)",
+        )
+        .gte("data_agendada", hoje)
+        .not("status", "in", '("rejeitado","cancelado","concluido")')
+        .order("data_agendada")
+        .order("horario_previsto_agendamento");
       if (error) throw error;
-      return (data || []) as VooAtivo[];
+      return (data ?? []) as Booking[];
     },
-    enabled: aircraftIds.length > 0,
+    refetchInterval: 15000,
   });
 
-  const activeFlightsMap = new Map((activeFlights as VooAtivo[]).map((flight) => [flight.aeronave_id, flight]));
+  const { data: statusFrota = [] } = useQuery({
+    queryKey: ["frota-tempo-real-status"],
+    queryFn: async () => {
+      const { data } = await db.from("status_tempo_real_aeronave").select("aeronave_id, status_atual");
+      return (data ?? []) as { aeronave_id: string; status_atual: string | null }[];
+    },
+    refetchInterval: 15000,
+  });
 
-  // Subscribe to live status updates
   useEffect(() => {
     const channel = supabase
-      .channel("status-tempo-real-aeronave-cards")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "status_tempo_real_aeronave",
-        },
-        (payload) => {
-          if (payload.new) {
-            const newData = payload.new as any;
-            setLiveStatuses((prev) => ({
-              ...prev,
-              [newData.aeronave_id]: newData.status_atual,
-            }));
-          }
-        }
-      )
+      .channel("frota-tempo-real")
+      .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_reserva_voo" }, () => {
+        qc.invalidateQueries({ queryKey: ["frota-tempo-real-bookings"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "status_tempo_real_aeronave" }, () => {
+        qc.invalidateQueries({ queryKey: ["frota-tempo-real-status"] });
+      })
       .subscribe();
-
-    // Fetch initial live statuses
-    const fetchLiveStatuses = async () => {
-      const { data, error } = await supabase
-        .from('status_tempo_real_aeronave')
-        .select("*");
-      if (!error && data) {
-        const statusMap = data.reduce(
-          (acc, status) => {
-            acc[status.aeronave_id] = status.status_atual;
-            return acc;
-          },
-          {} as Record<string, string>
-        );
-        setLiveStatuses(statusMap);
-      }
-    };
-
-    fetchLiveStatuses();
-
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [qc]);
 
-  const getStatusInfo = (status: string | null | undefined) => {
-    if (!status) return statusConfig.inativo;
-    const normalizedStatus = status.toLowerCase().trim();
-    return statusConfig[normalizedStatus] || statusConfig.inativo;
-  };
+  const statusMap = useMemo(
+    () => Object.fromEntries(statusFrota.map((s) => [s.aeronave_id, (s.status_atual ?? "").toLowerCase()])),
+    [statusFrota],
+  );
+
+  /** Uma linha por aeronave que tenha voo em andamento ou agendado */
+  const aeronaves = useMemo(() => {
+    const map = new Map<string, { aeronave: NonNullable<Booking["aeronave"]>; voos: Booking[] }>();
+    bookings.forEach((b) => {
+      if (!b.aeronave_id || !b.aeronave) return;
+      const atual = map.get(b.aeronave_id) ?? { aeronave: b.aeronave, voos: [] };
+      atual.voos.push(b);
+      map.set(b.aeronave_id, atual);
+    });
+    return Array.from(map.values()).map((entry) => {
+      const emVoo = entry.voos.find((v) => EM_VOO.includes(v.status));
+      const proximo = emVoo ?? entry.voos[0];
+      const liveStatus = statusMap[entry.aeronave.id];
+      const estado = emVoo
+        ? "em_voo"
+        : liveStatus === "manutencao"
+          ? "manutencao"
+          : proximo
+            ? proximo.status
+            : "disponivel";
+      return { ...entry, proximo, estado };
+    });
+  }, [bookings, statusMap]);
+
+  const filtradas = useMemo(() => {
+    if (filtro === "todas") return aeronaves;
+    if (filtro === "em_voo") return aeronaves.filter((a) => a.estado === "em_voo");
+    if (filtro === "manutencao") return aeronaves.filter((a) => a.estado === "manutencao");
+    return aeronaves.filter((a) => AGENDADO.includes(a.estado));
+  }, [aeronaves, filtro]);
+
+  const voosHoje = bookings.filter((b) => b.data_agendada === hoje);
+  const emRota = aeronaves.filter((a) => a.estado === "em_voo").length;
+
+  const chips: { id: Filtro; label: string }[] = [
+    { id: "todas", label: "Todas" },
+    { id: "em_voo", label: "Em voo" },
+    { id: "agendadas", label: "Agendadas" },
+    { id: "manutencao", label: "Manutenção" },
+  ];
 
   return (
-    <div className="bg-card/50 backdrop-blur rounded-xl border border-border p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Plane className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Frota em Tempo Real</h3>
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-4 py-3.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="rounded-xl border border-primary/25 bg-primary/10 p-2 text-primary">
+            <Radar className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-bold text-foreground">Frota em Tempo Real</h3>
+            <p className="text-xs text-muted-foreground">
+              {aeronaves.length} aeronave(s) em operação · {emRota} em rota agora
+            </p>
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-primary hover:text-primary/80"
-          onClick={() => navigate("/painel-agendamentos")}
-        >
-          Ver Todas Aeronaves
-          <ArrowRight className="ml-1 h-4 w-4" />
+        <Button variant="ghost" size="sm" className="text-primary" onClick={() => navigate("/painel-agendamentos")}>
+          Ver todas <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
+      </header>
+
+      <div className="flex flex-wrap gap-2 px-4 py-3">
+        {chips.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setFiltro(c.id)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              filtro === c.id
+                ? "border-primary/40 bg-primary/15 text-primary"
+                : "border-border/60 text-muted-foreground hover:bg-accent/40",
+            )}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {aircraft.slice(0, 3).map((ac) => {
-          const currentStatus = liveStatuses[ac.id] || ac.status;
-          const statusInfo = getStatusInfo(currentStatus);
-          const normalizedStatus = (currentStatus ?? '').toLowerCase().trim();
-          const isInFlight = ['em_voo', 'em_rota', 'ativo'].includes(normalizedStatus);
-          const activeFlight = activeFlightsMap.get(ac.id);
-          const shouldShowRoute = isInFlight && Boolean(activeFlight);
-
-          return (
-            <div
-              key={ac.id}
-              className={`bg-card/80 rounded-lg border-l-4 ${statusInfo.borderColor} border border-border p-4 hover:bg-card transition-all cursor-pointer`}
-              onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(ac.id)}`)}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className={`uppercase text-xs font-bold mb-3 ${statusInfo.textColor}`}>
-                    {statusInfo.label}
+      <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2">
+        {filtradas.length === 0 ? (
+          <p className="col-span-full rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+            Nenhuma aeronave agendada ou em voo no momento.
+          </p>
+        ) : (
+          filtradas.map(({ aeronave, proximo, estado, voos }) => {
+            const meta = STATUS_META[estado] ?? STATUS_META.disponivel;
+            return (
+              <button
+                key={aeronave.id}
+                onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(aeronave.id)}`)}
+                className="group rounded-xl border border-border/60 bg-background/40 p-4 text-left transition-all hover:border-primary/40 hover:bg-background/70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", meta.chip)}>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                      {meta.label}
+                    </span>
+                    <p className="mt-2 font-mono text-lg font-bold text-foreground">{aeronave.matricula}</p>
+                    <p className="truncate text-xs text-muted-foreground">{aeronave.modelo ?? "—"}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-white font-bold text-lg">{ac.matricula}</div>
-                      <div className="text-muted-foreground text-xs">{ac.modelo}</div>
+                  {estado === "manutencao" ? (
+                    <Wrench className="h-7 w-7 text-orange-400/70" />
+                  ) : (
+                    <Plane className={cn("h-7 w-7 -rotate-45 transition-transform group-hover:translate-x-0.5", estado === "em_voo" ? "text-emerald-400/80" : "text-primary/60")} />
+                  )}
+                </div>
+
+                {proximo && (
+                  <div className="mt-3 space-y-1.5 border-t border-border/40 pt-3">
+                    <div className="flex items-center justify-between gap-2 font-mono text-sm text-foreground">
+                      <span>{proximo.origem ?? "—"}</span>
+                      <span className="h-px flex-1 bg-gradient-to-r from-primary/40 to-primary/10" />
+                      <span>{proximo.destino ?? "—"}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        {format(new Date(`${proximo.data_agendada}T00:00:00`), "dd/MM", { locale: ptBR })}
+                        {proximo.horario_previsto_agendamento
+                          ? ` · ${proximo.horario_previsto_agendamento.slice(0, 5)} UTC`
+                          : ""}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Users className="h-3 w-3" /> {proximo.qtd_passageiros ?? 0}
+                      </span>
+                      {voos.length > 1 && (
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">+{voos.length - 1} voo(s)</span>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div className={`text-3xl opacity-80 ${statusInfo.text}`}>
-                  {statusInfo.icon === 'wrench' && <Wrench className="h-8 w-8" />}
-                  {statusInfo.icon === 'alert' && <AlertCircle className="h-8 w-8" />}
-                  {statusInfo.icon === 'zap' && <Zap className="h-8 w-8" />}
-                  {statusInfo.icon === 'plane' && <Plane className="h-8 w-8 rotate-45" />}
-                </div>
-              </div>
+                )}
+              </button>
+            );
+          })
+        )}
+      </div>
 
-              {shouldShowRoute ? (
-                <div className="text-xs">
-                  <p className="text-muted-foreground text-[10px] uppercase">Trecho</p>
-                  <p className="text-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {activeFlight?.origem ?? "—"} → {activeFlight?.destino ?? "—"}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+      {/* Painel de operações — tabela expansível */}
+      <div className="border-t border-border/50">
+        <button
+          onClick={() => setExpandido((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/30"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            <span className="truncate text-sm font-semibold text-foreground">Painel de Operações</span>
+            <span className="text-xs text-muted-foreground">
+              · {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+            </span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+              Ao vivo
+            </span>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", !expandido && "-rotate-90")} />
+          </span>
+        </button>
+
+        {expandido && (
+          <div className="overflow-x-auto px-2 pb-4">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-medium">Hora</th>
+                  <th className="px-3 py-2 text-left font-medium">Aeronave</th>
+                  <th className="px-3 py-2 text-left font-medium">Trecho</th>
+                  <th className="px-3 py-2 text-left font-medium">Cliente</th>
+                  <th className="px-3 py-2 text-left font-medium">Pax</th>
+                  <th className="px-3 py-2 text-right font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {voosHoje.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      Nenhum voo programado para hoje.
+                    </td>
+                  </tr>
+                ) : (
+                  voosHoje.map((v) => {
+                    const meta = STATUS_META[v.status] ?? STATUS_META.disponivel;
+                    return (
+                      <tr
+                        key={v.id}
+                        onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(v.aeronave_id ?? "")}`)}
+                        className="cursor-pointer border-t border-border/40 transition-colors hover:bg-accent/30"
+                      >
+                        <td className="px-3 py-3 font-mono font-semibold text-foreground">
+                          {v.horario_previsto_agendamento?.slice(0, 5) ?? "--:--"}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-primary">{v.aeronave?.matricula ?? "—"}</td>
+                        <td className="px-3 py-3 font-medium text-foreground">
+                          {v.origem ?? "—"} → {v.destino ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">{v.clientes?.razao_social ?? "—"}</td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {v.qtd_passageiros ?? 0}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold", meta.chip)}>
+                            {meta.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,19 @@ import { useNavigate } from "react-router-dom";
 import { CrewMemberCard } from "@/components/tripulacao/TripulacaoCard";
 import { CrewRegistrationForm } from "@/components/tripulacao/CrewRegistrationForm";
 
+interface CrewLicenseLite {
+  id: string;
+  tipo_habilitacao: string;
+  data_validade: string | null;
+  CMA?: string;
+  validade_cma?: string | null;
+  FS_RH?: string | null;
+}
+
+interface CrewMemberWithLicenses extends CrewMember {
+  _licenses?: CrewLicenseLite[];
+}
+
 // ── Tipos alinhados ao schema real ────────────────────────────────────────────
 interface CrewMember {
   id: string;
@@ -29,7 +42,8 @@ interface CrewMember {
   canac: string;
   email?: string;
   telefone?: string;
-  data_nascimento?: string;     
+  data_nascimento?: string;
+  data_admissao?: string;
   status: string;
   url_avatar?: string;          
   user_id?: string;             
@@ -105,7 +119,7 @@ export default function GestaoDeTripulacao() {
   const loadCrewMembers = async () => {
     const { data, error } = await supabase
       .from('membros_tripulacao')
-      .select('id, nome_completo, canac, telefone, data_nascimento, status, url_avatar, user_id, cpf, rg, endereco, tipo_licenca')
+      .select('id, nome_completo, canac, telefone, data_nascimento, data_admissao, status, url_avatar, user_id, cpf, rg, endereco, tipo_licenca')
       .eq('status', statusFilter)
       .order('nome_completo');
 
@@ -131,6 +145,26 @@ export default function GestaoDeTripulacao() {
     }));
 
     setCrewMembers(crewWithRoles);
+
+    // Fetch licenses for all crew members in a single query
+    const crewIds = crewWithRoles.map(c => c.id);
+    if (crewIds.length > 0) {
+      const { data: allLicenses } = await (supabase as any)
+        .from('habilitacoes_tripulante')
+        .select('id, membro_tripulacao_id, tipo_habilitacao, data_validade, CMA, validade_cma, FS_RH')
+        .in('membro_tripulacao_id', crewIds);
+
+      const licensesByMember = (allLicenses || []).reduce((acc: Record<string, CrewLicenseLite[]>, lic: any) => {
+        if (!acc[lic.membro_tripulacao_id]) acc[lic.membro_tripulacao_id] = [];
+        acc[lic.membro_tripulacao_id].push(lic);
+        return acc;
+      }, {});
+
+      setCrewMembers(prev => prev.map(c => ({
+        ...c,
+        _licenses: licensesByMember[c.id] || [],
+      })));
+    }
   };
 
   const loadCrewDetails = async (crewId: string) => {
@@ -233,7 +267,7 @@ export default function GestaoDeTripulacao() {
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">
+      <div className="p-4 md:p-6 space-y-6 bg-[#020b1d] min-h-screen -mt-[25px] -mb-[25px] -ml-[11px] -mr-[11px] shadow-[1px_1px_5px_0_rgba(32,22,22,1)]">
         <div>
           <div className="flex items-center gap-3">
             <Button
@@ -251,9 +285,9 @@ export default function GestaoDeTripulacao() {
         </div>
 
         <Tabs value={activeMainTab} onValueChange={(v) => setActiveMainTab(v as any)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="members">Gerenciar Tripulantes</TabsTrigger>
-            <TabsTrigger value="registration">Cadastro de Tripulantes</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 my-[6px] py-[8px] px-[122px] -ml-[7px] -mr-[7px] gap-[54px]">
+            <TabsTrigger value="members" className="bg-[#6ad496] text-[#0f1720] shadow-[1px_1px_3px_0_rgba(40,43,59,1)] border-[#7ed321]">Gerenciar Tripulantes</TabsTrigger>
+            <TabsTrigger value="registration" className="bg-[#6ad496] text-[#0f1720] shadow-[1px_1px_3px_0_rgba(25,26,31,1)] border-[#7ed321]">Cadastro de Tripulantes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
@@ -264,7 +298,7 @@ export default function GestaoDeTripulacao() {
                   placeholder="Buscar por nome ou CANAC..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10 h-10"
+                  className="pl-[55px] pr-[17px] -mx-[11px] h-10"
                 />
               </div>
               <div className="flex gap-2">
@@ -279,7 +313,7 @@ export default function GestaoDeTripulacao() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
               {filteredCrewMembers.length === 0 ? (
                 <div className="col-span-full text-center py-20">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800/50 flex items-center justify-center">
@@ -290,7 +324,7 @@ export default function GestaoDeTripulacao() {
                 </div>
               ) : (
                 filteredCrewMembers.map(crew => (
-                  <CrewMemberCard key={crew.id} member={crew} />
+                  <CrewMemberCard key={crew.id} member={crew} licenses={(crew as any)._licenses} />
                 ))
               )}
             </div>

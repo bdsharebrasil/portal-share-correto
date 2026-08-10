@@ -196,13 +196,11 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
                     <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pousos</th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Média h/voo</th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível (L)</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-40">Utilização</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {mesesFiltrados.map(([key, val]) => {
                     const mediaHvoo = val.voos > 0 ? val.horas / val.voos : 0;
-                    const pct = (val.horas / maxHoras) * 100;
                     
                     return (
                       <tr key={key} className="hover:bg-secondary/30 transition-colors group">
@@ -217,14 +215,6 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
                           {val.combustivel > 0 && <Droplets className="h-3 w-3 opacity-50" />}
                           {val.combustivel.toFixed(1)}
                         </td>
-                        <td className="px-6 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden border border-border/50">
-                              <div className="h-full bg-ctm-teal rounded-full" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs font-semibold text-muted-foreground w-8 text-right">{pct.toFixed(0)}%</span>
-                          </div>
-                        </td>
                       </tr>
                     );
                   })}
@@ -237,7 +227,6 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
                     <td className="px-6 py-4 text-right font-bold text-foreground">{totalAno.pousos}</td>
                     <td className="px-6 py-4 text-right font-semibold text-muted-foreground">{(totalAno.voos > 0 ? totalAno.horas / totalAno.voos : 0).toFixed(2)}h</td>
                     <td className="px-6 py-4 text-right font-semibold text-muted-foreground">{totalAno.combustivel.toFixed(1)}</td>
-                    <td className="px-6 py-4" />
                   </tr>
                 </tbody>
               </table>

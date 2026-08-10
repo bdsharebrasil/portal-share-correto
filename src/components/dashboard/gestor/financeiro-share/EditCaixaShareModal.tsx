@@ -92,6 +92,11 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
   const [anexos, setAnexos] = useState<AnexoLinha[]>(anexosFromMov(movInit || {}));
 
   const setM = (k: string, v: any) => setMov((s: any) => ({ ...s, [k]: v }));
+  const setStatus = (status: string) => setMov((s: any) => ({
+    ...s,
+    status,
+    data_pagamento: String(status || "").trim().toLowerCase() === "pendente" ? "" : s.data_pagamento,
+  }));
 
   const { data: categorias = [] } = useQuery({
     queryKey: ["categorias-mov-edit-share"],
@@ -162,12 +167,12 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         categoria_id: mov.categoria_id || null,
         data_competencia: mov.data_competencia || null,
         data_vencimento: mov.data_vencimento || null,
-        data_pagamento: mov.data_pagamento || null,
         valor_rateado: numOrNull(mov.valor_rateado),
         status: mov.status,
         forma_pagamento: mov.forma_pagamento,
         banco_nome: mov.banco_nome,
         conta_bancaria: mov.conta_bancaria,
+        data_pagamento: String(mov.status || "").trim().toLowerCase() === "pendente" ? null : mov.data_pagamento || null,
         reembolsavel: !!mov.reembolsavel,
         reembolso_quitado: !!mov.reembolso_quitado,
         observacoes: mov.observacoes,
@@ -233,7 +238,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
               </div>
               <div>
                 <label className={labelCls}>Status</label>
-                <SearchableCombobox items={STATUS_SHARE} value={mov.status || ""} onChange={(v) => setM("status", v)} placeholder="Status" />
+                <SearchableCombobox items={STATUS_SHARE} value={mov.status || ""} onChange={(v) => setStatus(v)} placeholder="Status" />
               </div>
             </div>
           </Section>

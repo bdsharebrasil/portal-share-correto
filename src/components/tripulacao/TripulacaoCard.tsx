@@ -1,11 +1,10 @@
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, XCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { CheckCircle, Clock, XCircle, ChevronDown, Phone, MapPin, FileText, Calendar, Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateToBR } from "@/lib/date-utils";
+import { useNavigate } from "react-router-dom";
 
 interface CrewLicense {
   id: string;
@@ -14,9 +13,6 @@ interface CrewLicense {
   CMA?: string;
   validade_cma?: string | null;
   FS_RH?: string | null;
-  // Backward compatibility
-  license_type?: string;
-  expiry_date?: string | null;
 }
 
 interface CrewMember {
@@ -25,20 +21,17 @@ interface CrewMember {
   canac: string;
   cpf?: string;
   data_nascimento?: string;
-  tipo_licenca?: string; // tipo de licença vindo de membros_tripulacao
-  email?: string;
+  tipo_licenca?: string;
   telefone?: string;
   url_avatar?: string;
-  // Backward compatibility
-  full_name?: string;
-  phone?: string;
-  avatar_url?: string;
   status?: string;
   user_id?: string;
 }
 
 interface CrewMemberCardProps {
   member: CrewMember;
+  licenses?: CrewLicense[];
+  loadingLicenses?: boolean;
 }
 
 const getInitials = (name: string | undefined): string => {
@@ -64,23 +57,38 @@ const getLicenseStatus = (expiryDate: string | null | undefined): LicenseStatus 
   return "active";
 };
 
-const statusConfig: Record<LicenseStatus, { label: string; badgeColor: string; textColor: string; cardBg: string; cardBorder: string; Icon: typeof CheckCircle }> = {
-  active: { label: "ATIVA", badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", textColor: "text-emerald-400", cardBg: "bg-slate-900/60", cardBorder: "border-emerald-500/30", Icon: CheckCircle },
-  expiring: { label: "VENCENDO", badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/30", textColor: "text-amber-400", cardBg: "bg-slate-900/60", cardBorder: "border-amber-500/30", Icon: Clock },
-  expired: { label: "VENCIDA", badgeColor: "bg-red-500/20 text-red-400 border-red-500/30", textColor: "text-red-400", cardBg: "bg-slate-900/60", cardBorder: "border-red-500/30", Icon: XCircle },
+const statusConfig: Record<LicenseStatus, { label: string; badgeColor: string; textColor: string; Icon: typeof CheckCircle }> = {
+  active: { label: "VÁLIDA", badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", textColor: "text-emerald-400", Icon: CheckCircle },
+  expiring: { label: "VENCENDO", badgeColor: "bg-amber-500/20 text-amber-400 border-amber-500/30", textColor: "text-amber-400", Icon: Clock },
+  expired: { label: "VENCIDA", badgeColor: "bg-red-500/20 text-red-400 border-red-500/30", textColor: "text-red-400", Icon: XCircle },
 };
 
-export function CrewMemberCard({ member }: CrewMemberCardProps) {
-  const navigate = useNavigate();
-  const [licenses, setLicenses] = useState<CrewLicense[]>([]);
-  const [loading, setLoading] = useState(true);
+const InfoRow = ({ icon: Icon, label, value }: { icon: typeof FileText; label: string; value?: string | null }) => (
+  <div className="flex items-start gap-2">
+    <Icon className="text-slate-500 min-w-[16px] mt-0.5" size={15} />
+    <div>
+      <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{label}</span>
+      <p className="text-sm text-slate-200">{value || <span className="text-slate-600 italic">Sem informação</span>}</p>
+    </div>
+  </div>
+);
 
-  const displayName = member.nome_completo ?? member.full_name ?? "NOME NÃO INFORMADO";
-  const displayAvatar = member.url_avatar ?? member.avatar_url;
-  const displayCpf = member.cpf;
-  const displayNascimento = member.data_nascimento;
+export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses }: CrewMemberCardProps) {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(false);
+  const [licenses, setLicenses] = useState<CrewLicense[]>(propLicenses ?? []);
+  const [loading, setLoading] = useState(loadingLicenses ?? !propLicenses);
+
+  const displayName = member.nome_completo ?? "NOME NÃO INFORMADO";
+  const displayAvatar = member.url_avatar;
 
   useEffect(() => {
+    if (propLicenses) {
+      setLicenses(propLicenses);
+      setLoading(false);
+      return;
+    }
+
     const fetchLicenses = async () => {
       try {
         const { data, error } = await (supabase as any)
@@ -88,143 +96,170 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
           .select("id, tipo_habilitacao, data_validade, CMA, validade_cma, FS_RH")
           .eq("membro_tripulacao_id", member.id)
           .order("data_validade", { ascending: true });
-
-        if (!error && data) {
-          setLicenses(data);
-        }
+        if (!error && data) setLicenses(data);
       } catch (e) {
         console.error("Error fetching licenses:", e);
       } finally {
         setLoading(false);
       }
     };
-
     fetchLicenses();
-  }, [member.id]);
-
-  // Não exibe o card se não houver data de nascimento cadastrada
-  if (!displayNascimento) {
-    return null;
-  }
+  }, [member.id, propLicenses]);
 
   const displayLicenses = licenses.filter(l => l.tipo_habilitacao !== 'CMA');
   const cmaLicense = licenses.find(l => l.CMA && l.validade_cma);
+
+  // Only show licenses that are expired or expiring (<=60 days)
+  const alertLicenses = displayLicenses.filter(l => {
+    const status = getLicenseStatus(l.data_validade);
+    return status === 'expired' || status === 'expiring';
+  });
+  const cmaStatus = cmaLicense ? getLicenseStatus(cmaLicense.validade_cma) : null;
+  const cmaIsAlert = cmaStatus === 'expired' || cmaStatus === 'expiring';
 
   const hasExpired = licenses.some(l => getLicenseStatus(l.tipo_habilitacao === 'CMA' ? l.validade_cma : l.data_validade) === 'expired');
   const avatarRingColor = hasExpired ? 'from-red-500 to-red-700' : 'from-emerald-500 to-emerald-700';
 
   return (
-    <Card
-      className="group cursor-pointer bg-slate-950 border border-slate-800 hover:border-slate-700 hover:shadow-xl transition-all duration-300 overflow-hidden w-full max-w-md mx-auto flex flex-col relative rounded-3xl"
-      onClick={() => navigate(`/tripulacao/${member.id}?tab=dados`)}
+    <div
+      className="group cursor-pointer bg-slate-950 border border-slate-800 hover:border-slate-700 hover:shadow-xl shadow-[1px_1px_11px_0_rgba(0,0,0,1)] transition-all duration-300 overflow-hidden w-full mx-auto flex flex-col relative rounded-2xl"
+      onClick={() => setExpanded(!expanded)}
     >
-      <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-slate-800/40 to-transparent pointer-events-none" />
-
-      {/* Foto de Perfil / Avatar */}
-      <div className="flex justify-center mt-8 mb-3 relative z-10">
-        <div className={`p-1 rounded-full bg-gradient-to-tr ${avatarRingColor}`}>
-          <Avatar className="h-24 w-24 border-4 border-slate-950">
+      {/* Collapsed view */}
+      <div className="flex items-center gap-3 p-3">
+        <div className={`p-0.5 rounded-full bg-gradient-to-tr ${avatarRingColor} shrink-0`}>
+          <Avatar className="h-14 w-14 border-2 border-slate-950">
             <AvatarImage src={displayAvatar} alt={displayName} className="object-cover" />
-            <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-2xl">
+            <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-lg">
               {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
         </div>
-      </div>
 
-      {/* Nome e Código ANAC */}
-      <div className="text-center px-6 mb-6">
-        <h3 className="text-lg font-bold text-slate-100 uppercase tracking-wide leading-tight">
-          {displayName}
-        </h3>
-        <p className="text-sm text-slate-400 mt-1 font-medium">
-          Código ANAC: <span className="text-slate-200">{member.canac}</span>
-        </p>
-        {member.tipo_licenca && (
-          <Badge className="mt-2 bg-slate-800/80 text-slate-200 border-slate-700 text-[10px] font-bold uppercase tracking-wide">
-            {member.tipo_licenca}
-          </Badge>
-        )}
-      </div>
-
-      <div className="px-4 flex-1 flex flex-col gap-4 pb-6">
-        {/* Bloco de Dados Pessoais */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/60">
-            <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-0.5">CPF</p>
-            <p className="text-sm font-semibold text-slate-200">{displayCpf ?? "-"}</p>
-          </div>
-          <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800/60">
-            <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-0.5">Data de Nasc.</p>
-            <p className="text-sm font-semibold text-slate-200">{formatDateToBR(displayNascimento)}</p>
-          </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide leading-tight truncate">
+            {displayName}
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            CANAC: <span className="text-slate-200 font-medium">{member.canac}</span>
+          </p>
         </div>
 
-        {/* Habilitações e Licenças */}
-        {!loading && displayLicenses.length > 0 && (
-          <div className="mt-2">
-            <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold mb-2 ml-1">
-              Licenças e Habilitações
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {displayLicenses.map((license) => {
-                const status = getLicenseStatus(license.data_validade);
-                const config = statusConfig[status];
+        <ChevronDown
+          className={`h-5 w-5 text-slate-500 transition-transform duration-300 shrink-0 ${expanded ? 'rotate-180' : ''}`}
+        />
+      </div>
 
-                return (
-                  <div
-                    key={license.id}
-                    className={`${config.cardBg} border ${config.cardBorder} rounded-2xl p-3 flex flex-col items-center text-center`}
-                  >
-                    <p className="text-xs font-bold text-slate-200 mb-1 uppercase break-words w-full">
-                      {license.tipo_habilitacao}
-                    </p>
-                    <div className="mt-auto w-full">
-                      <p className="text-[10px] text-slate-400 mb-1">
-                        Validade: <span className="text-slate-300 font-medium">{formatDateToBR(license.data_validade)}</span>
-                      </p>
-                      <Badge className={`${config.badgeColor} text-[9px] font-bold w-full justify-center border uppercase rounded-md py-0.5`}>
-                        {config.label}
+      {/* Alert licenses (expired / expiring) — always visible */}
+      {!loading && (alertLicenses.length > 0 || cmaIsAlert) && (
+        <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+          {alertLicenses.map(lic => {
+            const status = getLicenseStatus(lic.data_validade);
+            const cfg = statusConfig[status];
+            const { Icon } = cfg;
+            return (
+              <Badge key={lic.id} className={`${cfg.badgeColor} text-[9px] font-bold border flex items-center gap-1 rounded-md px-2 py-0.5`}>
+                <Icon size={10} />
+                {lic.tipo_habilitacao}
+              </Badge>
+            );
+          })}
+          {cmaIsAlert && cmaLicense && (
+            <Badge className={`${statusConfig[cmaStatus!].badgeColor} text-[9px] font-bold border flex items-center gap-1 rounded-md px-2 py-0.5`}>
+              {(() => {
+                const StatusIcon = statusConfig[cmaStatus!].Icon;
+                return <StatusIcon size={10} />;
+              })()}
+              CMA
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Expanded view */}
+      {expanded && (
+        <div
+          className="border-t border-slate-800 bg-slate-900/40 p-4 space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Personal data */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <InfoRow icon={FileText} label="CPF" value={member.cpf} />
+            <InfoRow icon={Calendar} label="Nascimento" value={member.data_nascimento ? formatDateToBR(member.data_nascimento) : null} />
+            <InfoRow icon={Phone} label="Telefone" value={member.telefone} />
+          </div>
+
+          {/* All licenses */}
+          {!loading && licenses.length > 0 && (
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold mb-2">
+                Licenças e Habilitações
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {displayLicenses.map(lic => {
+                  const status = getLicenseStatus(lic.data_validade);
+                  const cfg = statusConfig[status];
+                  return (
+                    <div key={lic.id} className="bg-slate-900/80 border border-slate-800/60 rounded-xl p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-200 uppercase">{lic.tipo_habilitacao}</span>
+                        <Badge className={`${cfg.badgeColor} text-[8px] font-bold border rounded-md px-1.5 py-0.5`}>
+                          {cfg.label}
+                        </Badge>
+                      </div>
+                      {lic.data_validade && (
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Validade: {formatDateToBR(lic.data_validade)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* CMA */}
+              {cmaLicense && (
+                <div className="mt-2 bg-slate-900/80 border border-slate-800/60 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-200 uppercase">CMA</span>
+                    {cmaStatus && (
+                      <Badge className={`${statusConfig[cmaStatus].badgeColor} text-[8px] font-bold border rounded-md px-1.5 py-0.5`}>
+                        {statusConfig[cmaStatus].label}
                       </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[8px] text-slate-500 uppercase">Classe</p>
+                      <p className="text-xs font-bold text-slate-100">
+                        {cmaLicense.CMA === 'primeira' ? '1ª' : cmaLicense.CMA === 'segunda' ? '2ª' : cmaLicense.CMA || '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-slate-500 uppercase">Validade</p>
+                      <p className={`text-xs font-bold ${cmaStatus ? statusConfig[cmaStatus].textColor : 'text-slate-100'}`}>
+                        {cmaLicense.validade_cma ? formatDateToBR(cmaLicense.validade_cma) : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-slate-500 uppercase">FS/RH</p>
+                      <p className="text-xs font-bold text-slate-100">{cmaLicense.FS_RH || '-'}</p>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* CMA Info */}
-        {cmaLicense && (
-          <div className="mt-2">
-            <div className={`p-4 rounded-2xl border ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].cardBg} ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].cardBorder}`}>
-              <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-semibold mb-3 text-center">
-                CMA - Certificado Médico Aeronáutico
-              </p>
-              <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-700/50">
-                <div>
-                  <p className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Classe</p>
-                  <p className="text-xs font-bold text-slate-100">
-                    {cmaLicense.CMA === 'primeira' ? '1ª Classe' : cmaLicense.CMA === 'segunda' ? '2ª Classe' : cmaLicense.CMA}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-slate-500 uppercase font-semibold mb-1">Validade</p>
-                  <p className={`text-xs font-bold ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].textColor}`}>
-                    {formatDateToBR(cmaLicense.validade_cma)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-slate-500 uppercase font-semibold mb-1">FS/RH</p>
-                  <p className="text-xs font-bold text-slate-100">
-                    {cmaLicense.FS_RH || '-'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
+          {/* Link to full profile */}
+          <button
+            onClick={() => navigate(`/tripulacao/${member.id}?tab=dados`)}
+            className="w-full text-xs text-slate-400 hover:text-slate-200 py-2 border-t border-slate-800/60 transition-colors"
+          >
+            Ver perfil completo →
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

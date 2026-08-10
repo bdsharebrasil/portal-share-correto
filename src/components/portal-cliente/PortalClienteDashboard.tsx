@@ -659,7 +659,8 @@ function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectM
           <input
             type="text"
             placeholder="Buscar aeronave, cotista, lançamento..."
-            className="portal-input pl-[47px] pr-[47px] w-full"
+            className="portal-input pl-[49px] pr-[49px] w-full"
+            style={{ marginLeft: "-3px", marginRight: "-3px", paddingLeft: "49px", paddingRight: "49px" }}
           />
         </div>
       </div>

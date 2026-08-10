@@ -210,9 +210,13 @@ export default function Recados() {
           });
         }
 
-        const author = authorMap.get(msg.autor_id)!;
+        const author = authorMap.get(msg.autor_id)!
 
-        const createdAt = msg.criado_em ?? msg.created_at ?? new Date().toISOString();
+        const createdAtValue = msg.criado_em ?? msg.created_at ?? new Date().toISOString();
+        const parsedCreatedAt = new Date(createdAtValue);
+        const createdAt = isNaN(parsedCreatedAt.getTime())
+          ? new Date().toISOString()
+          : parsedCreatedAt.toISOString();
 
         return {
           id: msg.id,
@@ -560,7 +564,13 @@ export default function Recados() {
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {formatDistanceToNow(new Date((msg as any).criado_em), { addSuffix: true, locale: ptBR })}
+                              {formatDistanceToNow(
+                                (() => {
+                                  const date = new Date(msg.created_at);
+                                  return isNaN(date.getTime()) ? new Date() : date;
+                                })(),
+                                { addSuffix: true, locale: ptBR }
+                              )}
                             </span>
                             <Popover>
                               <PopoverTrigger asChild>
