@@ -37,6 +37,7 @@ interface CrewMember {
   cpf?: string;                 // membros_tripulacao.cpf
   rg?: string;                  // membros_tripulacao.rg
   endereco?: string;            // membros_tripulacao.endereco
+  tipo_licenca?: string;        // membros_tripulacao.tipo_licenca (sempre maiúsculo)
 }
 
 interface CrewFlightHours {
@@ -72,6 +73,15 @@ interface LogbookFlight {
   confirmado: boolean;
 }
 
+// Opções padrão de tipo de licença (ANAC) — sempre gravadas em maiúsculo
+const TIPOS_LICENCA = [
+  { value: "PP", label: "PP — Piloto Privado" },
+  { value: "PC", label: "PC — Piloto Comercial" },
+  { value: "PLA", label: "PLA — Piloto de Linha Aérea" },
+  { value: "PP-HELI", label: "PP-HELI — Piloto Privado de Helicóptero" },
+  { value: "PC-HELI", label: "PC-HELI — Piloto Comercial de Helicóptero" },
+];
+
 export default function GestaoDeTripulacao() {
   const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<'members' | 'registration'>('members');
@@ -95,10 +105,10 @@ export default function GestaoDeTripulacao() {
   useEffect(() => { if (selectedCrew) loadCrewDetails(selectedCrew.id); }, [selectedCrew]);
 
   const loadCrewMembers = async () => {
-    // cpf, rg, endereco, url_avatar estão direto em membros_tripulacao
+    // cpf, rg, endereco, url_avatar, tipo_licenca estão direto em membros_tripulacao
     const { data, error } = await supabase
       .from('membros_tripulacao')
-      .select('id, nome_completo, canac, telefone, data_nascimento, status, url_avatar, user_id, cpf, rg, endereco')
+      .select('id, nome_completo, canac, telefone, data_nascimento, status, url_avatar, user_id, cpf, rg, endereco, tipo_licenca')
       .eq('status', statusFilter)
       .order('nome_completo');
 
@@ -346,18 +356,29 @@ export default function GestaoDeTripulacao() {
                               onChange={setEditingProfileData}
                               onSave={async () => {
                                 try {
-                                  // Atualiza direto em membros_tripulacao (cpf/rg/endereco estão lá)
+                                  // Atualiza direto em membros_tripulacao (cpf/rg/endereco/tipo_licenca estão lá)
+                                  // tipo_licenca é sempre normalizado para maiúsculo antes de salvar
                                   const { error } = await supabase
                                     .from('membros_tripulacao')
                                     .update({
                                       cpf: editingProfileData.cpf || null,
                                       rg: editingProfileData.rg || null,
                                       endereco: editingProfileData.endereco || null,
+                                      tipo_licenca: editingProfileData.tipo_licenca
+                                        ? editingProfileData.tipo_licenca.toUpperCase()
+                                        : null,
                                     })
                                     .eq('id', editingProfileData.id);
                                   if (error) throw error;
 
-                                  setSelectedCrew({ ...selectedCrew, ...editingProfileData });
+                                  const updatedCrew = {
+                                    ...selectedCrew,
+                                    ...editingProfileData,
+                                    tipo_licenca: editingProfileData.tipo_licenca
+                                      ? editingProfileData.tipo_licenca.toUpperCase()
+                                      : undefined,
+                                  };
+                                  setSelectedCrew(updatedCrew);
                                   setIsEditingProfile(false);
                                   setEditingProfileData(null);
                                   toast({ title: "Perfil atualizado com sucesso" });
@@ -375,7 +396,14 @@ export default function GestaoDeTripulacao() {
                               }
                               <div className="space-y-3 flex-1">
                                 {/* nome_completo — campo real */}
-                                <h2 className="text-2xl font-bold">{selectedCrew.nome_completo}</h2>
+                                <div className="flex items-center gap-3">
+                                  <h2 className="text-2xl font-bold">{selectedCrew.nome_completo}</h2>
+                                  {selectedCrew.tipo_licenca && (
+                                    <Badge className="bg-slate-800/80 text-slate-200 border-slate-700 text-[10px] font-bold uppercase tracking-wide">
+                                      {selectedCrew.tipo_licenca}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     <Award className="text-primary" size={16} />
@@ -618,7 +646,8 @@ function LicenseForm({
       toast({ title: "Preencha a data de validade", variant: "destructive" });
       return;
     }
-    onSave(formData);
+    // tipo_habilitacao sempre gravado em maiúsculo, seguindo o padrão de tipo_licenca
+    onSave({ ...formData, tipo_habilitacao: formData.tipo_habilitacao.toUpperCase() });
   };
 
   return (
@@ -658,14 +687,12 @@ function LicenseForm({
             </div>
             <div className="sm:col-span-2">
               <Label>Validade CMA</Label>
-              {/* type="date" — corrigido de "data" */}
               <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({ ...formData, validade_cma: e.target.value })} />
             </div>
           </>
         ) : (
           <div className="sm:col-span-2">
             <Label>Data de Validade *</Label>
-            {/* type="date" — corrigido de "data" */}
             <Input type="date" value={formData.data_validade || ''} onChange={e => setFormData({ ...formData, data_validade: e.target.value })} required />
           </div>
         )}
@@ -705,6 +732,20 @@ function EditProfileForm({
         <div className="space-y-2">
           <Label>RG</Label>
           <Input value={crew.rg || ''} onChange={e => onChange({ ...crew, rg: e.target.value })} placeholder="00.000.000-0" />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo de Licença</Label>
+          <Select
+            value={crew.tipo_licenca || ''}
+            onValueChange={v => onChange({ ...crew, tipo_licenca: v.toUpperCase() })}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              {TIPOS_LICENCA.map(t => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="col-span-2 space-y-2">
           <Label>Endereço</Label>
