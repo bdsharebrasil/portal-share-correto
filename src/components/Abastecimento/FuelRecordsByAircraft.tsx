@@ -122,6 +122,24 @@ const getErrorMessage = (error: any): string => {
 };
 
 /**
+ * Parser seguro de data. As datas em `abastecimentos.data` são salvas como
+ * timestamp ISO completo (ex: "2026-08-09T03:00:00.000Z"), então NÃO se pode
+ * concatenar "T00:00:00" nelas (isso gera uma string inválida tipo
+ * "2026-08-09T03:00:00.000ZT00:00:00" e produz Invalid Date, quebrando
+ * filtros por mês/ano). Esta função extrai só a parte "yyyy-MM-dd" e monta
+ * a data local corretamente, funcionando tanto com timestamps completos
+ * quanto com datas simples ("yyyy-MM-dd").
+ */
+const parseDateSafe = (dateValue: string | null | undefined): Date | null => {
+  if (!dateValue) return null;
+  const datePart = dateValue.split("T")[0];
+  if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/**
  * Format date avoiding timezone shifts for Brazil (UTC-3)
  * Handles both ISO timestamps and date-only strings
  */
@@ -130,16 +148,9 @@ const formatDateBrazil = (dateValue: string | Date | null | undefined, formatStr
   let dateObj: Date;
   try {
     if (typeof dateValue === 'string') {
-      if (!dateValue.trim()) return "—";
-      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = dateValue.split('-').map(Number);
-        dateObj = new Date(year, month - 1, day);
-      } else {
-        const datePart = dateValue.split('T')[0];
-        if (!datePart || !datePart.match(/^\d{4}-\d{2}-\d{2}$/)) return "—";
-        const [year, month, day] = datePart.split('-').map(Number);
-        dateObj = new Date(year, month - 1, day);
-      }
+      const parsed = parseDateSafe(dateValue);
+      if (!parsed) return "—";
+      dateObj = parsed;
     } else {
       dateObj = dateValue;
     }
@@ -597,8 +608,8 @@ export function FuelRecordsByAircraft({
     const dateToUse = (record.status === "pago" && record.data_pagamento)
       ? record.data_pagamento
       : record.data;
-    const parsed = new Date(dateToUse + "T00:00:00");
-    return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+    const parsed = parseDateSafe(dateToUse);
+    return parsed ? parsed.getTime() : 0;
   };
 
   const getFilteredRecords = () => {
@@ -617,7 +628,8 @@ export function FuelRecordsByAircraft({
         const dateToUse = (record.status === "pago" && record.data_pagamento)
           ? record.data_pagamento
           : record.data;
-        const recordDate = new Date(dateToUse);
+        const recordDate = parseDateSafe(dateToUse);
+        if (!recordDate) return false;
         const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
         const recordYear = recordDate.getFullYear().toString();
         return recordMonth === filterMonth && recordYear === filterYear;
@@ -1174,32 +1186,48 @@ export function FuelRecordsByAircraft({
     setPreviousDayFlightInfo(null);
   };
 
-  const handleExportPDF = (month: number | null, year: string) => {
+  /**
+   * Exporta o relatório em PDF. Suporta dois modos:
+   * - Mês/Ano: `month` = 1-12, ou null para "todos os meses do ano informado"
+   * - Período personalizado: `dateFrom`/`dateTo` (yyyy-MM-dd) sobrepõem o filtro por mês/ano
+   *   quando informados. Ambos são opcionais — se só um for passado, filtra em aberto
+   *   naquela ponta (ex: só dateFrom = "a partir dessa data").
+   */
+  const handleExportPDF = (month: number | null, year: string, dateFrom?: string | null, dateTo?: string | null) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    let exportRecords = records;
-    if (month !== null) {
-      exportRecords = records.filter((r) => {
-        const dateToUse = (r.status === "pago" && r.data_pagamento)
-          ? r.data_pagamento
-          : r.data;
-        const recordDate = new Date(dateToUse + "T00:00:00");
+    const fromDate = dateFrom ? parseDateSafe(dateFrom) : null;
+    const toDate = dateTo ? parseDateSafe(dateTo) : null;
+    const useRange = Boolean(fromDate || toDate);
+
+    let exportRecords = records.filter((r) => {
+      const dateToUse = (r.status === "pago" && r.data_pagamento) ? r.data_pagamento : r.data;
+      const recordDate = parseDateSafe(dateToUse);
+      if (!recordDate) return false;
+
+      if (useRange) {
+        if (fromDate && recordDate < fromDate) return false;
+        if (toDate && recordDate > toDate) return false;
+        return true;
+      }
+
+      if (month !== null) {
         return recordDate.getMonth() + 1 === month && recordDate.getFullYear() === parseInt(year);
-      });
-    } else {
-      exportRecords = records.filter((r) => {
-        const dateToUse = (r.status === "pago" && r.data_pagamento)
-          ? r.data_pagamento
-          : r.data;
-        const recordDate = new Date(dateToUse + "T00:00:00");
-        return recordDate.getFullYear() === parseInt(year);
-      });
-    }
+      }
+      return recordDate.getFullYear() === parseInt(year);
+    });
 
     const MONTHS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const monthLabel = month === null ? "Todos os meses" : MONTHS_PT[month - 1] || "Todos os meses";
-    const periodLabel = month !== null ? `${monthLabel} / ${year}` : year;
+    let periodLabel: string;
+    if (useRange) {
+      const fromLabel = fromDate ? formatDateBrazil(dateFrom) : "início";
+      const toLabel = toDate ? formatDateBrazil(dateTo) : "hoje";
+      periodLabel = `${fromLabel} até ${toLabel}`;
+    } else {
+      const monthLabel = month === null ? "Todos os meses" : MONTHS_PT[month - 1] || "Todos os meses";
+      periodLabel = month !== null ? `${monthLabel} / ${year}` : year;
+    }
 
     const totalLitros = exportRecords.reduce((sum, r) => sum + r.litros, 0);
     const totalValue = exportRecords.reduce((sum, r) => sum + r.valor_total, 0);
@@ -1900,9 +1928,10 @@ export function FuelRecordsByAircraft({
 
         <Button
           onClick={() => setIsExportModalOpen(true)}
-          className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold shadow-lg"
+          variant="outline"
+          className="gap-2 border-border/60 bg-slate-900/60 text-slate-200 font-medium hover:bg-slate-900 hover:text-white hover:border-slate-600 shadow-sm"
         >
-          <Download className="h-5 w-5" />
+          <Download className="h-4 w-4" />
           Exportar PDF
         </Button>
       </div>
@@ -2009,6 +2038,15 @@ export function FuelRecordsByAircraft({
           </div>
         </CardContent>
       </Card>
+
+      <ExportFuelRecordsModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        records={records}
+        clientName={displayClient.razao_social}
+        aircraftRegistration={aircraft.matricula}
+        onExportPDF={handleExportPDF}
+      />
     </div>
   );
 }
