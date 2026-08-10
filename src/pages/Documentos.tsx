@@ -11,11 +11,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Download, Eye, FileText, Folder, Lock, Trash2, Upload, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  CalendarDays,
+  Download,
+  Eye,
+  FileText,
+  Folder,
+  LayoutGrid,
+  List,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  Search,
+  Trash2,
+  Upload,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { useUserRole } from "@/hooks/useUserRole";
 import { AnimatedFolder } from "@/components/AnimatedFolder";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DocumentFolder {
   id: string;
@@ -36,6 +60,7 @@ interface Document {
   criado_em: string;
   tipo_arquivo: string;
   tamanho_arquivo: number;
+  type: "file";
 }
 
 interface UserProfile {
@@ -82,6 +107,13 @@ export default function Documentos() {
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [folderContents, setFolderContents] = useState<Record<string, Project[]>>({});
+  const [documentViewMode, setDocumentViewMode] = useState<"grid" | "list">("list");
+  const [documentSearch, setDocumentSearch] = useState("");
+  const [documentSort, setDocumentSort] = useState<"name" | "date" | "size">("name");
+  const [documentSortDirection, setDocumentSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [documentAuthors, setDocumentAuthors] = useState<Record<string, string>>({});
 
   // Restricted folder states
   const [isRestricted, setIsRestricted] = useState(false);
@@ -129,7 +161,7 @@ export default function Documentos() {
       // Verificar se a pasta é restrita e se o usuário tem permissão
       const { data: folderData, error: folderError } = await supabase
         .from("pastas_documentos")
-        .select("restrita")
+        .select("restrita, criado_por")
         .eq("id", folderId)
         .maybeSingle();
 
@@ -143,8 +175,10 @@ export default function Documentos() {
           .eq("usuario_id", user.id)
           .maybeSingle();
 
-        if (permError || !permission) {
-          // Usuário não tem permissão, não carregar conteúdo
+        const isFolderOwner = user.id === folderData.criado_por;
+
+        if (permError || (!permission && !isFolderOwner)) {
+          // Usuário não tem permissão e não é o criador da pasta
           return;
         }
       }
@@ -212,7 +246,7 @@ export default function Documentos() {
         return;
       }
 
-      // Filtrar pastas restritas: mostrar apenas se usuário tem permissão
+      // Filtrar pastas restritas: o criador e os usuários com permissão conseguem ver
       let filteredFolders = folders || [];
       if (filteredFolders.length > 0) {
         const restrictedFolderIds = filteredFolders
@@ -236,7 +270,8 @@ export default function Documentos() {
 
           filteredFolders = filteredFolders.filter((folder) => {
             if (!folder.restrita) return true; // Pastas públicas sempre aparecem
-            return userPermittedFolderIds.has(folder.id); // Pastas restritas só se tem permissão
+            if (folder.criado_por === user.id) return true;
+            return userPermittedFolderIds.has(folder.id);
           });
         }
       }
@@ -254,6 +289,21 @@ export default function Documentos() {
         return;
       }
 
+      const authorIds = Array.from(new Set((docs || []).map((doc) => doc.enviado_por).filter(Boolean)));
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("user_profiles")
+          .select("id, full_name")
+          .in("id", authorIds);
+        const authorMap: Record<string, string> = {};
+        (profiles || []).forEach((profile) => {
+          authorMap[profile.id] = profile.full_name || "Usuário";
+        });
+        setDocumentAuthors(authorMap);
+      } else {
+        setDocumentAuthors({});
+      }
+
       const folderItems: DocumentItem[] = filteredFolders.map((f) => ({
         ...f,
         type: "folder" as const,
@@ -261,7 +311,7 @@ export default function Documentos() {
       const docItems: DocumentItem[] = (docs || []).map((d) => ({
         ...d,
         type: "file" as const,
-      }));
+      })) as DocumentItem[];
 
       setItems([...folderItems, ...docItems]);
 
@@ -309,8 +359,9 @@ export default function Documentos() {
       return;
     }
 
-    if (isRestricted && selectedUsers.length > 0 && folderData) {
-      const permissions = selectedUsers.map((userId) => ({
+    if (isRestricted && folderData) {
+      const allowedUserIds = Array.from(new Set([user.id, ...selectedUsers]));
+      const permissions = allowedUserIds.map((userId) => ({
         pasta_id: folderData.id,
         usuario_id: userId,
         criado_por: user.id,
@@ -407,7 +458,8 @@ export default function Documentos() {
         return;
       }
 
-      if (!permission) {
+      const isFolderOwner = folder.criado_por === user.id;
+      if (!permission && !isFolderOwner) {
         toast.error("Você não tem permissão para acessar esta pasta");
         return;
       }
@@ -455,6 +507,25 @@ export default function Documentos() {
     loadDocuments();
   };
 
+  const handleRenameFile = async (doc: Document) => {
+    const nextName = window.prompt("Editar legenda do documento", doc.nome || "");
+    if (nextName === null) return;
+
+    const normalizedName = nextName.trim();
+    const { error } = await supabase
+      .from("documentos_internos")
+      .update({ nome: normalizedName })
+      .eq("id", doc.id);
+
+    if (error) {
+      toast.error("Erro ao renomear documento");
+      return;
+    }
+
+    toast.success("Legenda atualizada");
+    loadDocuments();
+  };
+
   const handleDownloadFile = async (doc: Document) => {
     const { data, error } = await supabase.storage
       .from("documentos")
@@ -466,7 +537,7 @@ export default function Documentos() {
     const url = URL.createObjectURL(data);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = doc.nome;
+    anchor.download = doc.nome || "documento";
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -501,12 +572,99 @@ export default function Documentos() {
     );
   };
 
+  const fileItems = items.filter((item) => item.type === "file") as Document[];
+  const filteredDocuments = fileItems.filter((item) => {
+    const query = documentSearch.trim().toLowerCase();
+    if (!query) return true;
+
+    const formattedDate = new Date(item.criado_em).toLocaleDateString("pt-BR");
+    return (
+      item.nome.toLowerCase().includes(query) ||
+      formattedDate.toLowerCase().includes(query)
+    );
+  });
+
+  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+    let comparison = 0;
+    if (documentSort === "date") {
+      comparison = new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime();
+    } else if (documentSort === "size") {
+      comparison = Number(a.tamanho_arquivo || 0) - Number(b.tamanho_arquivo || 0);
+    } else {
+      comparison = (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+    }
+    return documentSortDirection === "asc" ? comparison : -comparison;
+  });
+
+  const toggleDocumentSelection = (documentId: string) => {
+    if (!isSelectionMode) {
+      setIsSelectionMode(true);
+    }
+    setSelectedDocumentIds((previous) =>
+      previous.includes(documentId)
+        ? previous.filter((id) => id !== documentId)
+        : [...previous, documentId]
+    );
+  };
+
+  const toggleAllDocuments = () => {
+    const shouldEnableSelection = !isSelectionMode;
+    setIsSelectionMode(shouldEnableSelection);
+    setSelectedDocumentIds((previous) =>
+      shouldEnableSelection ? sortedDocuments.map((document) => document.id) : []
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedDocuments = fileItems.filter((document) => selectedDocumentIds.includes(document.id));
+    if (selectedDocuments.length === 0) return;
+    if (!window.confirm(`Deseja excluir ${selectedDocuments.length} arquivo(s) selecionado(s)?`)) return;
+
+    setLoading(true);
+    const storageResult = await supabase.storage
+      .from("documentos")
+      .remove(selectedDocuments.map((document) => document.caminho_arquivo));
+    const { error } = await supabase
+      .from("documentos_internos")
+      .delete()
+      .in("id", selectedDocuments.map((document) => document.id));
+    setLoading(false);
+
+    if (storageResult.error || error) {
+      toast.error("Não foi possível excluir todos os arquivos");
+      return;
+    }
+
+    setSelectedDocumentIds([]);
+    toast.success("Arquivos excluídos com sucesso");
+    loadDocuments();
+  };
+
+  const changeDocumentSort = (sort: "name" | "date" | "size") => {
+    if (documentSort === sort) {
+      setDocumentSortDirection((previous) => (previous === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setDocumentSort(sort);
+    setDocumentSortDirection("asc");
+  };
+
+  const formatDocumentDate = (date: string) =>
+    new Date(date).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).replace(" de ", " ");
+
+  const getAuthorName = (document: Document) => documentAuthors[document.enviado_por] || "Usuário";
+  const getAuthorInitials = (document: Document) =>
+    getAuthorName(document).split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+
   return (
     <Layout>
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Documentos</h1>
-          <p className="text-muted-foreground mt-2">Gerencie documentos e arquivos importantes</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -517,11 +675,11 @@ export default function Documentos() {
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => setShowNewFolder((prev) => !prev)}>
-            <Folder className="mr-2 h-4 w-4" />
+            <Folder className="mr-2 h-4 w-4 text-primary" />
             Nova Pasta
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowUpload((prev) => !prev)}>
-            <Upload className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4 text-primary" />
             Upload
           </Button>
         </div>
@@ -557,7 +715,7 @@ export default function Documentos() {
                           Pasta com acesso restrito
                         </Label>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Apenas os colaboradores selecionados poderão visualizar esta pasta
+                          Apenas os usuarios selecionados poderão visualizar esta pasta
                         </p>
                       </div>
                     </div>
@@ -565,8 +723,8 @@ export default function Documentos() {
                     {isRestricted && (
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-primary" />
-                          Selecione os colaboradores com acesso
+                          <Users className="h-4 w-4 text-white-foreground" />
+                          Selecione quem pode ter acesso
                         </Label>
                         <ScrollArea className="h-48 border rounded-lg p-3">
                           <div className="space-y-2">
@@ -584,15 +742,15 @@ export default function Documentos() {
                               </div>
                             ))}
                             {users.length === 0 && (
-                              <p className="text-sm text-muted-foreground text-center py-4">
-                                Nenhum colaborador encontrado
+                              <p className="text-sm text-white-foreground text-center py-4">
+                                Nenhum usuario encontrado
                               </p>
                             )}
                           </div>
                         </ScrollArea>
                         {selectedUsers.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {selectedUsers.length} colaborador(es) selecionado(s)
+                          <p className="text-xs text-white-foreground">
+                            {selectedUsers.length} usuario(s) selecionado(s)
                           </p>
                         )}
                       </div>
@@ -631,12 +789,12 @@ export default function Documentos() {
                     type="file"
                     onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white-foreground">
                     Tipos aceitos: PDF, Word, Excel, PowerPoint, Imagens e outros
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="upload-caption">Legenda (opcional)</Label>
+                  <Label htmlFor="upload-caption">Titulo</Label>
                   <Textarea
                     id="upload-caption"
                     value={uploadCaption}
@@ -661,8 +819,8 @@ export default function Documentos() {
         <div className="space-y-6">
           {items.some((item) => item.type === "folder") && (
             <div>
-              <h2 className="text-xl font-semibold text-foreground mb-4">Pastas</h2>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <h2 className="text-xl font-semibold text-white-foreground mb-4">Pastas</h2>
+              <div className="flex flex-row items-stretch gap-[66px] overflow-auto mx-[23px] px-[42px]">
                 {items
                   .filter((item) => item.type === "folder")
                   .map((item) => (
@@ -689,56 +847,238 @@ export default function Documentos() {
             </div>
           )}
 
-          {items.some((item) => item.type === "file") && (
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-4">Documentos</h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {items
-                  .filter((item) => item.type === "file")
-                  .map((item) => (
+          {fileItems.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white-foreground" />
+                  <Input
+                    value={documentSearch}
+                    onChange={(event) => setDocumentSearch(event.target.value)}
+                    placeholder="Buscar arquivo..."
+                    className="h-10 w-full pl-9"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                    <Checkbox
+                      checked={isSelectionMode}
+                      onCheckedChange={toggleAllDocuments}
+                    />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Selecionar
+                    </span>
+                  </div>
+
+                  {selectedDocumentIds.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir ({selectedDocumentIds.length})
+                    </Button>
+                  )}
+
+                  <div className="flex rounded-md border border-border bg-background p-1">
+                    <Button
+                      type="button"
+                      variant={documentViewMode === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDocumentViewMode("list")}
+                      aria-label="Visualização em lista"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={documentViewMode === "grid" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDocumentViewMode("grid")}
+                      aria-label="Visualização em grade"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {sortedDocuments.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border p-8 text-center text-white-foreground">
+                  Nenhum documento encontrado para essa busca.
+                </div>
+              ) : documentViewMode === "grid" ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {sortedDocuments.map((item) => (
                     <Card key={item.id} className="transition-colors hover:bg-accent/50 rounded-xl">
-                      <CardContent className="p-4 space-y-4">
+                      <CardContent className="p-4 space-y-3">
                         <div className="flex w-full items-start gap-3 text-left">
                           <FileText className="h-8 w-8 flex-shrink-0 text-primary" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{item.nome}</p>
-                            {item.type === "file" && (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatFileSize((item as Document).tamanho_arquivo)}
-                              </p>
-                            )}
+                            <p className="truncate text-white font-medium">{item.nome?.trim() || "Sem legenda"}</p>
+                            <p className="mt-1 text-xs text-white-foreground">{formatFileSize(item.tamanho_arquivo)}</p>
+                            <div className="mt-1 flex items-center gap-1 text-[10px] text-white-foreground">
+                              <CalendarDays className="h-3 w-3" />
+                              {new Date(item.criado_em).toLocaleDateString("pt-BR")}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleViewFile(item as Document)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleDownloadFile(item as Document)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleDeleteDocument(item)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewFile(item)}>
+                                <Eye className="h-4 w-4 mr-2" /> Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadFile(item)}>
+                                <Download className="h-4 w-4 mr-2" /> Baixar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleRenameFile(item)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Renomear
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteDocument(item)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
-              </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border overflow-hidden bg-card">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b border-border">
+                        <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                          <th className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => changeDocumentSort("name")}
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Nome
+                              {documentSort === "name" && (
+                                documentSortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="hidden md:table-cell px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => changeDocumentSort("date")}
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Data de Adição
+                              {documentSort === "date" && (
+                                documentSortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="hidden lg:table-cell px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => changeDocumentSort("size")}
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Tamanho
+                              {documentSort === "size" && (
+                                documentSortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="hidden xl:table-cell px-4 py-3">Criado por</th>
+                          <th className="hidden xl:table-cell px-4 py-3">Última Atualização</th>
+                          <th className="w-10 px-4 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedDocuments.map((item) => {
+                          const isSelected = selectedDocumentIds.includes(item.id);
+                          return (
+                            <tr
+                              key={item.id}
+                              className={cn(
+                                "border-b border-border/40 last:border-0 transition-colors cursor-pointer hover:bg-accent/30",
+                                isSelected && "bg-primary/5"
+                              )}
+                              onClick={() => handleViewFile(item)}
+                            >
+                              {isSelectionMode && (
+                                <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleDocumentSelection(item.id)}
+                                  />
+                                </td>
+                              )}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <FileText className="h-5 w-5 flex-shrink-0 text-primary" />
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium text-foreground">{item.nome?.trim() || "Sem legenda"}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="hidden md:table-cell px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                {formatDocumentDate(item.criado_em)}
+                              </td>
+                              <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                {formatFileSize(item.tamanho_arquivo)}
+                              </td>
+                              <td className="hidden xl:table-cell px-4 py-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                                    {getAuthorInitials(item)}
+                                  </div>
+                                  <span className="truncate text-foreground text-xs">{getAuthorName(item)}</span>
+                                </div>
+                              </td>
+                              <td className="hidden xl:table-cell px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
+                                {formatDocumentDate(item.criado_em)}
+                              </td>
+                              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleViewFile(item)}>
+                                      <Eye className="h-4 w-4 mr-2" /> Visualizar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDownloadFile(item)}>
+                                      <Download className="h-4 w-4 mr-2" /> Baixar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRenameFile(item)}>
+                                      <Pencil className="h-4 w-4 mr-2" /> Renomear
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteDocument(item)} className="text-destructive">
+                                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

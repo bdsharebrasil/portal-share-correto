@@ -4,7 +4,14 @@ import TarefasKanban from "@/components/tarefas/TarefasKanban";
 import TarefasLista from "@/components/tarefas/TarefasLista";
 import TarefasCalendario from "@/components/tarefas/TarefasCalendario";
 import TaskNotificationModal from "@/components/tarefas/TaskNotificationModal";
-import { CheckSquare, User, Users, LayoutGrid, List, CalendarDays } from "lucide-react";
+import { 
+  User, 
+  Users, 
+  LayoutGrid, 
+  List, 
+  CalendarDays,
+  Search
+} from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,110 +52,114 @@ export default function MinhasTarefas() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-8">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <CheckSquare className="w-6 h-6 text-primary" />
+      <div className="w-full max-w-full space-y-6 pb-8 text-slate-200">
+        
+        {/* Cabeçalho Principal Estilo Imagem */}
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6 pb-2">
+          
+          {/* Esquerda: Título e Badges */}
+          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+            <div className="flex flex-col px-[28px]">
+              <span className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+                {layout}
+              </span>
+              <h1 className="text-2xl font-semibold text-white tracking-tight">Painel de Tarefas</h1>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                {isManager
-                  ? view === "minhas"
-                    ? "Minhas Tarefas"
-                    : "Tarefas da Equipe"
-                  : "Minhas Tarefas"}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {isManager
-                  ? view === "minhas"
-                    ? "Tarefas privadas criadas por você - com controle total"
-                    : "Tarefas que você delegou para a equipe"
-                  : "Tarefas privadas criadas por você e tarefas atribuídas pela equipe"}
-              </p>
-            </div>
+
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Seletor de Visualização de Pessoas */}
+          {/* Direita: Controles e Seus Menus Originais */}
+          <div className="mx-[18px] flex flex-wrap items-center gap-3">
+            
+            {/* Seletor de Visualização de Pessoas (Seu Menu Original) */}
             {isManager && (
-              <div className="inline-flex rounded-lg border border-border bg-card p-1">
+              <div className="inline-flex rounded-full border border-slate-700/50 bg-slate-900/50 p-1">
                 <button
                   onClick={() => setView("minhas")}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                     view === "minhas"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
                   )}
                 >
-                  <User className="h-4 w-4" />
+                  <User className="h-3.5 w-3.5" />
                   Minhas
                 </button>
                 <button
                   onClick={() => setView("equipe")}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                     view === "equipe"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
                   )}
                 >
-                  <Users className="h-4 w-4" />
+                  <Users className="h-3.5 w-3.5" />
                   Equipe
                 </button>
               </div>
             )}
 
-            {/* Seletor de Layout (Kanban/Lista) */}
-            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            {/* Seletor de Layout (Seu Menu Original) */}
+            <div className="inline-flex rounded-full border border-slate-700/50 bg-slate-900/50 p-1">
               <button
                 onClick={() => setLayout("kanban")}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "kanban"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
                 )}
                 title="Visualização Kanban"
               >
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Kanban</span>
               </button>
               <button
                 onClick={() => setLayout("lista")}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "lista"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
                 )}
                 title="Visualização em Lista"
               >
-                <List className="h-4 w-4" />
-                Lista
+                <List className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Lista</span>
               </button>
               <button
                 onClick={() => setLayout("calendario")}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "calendario"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
                 )}
                 title="Visualização em Calendário"
               >
-                <CalendarDays className="h-4 w-4" />
-                Calendário
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Calendário</span>
               </button>
             </div>
+
+            {/* Busca e Filtro */}
+            <div className="flex items-center gap-2 ml-auto 2xl:ml-4">
+              <div className="relative hidden sm:block">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
+              
+             
+            </div>
+            
           </div>
         </div>
 
         {/* Renderizar com base no layout selecionado */}
-        <div className="rounded-2xl bg-[#0b0d12] border border-white/5 shadow-2xl overflow-hidden">
+        <div className="w-full max-w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0b0d12] shadow-2xl mt-[23px] px-0 -ml-[9px] -mr-[3px]">
           {layout === "kanban" ? (
-            <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
+            <TarefasKanban myView={isManager && view === "minhas"} />
           ) : layout === "lista" ? (
             <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
           ) : (

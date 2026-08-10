@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Clock, TrendingUp, Calendar } from 'lucide-react';
+import { 
+  BarChart3, Calendar, TrendingUp, Clock, 
+  PlaneTakeoff, Activity, Droplets
+} from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 
@@ -29,6 +32,7 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
     if (!e.data_registro) return;
     const [ano, mes] = e.data_registro.split('-');
     const key = `${ano}-${mes}`;
+    
     if (!porMes[key]) porMes[key] = { horas: 0, pousos: 0, voos: 0, combustivel: 0 };
     porMes[key].horas += Number(e.tempo_total || e.tempo_voo || 0);
     porMes[key].pousos += Number(e.pousos_total || 0);
@@ -36,7 +40,7 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
     porMes[key].combustivel += Number(e.consumo_combustivel_voo || 0);
   });
 
-  // Filtrar por ano
+  // Filtrar por ano e garantir ordem cronológica
   const mesesFiltrados = Object.entries(porMes)
     .filter(([k]) => k.startsWith(String(anoSelecionado)))
     .sort(([a], [b]) => a.localeCompare(b));
@@ -54,7 +58,7 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
   const mediaHorasMes = mesesFiltrados.length > 0 ? totalAno.horas / mesesFiltrados.length : 0;
   const mediaVoosMes = mesesFiltrados.length > 0 ? totalAno.voos / mesesFiltrados.length : 0;
 
-  // Máximo de horas (para barra)
+  // Máximo de horas (para calcular altura da barra)
   const maxHoras = Math.max(...mesesFiltrados.map(([, v]) => v.horas), 1);
 
   const nomeMes = (mesStr: string) => {
@@ -65,17 +69,25 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="section-accent">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 teal-text" /> Médias da Aeronave — {registration}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      
+      {/* Header & Filtro */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="section-accent flex items-center gap-2">
+          <div className="p-2 bg-ctm-teal/10 rounded-lg border border-ctm-teal/20">
+            <BarChart3 className="h-5 w-5 text-ctm-teal" />
+          </div>
+          <h2 className="text-xl font-semibold">
+            Médias e Estatísticas <span className="text-muted-foreground font-normal">| {registration}</span>
           </h2>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+        
+        <div className="flex items-center gap-3 bg-secondary/50 p-1.5 rounded-lg border border-border">
+          <div className="pl-3 pr-1 text-muted-foreground flex items-center">
+            <Calendar className="h-4 w-4" />
+          </div>
           <select
-            className="ctm-input"
+            className="bg-background border-border rounded-md px-3 py-1.5 text-sm font-medium focus:ring-1 focus:ring-ctm-teal outline-none"
             value={anoSelecionado}
             onChange={e => setAnoSelecionado(Number(e.target.value))}
           >
@@ -87,109 +99,145 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
         </div>
       </div>
 
-      {/* Cards resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="ctm-card p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total de Horas ({anoSelecionado})</p>
-          <p className="text-2xl font-bold teal-text">{totalAno.horas.toFixed(1)}h</p>
-        </div>
-        <div className="ctm-card p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Média Mensal</p>
-          <p className="text-2xl font-bold text-blue-400">{mediaHorasMes.toFixed(1)}h</p>
-        </div>
-        <div className="ctm-card p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Total Voos</p>
-          <p className="text-2xl font-bold text-purple-400">{totalAno.voos}</p>
-        </div>
-        <div className="ctm-card p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Média Voos/Mês</p>
-          <p className="text-2xl font-bold text-orange-400">{mediaVoosMes.toFixed(1)}</p>
-        </div>
+      {/* Cards de Resumo */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <SummaryCard 
+          title={`Total de Horas (${anoSelecionado})`} 
+          value={`${totalAno.horas.toFixed(1)}h`} 
+          icon={Clock} 
+          colorClass="text-ctm-teal" 
+          bgClass="bg-ctm-teal/10" 
+        />
+        <SummaryCard 
+          title="Média Mensal" 
+          value={`${mediaHorasMes.toFixed(1)}h`} 
+          icon={Activity} 
+          colorClass="text-blue-500" 
+          bgClass="bg-blue-500/10" 
+        />
+        <SummaryCard 
+          title="Total de Voos" 
+          value={String(totalAno.voos)} 
+          icon={PlaneTakeoff} 
+          colorClass="text-purple-500" 
+          bgClass="bg-purple-500/10" 
+        />
+        <SummaryCard 
+          title="Média Voos/Mês" 
+          value={mediaVoosMes.toFixed(1)} 
+          icon={TrendingUp} 
+          colorClass="text-orange-500" 
+          bgClass="bg-orange-500/10" 
+        />
       </div>
 
       {mesesFiltrados.length === 0 ? (
-        <div className="ctm-card flex flex-col items-center justify-center py-16 text-center">
-          <BarChart3 className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
-          <p className="text-muted-foreground">Nenhum dado para {anoSelecionado}</p>
-          <p className="text-xs text-muted-foreground mt-1">Os dados são calculados automaticamente do Diário Técnico</p>
+        <div className="ctm-card flex flex-col items-center justify-center py-20 text-center border-dashed border-2 border-border bg-card/30">
+          <div className="h-16 w-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
+            <BarChart3 className="h-8 w-8 text-muted-foreground opacity-50" />
+          </div>
+          <p className="text-foreground font-semibold text-lg">Nenhum dado registrado para {anoSelecionado}</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm">Os dados estatísticos são calculados e agrupados automaticamente a partir dos lançamentos no Diário Técnico de Bordo.</p>
         </div>
       ) : (
         <>
-          {/* Gráfico de barras manual */}
-          <div className="ctm-card p-5 mb-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 teal-text" /> Horas por Mês — {anoSelecionado}
+          {/* Gráfico de Barras Modernizado (Correção do espaçamento) */}
+          <div className="ctm-card p-6 border border-ctm-teal/20 shadow-sm bg-gradient-to-br from-card to-card/50">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-ctm-teal" /> 
+              Evolução de Horas — {anoSelecionado}
             </h3>
-            <div className="flex items-end gap-3 h-40">
+            
+            <div className="flex items-end justify-around gap-2 h-48 mt-4 pt-6 border-b border-border/50 pb-2">
               {mesesFiltrados.map(([key, val]) => {
                 const pct = (val.horas / maxHoras) * 100;
+                // Altura mínima visual de 4% para barras não ficarem invisíveis
+                const barHeight = Math.max(pct, 4); 
+                
                 return (
-                  <div key={key} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs teal-text font-bold">{val.horas.toFixed(1)}h</span>
-                    <div className="w-full flex items-end" style={{ height: '90px' }}>
-                      <div
-                        className="w-full rounded-t-md bg-gradient-to-t from-[hsl(var(--ctm-teal)/0.8)] to-[hsl(var(--ctm-teal)/0.4)] transition-all"
-                        style={{ height: `${Math.max(pct, 2)}%` }}
-                      />
+                  <div key={key} className="flex-1 flex flex-col items-center justify-end h-full group">
+                    {/* Número fixado exatamente no topo da barra */}
+                    <div 
+                      className="flex flex-col items-center justify-end w-full transition-all duration-300"
+                      style={{ height: `${barHeight}%` }}
+                    >
+                      <span className="text-xs font-bold text-foreground mb-1.5 opacity-80 group-hover:opacity-100 group-hover:-translate-y-1 transition-all">
+                        {val.horas.toFixed(1)}h
+                      </span>
+                      
+                      <div className="w-full max-w-[2.5rem] h-full rounded-t-md bg-gradient-to-t from-ctm-teal/30 to-ctm-teal/80 border-t-2 border-ctm-teal group-hover:from-ctm-teal/50 group-hover:to-ctm-teal transition-colors shadow-[0_0_10px_rgba(var(--ctm-teal-rgb),0.1)] group-hover:shadow-[0_0_15px_rgba(var(--ctm-teal-rgb),0.3)]" />
                     </div>
-                    <span className="text-xs text-muted-foreground">{nomeMes(key)}</span>
+                    
+                    <span className="text-xs font-medium text-muted-foreground mt-3 group-hover:text-foreground transition-colors">
+                      {nomeMes(key)}
+                    </span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Tabela detalhada */}
-          <div className="ctm-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <h3 className="font-semibold">Detalhamento Mensal</h3>
+          {/* Tabela Detalhada */}
+          <div className="ctm-card overflow-hidden border border-border/50">
+            <div className="px-6 py-5 border-b border-border bg-secondary/30">
+              <h3 className="font-bold flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Detalhamento Mensal
+              </h3>
             </div>
+            
             <div className="overflow-x-auto ctm-scroll">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-secondary">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Mês</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Voos</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Horas</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Pousos</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Média h/voo</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Combustível (L)</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Utilização</th>
+                  <tr className="border-b border-border/80 bg-secondary/50">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Voos</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Horas</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pousos</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Média h/voo</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível (L)</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-40">Utilização</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border/40">
                   {mesesFiltrados.map(([key, val]) => {
                     const mediaHvoo = val.voos > 0 ? val.horas / val.voos : 0;
                     const pct = (val.horas / maxHoras) * 100;
+                    
                     return (
-                      <tr key={key} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">
+                      <tr key={key} className="hover:bg-secondary/30 transition-colors group">
+                        <td className="px-6 py-3.5 font-medium text-foreground capitalize">
                           {new Date(key + '-01T12:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
                         </td>
-                        <td className="px-4 py-3 text-right">{val.voos}</td>
-                        <td className="px-4 py-3 text-right font-bold teal-text">{val.horas.toFixed(2)}h</td>
-                        <td className="px-4 py-3 text-right">{val.pousos}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">{mediaHvoo.toFixed(2)}h</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">{val.combustivel.toFixed(1)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-24 bg-secondary rounded-full overflow-hidden">
+                        <td className="px-6 py-3.5 text-right font-medium text-muted-foreground group-hover:text-foreground transition-colors">{val.voos}</td>
+                        <td className="px-6 py-3.5 text-right font-bold text-ctm-teal text-base">{val.horas.toFixed(2)}h</td>
+                        <td className="px-6 py-3.5 text-right font-medium text-muted-foreground group-hover:text-foreground transition-colors">{val.pousos}</td>
+                        <td className="px-6 py-3.5 text-right font-medium text-muted-foreground group-hover:text-foreground transition-colors">{mediaHvoo.toFixed(2)}h</td>
+                        <td className="px-6 py-3.5 text-right font-medium text-muted-foreground group-hover:text-foreground transition-colors flex items-center justify-end gap-1.5">
+                          {val.combustivel > 0 && <Droplets className="h-3 w-3 opacity-50" />}
+                          {val.combustivel.toFixed(1)}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden border border-border/50">
                               <div className="h-full bg-ctm-teal rounded-full" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+                            <span className="text-xs font-semibold text-muted-foreground w-8 text-right">{pct.toFixed(0)}%</span>
                           </div>
                         </td>
                       </tr>
                     );
                   })}
-                  <tr className="bg-[hsl(var(--ctm-teal)/0.08)] border-t border-[hsl(var(--ctm-teal)/0.2)]">
-                    <td className="px-4 py-3 font-bold teal-text">TOTAL {anoSelecionado}</td>
-                    <td className="px-4 py-3 text-right font-bold">{totalAno.voos}</td>
-                    <td className="px-4 py-3 text-right font-bold teal-text">{totalAno.horas.toFixed(2)}h</td>
-                    <td className="px-4 py-3 text-right font-bold">{totalAno.pousos}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{(totalAno.voos > 0 ? totalAno.horas / totalAno.voos : 0).toFixed(2)}h</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{totalAno.combustivel.toFixed(1)}</td>
-                    <td className="px-4 py-3" />
+                  
+                  {/* Linha de Totais */}
+                  <tr className="bg-ctm-teal/5 border-t-2 border-ctm-teal/20">
+                    <td className="px-6 py-4 font-black text-ctm-teal">TOTAL {anoSelecionado}</td>
+                    <td className="px-6 py-4 text-right font-bold text-foreground">{totalAno.voos}</td>
+                    <td className="px-6 py-4 text-right font-black text-ctm-teal text-base">{totalAno.horas.toFixed(2)}h</td>
+                    <td className="px-6 py-4 text-right font-bold text-foreground">{totalAno.pousos}</td>
+                    <td className="px-6 py-4 text-right font-semibold text-muted-foreground">{(totalAno.voos > 0 ? totalAno.horas / totalAno.voos : 0).toFixed(2)}h</td>
+                    <td className="px-6 py-4 text-right font-semibold text-muted-foreground">{totalAno.combustivel.toFixed(1)}</td>
+                    <td className="px-6 py-4" />
                   </tr>
                 </tbody>
               </table>
@@ -201,10 +249,30 @@ export function MediasAeronavesTab({ aircraftId, registration }: MediasAeronaves
   );
 }
 
+// ── Helpers & Subcomponentes ──────────────────────────────────────────────────
+
+function SummaryCard({ title, value, icon: Icon, colorClass, bgClass }: { title: string, value: string, icon: any, colorClass: string, bgClass: string }) {
+  return (
+    <div className="ctm-card p-5 relative overflow-hidden group hover:border-border/80 transition-colors">
+      <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity -mr-4 -mt-4 rounded-bl-[100px] ${bgClass}`}>
+        <Icon className={`h-16 w-16 ${colorClass}`} />
+      </div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-2">
+          <Icon className={`h-4 w-4 ${colorClass}`} />
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+        </div>
+        <p className={`text-2xl sm:text-3xl font-black ${colorClass}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center py-20">
-      <div className="h-8 w-8 border-2 border-ctm-teal border-t-transparent rounded-full animate-spin" />
+    <div className="flex flex-col items-center justify-center py-32 gap-3">
+      <div className="h-10 w-10 border-4 border-ctm-teal/30 border-t-ctm-teal rounded-full animate-spin" />
+      <p className="text-sm font-medium text-muted-foreground animate-pulse">Calculando médias da aeronave...</p>
     </div>
   );
 }

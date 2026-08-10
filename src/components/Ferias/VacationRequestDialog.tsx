@@ -75,8 +75,8 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
           user_id: user.id,
           start_date: startDate,
           end_date: endDate,
-          days_requested: days,
-          reason: reason || null,
+          days,
+          remarks: reason || null,
           status: "pending",
         });
 
@@ -100,13 +100,13 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
 
   const getAcquisitionEligibilityDate = () => {
     if (!admissionDate) return null;
-    return addMonths(new Date(admissionDate), 12);
+    const admission = new Date(admissionDate);
+    return Number.isNaN(admission.getTime()) ? null : addMonths(admission, 12);
   };
 
   const isEligibleForVacation = () => {
-    if (!admissionDate) return false;
     const eligibilityDate = getAcquisitionEligibilityDate();
-    return new Date() >= eligibilityDate!;
+    return eligibilityDate ? new Date() >= eligibilityDate : false;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -117,9 +117,14 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
       return;
     }
 
+    const eligibilityDate = getAcquisitionEligibilityDate();
+    if (!eligibilityDate) {
+      toast.error("Data de admissão não encontrada");
+      return;
+    }
+
     if (!isEligibleForVacation()) {
-      const eligibilityDate = getAcquisitionEligibilityDate();
-      const formattedDate = format(eligibilityDate!, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      const formattedDate = format(eligibilityDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
       toast.error(`Você poderá solicitar férias a partir de ${formattedDate}`);
       return;
     }
@@ -137,9 +142,11 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
     createRequestMutation.mutate();
   };
 
+  const eligibilityDate = getAcquisitionEligibilityDate();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Solicitação de Férias</DialogTitle>
         </DialogHeader>
@@ -148,6 +155,14 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
           <div className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">Carregando informações...</p>
           </div>
+        ) : !eligibilityDate ? (
+          <Alert className="border-yellow-500/50 bg-yellow-500/5">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              <p className="font-semibold mb-2">Data de admissão não encontrada</p>
+              <p className="text-sm">Atualize seu perfil para solicitar férias.</p>
+            </AlertDescription>
+          </Alert>
         ) : !isEligibleForVacation() ? (
           <Alert className="border-yellow-500/50 bg-yellow-500/5">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -156,7 +171,7 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               <p className="text-sm">
                 Você poderá solicitar férias a partir de{" "}
                 <span className="font-semibold">
-                  {format(getAcquisitionEligibilityDate()!, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {format(eligibilityDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </span>
                 , quando completar 12 meses de trabalho.
               </p>
@@ -168,7 +183,7 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               <Label htmlFor="start-date">Data Início</Label>
               <Input
                 id="start-date"
-                type="data"
+                type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
@@ -179,7 +194,7 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               <Label htmlFor="end-date">Data Fim</Label>
               <Input
                 id="end-date"
-                type="data"
+                type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
@@ -207,11 +222,11 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               />
             </div>
 
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createRequestMutation.isPending}>
+              <Button type="submit" className="w-full sm:w-auto" disabled={createRequestMutation.isPending}>
                 {createRequestMutation.isPending ? "Enviando..." : "Solicitar"}
               </Button>
             </div>

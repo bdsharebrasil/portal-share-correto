@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Map, Wrench, Plus, X, Save, Loader2, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
+import { Map, Wrench, Plus, X, Save, Loader2, AlertTriangle, Edit2, Trash2, Search } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -12,6 +12,8 @@ export function MapaComponenteTab({ aircraftId }: MapaComponenteTabProps) {
   const [filter, setFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+
 
   useEffect(() => { loadComponents(); }, [aircraftId]);
 
@@ -26,9 +28,16 @@ export function MapaComponenteTab({ aircraftId }: MapaComponenteTabProps) {
     setLoading(false);
   }
 
-  const filteredComponents = filter === 'all'
-    ? components
-    : components.filter(c => (c.status || calcStatus(c)) === filter);
+  const term = search.trim().toLowerCase();
+  const filteredComponents = components
+    .filter(c => filter === 'all' || (c.status || calcStatus(c)) === filter)
+    .filter(c => {
+      if (!term) return true;
+      return [c.nome, c.categoria, c['numero_da_peça'], c.numero_de_serie, c.localizacao, c.fabricante]
+        .filter(Boolean)
+        .some((v: any) => String(v).toLowerCase().includes(term));
+    });
+
 
   const expired = components.filter(c => (c.status || calcStatus(c)) === 'expired').length;
   const urgent = components.filter(c => (c.status || calcStatus(c)) === 'urgent').length;
@@ -99,7 +108,32 @@ export function MapaComponenteTab({ aircraftId }: MapaComponenteTabProps) {
             {label}
           </button>
         ))}
+
+        <div className="relative ml-auto w-full sm:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, P/N, S/N, categoria..."
+            className="w-full rounded-lg border border-border bg-secondary/60 py-1.5 pl-9 pr-8 text-xs outline-none transition-colors focus:border-ctm-teal"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {search && (
+        <p className="-mt-3 mb-4 text-xs text-muted-foreground">
+          {filteredComponents.length} resultado(s) para “{search}”
+        </p>
+      )}
+
 
       {filteredComponents.length === 0 && !showForm ? (
         <div className="ctm-card flex flex-col items-center justify-center py-16 text-center">

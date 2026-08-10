@@ -789,34 +789,56 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
 
         {/* Preview content */}
         <div className="flex-1 overflow-auto bg-slate-950/50 custom-scrollbar">
-          {doc.tipo_arquivo?.startsWith("image/") ? (
-            <div className="flex items-center justify-center p-6">
-              <img src={fileUrl} alt={doc.nome} className="max-w-full max-h-[70vh] rounded-lg" />
-            </div>
-          ) : doc.tipo_arquivo === "application/pdf" ? (
-            <div className="p-4">
-              <DocumentViewer
-                url={fileUrl}
-                fileName={doc.nome}
-                fileType={doc.tipo_arquivo}
-                onDownload={onDownload}
-              />
-            </div>
-          ) : (
-            <div className="flex h-full min-h-[300px] items-center justify-center p-8">
-              <div className="text-center">
-                <FileText className="mx-auto mb-4 h-12 w-12 text-slate-600" />
-                <p className="text-sm text-slate-400 mb-4">Pré-visualização não disponível para este tipo de arquivo</p>
-                <button
-                  onClick={onDownload}
-                  className="inline-flex items-center gap-2 rounded-lg bg-ctm-teal px-4 py-2 text-sm font-semibold text-[hsl(var(--ctm-navy))]"
-                >
-                  <Download className="h-4 w-4" /> Baixar arquivo
-                </button>
+          {(() => {
+            const path = (doc.caminho_arquivo || doc.nome || "").toLowerCase();
+            const isPdf = doc.tipo_arquivo === "application/pdf" || path.endsWith(".pdf");
+            const isImage = doc.tipo_arquivo?.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/.test(path);
+
+            if (isImage) {
+              return (
+                <div className="flex items-center justify-center p-6">
+                  <img src={fileUrl} alt={doc.nome} className="max-w-full max-h-[70vh] rounded-lg" />
+                </div>
+              );
+            }
+            if (isPdf) {
+              return (
+                <div className="p-3">
+                  <iframe
+                    src={`${fileUrl}#toolbar=1&view=FitH`}
+                    title={doc.nome}
+                    className="h-[75vh] w-full rounded-xl border border-slate-800 bg-white"
+                  />
+                  <div className="mt-2 text-center">
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-teal-400 hover:underline"
+                    >
+                      Abrir em nova aba
+                    </a>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="flex h-full min-h-[300px] items-center justify-center p-8">
+                <div className="text-center">
+                  <FileText className="mx-auto mb-4 h-12 w-12 text-slate-600" />
+                  <p className="text-sm text-slate-400 mb-4">Pré-visualização não disponível para este tipo de arquivo</p>
+                  <button
+                    onClick={onDownload}
+                    className="inline-flex items-center gap-2 rounded-lg bg-ctm-teal px-4 py-2 text-sm font-semibold text-[hsl(var(--ctm-navy))]"
+                  >
+                    <Download className="h-4 w-4" /> Baixar arquivo
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
+
       </div>
     </div>
   );

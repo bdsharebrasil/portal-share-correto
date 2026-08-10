@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,10 +67,6 @@ export function SolicitarVooCliente() {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        <CalendarPlus className="mr-1 h-4 w-4" /> Solicitar voo
-      </Button>
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>

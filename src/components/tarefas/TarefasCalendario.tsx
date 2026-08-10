@@ -145,8 +145,10 @@ export default function TarefasCalendario({
   const [lembreteEmEdicao, setLembreteEmEdicao] = useState<Lembrete | null>(null);
   const [formTitulo, setFormTitulo] = useState("");
   const [formDescricao, setFormDescricao] = useState("");
+  const [formData, setFormData] = useState("");
   const [formHora, setFormHora] = useState("");
   const [formVisibilidade, setFormVisibilidade] = useState<"privado" | "todos">("privado");
+
   const [formCorId, setFormCorId] = useState<string | null>(null);
   const [criandoCor, setCriandoCor] = useState(false);
   const [novaCorNome, setNovaCorNome] = useState("");
@@ -267,6 +269,7 @@ export default function TarefasCalendario({
     setLembreteEmEdicao(null);
     setFormTitulo("");
     setFormDescricao("");
+    setFormData(dataKey(selected));
     setFormHora("");
     setFormVisibilidade("privado");
     setFormCorId(null);
@@ -278,6 +281,7 @@ export default function TarefasCalendario({
     setLembreteEmEdicao(l);
     setFormTitulo(l.titulo);
     setFormDescricao(l.descricao || "");
+    setFormData(l.data);
     setFormHora(l.hora ? l.hora.slice(0, 5) : "");
     setFormVisibilidade(l.visibilidade);
     setFormCorId(l.cor_categoria_id);
@@ -294,11 +298,12 @@ export default function TarefasCalendario({
   async function salvarLembrete() {
     if (!me || !formTitulo.trim() || salvando) return;
     setSalvando(true);
+    const dataFinal = formData || dataKey(selected);
     const payload = {
       usuario_id: me,
       titulo: formTitulo.trim(),
       descricao: formDescricao.trim() || null,
-      data: dataKey(selected),
+      data: dataFinal,
       hora: formHora ? `${formHora}:00` : null,
       visibilidade: formVisibilidade,
       cor_categoria_id: formCorId,
@@ -326,7 +331,14 @@ export default function TarefasCalendario({
     }
     setSalvando(false);
     fecharForm();
+    // segue o lembrete se a data foi alterada
+    if (dataFinal !== dataKey(selected)) {
+      const alvo = parseISO(`${dataFinal}T00:00:00`);
+      setSelected(alvo);
+      setCursor(alvo);
+    }
   }
+
 
   async function excluirLembrete(id: string) {
     if (!window.confirm("Excluir este lembrete?")) return;
@@ -515,6 +527,17 @@ export default function TarefasCalendario({
             />
 
             <div className="flex items-center gap-2">
+              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <input
+                type="date"
+                value={formData}
+                onChange={(e) => setFormData(e.target.value)}
+                className="h-9 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              <span className="text-[11px] text-muted-foreground">dia do lembrete</span>
+            </div>
+
+            <div className="flex items-center gap-2">
               <Clock3 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <input
                 type="time"
@@ -524,6 +547,7 @@ export default function TarefasCalendario({
               />
               <span className="text-[11px] text-muted-foreground">horário opcional</span>
             </div>
+
 
             {/* Visibilidade */}
             <div className="space-y-1.5">
@@ -690,9 +714,20 @@ export default function TarefasCalendario({
                         {l.hora.slice(0, 5)}
                       </p>
                     )}
+                    {l.usuario_id !== me && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <AvatarBubble user={userMap.get(l.usuario_id)} size={18} />
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {userMap.get(l.usuario_id)?.full_name ||
+                            userMap.get(l.usuario_id)?.display_name ||
+                            "Outro usuário"}
+                        </span>
+                      </div>
+                    )}
                     {l.descricao && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{l.descricao}</p>
                     )}
+
                   </div>
                   {l.usuario_id === me && (
                     <div className="flex items-center gap-1 shrink-0">

@@ -225,16 +225,36 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
     },
   });
 
+  // Horas de célula reais (maior célula lançada no diário de bordo)
+  const celulaDiario = useQuery({
+    queryKey: ["ctm", "celula-diario", aircraftId],
+    enabled: !!aircraftId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("lancamentos_diario_bordo")
+        .select("celula, pousos_total")
+        .eq("aeronave_id", aircraftId)
+        .order("celula", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return (data ?? [])[0] as any;
+    },
+  });
+
   // Estatísticas rápidas
   const stats = useMemo(() => {
     const totalOas = (oas.data ?? []).length;
     const totalRas = (ras.data ?? []).length;
     const totalComp = (componentes.data ?? []).length;
-    const horasCelula = aircraft?.horas_celula_atual !== null && aircraft?.horas_celula_atual !== undefined
-      ? `${Number(aircraft.horas_celula_atual).toFixed(1)}h`
-      : diarioMes.data
-        ? `${Number(diarioMes.data.celula_atual_ttotal ?? diarioMes.data.celula_atual_tvoo ?? 0).toFixed(1)}h`
-        : "—";
+
+    const celulaCandidatos = [
+      Number(celulaDiario.data?.celula || 0),
+      Number(aircraft?.horas_celula_atual || 0),
+      Number(diarioMes.data?.celula_atual_ttotal || 0),
+      Number(diarioMes.data?.celula_atual_tvoo || 0),
+    ];
+    const celula = Math.max(...celulaCandidatos);
+    const horasCelula = celula > 0 ? `${celula.toFixed(1)}h` : "—";
 
     return [
       { label: "Horas Célula", value: horasCelula, icon: Clock, color: "text-amber-400" },
@@ -242,7 +262,17 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       { label: "Total RAS", value: String(totalRas), icon: BookOpen, color: "text-indigo-400" },
       { label: "Componentes", value: String(totalComp), icon: Map, color: "text-emerald-400" },
     ];
-  }, [oas.data, ras.data, componentes.data, aircraft, diarioMes.data]);
+  }, [oas.data, ras.data, componentes.data, aircraft, diarioMes.data, celulaDiario.data]);
+
+  const horasCelulaNum = useMemo(() => {
+    const c = Math.max(
+      Number(celulaDiario.data?.celula || 0),
+      Number(aircraft?.horas_celula_atual || 0),
+      Number(diarioMes.data?.celula_atual_ttotal || 0),
+    );
+    return c > 0 ? c : undefined;
+  }, [celulaDiario.data, aircraft, diarioMes.data]);
+
 
   const pecas = useMemo(() => {
     return (ras.data ?? []).flatMap((r: any) => r.pecas_trocadas || []);
@@ -362,7 +392,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
           <ControleManutencaoTab
             aircraftId={aircraftId}
             registration={aircraft?.matricula}
-            horasCelula={aircraft?.horas_celula_atual}
+            horasCelula={horasCelulaNum ?? aircraft?.horas_celula_atual}
           />
         )}
 

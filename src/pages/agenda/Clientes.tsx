@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ClienteCard } from "@/components/clientes/ClienteCard";
+import { ClienteCard } from "@/components/agenda/ClienteCard";
 import {
   Plus, Search, Building2, FileText, X, ImageIcon, ChevronLeft, Pencil,
   Phone, Mail, MapPin, Folder, LayoutGrid, List, Trash2, Users, Wallet,
@@ -36,6 +36,7 @@ const AVATAR_FALLBACK =
 
 interface ClientDocument {
   nome: string;
+  legenda?: string;
   url: string;
   tipo?: string;
   enviado_em: string;
@@ -171,6 +172,7 @@ export default function Clientes() {
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
+  const [documentLegends, setDocumentLegends] = useState<string[]>([]);
   const [loadingAircraft, setLoadingAircraft] = useState(false);
   const [hasPartner, setHasPartner] = useState(false);
   const [partners, setPartners] = useState<Array<{ nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string }>>([]);
@@ -217,13 +219,13 @@ export default function Clientes() {
 
         const { data: clientPartnersData, error: cpError } = await supabase
           .from("socios")
-          .select("cliente_id, nome, cpf, percentual_participacao, codigo_cliente")
-          .in("cliente_id", clientIds);
+          .select("clientes_id, nome, cpf, percentual_participacao, codigo_cliente")
+          .in("clientes_id", clientIds);
 
         if (!cpError && Array.isArray(clientPartnersData)) {
           clientPartnersData.forEach((cp: any) => {
-            if (!clientPartnersMap[cp.cliente_id]) clientPartnersMap[cp.cliente_id] = [];
-            clientPartnersMap[cp.cliente_id].push({
+            if (!clientPartnersMap[cp.clientes_id]) clientPartnersMap[cp.clientes_id] = [];
+            clientPartnersMap[cp.clientes_id].push({
               nome: cp.nome,
               cpf: cp.cpf,
               percentual_participacao: cp.percentual_participacao || 0,
@@ -236,6 +238,7 @@ export default function Clientes() {
       const mapped: Cliente[] = rows.map((row: any) => ({
         ...row,
         aeronave_ownerships: clientAircraftMap[row.id] || [],
+        documents: Array.isArray(row.documentos) ? (row.documentos as ClientDocument[]) : [],
         partners: clientPartnersMap[row.id] || []
       })).sort((a, b) => (a.razao_social || '').localeCompare(b.razao_social || '', 'pt-BR'));
       setClientes(mapped);
@@ -311,6 +314,7 @@ export default function Clientes() {
     }
     setLogoFile(null);
     setDocumentFiles([]);
+    setDocumentLegends([]);
     setIsDialogOpen(true);
   };
 
@@ -321,6 +325,7 @@ export default function Clientes() {
     setHasPartner(false);
     setPartners([]);
     setDocumentFiles([]);
+    setDocumentLegends([]);
   };
 
   const addAircraftOwnership = () => {
@@ -374,9 +379,13 @@ export default function Clientes() {
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setDocumentFiles(prev => [...prev, ...files]);
+    setDocumentLegends(prev => [...prev, ...files.map(() => "")]);
   };
 
-  const removeDocument = (index: number) => setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+  const removeDocument = (index: number) => {
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+    setDocumentLegends(prev => prev.filter((_, i) => i !== index));
+  };
 
   const uploadFile = async (file: File, path: string) => {
     const fileExt = file.name.split(".").pop();
@@ -451,9 +460,16 @@ export default function Clientes() {
       }
 
       const newDocs: ClientDocument[] = [];
-      for (const file of documentFiles) {
+      for (let i = 0; i < documentFiles.length; i++) {
+        const file = documentFiles[i];
         const url = await uploadFile(file, "documentos");
-        newDocs.push({ nome: file.name, url, tipo: file.type, enviado_em: new Date().toISOString() });
+        newDocs.push({
+          nome: file.name,
+          legenda: (documentLegends[i] || "").trim() || undefined,
+          url,
+          tipo: file.type,
+          enviado_em: new Date().toISOString(),
+        });
       }
 
       const normalizeStatus = (s?: string | null) => {
@@ -518,9 +534,9 @@ export default function Clientes() {
 
       // Save partners
       if (clientId && hasPartner && partners.length > 0) {
-        await supabase.from("socios").delete().eq("cliente_id", clientId);
+        await supabase.from("socios").delete().eq("clientes_id", clientId);
         const partnersData = partners.map(p => ({
-          cliente_id: clientId,
+          clientes_id: clientId,
           nome: p.nome,
           cpf: p.cpf.replace(/\D/g, ''),
           percentual_participacao: p.percentual_participacao,
@@ -531,7 +547,7 @@ export default function Clientes() {
           toast({ title: "Aviso", description: `Erro ao salvar sócios: ${partnersError.message}`, variant: "destructive" });
         }
       } else if (clientId && !hasPartner) {
-        await supabase.from("socios").delete().eq("cliente_id", clientId);
+        await supabase.from("socios").delete().eq("clientes_id", clientId);
       }
 
       // Save aircraft relationships
@@ -626,8 +642,7 @@ export default function Clientes() {
         <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-50 tracking-tight">Clientes &amp; Cotistas</h1>
-              <p className="text-slate-400 mt-1 text-sm sm:text-base">Gerencie o cadastro de clientes e cotistas</p>
+              <p className="text-white mt-1 text-sm sm:text-base">Gerencie o cadastro de clientes e cotistas</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex border border-slate-800 bg-slate-900/60 rounded-lg p-1">
@@ -653,7 +668,7 @@ export default function Clientes() {
               <Button
                 onClick={() => handleOpenDialog()}
                 size="lg"
-                className="gap-2 rounded-lg px-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/10 border-0"
+                className="gap-2 rounded-lg px-4 bg-[rgba(2,44,97,1)] hover:bg-[rgba(2,44,97,1)] text-white shadow-lg shadow-cyan-500/10 border-0"
               >
                 <Plus className="h-4 w-4" />
                 Novo Cadastro
@@ -661,30 +676,15 @@ export default function Clientes() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card
-              onClick={() => setShowInactive(false)}
-              className={`cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${!showInactive ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="h-6 w-6 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-slate-50">{activeClientes.length}</p>
-                    <p className="text-sm text-slate-400">Clientes Ativos</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex items-stretch gap-4">
+
             <Card
               onClick={() => setShowInactive(true)}
-              className={`cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${showInactive ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
+              className={`mx-[52px] flex min-h-0 items-stretch justify-end overflow-auto px-[6px] cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${showInactive ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
             >
-              <CardContent className="p-5">
+              <CardContent className="m-0 flex items-stretch justify-end overflow-auto p-5 px-[22px]">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <div className="h-8 w-8 rounded-xl  flex items-center justify-center flex-shrink-0">
                     <Folder className="h-6 w-6 text-amber-400" />
                   </div>
                   <div>
@@ -946,8 +946,8 @@ export default function Clientes() {
                         <FileText className="h-5 w-5 text-cyan-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">{doc.nome}</p>
-                        <p className="text-xs text-slate-500">{new Date(doc.enviado_em).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">{doc.legenda || doc.nome}</p>
+                        <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
                       </div>
                     </button>
                   ))}
@@ -1365,9 +1365,15 @@ export default function Clientes() {
                         <div key={index} className="flex items-center justify-between p-3 border border-slate-800 rounded-lg bg-slate-950/40 hover:bg-slate-900/60 transition-colors">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 space-y-1.5">
                               <p className="text-sm text-slate-200 truncate">{file.name}</p>
                               <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                              <Input
+                                value={documentLegends[index] || ""}
+                                onChange={(e) => setDocumentLegends(prev => prev.map((l, i) => (i === index ? e.target.value : l)))}
+                                placeholder="Legenda do documento (ex.: Contrato Social)"
+                                className={`${FIELD} h-8 text-xs`}
+                              />
                             </div>
                           </div>
                           <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg flex-shrink-0">
@@ -1388,8 +1394,8 @@ export default function Clientes() {
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">{doc.nome}</a>
-                              <p className="text-xs text-slate-500">{new Date(doc.enviado_em).toLocaleDateString('pt-BR')}</p>
+                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">{doc.legenda || doc.nome}</a>
+                              <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
                             </div>
                           </div>
                           <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg flex-shrink-0">

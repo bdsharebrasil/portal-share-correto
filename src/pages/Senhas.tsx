@@ -30,6 +30,7 @@ export default function Senhas() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [openFolder, setOpenFolder] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -161,6 +162,21 @@ export default function Senhas() {
     setShowPassword((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const copyToClipboard = async (value: string, label: string) => {
+    if (!value) {
+      toast.error(`Nenhum ${label} para copiar`);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copiado`);
+    } catch (error) {
+      console.error(`Erro ao copiar ${label}:`, error);
+      toast.error(`Não foi possível copiar o ${label}`);
+    }
+  };
+
   // Agrupa senhas por setor
   const gruposSetor = senhas.reduce(
     (acc, senha) => {
@@ -181,7 +197,7 @@ export default function Senhas() {
   const renderSenhaCard = (senha: Senha) => (
     <Card key={senha.id} className="border-border/60 hover:border-primary/50 transition-all hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-lg text-foreground truncate">
               {senha.site}
@@ -202,14 +218,35 @@ export default function Senhas() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <Label className="text-xs text-muted-foreground">Senha</Label>
+          <div className="flex items-center justify-between mb-1">
+            <Label className="text-xs text-muted-foreground">Login / Usuário</Label>
+            <Button variant="ghost" size="sm" onClick={() => copyToClipboard(senha.login, "login")} className="h-6 px-2 text-[11px]">
+              Copiar
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex-1 bg-muted p-2 rounded text-sm font-mono text-foreground truncate">
+              {senha.login}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label className="text-xs text-muted-foreground">Senha</Label>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(senha.senha, "senha")} className="h-6 px-2 text-[11px]">
+                Copiar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => togglePasswordVisibility(senha.id)} className="h-6 px-2 text-[11px]">
+                {showPassword[senha.id] ? "Ocultar" : "Ver"}
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mt-1">
             <div className="flex-1 bg-muted p-2 rounded text-sm font-mono text-foreground truncate">
               {showPassword[senha.id] ? senha.senha : "•".repeat(Math.min(senha.senha.length, 12))}
             </div>
-            <Button variant="outline" size="sm" onClick={() => togglePasswordVisibility(senha.id)} className="px-2">
-              {showPassword[senha.id] ? "Ocultar" : "Ver"}
-            </Button>
           </div>
         </div>
         {senha.observacoes && (
@@ -296,64 +333,91 @@ export default function Senhas() {
             <DialogTitle>{editingId ? "Editar Senha" : "Nova Senha"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="site">Site/Sistema *</Label>
-              <Input
-                id="site"
-                value={formData.site}
-                onChange={(e) => {
-                  setFormData({ ...formData, site: e.target.value });
-                  setSetorSuggestion(extractSetor(e.target.value));
-                }}
-                placeholder="Ex: TARIFAS DECEA"
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="setor">Setor (Pasta)</Label>
-                {setorSuggestion && !formData.setor && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, setor: setorSuggestion })}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Usar: {setorSuggestion}
-                  </button>
-                )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Label htmlFor="site">Site/Sistema *</Label>
+                <Input
+                  id="site"
+                  value={formData.site}
+                  onChange={(e) => {
+                    setFormData({ ...formData, site: e.target.value });
+                    setSetorSuggestion(extractSetor(e.target.value));
+                  }}
+                  placeholder="Ex: TARIFAS DECEA"
+                  disabled={loading}
+                />
               </div>
-              <Input
-                id="setor"
-                value={formData.setor}
-                onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
-                placeholder={setorSuggestion ? `Sugestão: ${setorSuggestion}` : "Ex: PR-MDL, TESTE"}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                O setor agrupará as senhas em pastas. Deixe vazio para usar a automática.
-              </p>
+
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="setor">Setor (Pasta)</Label>
+                  {setorSuggestion && !formData.setor && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, setor: setorSuggestion })}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      Usar: {setorSuggestion}
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="setor"
+                  value={formData.setor}
+                  onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
+                  placeholder={setorSuggestion ? `Sugestão: ${setorSuggestion}` : "Ex: PR-MDL, TESTE"}
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O setor agrupará as senhas em pastas. Deixe vazio para usar a automática.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="login">Login/Usuário *</Label>
+                <Input
+                  id="login"
+                  value={formData.login}
+                  onChange={(e) => setFormData({ ...formData, login: e.target.value })}
+                  placeholder="Ex: 255771"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="senha">Senha *</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="senha"
+                    type={showPasswordForm ? "text" : "password"}
+                    value={formData.senha}
+                    onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                    placeholder="Digite a senha"
+                    disabled={loading}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setShowPasswordForm((prev) => !prev)}
+                  >
+                    {showPasswordForm ? "Ocultar" : "Ver"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => copyToClipboard(formData.senha, "senha")}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="login">Login/Usuário *</Label>
-              <Input
-                id="login"
-                value={formData.login}
-                onChange={(e) => setFormData({ ...formData, login: e.target.value })}
-                placeholder="Ex: 255771"
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <Label htmlFor="senha">Senha *</Label>
-              <Input
-                id="senha"
-                type="password"
-                value={formData.senha}
-                onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                placeholder="Digite a senha"
-                disabled={loading}
-              />
-            </div>
+
             <div>
               <Label htmlFor="observacoes">Observações</Label>
               <Textarea
@@ -365,8 +429,8 @@ export default function Senhas() {
                 rows={3}
               />
             </div>
-            <div className="flex gap-2 justify-end pt-4">
-              <Button variant="outline" onClick={() => { setShowDialog(false); resetForm(); }} disabled={loading}>
+            <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => { setShowDialog(false); resetForm(); setShowPasswordForm(false); }} disabled={loading}>
                 Cancelar
               </Button>
               <Button onClick={handleSave} disabled={loading}>
@@ -384,7 +448,7 @@ export default function Senhas() {
     <Layout>
       <div className="space-y-6 p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-primary/10 p-3 rounded-lg">
               <Key className="h-6 w-6 text-primary" />
@@ -396,7 +460,7 @@ export default function Senhas() {
               </p>
             </div>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={loading}>
+          <Button onClick={() => handleOpenDialog()} className="gap-2 w-full sm:w-auto" disabled={loading}>
             <Plus className="h-4 w-4" />
             Nova Senha
           </Button>
@@ -433,7 +497,7 @@ export default function Senhas() {
         ) : (
           <div>
             <h2 className="text-xl font-bold text-foreground mb-4">Pastas</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {setoresOrdenados.map((setor) => {
                 const count = gruposSetor[setor].length;
                 return (

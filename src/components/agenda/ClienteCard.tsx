@@ -49,7 +49,6 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
       className="group relative cursor-pointer rounded-xl border border-slate-800/80 bg-slate-900/40 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200"
       onClick={() => onView?.(cliente)}
     >
-      {/* Ações rápidas — aparecem no hover, sem disparar onView */}
       {(onEdit || onDelete) && (
         <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
           {onEdit && (
@@ -81,7 +80,6 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
 
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          {/* Avatar */}
           <Avatar className="h-14 w-14 rounded-xl ring-2 ring-cyan-400/30 flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
             {cliente.url_logo ? <AvatarImage src={cliente.url_logo} alt={cliente.razao_social || ""} className="object-contain p-1" /> : null}
             <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white font-bold text-sm rounded-xl">
@@ -89,14 +87,12 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
             </AvatarFallback>
           </Avatar>
 
-          {/* Info */}
           <div className="flex-1 min-w-0 pr-8">
             <h3 className="font-semibold text-slate-100 text-base truncate group-hover:text-cyan-400 transition-colors">
               {cliente.razao_social}
             </h3>
             <p className="text-xs text-slate-500 font-mono mt-0.5">{cliente.cnpj}</p>
 
-            {/* Badges */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {cliente.tem_socio && (
                 <Badge variant="secondary" className="text-xs rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30">
@@ -112,7 +108,6 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
           </div>
         </div>
 
-        {/* Contact details */}
         <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2">
           {cliente.telefone && (
             <div className="flex items-center gap-2.5 text-sm">
@@ -140,7 +135,6 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
           )}
         </div>
 
-        {/* Aircraft */}
         {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
           <div className="mt-4 pt-3 border-t border-slate-800/80">
             <div className="flex items-center gap-2 mb-2">

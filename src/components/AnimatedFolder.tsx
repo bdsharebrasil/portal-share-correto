@@ -59,7 +59,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
       <div
         className={cn(
           "relative flex flex-col items-center justify-center",
-          "p-8 rounded-2xl cursor-pointer",
+          "p-6 rounded-2xl cursor-pointer",
           "bg-card border border-border",
           "transition-all duration-500 ease-out",
           "hover:shadow-2xl hover:shadow-accent/10",
@@ -68,8 +68,8 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
           className,
         )}
         style={{
-          minWidth: "220px",
-          minHeight: "280px",
+          minWidth: "180px",
+          minHeight: "220px",
           perspective: "600px",
         }}
         onMouseEnter={() => setIsHovered(true)}
@@ -85,24 +85,31 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
           }}
         />
 
-        <div className="relative flex items-center justify-center mb-4" style={{ height: "160px", width: "200px" }}>
+        <div className="relative flex items-center justify-center mb-3" style={{ height: "120px", width: "160px" }}>
           {/* Folder back layer - z-index 10 */}
           <div
-            className="absolute w-32 h-24 bg-folder-back rounded-lg shadow-md"
+            className="absolute rounded-lg shadow-md"
             style={{
+              width: "96px",
+              height: "72px",
+              background: "hsl(var(--folder-back))",
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(-15deg)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+              left: "34px",
               zIndex: 10,
             }}
           />
 
           {/* Folder tab - z-index 10 */}
           <div
-            className="absolute w-12 h-4 bg-folder-tab rounded-t-md"
+            className="absolute rounded-t-md"
             style={{
-              top: "calc(50% - 48px - 12px)",
-              left: "calc(50% - 64px + 16px)",
+              width: "40px",
+              height: "12px",
+              top: "calc(50% - 40px - 12px)",
+              left: "calc(50% - 48px + 12px)",
+              background: "hsl(var(--folder-tab))",
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(-25deg) translateY(-2px)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -139,9 +146,12 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
 
           {/* Folder front layer - z-index 30 */}
           <div
-            className="absolute w-32 h-24 bg-folder-front rounded-lg shadow-lg"
+            className="absolute rounded-lg shadow-lg"
             style={{
-              top: "calc(50% - 48px + 4px)",
+              width: "96px",
+              height: "72px",
+              top: "calc(50% - 40px + 4px)",
+              background: "hsl(var(--folder-front))",
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(25deg) translateY(8px)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -151,9 +161,11 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
 
           {/* Folder shine effect - z-index 31 */}
           <div
-            className="absolute w-32 h-24 rounded-lg overflow-hidden pointer-events-none"
+            className="absolute rounded-lg overflow-hidden pointer-events-none"
             style={{
-              top: "calc(50% - 48px + 4px)",
+              width: "96px",
+              height: "72px",
+              top: "calc(50% - 40px + 4px)",
               background: "linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%)",
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(25deg) translateY(8px)" : "rotateX(0deg)",
@@ -165,7 +177,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
 
         {/* Folder title */}
         <h3
-          className="text-lg font-semibold text-foreground mt-4 transition-all duration-300"
+          className="text-base font-semibold text-foreground mt-3 transition-all duration-300 line-clamp-2 text-center"
           style={{
             transform: isHovered ? "translateY(4px)" : "translateY(0)",
           }}
@@ -173,25 +185,27 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
           {title}
         </h3>
 
-        {/* Project count */}
-        <p
-          className="text-sm text-muted-foreground transition-all duration-300"
-          style={{
-            opacity: isHovered ? 0.7 : 1,
-          }}
-        >
-          {projects.length} item{projects.length !== 1 ? 'ns' : ''}
-        </p>
+        {/* Count badge inside the preview stack */}
+        {projects.length > 0 && projects.length !== 3 && (
+          <div
+            className="absolute top-[30px] right-5 z-40 flex min-h-[10px] items-center justify-center rounded-full border border-border/80 bg-background/90 px-[13px] py-[5px] text-[10px] font-semibold text-foreground shadow-sm"
+            style={{
+              opacity: isHovered ? 1 : 0.9,
+            }}
+          >
+            {projects.length}
+          </div>
+        )}
 
         {/* Hover hint */}
         <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs text-muted-foreground transition-all duration-300"
+          className="absolute bottom-3 -translate-x-1/2 flex items-center gap-1 text-[11px] text-muted-foreground/80 transition-all duration-400"
           style={{
-            opacity: isHovered ? 0 : 0.6,
-            transform: isHovered ? "translateY(10px)" : "translateY(0)",
+            opacity: isHovered ? 0 : 0.7,
+            transform: isHovered ? "translateY(8px)" : "translateY(0)",
           }}
         >
-          <span>Clique para abrir</span>
+          <span className="inline-block my-[-7px]">Clique para abrir</span>
         </div>
       </div>
 

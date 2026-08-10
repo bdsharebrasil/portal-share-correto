@@ -1,14 +1,29 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2, Edit, Phone, Mail, MapPin, AlertCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus, Search, Trash2, Edit, Phone, Mail, MapPin, AlertCircle, LayoutGrid, List,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const FIELD =
+  "bg-slate-950/60 border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 " +
+  "focus-visible:border-cyan-500/60 focus-visible:ring-1 focus-visible:ring-cyan-500/30";
+const LABEL = "text-slate-300 font-medium mb-1.5 block text-xs";
 
 interface Contato {
   id: string;
@@ -24,6 +39,22 @@ interface Contato {
   created_at?: string;
 }
 
+type ViewMode = "cards" | "lista";
+type SortMode = "nome" | "cidade";
+
+const EMPTY_FORM = {
+  nome: "", email: "", telefone: "", empresa: "", cargo: "",
+  endereco: "", cidade: "", uf: "", observacoes: "",
+};
+
+const iniciais = (nome: string) =>
+  nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || "")
+    .join("");
+
 export default function Contatos() {
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,22 +63,14 @@ export default function Contatos() {
   const [editingContato, setEditingContato] = useState<Contato | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [sortMode, setSortMode] = useState<SortMode>("nome");
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
-    nome: "",
-    email: "",
-    telefone: "",
-    empresa: "",
-    cargo: "",
-    endereco: "",
-    cidade: "",
-    uf: "",
-    observacoes: "",
-  });
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
   useEffect(() => {
-    loadContatos();
+    void loadContatos();
   }, []);
 
   const loadContatos = async () => {
@@ -55,28 +78,15 @@ export default function Contatos() {
       setLoading(true);
       setTableError(null);
 
-      const { data, error } = await supabase
-        .from("contatos")
-        .select("*")
-        .order("nome");
+      const { data, error } = await supabase.from("contatos").select("*").order("nome");
+      if (error) throw new Error(error.message || "Erro ao carregar contatos");
 
-      if (error) {
-        console.error("Erro ao carregar contatos:", error);
-        const errorMsg = error.message || "Erro ao carregar contatos";
-        setTableError(errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      setContatos(data || []);
+      setContatos((data || []) as Contato[]);
     } catch (error) {
       console.error("Erro ao carregar contatos:", error);
       const errorMsg = error instanceof Error ? error.message : "Erro desconhecido ao carregar contatos";
       setTableError(errorMsg);
-      toast({
-        title: "Erro ao carregar contatos",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao carregar contatos", description: errorMsg, variant: "destructive" });
       setContatos([]);
     } finally {
       setLoading(false);
@@ -99,17 +109,7 @@ export default function Contatos() {
       });
     } else {
       setEditingContato(null);
-      setFormData({
-        nome: "",
-        email: "",
-        telefone: "",
-        empresa: "",
-        cargo: "",
-        endereco: "",
-        cidade: "",
-        uf: "",
-        observacoes: "",
-      });
+      setFormData({ ...EMPTY_FORM });
     }
     setIsDialogOpen(true);
   };
@@ -122,40 +122,27 @@ export default function Contatos() {
   const handleSave = async () => {
     try {
       if (!formData.nome) {
-        toast({
-          title: "Campo obrigatório",
-          description: "Nome é obrigatório",
-          variant: "destructive",
-        });
+        toast({ title: "Campo obrigatório", description: "Nome é obrigatório", variant: "destructive" });
         return;
       }
 
       const { uf: _uf, ...payload } = formData;
 
       if (editingContato) {
-        const { error } = await supabase
-          .from("contatos")
-          .update(payload)
-          .eq("id", editingContato.id);
+        const { error } = await supabase.from("contatos").update(payload).eq("id", editingContato.id);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Contato atualizado com sucesso" });
       } else {
-        const { error } = await supabase
-          .from("contatos")
-          .insert([payload]);
+        const { error } = await supabase.from("contatos").insert([payload]);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Contato cadastrado com sucesso" });
       }
 
       handleCloseDialog();
-      loadContatos();
+      void loadContatos();
     } catch (error) {
       console.error("Erro ao salvar contato:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar contato",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao salvar contato", variant: "destructive" });
     }
   };
 
@@ -165,307 +152,260 @@ export default function Contatos() {
       const { error } = await supabase.from("contatos").delete().eq("id", deleteId);
       if (error) throw error;
       toast({ title: "Sucesso", description: "Contato excluído com sucesso" });
-      loadContatos();
+      void loadContatos();
     } catch (error) {
       console.error("Erro ao excluir contato:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir contato",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao excluir contato", variant: "destructive" });
     } finally {
       setDeleteId(null);
     }
   };
 
-  const filteredContatos = contatos.filter(
-    (contato) =>
-      contato.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contato.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contato.empresa?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContatos = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    const list = contatos.filter(
+      (contato) =>
+        contato.nome?.toLowerCase().includes(term) ||
+        contato.email?.toLowerCase().includes(term) ||
+        contato.cidade?.toLowerCase().includes(term) ||
+        contato.empresa?.toLowerCase().includes(term),
+    );
+    return [...list].sort((a, b) => {
+      if (sortMode === "cidade") {
+        const cmp = (a.cidade || "zzz").localeCompare(b.cidade || "zzz", "pt-BR");
+        if (cmp !== 0) return cmp;
+      }
+      return (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+    });
+  }, [contatos, searchTerm, sortMode]);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 py-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Contatos
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie seus contatos importantes
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-100">Contatos</h1>
+          <p className="mt-1 text-sm text-slate-400">Gerencie seus contatos importantes</p>
         </div>
-        <Button
-          onClick={() => handleOpenDialog()}
-          size="lg"
-          className="gap-2 shadow-md rounded-lg bg-teal-700 hover:bg-teal-600"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Contato
+        <Button onClick={() => handleOpenDialog()} className="w-full gap-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 sm:w-auto">
+          <Plus className="h-4 w-4" /> Novo Contato
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, email ou empresa..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 h-11"
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Input
+            placeholder="Buscar por nome, empresa, cidade ou email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`${FIELD} h-11 pl-10`}
+          />
+        </div>
+
+        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+          <SelectTrigger className={`${FIELD} h-11 sm:w-48`}>
+            <SelectValue placeholder="Ordenar por" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nome">Ordenar por nome</SelectItem>
+            <SelectItem value="cidade">Ordenar por cidade</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/60 p-1">
+          <button
+            type="button"
+            onClick={() => setViewMode("cards")}
+            aria-label="Visualização em cards"
+            className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition sm:flex-none ${
+              viewMode === "cards" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4" /> Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("lista")}
+            aria-label="Visualização em lista"
+            className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition sm:flex-none ${
+              viewMode === "lista" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <List className="h-4 w-4" /> Lista
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-muted-foreground text-sm">Carregando contatos...</p>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <p className="text-sm text-slate-400">Carregando contatos...</p>
           </div>
         </div>
       ) : tableError ? (
         <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="p-6 flex gap-4">
-            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div className="space-y-2 flex-1">
+          <CardContent className="flex gap-4 p-6">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+            <div className="flex-1 space-y-2">
               <p className="font-semibold text-destructive">Erro ao acessar tabela de contatos</p>
-              <p className="text-sm text-muted-foreground">{tableError}</p>
-              <div className="flex gap-2 mt-4">
-                <Button size="sm" onClick={loadContatos} variant="outline">
-                  Tentar novamente
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const error = new Error(tableError);
-                    console.error("Erro detalhado:", error);
-                  }}
-                  variant="outline"
-                >
-                  Ver detalhes no console
-                </Button>
-              </div>
+              <p className="text-sm text-slate-400">{tableError}</p>
+              <Button size="sm" onClick={loadContatos} variant="outline" className="mt-3">
+                Tentar novamente
+              </Button>
             </div>
           </CardContent>
         </Card>
       ) : filteredContatos.length === 0 ? (
-        <Card className="border-dashed">
+        <Card className="border-dashed border-slate-800 bg-slate-900/40">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Phone className="h-8 w-8 text-muted-foreground" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
+              <Phone className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">
-              Nenhum contato cadastrado
-            </h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              Comece adicionando seu primeiro contato
-            </p>
+            <h3 className="mb-1 text-lg font-semibold text-slate-100">Nenhum contato encontrado</h3>
+            <p className="mb-4 text-sm text-slate-400">Comece adicionando seu primeiro contato</p>
             <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Cadastrar Contato
+              <Plus className="h-4 w-4" /> Cadastrar Contato
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ) : viewMode === "cards" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filteredContatos.map((contato) => (
-            <Card
-              key={contato.id}
-              className="hover:shadow-md transition-shadow group"
-            >
-              <CardContent className="p-5">
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground text-lg">
-                      {contato.nome}
-                    </h3>
-                    {contato.cargo && (
-                      <p className="text-sm text-muted-foreground">
-                        {contato.cargo}
-                      </p>
-                    )}
+            <Card key={contato.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-sm font-semibold text-white">
+                    {iniciais(contato.nome)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-base font-semibold text-slate-100">{contato.nome}</h3>
+                    {contato.cargo && <p className="truncate text-xs text-slate-400">{contato.cargo}</p>}
                     {contato.empresa && (
-                      <Badge variant="secondary" className="mt-2">
+                      <span className="mt-1.5 inline-block rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
                         {contato.empresa}
-                      </Badge>
+                      </span>
                     )}
                   </div>
-
-                  <div className="space-y-2 border-t border-border pt-3">
-                    {contato.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <a
-                          href={`mailto:${contato.email}`}
-                          className="text-primary hover:underline"
-                        >
-                          {contato.email}
-                        </a>
-                      </div>
-                    )}
-                    {contato.telefone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <a
-                          href={`tel:${contato.telefone}`}
-                          className="text-primary hover:underline"
-                        >
-                          {contato.telefone}
-                        </a>
-                      </div>
-                    )}
-                    {contato.cidade && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          {contato.cidade}
-                          {contato.uf && `, ${contato.uf}`}
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleOpenDialog(contato)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-rose-400" onClick={() => setDeleteId(contato.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDialog(contato)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDeleteId(contato.id)}
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+                  {contato.telefone && (
+                    <p className="flex items-center gap-2 text-slate-300">
+                      <Phone className="h-3.5 w-3.5 text-slate-500" /> {contato.telefone}
+                    </p>
+                  )}
+                  {contato.email && (
+                    <p className="flex items-center gap-2 truncate text-slate-300">
+                      <Mail className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                      <span className="truncate">{contato.email}</span>
+                    </p>
+                  )}
+                  {contato.cidade && (
+                    <p className="flex items-center gap-2 text-slate-400">
+                      <MapPin className="h-3.5 w-3.5 text-slate-500" />
+                      {contato.cidade}
+                      {contato.uf && `, ${contato.uf}`}
+                    </p>
+                  )}
                 </div>
+
               </CardContent>
             </Card>
           ))}
         </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/50">
+          <div className="divide-y divide-slate-800/80">
+            {filteredContatos.map((contato) => (
+              <div key={contato.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-slate-800/30 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-xs font-semibold text-white">
+                    {iniciais(contato.nome)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-100">{contato.nome}</p>
+                    <p className="truncate text-xs text-slate-400">
+                      {[contato.cargo, contato.empresa].filter(Boolean).join(" · ") || "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1 text-xs text-slate-400 sm:text-right">
+                  {contato.telefone && <p className="truncate">{contato.telefone}</p>}
+                  {contato.email && <p className="truncate">{contato.email}</p>}
+                </div>
+                <div className="min-w-0 text-xs text-slate-500 sm:w-40 sm:text-right">
+                  {[contato.cidade, contato.uf].filter(Boolean).join(", ") || "—"}
+                </div>
+                <div className="flex gap-1 sm:justify-end">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleOpenDialog(contato)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-rose-400" onClick={() => setDeleteId(contato.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] w-[95vw] max-w-xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingContato ? "Editar Contato" : "Novo Contato"}
-            </DialogTitle>
+            <DialogTitle>{editingContato ? "Editar Contato" : "Novo Contato"}</DialogTitle>
             <DialogDescription>
-              {editingContato
-                ? "Atualize as informações do contato"
-                : "Adicione um novo contato"}
+              {editingContato ? "Atualize as informações do contato" : "Adicione um novo contato"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="nome">Nome *</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
-                placeholder="Nome completo"
-              />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label className={LABEL} htmlFor="nome">Nome *</Label>
+              <Input id="nome" className={FIELD} value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} placeholder="Nome completo" />
             </div>
-
             <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                placeholder="contato@empresa.com"
-              />
+              <Label className={LABEL} htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" className={FIELD} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="contato@empresa.com" />
             </div>
-
             <div>
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input
-                id="telefone"
-                value={formData.telefone}
-                onChange={(e) =>
-                  setFormData({ ...formData, telefone: e.target.value })
-                }
-                placeholder="(00) 00000-0000"
-              />
+              <Label className={LABEL} htmlFor="telefone">Telefone</Label>
+              <Input id="telefone" className={FIELD} value={formData.telefone} onChange={(e) => setFormData({ ...formData, telefone: e.target.value })} placeholder="(00) 00000-0000" />
             </div>
-
             <div>
-              <Label htmlFor="empresa">Empresa</Label>
-              <Input
-                id="empresa"
-                value={formData.empresa}
-                onChange={(e) =>
-                  setFormData({ ...formData, empresa: e.target.value })
-                }
-                placeholder="Nome da empresa"
-              />
+              <Label className={LABEL} htmlFor="empresa">Empresa</Label>
+              <Input id="empresa" className={FIELD} value={formData.empresa} onChange={(e) => setFormData({ ...formData, empresa: e.target.value })} placeholder="Nome da empresa" />
             </div>
-
             <div>
-              <Label htmlFor="cargo">Cargo</Label>
-              <Input
-                id="cargo"
-                value={formData.cargo}
-                onChange={(e) =>
-                  setFormData({ ...formData, cargo: e.target.value })
-                }
-                placeholder="Cargo/função"
-              />
+              <Label className={LABEL} htmlFor="cargo">Cargo</Label>
+              <Input id="cargo" className={FIELD} value={formData.cargo} onChange={(e) => setFormData({ ...formData, cargo: e.target.value })} placeholder="Cargo/função" />
             </div>
-
             <div>
-              <Label htmlFor="cidade">Cidade</Label>
-              <Input
-                id="cidade"
-                value={formData.cidade}
-                onChange={(e) =>
-                  setFormData({ ...formData, cidade: e.target.value })
-                }
-                placeholder="São Paulo"
-              />
+              <Label className={LABEL} htmlFor="cidade">Cidade</Label>
+              <Input id="cidade" className={FIELD} value={formData.cidade} onChange={(e) => setFormData({ ...formData, cidade: e.target.value })} placeholder="São Paulo" />
             </div>
-
             <div>
-              <Label htmlFor="uf">UF</Label>
-              <Input
-                id="uf"
-                value={formData.uf}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    uf: e.target.value.toUpperCase().slice(0, 2),
-                  })
-                }
-                placeholder="SP"
-                maxLength={2}
-              />
+              <Label className={LABEL} htmlFor="uf">UF</Label>
+              <Input id="uf" className={FIELD} maxLength={2} value={formData.uf} onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase().slice(0, 2) })} placeholder="SP" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className={LABEL} htmlFor="observacoes">Observações</Label>
+              <Textarea id="observacoes" rows={3} className={FIELD} value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} />
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={handleCloseDialog}
-              className="sm:mr-auto"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-teal-700 hover:bg-teal-600"
-            >
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handleCloseDialog}>Cancelar</Button>
+            <Button className="w-full bg-cyan-600 hover:bg-cyan-500 sm:w-auto" onClick={handleSave}>
               {editingContato ? "Atualizar" : "Cadastrar"}
             </Button>
           </DialogFooter>
@@ -477,16 +417,12 @@ export default function Contatos() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Contato</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este contato? Esta ação não pode ser
-              desfeita.
+              Tem certeza que deseja excluir este contato? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

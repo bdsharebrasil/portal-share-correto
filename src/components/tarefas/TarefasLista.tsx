@@ -13,79 +13,39 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-// CSS para checklist animado
+// CSS do checklist animado (tema escuro)
 const checklistStyles = `
-#checklist {
-  --background: #fff;
-  --text: #414856;
-  --check: #221d6d;
-  --disabled: #c3c8de;
-  --width: 100px;
-  --height: 180px;
-  --border-radius: 10px;
-  background: var(--background);
-  width: var(--width);
-  height: var(--height);
-  border-radius: var(--border-radius);
-  position: relative;
-  box-shadow: 0 10px 30px rgba(65, 72, 86, 0.05);
-  padding: 30px 85px;
-  display: grid;
-  grid-template-columns: 30px auto;
+.tl-check {
+  --check: #22d3ee;
+  --disabled: #64748b;
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
 }
 
-#checklist label {
-  color: var(--text);
-  position: relative;
-  cursor: pointer;
-  display: grid;
-  align-items: center;
-  width: fit-content;
-  transition: color 0.3s ease;
-  margin-right: 20px;
-}
-
-#checklist label::before, #checklist label::after {
-  content: "";
-  position: absolute;
-}
-
-#checklist label::before {
-  height: 2px;
-  width: 8px;
-  left: -27px;
-  background: var(--check);
-  border-radius: 2px;
-  transition: background 0.3s ease;
-}
-
-#checklist label:after {
-  height: 4px;
-  width: 4px;
-  top: 8px;
-  left: -25px;
-  border-radius: 50%;
-}
-
-#checklist input[type="checkbox"] {
+.tl-check input[type="checkbox"] {
   -webkit-appearance: none;
   -moz-appearance: none;
+  appearance: none;
   position: relative;
-  height: 15px;
-  width: 15px;
+  height: 22px;
+  width: 22px;
+  flex: 0 0 auto;
+  margin: 0;
   outline: none;
-  border: 0;
-  margin: 0 15px 0 0;
   cursor: pointer;
-  background: var(--background);
+  border: 2px solid var(--check);
+  border-radius: 6px;
+  background: transparent;
   display: grid;
   align-items: center;
-  margin-right: 20px;
+  transition: border-color 0.3s ease, background 0.3s ease;
 }
 
-#checklist input[type="checkbox"]::before, #checklist input[type="checkbox"]::after {
+.tl-check input[type="checkbox"]::before,
+.tl-check input[type="checkbox"]::after {
   content: "";
   position: absolute;
   height: 2px;
@@ -94,176 +54,113 @@ const checklistStyles = `
   border-radius: 2px;
 }
 
-#checklist input[type="checkbox"]::before {
+.tl-check input[type="checkbox"]::before {
   width: 0px;
   right: 60%;
   transform-origin: right bottom;
 }
 
-#checklist input[type="checkbox"]::after {
+.tl-check input[type="checkbox"]::after {
   width: 0px;
   left: 40%;
   transform-origin: left bottom;
 }
 
-#checklist input[type="checkbox"]:checked::before {
-  animation: check-01 0.4s ease forwards;
+.tl-check input[type="checkbox"]:checked {
+  border-color: transparent;
 }
 
-#checklist input[type="checkbox"]:checked::after {
-  animation: check-02 0.4s ease forwards;
+.tl-check input[type="checkbox"]:checked::before {
+  animation: tl-check-01 0.4s ease forwards;
 }
 
-#checklist input[type="checkbox"]:checked + label {
+.tl-check input[type="checkbox"]:checked::after {
+  animation: tl-check-02 0.4s ease forwards;
+}
+
+.tl-check .tl-label {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+  color: #e2e8f0;
+  transition: color 0.3s ease;
+}
+
+.tl-check .tl-label::before,
+.tl-check .tl-label::after {
+  content: "";
+  position: absolute;
+}
+
+.tl-check .tl-label::before {
+  height: 2px;
+  width: 0px;
+  left: 0;
+  top: 11px;
+  background: var(--check);
+  border-radius: 2px;
+  opacity: 0;
+}
+
+.tl-check .tl-label::after {
+  height: 4px;
+  width: 4px;
+  top: 8px;
+  left: -14px;
+  border-radius: 50%;
+}
+
+.tl-check input[type="checkbox"]:checked + .tl-label {
   color: var(--disabled);
-  animation: move 0.3s ease 0.1s forwards;
+  animation: tl-move 0.3s ease 0.1s forwards;
 }
 
-#checklist input[type="checkbox"]:checked + label::before {
-  background: var(--disabled);
-  animation: slice 0.4s ease forwards;
+.tl-check input[type="checkbox"]:checked + .tl-label::before {
+  opacity: 1;
+  animation: tl-slice 0.4s ease forwards;
 }
 
-#checklist input[type="checkbox"]:checked + label::after {
-  animation: firework 0.5s ease forwards 0.1s;
+.tl-check input[type="checkbox"]:checked + .tl-label::after {
+  animation: tl-firework 0.5s ease forwards 0.1s;
 }
 
-@keyframes move {
-  50% {
-    padding-left: 8px;
-    padding-right: 0px;
-  }
-
-  100% {
-    padding-right: 4px;
-  }
+@keyframes tl-move {
+  50% { padding-left: 8px; padding-right: 0px; }
+  100% { padding-right: 4px; }
 }
 
-@keyframes slice {
-  60% {
-    width: 100%;
-    left: 4px;
-  }
-
-  100% {
-    width: 100%;
-    left: -2px;
-    padding-left: 0;
-  }
+@keyframes tl-slice {
+  60% { width: 100%; left: 4px; }
+  100% { width: 100%; left: -2px; padding-left: 0; }
 }
 
-@keyframes check-01 {
-  0% {
-    width: 4px;
-    top: auto;
-    transform: rotate(0);
-  }
-
-  50% {
-    width: 0px;
-    top: auto;
-    transform: rotate(0);
-  }
-
-  51% {
-    width: 0px;
-    top: 8px;
-    transform: rotate(45deg);
-  }
-
-  100% {
-    width: 5px;
-    top: 8px;
-    transform: rotate(45deg);
-  }
+@keyframes tl-check-01 {
+  0% { width: 4px; top: auto; transform: rotate(0); }
+  50% { width: 0px; top: auto; transform: rotate(0); }
+  51% { width: 0px; top: 8px; transform: rotate(45deg); }
+  100% { width: 5px; top: 8px; transform: rotate(45deg); }
 }
 
-@keyframes check-02 {
-  0% {
-    width: 4px;
-    top: auto;
-    transform: rotate(0);
-  }
-
-  50% {
-    width: 0px;
-    top: auto;
-    transform: rotate(0);
-  }
-
-  51% {
-    width: 0px;
-    top: 8px;
-    transform: rotate(-45deg);
-  }
-
-  100% {
-    width: 10px;
-    top: 8px;
-    transform: rotate(-45deg);
-  }
+@keyframes tl-check-02 {
+  0% { width: 4px; top: auto; transform: rotate(0); }
+  50% { width: 0px; top: auto; transform: rotate(0); }
+  51% { width: 0px; top: 8px; transform: rotate(-45deg); }
+  100% { width: 10px; top: 8px; transform: rotate(-45deg); }
 }
 
-@keyframes firework {
+@keyframes tl-firework {
   0% {
     opacity: 1;
-    box-shadow: 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0;
+    box-shadow: 0 0 0 -2px #22d3ee, 0 0 0 -2px #22d3ee, 0 0 0 -2px #22d3ee, 0 0 0 -2px #22d3ee, 0 0 0 -2px #22d3ee, 0 0 0 -2px #22d3ee;
   }
-
-  30% {
-    opacity: 1;
-  }
-
+  30% { opacity: 1; }
   100% {
     opacity: 0;
-    box-shadow: 0 -15px 0 0px #4f29f0, 14px -8px 0 0px #4f29f0, 14px 8px 0 0px #4f29f0, 0 15px 0 0px #4f29f0, -14px 8px 0 0px #4f29f0, -14px -8px 0 0px #4f29f0;
+    box-shadow: 0 -15px 0 0px #22d3ee, 14px -8px 0 0px #22d3ee, 14px 8px 0 0px #22d3ee, 0 15px 0 0px #22d3ee, -14px 8px 0 0px #22d3ee, -14px -8px 0 0px #22d3ee;
   }
 }
-
-/* Estilos customizados para lista de tarefas */
-.checklist-item {
-  display: grid;
-  grid-template-columns: 30px auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  border: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
-}
-
-.checklist-item input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-}
-
-.checklist-item label {
-  margin-right: 0;
-  flex: 1;
-  font-weight: 500;
-  color: #414856;
-}
-
-.checklist-item-actions {
-  display: flex;
-  gap: 8px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.checklist-item:hover .checklist-item-actions {
-  opacity: 1;
-}
-
-.checklist-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 24px;
-}
 `;
+
 
 interface UserOption {
   id: string;
@@ -412,7 +309,6 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailTask, setDetailTask] = useState<Tarefa | null>(null);
-  const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   // Load data
@@ -532,14 +428,6 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     return mine;
   }, [tarefas, me, myView, actualIsManager]);
 
-  // Separa tarefas pendentes e concluídas
-  const { pending, completed } = useMemo(() => {
-    return {
-      pending: visibleTasks.filter((t) => normalizeTaskStatus(t.status) !== "concluido"),
-      completed: visibleTasks.filter((t) => normalizeTaskStatus(t.status) === "concluido"),
-    };
-  }, [visibleTasks]);
-
   const canEditTaskStatus = (task: Tarefa) => {
     return (
       actualIsManager ||
@@ -658,14 +546,15 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     <>
       <style>{checklistStyles}</style>
       
-      <div className="bg-[#0f1115] text-slate-200 overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-white/5 px-6 py-5 flex items-center justify-between flex-wrap gap-4 bg-white/[0.02] backdrop-blur-md">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
+      {/* Contêiner principal com paleta azul/slate moderna, bordas arredondadas e sombra */}
+      <div className="w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-[rgba(5,11,25,0.8)] text-slate-200 shadow-xl backdrop-blur-sm">
+        {/* Header com espaçamento corrigido (padding maior) */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-800/40 px-6 py-5 sm:px-8">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
             </h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium">
+            <p className="mt-1 text-sm font-medium text-slate-400">
               {myView
                 ? "Tarefas privadas criadas por você"
                 : actualIsManager
@@ -676,145 +565,96 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
 
           <button
             onClick={() => setCreateOpen(true)}
-            className="group flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-xl px-5 py-2.5 text-sm font-bold hover:scale-105 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all"
+            className="group flex items-center gap-2 rounded-xl bg-[#225345] px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]"
           >
             <Plus size={18} className="transition-transform group-hover:rotate-90" />
             Nova Tarefa
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-8">
-          {/* Tarefas Pendentes */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400/15 text-amber-400 text-xs font-bold border border-amber-400/30">
-                  {pending.length}
-                </span>
-                Pendentes
-              </h2>
+        {/* Content com margens confortáveis */}
+        <div className="space-y-6 p-6 sm:p-8">
+          {visibleTasks.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-slate-700 bg-slate-800/20 px-4 py-12 text-center text-slate-400">
+              Nenhuma tarefa cadastrada
             </div>
+          ) : (
+            <div className="space-y-3">
+              {visibleTasks.map((task) => {
+                const isCompleted = normalizeTaskStatus(task.status) === "concluido";
+                const canDelete = task.criado_por === me || actualIsManager;
 
-            <div className="space-y-2">
-              {pending.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 border-2 border-dashed border-white/5 rounded-xl">
-                  Nenhuma tarefa pendente
-                </div>
-              ) : (
-                pending.map((task) => {
-                  const canDelete = task.criado_por === me || actualIsManager;
-
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-3 px-4 py-3 bg-[#15181e] border border-white/5 rounded-xl hover:border-white/10 transition-colors group"
-                    >
+                return (
+                  <div
+                    key={task.id}
+                    className={`group flex items-center gap-3 rounded-xl border px-5 py-4 transition-all ${
+                      isCompleted
+                        ? "border-slate-700/40 bg-slate-900/50 hover:border-emerald-500/30"
+                        : "border-slate-700/60 bg-slate-800/40 hover:border-cyan-500/50 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <div className="tl-check">
                       <input
+                        id={`tl-${task.id}`}
                         type="checkbox"
-                        checked={normalizeTaskStatus(task.status) === "concluido"}
-                        onChange={(e) =>
-                          void handleToggleTask(task.id, e.target.checked)
-                        }
-                        className="w-5 h-5 rounded border-white/20 accent-cyan-500 cursor-pointer shrink-0"
+                        checked={isCompleted}
+                        onChange={(e) => void handleToggleTask(task.id, e.target.checked)}
                       />
-
-                      <div
-                        className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => setDetailTask(task)}
-                      >
-                        <div className="font-medium text-slate-100 group-hover:text-cyan-400 transition-colors truncate">
+                      <label htmlFor={`tl-${task.id}`} className="tl-label min-w-0 flex-1">
+                        <span
+                          className={`block truncate font-medium transition-colors ${
+                            isCompleted ? "text-slate-500 line-through" : "text-slate-200"
+                          }`}
+                        >
                           {task.titulo}
-                        </div>
+                        </span>
                         {task.descricao && (
-                          <div className="text-sm text-slate-400 line-clamp-1">
+                          <span
+                            className={`mt-0.5 block line-clamp-1 text-sm transition-opacity ${
+                              isCompleted ? "opacity-50 text-slate-500 line-through" : "text-slate-400"
+                            }`}
+                          >
                             {task.descricao}
-                          </div>
+                          </span>
                         )}
-                      </div>
-
-                      {task.prazo && (
-                        <span className="text-xs text-slate-400 shrink-0">
-                          {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                        </span>
-                      )}
-
-                      {canDelete && (
-                        <button
-                          onClick={() => void handleDelete(task.id)}
-                          className="p-1.5 text-slate-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      </label>
                     </div>
-                  );
-                })
 
-              )}
-            </div>
-          </div>
-
-          {/* Tarefas Concluídas */}
-          {completed.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-400/15 text-emerald-400 text-xs font-bold border border-emerald-400/30">
-                    {completed.length}
-                  </span>
-                  Concluídas
-                </h2>
-              </div>
-
-              <div className="space-y-2">
-                {completed.map((task) => {
-                  const canDelete = task.criado_por === me || actualIsManager;
-
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-3 px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl transition-colors group"
+                    <button
+                      onClick={() => setDetailTask(task)}
+                      className={`shrink-0 transition-colors ${
+                        isCompleted ? "text-slate-600 hover:text-emerald-400" : "text-slate-500 hover:text-cyan-400"
+                      }`}
+                      title="Abrir detalhes"
                     >
-                      <input
-                        type="checkbox"
-                        checked
-                        onChange={(e) =>
-                          void handleToggleTask(task.id, e.target.checked)
-                        }
-                        className="w-5 h-5 rounded accent-emerald-500 cursor-pointer shrink-0"
-                      />
+                      <MessageSquare size={18} />
+                    </button>
 
-                      <div
-                        className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => setDetailTask(task)}
+                    {task.prazo && (
+                      <span
+                        className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${
+                          isCompleted ? "bg-slate-900 text-slate-600" : "bg-slate-800/80 text-slate-400"
+                        }`}
                       >
-                        <div className="font-medium text-slate-500 line-through truncate">
-                          {task.titulo}
-                        </div>
-                      </div>
+                        {new Date(task.prazo).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                        })}
+                      </span>
+                    )}
 
-                      {task.prazo && (
-                        <span className="text-xs text-slate-500 shrink-0">
-                          {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                        </span>
-                      )}
-
-                      {canDelete && (
-                        <button
-                          onClick={() => void handleDelete(task.id)}
-                          className="p-1.5 text-slate-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-
-              </div>
+                    {canDelete && (
+                      <button
+                        onClick={() => void handleDelete(task.id)}
+                        className="shrink-0 p-1.5 text-slate-500 opacity-0 transition-colors hover:text-rose-400 group-hover:opacity-100"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -872,24 +712,24 @@ function CreateListaModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-slate-700 bg-slate-900 text-slate-200">
         <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
+          <DialogTitle className="text-white">Nova Tarefa</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4 mt-2">
           <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
               Título *
             </label>
             <input
               value={form.titulo}
               onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
               placeholder="Descreva a tarefa..."
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+              className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
               Descrição
             </label>
             <textarea
@@ -897,42 +737,45 @@ function CreateListaModal({
               onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
               placeholder="Detalhes (opcional)"
               rows={2}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+              className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors"
             />
           </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-              Prioridade
-            </label>
-            <select
-              value={form.prioridade}
-              onChange={(e) => setForm((p) => ({ ...p, prioridade: e.target.value }))}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-            >
-              <option value="baixa">Baixa</option>
-              <option value="media">Média</option>
-              <option value="alta">Alta</option>
-              <option value="urgente">Urgente</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-              Prazo
-            </label>
-            <input
-              type="date"
-              value={form.prazo}
-              onChange={(e) => setForm((p) => ({ ...p, prazo: e.target.value }))}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                Prioridade
+              </label>
+              <select
+                value={form.prioridade}
+                onChange={(e) => setForm((p) => ({ ...p, prioridade: e.target.value }))}
+                className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 outline-none transition-colors"
+              >
+                <option value="baixa">Baixa</option>
+                <option value="media">Média</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                Prazo
+              </label>
+              <input
+                type="date"
+                value={form.prazo}
+                onChange={(e) => setForm((p) => ({ ...p, prazo: e.target.value }))}
+                className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 outline-none transition-colors"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={onClose}>
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button variant="outline" className="border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white" onClick={onClose}>
             Cancelar
           </Button>
           <Button
+            className="bg-cyan-600 hover:bg-cyan-500 text-white"
             onClick={() => {
               if (!form.titulo.trim()) {
                 toast.error("Informe o título");
@@ -969,6 +812,9 @@ function DetailDialog({
   const [comments, setComments] = useState<Comentario[]>([]);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
+  const [progresso, setProgresso] = useState(0);
+  const [savingProgresso, setSavingProgresso] = useState(false);
+
   const userById = useMemo(() => {
     const m = new Map<string, UserOption>();
     users.forEach((u) => m.set(u.id, u));
@@ -981,7 +827,9 @@ function DetailDialog({
       setText("");
       return;
     }
+    setProgresso(Math.max(0, Math.min(100, Number(task.progresso) || 0)));
     let cancelled = false;
+
     (async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -1055,58 +903,105 @@ function DetailDialog({
     if (error) toast.error("Sem permissão para excluir");
   };
 
+  const podeEditarProgresso =
+    canManage || task.criado_por === meId || assignees(task).includes(meId || "");
+
+  const salvarProgresso = async (valor: number) => {
+    setSavingProgresso(true);
+    const { error } = await (supabase as any)
+      .from("tarefas")
+      .update({ progresso: valor, atualizado_em: new Date().toISOString() })
+      .eq("id", task.id);
+    setSavingProgresso(false);
+    if (error) toast.error("Erro ao salvar progresso");
+    else toast.success("Progresso atualizado");
+  };
+
+
   return (
     <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-slate-700 bg-slate-900 text-slate-200">
         <DialogHeader>
-          <DialogTitle className="truncate">{task.titulo}</DialogTitle>
+          <DialogTitle className="truncate text-white">{task.titulo}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 text-sm">
+        <div className="space-y-5 text-sm mt-2">
           {task.descricao && (
-            <p className="text-muted-foreground whitespace-pre-wrap">
+            <p className="text-slate-400 whitespace-pre-wrap">
               {task.descricao}
             </p>
           )}
 
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-4 rounded-lg bg-slate-800/50 p-4 border border-slate-700/50 text-xs text-slate-300">
             <div className="flex items-center gap-2">
-              <span>Atribuído:</span>
+              <span className="font-semibold text-slate-400">Atribuído:</span>
               <Avatar user={assigned} size={22} />
               <span>{assigned ? (assigned.full_name || assigned.display_name || assigned.email) : "—"}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span>Criado por:</span>
+              <span className="font-semibold text-slate-400">Criado por:</span>
               <Avatar user={creator} size={22} />
               <span>{creator ? (creator.full_name || creator.display_name || creator.email) : "—"}</span>
             </div>
             {task.prazo && (
-              <div>
+              <div className="flex items-center gap-1.5">
+                 <span className="font-semibold text-slate-400">Prazo:</span>
                 📅 {new Date(task.prazo).toLocaleDateString("pt-BR")}
               </div>
             )}
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-              Status
-            </label>
-            <div className="text-sm font-medium mt-1">
-              {task.status === "concluido" || task.status === "concluído" ? "✅ Concluída" : task.status?.toLowerCase().includes("em") ? "⏳ Em Andamento" : "⏳ Pendente"}
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-400">Status:</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+                {task.status === "concluido" || task.status === "concluído" ? "✅ Concluída" : task.status?.toLowerCase().includes("em") ? "⏳ Em Andamento" : "⏳ Pendente"}
+              </span>
             </div>
           </div>
 
+          {/* Progresso da tarefa */}
+          <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                Progresso
+              </label>
+              <span className="text-xs font-semibold text-slate-200">{progresso}%</span>
+            </div>
+            <div className="mt-3 h-2.5 w-full rounded-full bg-slate-700 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-cyan-500 transition-all shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                style={{ width: `${progresso}%` }}
+              />
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={progresso}
+              disabled={!podeEditarProgresso}
+              onChange={(e) => setProgresso(Number(e.target.value))}
+              onMouseUp={(e) => void salvarProgresso(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => void salvarProgresso(Number((e.target as HTMLInputElement).value))}
+              onKeyUp={(e) => void salvarProgresso(Number((e.target as HTMLInputElement).value))}
+              className="w-full mt-3 disabled:opacity-50 accent-cyan-500 cursor-pointer"
+            />
+            {savingProgresso && (
+              <p className="text-[10.5px] text-cyan-400 mt-1">Salvando…</p>
+            )}
+          </div>
+
+
+
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <MessageSquare size={12} /> Comentários ({comments.length})
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <MessageSquare size={14} /> Comentários ({comments.length})
               </label>
             </div>
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            <div className="max-h-64 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
               {loading ? (
-                <div className="text-xs text-muted-foreground">Carregando...</div>
+                <div className="text-xs text-slate-500 text-center py-4">Carregando...</div>
               ) : comments.length === 0 ? (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-slate-500 text-center py-4 border border-dashed border-slate-700 rounded-lg">
                   Nenhum comentário ainda.
                 </div>
               ) : (
@@ -1116,15 +1011,15 @@ function DetailDialog({
                   return (
                     <div
                       key={c.id}
-                      className="flex gap-2 items-start p-2 rounded-md bg-muted/40"
+                      className="flex gap-3 items-start p-3 rounded-xl bg-slate-800/50 border border-slate-700/30"
                     >
-                      <Avatar user={u} size={26} />
+                      <Avatar user={u} size={28} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold truncate">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs font-bold text-slate-300 truncate">
                             {u ? (u.full_name || u.display_name || u.email) : "—"}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[10px] text-slate-500 font-medium">
                             {c.criado_em
                               ? new Date(c.criado_em).toLocaleString("pt-BR", {
                                   day: "2-digit",
@@ -1135,17 +1030,17 @@ function DetailDialog({
                               : ""}
                           </span>
                         </div>
-                        <div className="text-sm whitespace-pre-wrap break-words">
+                        <div className="text-sm text-slate-300 whitespace-pre-wrap break-words">
                           {c.comentario}
                         </div>
                       </div>
                       {(mine || canManage) && (
                         <button
                           onClick={() => void handleDeleteComment(c.id)}
-                          className="text-destructive opacity-60 hover:opacity-100"
+                          className="text-slate-500 hover:text-rose-400 transition-colors pt-0.5"
                           aria-label="Excluir comentário"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={14} />
                         </button>
                       )}
                     </div>
@@ -1154,7 +1049,7 @@ function DetailDialog({
               )}
             </div>
 
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row relative">
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -1165,9 +1060,13 @@ function DetailDialog({
                   }
                 }}
                 placeholder="Escreva um comentário..."
-                className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+                className="flex-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-lg pl-4 pr-12 py-2.5 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500"
               />
-              <Button onClick={() => void handleSend()} size="icon" className="self-end sm:self-auto">
+              <Button 
+                onClick={() => void handleSend()} 
+                size="icon" 
+                className="absolute right-1 top-1 bottom-1 h-auto w-9 bg-cyan-600 hover:bg-cyan-500 text-white rounded-md"
+              >
                 <Send size={14} />
               </Button>
             </div>

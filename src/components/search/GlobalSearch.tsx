@@ -17,7 +17,6 @@ interface SearchResult {
 
 const searchData: SearchResult[] = [
   // Páginas principais
-  { id: '1', title: 'Conciliação Bancária', description: 'Gestão de movimentações bancárias', type: 'page', path: '/financeiro/conciliacao', icon: DollarSign },
   { id: '2', title: 'Minhas Tarefas', description: 'Gerenciar atividades e pendências', type: 'page', path: '/tarefas', icon: Calendar },
   { id: '3', title: 'Meu Perfil', description: 'Informações pessoais e documentos', type: 'page', path: '/perfil', icon: Users },
   { id: '4', title: 'Agenda', description: 'Contatos, clientes e aniversários', type: 'page', path: '/agenda', icon: Calendar },

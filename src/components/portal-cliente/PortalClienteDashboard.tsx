@@ -652,14 +652,14 @@ function AircraftSelectScreen({
 
 function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectMonth: (m: string) => void }) {
   return (
-    <header className="sticky top-0 z-40 glass border-b border-border flex items-center justify-between px-5 lg:px-7" style={{ minHeight: 56 }}>
+    <header className="sticky top-0 z-40 glass border-b border-border flex items-center justify-between rounded-[8px] overflow-hidden px-5 lg:px-7" style={{ minHeight: 56 }}>
       <div className="flex items-center gap-3 flex-1 max-w-md">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-faint" />
           <input
             type="text"
             placeholder="Buscar aeronave, cotista, lançamento..."
-            className="portal-input pl-9 w-full"
+            className="portal-input pl-[47px] pr-[47px] w-full"
           />
         </div>
       </div>

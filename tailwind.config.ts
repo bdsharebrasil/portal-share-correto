@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -19,6 +20,35 @@ export default {
     },
     extend: {
       colors: {
+        // Suas novas cores adicionadas aqui
+        azul: {
+          50: '#eaf1ff',
+          100: '#d3e2ff',
+          200: '#a9c5ff',
+          300: '#7ba3fb',
+          400: '#5484f4',
+          500: '#3767e8',
+          600: '#2a51cf',
+          700: '#2340a6',
+          800: '#1d3480',
+          900: '#182a63',
+          950: '#0f1c45',
+        },
+        noite: {
+          950: '#050a1a',
+          900: '#08102a',
+          850: '#0b1636',
+          800: '#101d44',
+          700: '#152556',
+          600: '#1d3170',
+          500: '#2a4290',
+          400: '#6d86c4',
+          300: '#9db2e0',
+          200: '#c9d7f5',
+          100: '#e6edff',
+        },
+        
+        // Suas cores originais mantidas
         ctm: {
           teal: '#2dd4bf',
           'teal-light': '#5eead4',
@@ -55,7 +85,6 @@ export default {
           accent: '#3b7dd8',
           muted: 'rgba(59, 125, 216, 0.15)'
         },
-
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))'
@@ -96,26 +125,24 @@ export default {
         'folder-front': 'hsl(var(--folder-front))',
         success: 'hsl(var(--success))',
         warning: 'hsl(var(--warning))',
-
         navy: {
-    950: '#080c14',
-    900: '#0f1623',
-    850: '#111827',
-    800: '#131d2e',
-    700: '#1c293f',
-  },
-  cyan: {
-    DEFAULT: '#22d3ee',
-    dim: '#06b6d4',
-    faint: 'rgba(34,211,238,0.12)',
-  }
-
+          950: '#080c14',
+          900: '#0f1623',
+          850: '#111827',
+          800: '#131d2e',
+          700: '#1c293f',
+        },
+        cyan: {
+          DEFAULT: '#22d3ee',
+          dim: '#06b6d4',
+          faint: 'rgba(34,211,238,0.12)',
+        }
       },
       fontFamily: {
-  sans: ['Inter', 'sans-serif'],
-  display: ['Inter', 'sans-serif'],
-  body: ['Inter', 'sans-serif'],
-
+        // Fonte sans atualizada para incluir a sua lista completa de fallbacks
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
@@ -139,89 +166,43 @@ export default {
       },
       keyframes: {
         'accordion-down': {
-          from: {
-            height: '0'
-          },
-          to: {
-            height: 'var(--radix-accordion-content-height)'
-          }
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' }
         },
         'accordion-up': {
-          from: {
-            height: 'var(--radix-accordion-content-height)'
-          },
-          to: {
-            height: '0'
-          }
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' }
         },
         'scroll-left': {
-          from: {
-            transform: 'translateX(100%)'
-          },
-          to: {
-            transform: 'translateX(-100%)'
-          }
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(-100%)' }
         },
         'scroll-right': {
-          from: {
-            transform: 'translateX(-100%)'
-          },
-          to: {
-            transform: 'translateX(100%)'
-          }
+          from: { transform: 'translateX(-100%)' },
+          to: { transform: 'translateX(100%)' }
         },
         'plane-float': {
-          '0%, 100%': {
-            transform: 'translateY(0px)'
-          },
-          '50%': {
-            transform: 'translateY(-8px)'
-          }
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' }
         },
         'dash': {
-          to: {
-            strokeDashoffset: '-1000'
-          }
+          to: { strokeDashoffset: '-1000' }
         },
         'slide-in-from-top': {
-          from: {
-            transform: 'translateY(-100%)',
-            opacity: '0'
-          },
-          to: {
-            transform: 'translateY(0)',
-            opacity: '1'
-          }
+          from: { transform: 'translateY(-100%)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' }
         },
         'slide-out-to-top': {
-          from: {
-            transform: 'translateY(0)',
-            opacity: '1'
-          },
-          to: {
-            transform: 'translateY(-100%)',
-            opacity: '0'
-          }
+          from: { transform: 'translateY(0)', opacity: '1' },
+          to: { transform: 'translateY(-100%)', opacity: '0' }
         },
         'fade-in': {
-          from: {
-            opacity: '0',
-            transform: 'scale(0.95)'
-          },
-          to: {
-            opacity: '1',
-            transform: 'scale(1)'
-          }
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' }
         },
         'fade-out': {
-          from: {
-            opacity: '1',
-            transform: 'scale(1)'
-          },
-          to: {
-            opacity: '0',
-            transform: 'scale(0.95)'
-          }
+          from: { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '0', transform: 'scale(0.95)' }
         }
       },
       animation: {
@@ -241,5 +222,5 @@ export default {
       }
     }
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

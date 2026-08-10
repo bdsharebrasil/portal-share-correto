@@ -54,7 +54,7 @@ export const useBirthdays = (daysAhead: number = 7) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("birthdays")
-        .select("id,nome,data_aniversario,empresa,category,created_at,updated_at")
+        .select("id,nome,data_aniversario,empresa,category,avatar_url,created_at,updated_at")
         .order("data_aniversario", { ascending: true });
 
       if (error) throw error;
@@ -68,7 +68,7 @@ export const useBirthdays = (daysAhead: number = 7) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, full_name, display_name, birth_date, departamento")
+        .select("id, full_name, display_name, birth_date, departamento, avatar_url")
         .not("birth_date", "is", null)
         .order("birth_date", { ascending: true });
 
@@ -120,6 +120,7 @@ export const useBirthdays = (daysAhead: number = 7) => {
           nome: profile.full_name || profile.display_name || "Colaborador",
           data_aniversario: profile.birth_date,
           empresa: profile.departamento || null,
+          avatar_url: profile.avatar_url || null,
           category: "colaboradores" as any,
           created_at: null,
           updated_at: null,
