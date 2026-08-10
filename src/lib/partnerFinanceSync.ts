@@ -66,7 +66,7 @@ export interface PartnerSyncInput {
   clientes_id?: string | null;
   socio_id?: string | null;
   aeronave_id?: string | null;
-  banco_nome?: string | null;
+  conta_bancaria?: string | null;
   forma_pagamento?: string | null;
   fornecedor_nome?: string | null;
   numero_doc?: string | null;
@@ -122,7 +122,7 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
     clientes_id: input.clientes_id || null,
     socio_id: input.socio_id || null,
     aeronave_id: input.aeronave_id || null,
-    banco_nome: input.banco_nome || null,
+    conta_bancaria: input.conta_bancaria || null,
     forma_pagamento: input.forma_pagamento || null,
     fornecedor_nome: input.fornecedor_nome || null,
     numero_doc: input.numero_doc || null,

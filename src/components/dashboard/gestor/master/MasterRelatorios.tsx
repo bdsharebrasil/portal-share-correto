@@ -147,7 +147,7 @@ export default function MasterRelatorios() {
         supabase
           .from("movimentacoes")
           .select(
-            `id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, banco_nome, reembolsavel`
+            `id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, conta_bancaria, reembolsavel`
           )
           .gte("data_competencia", `${ano}-01-01`)
           .lte("data_competencia", `${ano}-12-31`)

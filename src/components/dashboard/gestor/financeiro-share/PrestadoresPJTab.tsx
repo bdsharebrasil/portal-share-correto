@@ -394,7 +394,7 @@ function NotasPanel() {
   const [uploadingNota, setUploadingNota] = useState(false);
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
   const [bancosShare, setBancosShare] = useState<{ id: string; label: string }[]>([]);
-  const [paymentForm, setPaymentForm] = useState({ data_pagamento: today(), banco_nome: "", forma_pagamento: "transferencia", comprovante_url: "" });
+  const [paymentForm, setPaymentForm] = useState({ data_pagamento: today(), conta_bancaria: "", forma_pagamento: "transferencia", comprovante_url: "" });
 
   const now = new Date();
   const [fMes, setFMes] = useState<string>("");
@@ -519,7 +519,7 @@ function NotasPanel() {
 
   const openPayment = (n: NotaFiscal) => {
     setPayingNota(n);
-    setPaymentForm({ data_pagamento: today(), banco_nome: "", forma_pagamento: "transferencia", comprovante_url: "" });
+    setPaymentForm({ data_pagamento: today(), conta_bancaria: "", forma_pagamento: "transferencia", comprovante_url: "" });
   };
 
   const uploadComprovante = async (file: File) => {
@@ -540,8 +540,8 @@ function NotasPanel() {
 
   const pagar = async () => {
     if (!payingNota) return;
-    if (!paymentForm.data_pagamento || !paymentForm.banco_nome || !paymentForm.comprovante_url) {
-      setToast({ type: "err", text: "Informe a data, o banco de origem e anexe o comprovante." });
+    if (!paymentForm.data_pagamento || !paymentForm.conta_bancaria || !paymentForm.comprovante_url) {
+      setToast({ type: "err", text: "Informe a data, a conta bancária e anexe o comprovante." });
       return;
     }
     setPayingId(payingNota.id); setToast(null);
@@ -574,7 +574,7 @@ function NotasPanel() {
         numero_nf: payingNota.numero_nota || null,
         comprovante_url: paymentForm.comprovante_url,
         forma_pagamento: paymentForm.forma_pagamento,
-        banco_nome: paymentForm.banco_nome,
+        conta_bancaria: paymentForm.conta_bancaria,
         movimentacao_pai_id: payingNota.id,
         reference_type: "prestador_nota_fiscal",
         reference_id: payingNota.id,

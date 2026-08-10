@@ -43,7 +43,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
     valor_pago_real: valorRecebido,
     atualizado_em: agora,
   };
-  if (input.banco) patchShare.banco_nome = input.banco;
+  if (input.banco) patchShare.conta_bancaria = input.banco;
   if (input.comprovante) patchShare.comprovante_url = input.comprovante;
   if (input.observacoes) patchShare.observacoes = input.observacoes;
 
@@ -59,7 +59,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
         status: quitado ? "recebido" : "parcial",
         data_pagamento: data,
         data_recebimento: data,
-        banco_recebimento: input.banco || null,
+        conta_bancaria_recebimento: input.banco || null,
         comprovante_recebimento_url: input.comprovante || null,
         ...(input.comprovante ? { comprovante_url: input.comprovante } : {}),
       })

@@ -358,6 +358,20 @@ export function PagamentoSalarioTab() {
       };
       return updated;
     });
+    // aceita apenas imagens e PDFs
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf")) {
+      toast.error("Formato inválido. Envie uma imagem ou PDF.");
+      setPaymentRows(prev => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          isLoading: false
+        };
+        return updated;
+      });
+      return;
+    }
+
     try {
       const {
         error: uploadError
@@ -929,7 +943,7 @@ export function PagamentoSalarioTab() {
                                 <label className="cursor-pointer">
                                   <input 
                                     type="file" 
-                                    accept="image/*,.pdf" 
+                                    accept="application/pdf,image/*" 
                                     className="hidden" 
                                     onChange={e => {
                                       const file = e.target.files?.[0];
@@ -970,7 +984,7 @@ export function PagamentoSalarioTab() {
                                 <label className="cursor-pointer">
                                   <input 
                                     type="file" 
-                                    accept="image/*,.pdf" 
+                                    accept="application/pdf,image/*" 
                                     className="hidden" 
                                     onChange={e => {
                                       const file = e.target.files?.[0];

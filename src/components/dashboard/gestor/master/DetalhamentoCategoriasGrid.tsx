@@ -22,7 +22,7 @@ interface MovimentacaoRow {
   categoria_id?: string | null;
   categoria_nome?: string | null;
   grupo_custo?: string | null;
-  banco_nome?: string | null;
+  conta_bancaria?: string | null;
   categorias_movimentacao?: { grupo_categoria?: string | null };
 }
 
@@ -122,7 +122,7 @@ export default function DetalhamentoCategoriasGrid({
           mesIdx,
           mes: MESES[mesIdx] ?? "-",
           categoria: (m.categoria_nome || "Sem categoria").trim(),
-          banco: (m.banco_nome || "-").trim(),
+          banco: (m.conta_bancaria || "-").trim(),
           descricao: (m.descricao || "-").trim(),
           valor: val(m),
         };

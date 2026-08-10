@@ -23,7 +23,7 @@ export default function DespesasParticularesTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_pagamento, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, banco_nome",
+            "id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_pagamento, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
           )
           .gte("data_competencia", `${ano}-01-01`)
           .lte("data_competencia", `${ano}-12-31`)

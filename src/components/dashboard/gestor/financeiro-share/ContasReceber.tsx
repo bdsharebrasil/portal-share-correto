@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { ChevronDown } from "lucide-react";
+import { baixarReceitaShare } from "@/lib/receitaShareSync";
 
 const parseLocalDate = (dateString: string | null | undefined): Date | null => {
   if (!dateString) return null;
@@ -151,7 +152,7 @@ function ContasReceber() {
   // periodo agora aceita: "todos" | "mes" — simplificado para Jan-Dez como Despesas Particulares
   const [filters, setFilters] = useState({
     searchTerm: "",
-    status: "all",
+    status: "nao_recebido",
     mes: null as number | null,
   });
 
@@ -209,8 +210,8 @@ function ContasReceber() {
     try {
       const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any)
         .select("*")
-        .neq("status", "recebido")
-        .order("data_vencimento");
+        .order("data_vencimento")
+        .limit(5000);
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
@@ -396,16 +397,19 @@ function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
-      if ((conta as any).status === "recebido" || conta.status === "recebido") return false;
-
       const searchMatch = filters.searchTerm === "" ||
-        conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        (conta.cliente_nome || "").toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        (conta.numero || "").toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
       const filterStatus = (filters as any).status || filters.status;
       const contaStatus = (conta as any).status || conta.status;
-      const statusMatch = filterStatus === "all" || contaStatus === filterStatus;
+      const statusMatch =
+        filterStatus === "all"
+          ? true
+          : filterStatus === "nao_recebido"
+          ? contaStatus !== "recebido"
+          : contaStatus === filterStatus;
 
       const mesMatch = filters.mes === null || (conta.data_vencimento && Number(String(conta.data_vencimento).slice(5, 7)) - 1 === filters.mes);
 
@@ -558,18 +562,6 @@ function ContasReceber() {
         updateData.comprovante_recebimento_url = comprovanteUrl;
       }
 
-      // Em `movimentacoes` o status válido é "pago" (não existe "recebido").
-      const movimentacaoUpdate: any = {
-        status: "pago",
-        data_pagamento: dataRecebimento,
-        banco_nome: nomeBanco,
-        forma_pagamento: metodo_pagamento || null,
-        atualizado_em: new Date().toISOString(),
-      };
-      if (comprovanteUrl) {
-        movimentacaoUpdate.comprovante_url = comprovanteUrl;
-      }
-
       let baixouAlgo = false;
 
       const { data: updatedRows, error: updateError } = await supabase
@@ -581,24 +573,20 @@ function ContasReceber() {
       if (updateError) throw updateError;
       baixouAlgo = !!updatedRows?.length;
 
-      const movimentacaoId = contasReceberData.movimentacao_id || null;
-      let movimentacoesQuery = (supabase.from("movimentacoes") as any)
-        .update(movimentacaoUpdate);
-
-      if (movimentacaoId) {
-        movimentacoesQuery = movimentacoesQuery.eq("id", movimentacaoId);
-      } else if (contasReceberData.reference_type && contasReceberData.reference_id) {
-        movimentacoesQuery = movimentacoesQuery
-          .eq("contas_areceber_id", contasReceberData.id)
-          .eq("reference_type", contasReceberData.reference_type)
-          .eq("reference_id", contasReceberData.reference_id);
-      } else {
-        movimentacoesQuery = movimentacoesQuery.eq("contas_areceber_id", contasReceberData.id);
-      }
-
-      const { data: movRows, error: movimentacoesError } = await movimentacoesQuery.select("id");
-      if (movimentacoesError) throw movimentacoesError;
-      baixouAlgo = baixouAlgo || !!movRows?.length;
+      // Propaga a baixa para todas as pernas (movimentação share, espelho no
+      // caixa do cliente, rateio por cotista) com o banco de entrada.
+      const sync = await baixarReceitaShare({
+        movId: contasReceberData.movimentacao_id || null,
+        contasAreceberId: contasReceberData.id,
+        data: dataRecebimento,
+        valorRecebido: Number(contasReceberData.valor) || null,
+        banco: nomeBanco,
+        bancoId: selectedBank || null,
+        comprovante: comprovanteUrl || null,
+        formaPagamento: metodo_pagamento || null,
+        isReembolso: String(contasReceberData.reference_type || "").includes("reembolso"),
+      });
+      baixouAlgo = baixouAlgo || !!sync.movId || sync.movClienteIds.length > 0;
 
       if (!baixouAlgo) {
         throw new Error(
@@ -769,8 +757,11 @@ function ContasReceber() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="nao_recebido">Não recebidas</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="inadimplente">Vencida</SelectItem>
+                <SelectItem value="aguardando_reembolso">Aguardando reembolso</SelectItem>
+                <SelectItem value="recebido">Recebido</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>

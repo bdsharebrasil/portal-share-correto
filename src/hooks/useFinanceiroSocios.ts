@@ -73,7 +73,7 @@ export type PartnerTransaction = PartnerTransactionRow & {
   criado_em: string | null;
   atualizado_em: string | null;
   status: string | null;
-  banco_nome: string | null;
+  conta_bancaria: string | null;
   documento: string | null;
   subtipo: string | null;
 };
@@ -159,7 +159,7 @@ function normalizePartnerTransaction(transaction: Record<string, any>): PartnerT
   const createdAt = transaction.created_at ?? transaction.criado_em ?? null;
   const updatedAt = transaction.updated_at ?? transaction.atualizado_em ?? null;
   const status = transaction.status ?? null;
-  const bankName = transaction.bank_name ?? transaction.banco_nome ?? null;
+  const bankName = transaction.bank_name ?? transaction.conta_bancaria ?? null;
   const doc = transaction.doc ?? transaction.documento ?? null;
   const subtype = transaction.transaction_subtype ?? transaction.subtipo ?? null;
   const partnerCpf = transaction.partner_cpf ?? transaction.socio_cpf ?? "";
@@ -200,8 +200,8 @@ function normalizePartnerTransaction(transaction: Record<string, any>): PartnerT
     criado_em: createdAt,
     atualizado_em: updatedAt,
     status,
-    banco_nome: bankName,
-    bank_name: bankName,
+    conta_bancaria: bankName,
+    
     payment_method: transaction.payment_method ?? transaction.metodo_pagamento ?? null,
     metodo_pagamento: transaction.metodo_pagamento ?? transaction.payment_method ?? null,
     prazo: transaction.prazo ?? null,
@@ -708,7 +708,7 @@ export function useAddDeposit(showToast = true) {
           descricao: data.description,
           url_comprovante: data.receiptUrl || null,
           data_pagamento: data.paymentDate,
-          banco_nome: data.bankName?.toUpperCase() || null,
+          conta_bancaria: data.bankName?.toUpperCase() || null,
           subtipo: data.transactionSubtype?.toUpperCase() || "deposit",
           tipo_referencia: data.referenceType || null,
           referencia_id: data.referenceId || null,
@@ -735,7 +735,7 @@ export function useAddDeposit(showToast = true) {
           data_pagamento: data.paymentDate,
           status: "pago",
           clientes_id: data.clientId,
-          banco_nome: data.bankName?.toUpperCase() || null,
+          conta_bancaria: data.bankName?.toUpperCase() || null,
           forma_pagamento: data.paymentMethod?.toUpperCase() || null,
           fornecedor_nome: data.partnerName,
           numero_doc: data.documento || null,
@@ -1044,7 +1044,7 @@ export function useCreateExpense(showToast = true) {
             status: isPaid ? "pago" : "pendente",
             clientes_id: data.clientId,
             aeronave_id: data.aircraftId || null,
-            banco_nome: normalizedBankName,
+            conta_bancaria: normalizedBankName,
             forma_pagamento: normalizedPaymentMethod,
             fornecedor_nome: normalizedSupplierName,
             numero_doc: data.doc || null,
@@ -1097,7 +1097,7 @@ export function useAddBankInterest() {
           saldo_depois: 0,
           descricao: data.description,
           data_pagamento: data.paymentDate,
-          banco_nome: data.bankName?.toUpperCase() || null,
+          conta_bancaria: data.bankName?.toUpperCase() || null,
           subtipo: "interest",
           metodo_pagamento: "outros",
           status: "recebido",
@@ -1119,7 +1119,7 @@ export function useAddBankInterest() {
           data_pagamento: data.paymentDate,
           status: "pago",
           clientes_id: data.clientId,
-          banco_nome: data.bankName?.toUpperCase() || null,
+          conta_bancaria: data.bankName?.toUpperCase() || null,
           forma_pagamento: "outros",
           fornecedor_nome: data.bankName,
           criado_por: null,
@@ -1323,7 +1323,7 @@ export function useUpdateTransaction() {
           status: isPaid ? "pago" : "pendente",
           clientes_id: data.clientId,
           aeronave_id: data.aircraftId || null,
-          banco_nome: normBankName,
+          conta_bancaria: normBankName,
           forma_pagamento: normPaymentMethod,
           fornecedor_nome: normSupplierName,
           numero_nf: data.invoiceNumber || null,
@@ -1345,7 +1345,7 @@ export function useUpdateTransaction() {
           descricao: data.description,
           observacao: data.notes || null,
           abastecedor: data.supplierName || null,
-          banco: data.bankName || null,
+          conta_bancaria: data.bankName || null,
           partner_name: data.assignedPartnerName || null,
           nf: data.invoiceNumber || null,
           nota_url: data.invoiceUrl || null,
@@ -1382,7 +1382,7 @@ export function useUpdateTransaction() {
             valor: parseFloat(data.amount.toFixed(2)),
             data_pagamento: data.paymentDate,
             observacoes: data.notes || null,
-            banco_nome: data.bankName || null,
+            conta_bancaria: data.bankName || null,
             prazo: data.prazo ? (data.prazo.toLowerCase() as "mensal" | "extra") : "extra",
             metodo_pagamento: data.paymentMethod?.toUpperCase() || null,
             status: data.status?.toLowerCase() || null,

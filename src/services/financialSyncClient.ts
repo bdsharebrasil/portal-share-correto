@@ -75,7 +75,7 @@ export async function syncSalaryPaymentToFinancial(
         data_competencia: dataPagamento,
         data_pagamento: dataPagamento,
         status: "pago",
-        banco_nome: components.banco ?? null,
+        conta_bancaria: components.banco ?? null,
         comprovante_url: components.comprovante_url ?? null,
         observacoes: components.obs ?? null,
         fornecedor_nome: employeeName,

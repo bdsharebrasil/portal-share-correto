@@ -91,14 +91,14 @@ const emptyForm: FormState = {
 
 interface BaixaFormState {
   data_pagamento: string;
-  banco_nome: string;
+  conta_bancaria: string;
   forma_pagamento: string;
   comprovante_url: string;
 }
 
 const emptyBaixaForm: BaixaFormState = {
   data_pagamento: new Date().toISOString().slice(0, 10),
-  banco_nome: "",
+  conta_bancaria: "",
   forma_pagamento: "PIX",
   comprovante_url: "",
 };
@@ -903,7 +903,7 @@ export default function NFSaidaTab() {
         status: "recebido",
         data_pagamento: baixaForm.data_pagamento,
         data_recebimento: baixaForm.data_pagamento,
-        banco_recebimento: baixaForm.banco_nome || null,
+        conta_bancaria: baixaForm.conta_bancaria || null,
         metodo_pagamento: baixaForm.forma_pagamento || null,
         comprovante_recebimento_url: baixaForm.comprovante_url || null,
         comprovante_url: baixaForm.comprovante_url || null,
@@ -914,7 +914,7 @@ export default function NFSaidaTab() {
       const { error: movShareErr } = await supabase.from("movimentacoes").update({
         status: "recebido",
         data_pagamento: baixaForm.data_pagamento,
-        banco_nome: baixaForm.banco_nome || null,
+        conta_bancaria: baixaForm.conta_bancaria || null,
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
         atualizado_em: agora,
@@ -924,7 +924,7 @@ export default function NFSaidaTab() {
       const { error: movClienteErr } = await supabase.from("movimentacoes").update({
         status: "pago",
         data_pagamento: baixaForm.data_pagamento,
-        banco_nome: baixaForm.banco_nome || null,
+        conta_bancaria: baixaForm.conta_bancaria || null,
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
         atualizado_em: agora,
@@ -1364,7 +1364,7 @@ export default function NFSaidaTab() {
                   {FORMAS_PAGAMENTO.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select></div>
               <div className="sm:col-span-2"><label className={labelCls}>Banco</label>
-                <input list="bancos-share-list" className={inputCls} value={baixaForm.banco_nome} onChange={(e) => setBaixaForm({ ...baixaForm, banco_nome: e.target.value })} placeholder="Ex: Banco do Brasil - Conta 12345-6" />
+                <input list="bancos-share-list" className={inputCls} value={baixaForm.conta_bancaria} onChange={(e) => setBaixaForm({ ...baixaForm, conta_bancaria: e.target.value })} placeholder="Ex: Banco do Brasil - Conta 12345-6" />
                 <datalist id="bancos-share-list">
                   {contasBancarias.map((b) => (
                     <option key={b.id} value={`${b.banco}${b.numero_conta ? " - " + b.numero_conta : ""}`} />

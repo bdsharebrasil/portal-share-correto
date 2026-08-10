@@ -80,7 +80,7 @@ function useMovimentacoesMensal() {
           status,
           numero_doc,
           forma_pagamento,
-          banco_nome,
+      
           conta_bancaria,
           grupo_custo,
           categoria_id,
@@ -161,7 +161,7 @@ function useMovimentacoesMensal() {
         grupo_categoria: row.grupo_custo,
         numero_parcela: row.numero_parcela,
         quantidade_parcelas: row.quantidade_parcelas,
-        conta_banco: row.conta_bancaria || row.banco_nome || null,
+        conta_banco: row.conta_bancaria || row.conta_bancaria || null,
         metodo_pagamento: row.forma_pagamento,
         status: row.status,
         tipo_caixa: row.tipo_caixa,

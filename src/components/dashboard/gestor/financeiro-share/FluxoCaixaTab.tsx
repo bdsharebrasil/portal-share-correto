@@ -117,7 +117,6 @@ interface Movimentacao {
   boleto_url: string | null;
   recibo_url: string | null;
   conta_bancaria: string | null;
-  banco_nome: string | null;
   reembolsavel: boolean | null;
   reembolso_quitado: boolean | null;
   observacoes: string | null;
@@ -315,7 +314,8 @@ export default function FluxoCaixaTab() {
       const { data, error: e } = await supabase
         .from("movimentacoes")
         .select("*")
-        .order("data_competencia", { ascending: false });
+        .order("data_competencia", { ascending: false })
+        .limit(5000);
       if (e) throw e;
       setMovs((data ?? []) as unknown as Movimentacao[]);
     } catch (e: any) {
@@ -1244,7 +1244,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                   {detail("Valor Total", fmtNum(rateio?.valor_total_despesa))}
                   {detail("Valor Rateado", fmtNum(rateio?.valor_rateado))}
                   {detail("Valor Pago Real", fmtNum(rateio?.valor_pago_real ?? valorDe(m)))}
-                  {detail("Conta", m.conta_bancaria || m.banco_nome)}
+                  {detail("Conta", m.conta_bancaria || m.conta_bancaria)}
                 </div>
                 {(rateio?.observacoes || m.observacoes) && (
                   <div className="mt-3">

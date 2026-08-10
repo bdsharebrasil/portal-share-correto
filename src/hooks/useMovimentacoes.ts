@@ -72,7 +72,7 @@ export function useMovimentacoes() {
           conta_bancaria,
           enviado_por_email,
           enviado_por_email_em,
-          banco_nome,
+       
           aeronave_id,
           clientes_id,
           categoria_id
@@ -165,7 +165,7 @@ export function useMovimentacoes() {
           cliente_id: clienteId,
           cliente_nome: (clienteId && clientesById.get(clienteId)) || null,
           valor: Number(row.valor),
-          conta_banco: row.conta_bancaria || row.banco_nome || null,
+          conta_banco: row.conta_bancaria || row.conta_bancaria || null,
           aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
           numero_documento:
             row.numero_doc || row.numero_nf || row.numero_boleto || row.numero_recibo || null,

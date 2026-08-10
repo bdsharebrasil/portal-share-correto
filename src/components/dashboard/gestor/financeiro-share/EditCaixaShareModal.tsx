@@ -170,7 +170,6 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         valor_rateado: numOrNull(mov.valor_rateado),
         status: mov.status,
         forma_pagamento: mov.forma_pagamento,
-        banco_nome: mov.banco_nome,
         conta_bancaria: mov.conta_bancaria,
         data_pagamento: String(mov.status || "").trim().toLowerCase() === "pendente" ? null : mov.data_pagamento || null,
         reembolsavel: !!mov.reembolsavel,
@@ -277,10 +276,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
                 <label className={labelCls}>Forma</label>
                 <SearchableCombobox items={FORMAS_PGTO} value={mov.forma_pagamento || ""} onChange={(v) => setM("forma_pagamento", v)} placeholder="Forma" icon={<CreditCard className="h-3.5 w-3.5" />} />
               </div>
-              <div>
-                <label className={labelCls}>Banco</label>
-                <SearchableCombobox items={bancoOptions} value={mov.banco_nome || ""} onChange={(v) => setM("banco_nome", v)} placeholder="Banco" allowFreeText icon={<Building2 className="h-3.5 w-3.5" />} />
-              </div>
+             
               <div>
                 <label className={labelCls}>Conta</label>
                 <SearchableCombobox items={contaOptions} value={mov.conta_bancaria || ""} onChange={(v) => setM("conta_bancaria", v)} placeholder="Conta" allowFreeText />

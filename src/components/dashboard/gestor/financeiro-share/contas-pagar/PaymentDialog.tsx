@@ -411,7 +411,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         .update({
           status: "pago",
           data_pagamento: dataPagamento,
-          banco_nome: banco,
+          conta_bancaria: contasBancarias,
           forma_pagamento: metodoPagamento,
           comprovante_url: comprovanteUrl || null,
           atualizado_em: new Date().toISOString(),

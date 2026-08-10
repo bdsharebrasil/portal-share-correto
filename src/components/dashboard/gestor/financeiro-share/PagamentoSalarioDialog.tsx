@@ -115,6 +115,12 @@ export function PagamentoSalarioDialog({
   const handleComprovanteUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // aceita apenas imagens e PDFs
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf")) {
+      toast.error("Formato inválido. Envie uma imagem ou PDF.");
+      e.target.value = "";
+      return;
+    }
 
     setIsUploadingComprovante(true);
     try {
@@ -132,6 +138,12 @@ export function PagamentoSalarioDialog({
   const handleHoleriteUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // aceita apenas imagens e PDFs
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf")) {
+      toast.error("Formato inválido. Envie uma imagem ou PDF.");
+      e.target.value = "";
+      return;
+    }
 
     setIsUploadingHolerite(true);
     try {
@@ -472,7 +484,7 @@ export function PagamentoSalarioDialog({
               <div className="flex items-center gap-2">
                 <Input
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
+                  accept="application/pdf,image/*"
                   onChange={handleHoleriteUpload}
                   disabled={isUploadingHolerite}
                   className="hidden"
@@ -520,7 +532,7 @@ export function PagamentoSalarioDialog({
               <div className="flex items-center gap-2">
                 <Input
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
+                  accept="application/pdf,image/*"
                   onChange={handleComprovanteUpload}
                   disabled={isUploadingComprovante}
                   className="hidden"

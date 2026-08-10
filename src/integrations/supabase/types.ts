@@ -4155,13 +4155,6 @@ export type Database = {
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "despesas_manutencao_partner_expense_id_fkey"
-            columns: ["partner_expense_id"]
-            isOneToOne: false
-            referencedRelation: "partner_expenses"
-            referencedColumns: ["id"]
-          },
         ]
       }
       despesas_manutencao_rateio: {
@@ -6688,13 +6681,13 @@ export type Database = {
         Row: {
           aeronave_id: string | null
           atualizado_em: string
-          banco_nome: string | null
           boleto_url: string | null
           categoria_id: string | null
           categoria_nome: string | null
           clientes_id: string | null
           comprovante_url: string | null
           conciliacao_id: string | null
+          conta_bancaria: string | null
           contas_apagar_id: string | null
           contas_areceber_id: string | null
           criado_em: string
@@ -6739,13 +6732,13 @@ export type Database = {
         Insert: {
           aeronave_id?: string | null
           atualizado_em?: string
-          banco_nome?: string | null
           boleto_url?: string | null
           categoria_id?: string | null
           categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
+          conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
           criado_em?: string
@@ -6790,13 +6783,13 @@ export type Database = {
         Update: {
           aeronave_id?: string | null
           atualizado_em?: string
-          banco_nome?: string | null
           boleto_url?: string | null
           categoria_id?: string | null
           categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
+          conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
           criado_em?: string
@@ -7251,236 +7244,6 @@ export type Database = {
             columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      partner_expenses: {
-        Row: {
-          atualizado_em: string | null
-          boleto_url: string | null
-          categoria: string | null
-          clientes_id: string
-          cpf_socio: string | null
-          criado_em: string | null
-          criado_por: string | null
-          data_inicio_parcelamento: string | null
-          data_pagamento: string | null
-          data_vencimento: string | null
-          demonstrativo_url: string | null
-          descricao: string
-          doc: string | null
-          id: string
-          id_aeronave: string | null
-          id_despesa_pai: string | null
-          id_referencia: string | null
-          metodo_pagamento: string | null
-          nf_url: string | null
-          nome_banco: string | null
-          nome_fornecedor: string | null
-          nome_socio: string | null
-          numero_fatura: string | null
-          numero_parcela: number | null
-          observacoes: string | null
-          percentual_socio: number | null
-          prazo: string
-          quantidade_parcelas: number | null
-          status: string | null
-          tipo_despesa: string
-          tipo_referencia: string | null
-          url_fatura: string | null
-          valor_total: number
-        }
-        Insert: {
-          atualizado_em?: string | null
-          boleto_url?: string | null
-          categoria?: string | null
-          clientes_id: string
-          cpf_socio?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          data_inicio_parcelamento?: string | null
-          data_pagamento?: string | null
-          data_vencimento?: string | null
-          demonstrativo_url?: string | null
-          descricao: string
-          doc?: string | null
-          id?: string
-          id_aeronave?: string | null
-          id_despesa_pai?: string | null
-          id_referencia?: string | null
-          metodo_pagamento?: string | null
-          nf_url?: string | null
-          nome_banco?: string | null
-          nome_fornecedor?: string | null
-          nome_socio?: string | null
-          numero_fatura?: string | null
-          numero_parcela?: number | null
-          observacoes?: string | null
-          percentual_socio?: number | null
-          prazo: string
-          quantidade_parcelas?: number | null
-          status?: string | null
-          tipo_despesa: string
-          tipo_referencia?: string | null
-          url_fatura?: string | null
-          valor_total: number
-        }
-        Update: {
-          atualizado_em?: string | null
-          boleto_url?: string | null
-          categoria?: string | null
-          clientes_id?: string
-          cpf_socio?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          data_inicio_parcelamento?: string | null
-          data_pagamento?: string | null
-          data_vencimento?: string | null
-          demonstrativo_url?: string | null
-          descricao?: string
-          doc?: string | null
-          id?: string
-          id_aeronave?: string | null
-          id_despesa_pai?: string | null
-          id_referencia?: string | null
-          metodo_pagamento?: string | null
-          nf_url?: string | null
-          nome_banco?: string | null
-          nome_fornecedor?: string | null
-          nome_socio?: string | null
-          numero_fatura?: string | null
-          numero_parcela?: number | null
-          observacoes?: string | null
-          percentual_socio?: number | null
-          prazo?: string
-          quantidade_parcelas?: number | null
-          status?: string | null
-          tipo_despesa?: string
-          tipo_referencia?: string | null
-          url_fatura?: string | null
-          valor_total?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["id_aeronave"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["id_aeronave"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["id_aeronave"]
-            isOneToOne: false
-            referencedRelation: "vw_aeronave_totais"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_parent_expense_id_fkey"
-            columns: ["id_despesa_pai"]
-            isOneToOne: false
-            referencedRelation: "partner_expenses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      partner_transactions: {
-        Row: {
-          atualizado_em: string | null
-          banco_nome: string | null
-          clientes_id: string
-          criado_em: string | null
-          criado_por: string | null
-          data_pagamento: string | null
-          descricao: string | null
-          documento: string | null
-          id: string
-          metodo_pagamento: string | null
-          observacoes: string | null
-          prazo: string | null
-          referencia_id: string | null
-          saldo_antes: number
-          saldo_depois: number
-          socio_cpf: string
-          socio_nome: string
-          status: string | null
-          subtipo: string | null
-          tipo: string
-          tipo_referencia: string | null
-          url_comprovante: string | null
-          valor: number
-        }
-        Insert: {
-          atualizado_em?: string | null
-          banco_nome?: string | null
-          clientes_id: string
-          criado_em?: string | null
-          criado_por?: string | null
-          data_pagamento?: string | null
-          descricao?: string | null
-          documento?: string | null
-          id?: string
-          metodo_pagamento?: string | null
-          observacoes?: string | null
-          prazo?: string | null
-          referencia_id?: string | null
-          saldo_antes: number
-          saldo_depois: number
-          socio_cpf: string
-          socio_nome: string
-          status?: string | null
-          subtipo?: string | null
-          tipo: string
-          tipo_referencia?: string | null
-          url_comprovante?: string | null
-          valor: number
-        }
-        Update: {
-          atualizado_em?: string | null
-          banco_nome?: string | null
-          clientes_id?: string
-          criado_em?: string | null
-          criado_por?: string | null
-          data_pagamento?: string | null
-          descricao?: string | null
-          documento?: string | null
-          id?: string
-          metodo_pagamento?: string | null
-          observacoes?: string | null
-          prazo?: string | null
-          referencia_id?: string | null
-          saldo_antes?: number
-          saldo_depois?: number
-          socio_cpf?: string
-          socio_nome?: string
-          status?: string | null
-          subtipo?: string | null
-          tipo?: string
-          tipo_referencia?: string | null
-          url_comprovante?: string | null
-          valor?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "partner_transactions_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]

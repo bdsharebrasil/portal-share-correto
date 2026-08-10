@@ -71,7 +71,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     data_pagamento: "",
     status: "pendente",
     forma_pagamento: "",
-    banco_nome: "",
+    conta_bancaria: "",
     colaborador: "",
     fornecedor_nome: "",
     parcelado: false,
@@ -189,7 +189,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           data_pagamento: i === 0 ? form.data_pagamento || null : null,
           status: i === 0 ? form.status : "pendente",
           forma_pagamento: form.forma_pagamento || null,
-          banco_nome: form.banco_nome || null,
+          conta_bancaria: form.conta_bancaria || null,
           pago_por: form.colaborador || null,
           fornecedor_nome: form.fornecedor_nome || null,
           quantidade_parcelas: parcelas,
@@ -224,7 +224,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               data_pagamento: payload.data_pagamento,
               status: jaLiquidado ? "pago" : "pendente",
               fornecedor_nome: form.fornecedor_nome || null,
-              banco_pagamento: form.banco_nome || null,
+              conta_bancaria: form.conta_bancaria || null,
               empresa: "SHARE BRASIL",
               observacoes: form.observacoes || null,
               movimentacao_id: (mov as any).id,
@@ -252,7 +252,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               data_vencimento: vencimento || competencia,
               data_pagamento: payload.data_pagamento,
               status: jaLiquidado ? "recebido" : "pendente",
-              banco_recebimento: form.banco_nome || null,
+              conta_bancaria: form.conta_bancaria || null,
               metodo_pagamento: form.forma_pagamento || null,
               movimentacao_id: (mov as any).id,
               reference_type: "movimentacao_share",
@@ -379,8 +379,8 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
             <Label>Banco / Conta</Label>
             <SearchableCombobox
               items={bancoItems}
-              value={form.banco_nome}
-              onChange={(id) => set({ banco_nome: id })}
+              value={form.conta_bancaria}
+              onChange={(id) => set({ conta_bancaria: id })}
               placeholder="Selecione o banco"
               allowFreeText
             />

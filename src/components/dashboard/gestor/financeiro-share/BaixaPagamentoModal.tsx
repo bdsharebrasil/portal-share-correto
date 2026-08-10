@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox as UISearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { baixarReceitaShare } from "@/lib/receitaShareSync";
 
 interface SocioOption {
   id: string;
@@ -170,6 +171,9 @@ export default function BaixaPagamentoModal({
   onSuccess: (updated: Partial<Movimentacao>) => void;
 }) {
   const entrada = isEntrada(mov);
+  const baixaReceitaSharePeloCliente =
+    norm(mov.tipo_caixa) === "cliente" &&
+    String(mov.reference_type || "").endsWith(":mov_cliente");
   // `movimentacoes` não possui coluna `valor`: usamos o rateado / original.
   const valorRateadoBase = num(mov.valor_rateado) || num(mov.valor);
   const valorTotal = num(mov.valor_original) || valorRateadoBase;
@@ -196,18 +200,44 @@ export default function BaixaPagamentoModal({
   const [socios, setSocios] = useState<SocioOption[]>([]);
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
 
-  // Load socios (cotistas) da aeronave / cliente
+  // Load cotistas: sócios do cliente + cotistas (clientes) da aeronave
   useEffect(() => {
-    if (!mov.clientes_id) return;
     (async () => {
-      const { data } = await supabase
-        .from("socios")
-        .select("id, nome, percentual_participacao")
-        .eq("clientes_id", mov.clientes_id)
-        .order("nome");
-      setSocios((data as SocioOption[]) || []);
+      const opts: SocioOption[] = [];
+      const clienteIds = new Set<string>();
+      if (mov.clientes_id) clienteIds.add(mov.clientes_id);
+
+      if (mov.aeronave_id) {
+        const { data: cotistas } = await supabase
+          .from("cotistas_aeronave")
+          .select("id_clientes")
+          .eq("id_aeronave", mov.aeronave_id);
+        (cotistas ?? []).forEach((c: any) => c.id_clientes && clienteIds.add(c.id_clientes));
+      }
+
+      const ids = Array.from(clienteIds);
+      if (ids.length > 0) {
+        const [{ data: socs }, { data: clis }] = await Promise.all([
+          supabase
+            .from("socios")
+            .select("id, nome, percentual_participacao, clientes_id")
+            .in("clientes_id", ids)
+            .order("nome"),
+          supabase.from("clientes").select("id, razao_social, proprietario").in("id", ids),
+        ]);
+        (clis ?? []).forEach((c: any) => {
+          const nome = c.razao_social || c.proprietario;
+          if (nome && !opts.some((o) => o.nome === nome))
+            opts.push({ id: c.id, nome, percentual_participacao: null });
+        });
+        (socs ?? []).forEach((s: any) => {
+          if (s.nome && !opts.some((o) => o.nome === s.nome))
+            opts.push({ id: s.id, nome: s.nome, percentual_participacao: s.percentual_participacao });
+        });
+      }
+      setSocios(opts);
     })();
-  }, [mov.clientes_id]);
+  }, [mov.clientes_id, mov.aeronave_id]);
 
   useEffect(() => {
     (async () => {
@@ -328,6 +358,10 @@ export default function BaixaPagamentoModal({
       setError("Informe a data de pagamento.");
       return;
     }
+    if ((entrada || baixaReceitaSharePeloCliente) && !bancoNome) {
+      setError("Selecione o banco onde o valor entrou.");
+      return;
+    }
     setSaving(true);
     try {
       const validAnexos = anexos.filter((a) => a.file_url);
@@ -349,15 +383,13 @@ export default function BaixaPagamentoModal({
         updatePayload.reembolsavel = true;
         updatePayload.reembolso_quitado = false;
         updatePayload.pago_por = "share";
-        updatePayload.banco_nome = bancoNome || null;
+        updatePayload.conta_bancaria = bancoNome || null;
       } else {
         updatePayload.reembolsavel = false;
         updatePayload.reembolso_quitado = false;
-        // Para entradas (receita/reembolso recebido), registramos o banco
-        // onde o valor entrou na Share.
-        if (entrada) {
-          updatePayload.banco_nome = bancoNome || null;
-        }
+        // Registramos sempre o banco/conta usado na baixa (entrada ou saída).
+        if (bancoNome) updatePayload.conta_bancaria = bancoNome;
+        if (bancoSelecionadoId) updatePayload.conta_bancaria = bancoSelecionadoId;
       }
 
       // 1. Update movimentacoes
@@ -562,6 +594,29 @@ export default function BaixaPagamentoModal({
         await supabase.from("movimentacoes").update(urlUpdate as any).eq("id", mov.id);
       }
 
+      // 8. Entradas/receitas do caixa Share: propaga a baixa para o espelho no
+      // caixa do cliente, contas a receber e rateio por cotista.
+      if ((entrada || baixaReceitaSharePeloCliente) && !comReembolso) {
+        const sync = await baixarReceitaShare({
+          movId: mov.id,
+          contasAreceberId: mov.contas_areceber_id,
+          data: dataPagamento,
+          valorRecebido:
+            rateioRows.length > 0
+              ? rateioRows.reduce((s, r) => s + (Number(r.valor_pago_real) || 0), 0) || valorTotal
+              : valorTotal,
+          banco: bancoNome || null,
+          bancoId: bancoSelecionadoId || null,
+          comprovante: comprovante?.file_url || null,
+          pagador: rateioRows.find((r) => r.pago_por)?.pago_por || null,
+          formaPagamento: mov.forma_pagamento || null,
+          isReembolso: !!mov.reembolsavel,
+        });
+        if (!sync.shareMovId) {
+          throw new Error("Não foi possível localizar a receita correspondente no caixa Share.");
+        }
+      }
+
       onSuccess(updatePayload);
     } catch (e: any) {
       setError(e.message || "Erro ao salvar baixa.");
@@ -656,12 +711,11 @@ export default function BaixaPagamentoModal({
             </div>
           </div>
 
-          {/* Banco usado na baixa — sempre visível para entradas (receita/reembolso)
-              e também quando a Share paga fornecedor com reembolso */}
-          {(comReembolso || entrada) && (
-            <div>
+          {/* Banco usado na baixa — obrigatório em entradas/receitas/reembolsos e
+              sempre disponível para registrar de qual conta saiu/entrou o valor */}
+          <div>
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Banco
+                Banco {(entrada || baixaReceitaSharePeloCliente) ? "(obrigatório)" : ""}
               </label>
               <UISearchableCombobox
                 items={bancos}
@@ -674,8 +728,7 @@ export default function BaixaPagamentoModal({
                 searchPlaceholder="Buscar banco..."
                 emptyMessage="Nenhum banco encontrado."
               />
-            </div>
-          )}
+          </div>
 
           {/* Info about pagoDiretamente / comReembolso */}
           <div
@@ -730,7 +783,7 @@ export default function BaixaPagamentoModal({
                     className="grid grid-cols-12 gap-2 items-center rounded-lg border border-slate-800 bg-slate-800/40 px-2 py-2"
                   >
                     <div className="col-span-12 md:col-span-3 text-sm text-slate-100 truncate">
-                      {r.socios_nome || "—"}
+                      {r.socios_nome || r.clientes_nome || "—"}
                     </div>
                     <div className="col-span-4 md:col-span-2">
                       <input

@@ -87,7 +87,7 @@ export function useLinkAbastecimentoDespesa() {
       if (updateError) throw updateError;
 
       // Update partner_expenses notes to reference abastecimento
-      const { error: linkError } = await supabase
+      const { error: linkError } = await (supabase as any)
         .from("partner_expenses")
         .update({
           observacoes: `Vinculado ao abastecimento: ${data.abastecimentoId}`,
