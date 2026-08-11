@@ -52,3 +52,20 @@ export function suggestFlightLevel(
     suggestedRoute: isIFR ? 'DCT' : 'VFR DCT',
   };
 }
+
+/** Formata uma altitude em pés como nível de voo (ex.: 9000 → "FL090"). */
+export function formatarFL(altitudeFt: number): string {
+  return flLabel(altitudeFt);
+}
+
+/** Rumo verdadeiro inicial (graus 0-360) entre dois pontos geográficos. */
+export function calcularRumo(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const dLon = toRad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}

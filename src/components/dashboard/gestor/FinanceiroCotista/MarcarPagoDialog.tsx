@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
   const [banco, setBanco] = useState("");
   const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [rateioRows, setRateioRows] = useState<any[]>([]);
 
   const comprovanteUrl = anexos.find((anexo) => anexo.tipo === "comprovante")?.url || anexos[0]?.url || null;
 
@@ -43,6 +44,22 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
     setBanco("");
     setAnexos([]);
   };
+
+  useEffect(() => {
+    if (!itemId) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("rateio_despesas")
+          .select("id, cliente_id, clientes_nome, socio_id, socios_nome, percentual_uso, valor_rateado, valor_pago_real, pago_por, status")
+          .eq("despesa_id", itemId)
+          .order("criado_em", { ascending: true });
+        setRateioRows((data as any[]) || []);
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [itemId]);
 
   const handleSubmit = async () => {
     if (anexos.some((anexo) => anexo.uploading)) return toast.error("Aguarde o envio dos anexos");
@@ -61,6 +78,23 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
           })
           .eq("id", itemId);
         if (error) throw error;
+
+        // Se houver rateio associado a esta despesa, atualiza os valores/pagadores
+        if (rateioRows && rateioRows.length > 0) {
+          await Promise.all(
+            rateioRows.map((r) =>
+              supabase
+                .from("rateio_despesas")
+                .update({
+                  valor_pago_real: r.valor_pago_real ?? null,
+                  pago_por: r.pago_por ?? null,
+                  status: r.status || (r.valor_pago_real ? "pago" : "pendente"),
+                  data_pagamento: dataPagamento,
+                })
+                .eq("id", r.id),
+            ),
+          );
+        }
       } else if (tipo === "reembolso") {
         const { error } = await (supabase.from("conciliacoes_bancarias") as any)
           .update({
@@ -118,6 +152,30 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
               <div className="space-y-2"><Label>Banco</Label><Input value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="Banco de origem" className="rounded-xl" /></div>
             </div>
           </section>
+
+          {rateioRows && rateioRows.length > 0 && (
+            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rateio associado</p>
+              <div className="space-y-3">
+                {rateioRows.map((r, i) => (
+                  <div key={r.id || i} className="grid grid-cols-1 gap-3 md:grid-cols-3 items-end">
+                    <div>
+                      <Label>Cliente / Cotista</Label>
+                      <div className="text-sm text-slate-200">{r.clientes_nome || r.socios_nome || "—"}</div>
+                    </div>
+                    <div>
+                      <Label>Valor pago pelo cliente</Label>
+                      <Input type="number" step="0.01" value={r.valor_pago_real ?? ""} onChange={(e) => setRateioRows((prev) => prev.map((p, idx) => idx === i ? { ...p, valor_pago_real: e.target.value === "" ? null : Number(e.target.value) } : p))} />
+                    </div>
+                    <div>
+                      <Label>Quem pagou</Label>
+                      <Input value={r.pago_por || ""} onChange={(e) => setRateioRows((prev) => prev.map((p, idx) => idx === i ? { ...p, pago_por: e.target.value } : p))} placeholder="Nome do pagador" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
             <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`pagamentos-cotista/${itemId}`} />

@@ -34,6 +34,12 @@ interface RateioRow {
   valor_pago_real: number | null;
   pago_por: string | null;
   status: string | null;
+  tipo_rateio?: string | null;
+  percentual_sociedade?: number | null;
+  periodicidade?: string | null;
+  valor_total_despesa?: number | null;
+  /** UI-only: marcado quando outro cotista pagou 100% da despesa */
+  pago_por_outro?: boolean;
 }
 
 interface Movimentacao {
@@ -260,19 +266,58 @@ export default function BaixaPagamentoModal({
     })();
   }, []);
 
-  // Load rateio rows vinculados a essa movimentação
+  // Load rateio rows vinculados a essa movimentação (todos os campos do rateio,
+  // pré-preenchidos para a baixa — inclusive quando não é despesa de reembolso)
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("rateio_despesas")
-        .select("id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, valor_rateado, valor_pago_real, pago_por, status")
+        .select(
+          "id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, percentual_sociedade, tipo_rateio, periodicidade, valor_total_despesa, valor_rateado, valor_pago_real, pago_por, status",
+        )
         .eq("despesa_id", mov.id);
-      setRateioRows((data as RateioRow[]) || []);
+      const rows = ((data as RateioRow[]) || []).map((r) => ({
+        ...r,
+        // Sugestão: o cotista paga o que lhe foi rateado
+        valor_pago_real:
+          r.valor_pago_real === null || r.valor_pago_real === undefined
+            ? Number(r.valor_rateado) || 0
+            : Number(r.valor_pago_real),
+        pago_por: r.pago_por || r.clientes_nome || r.socios_nome || null,
+      }));
+      setRateioRows(rows);
     })();
   }, [mov.id]);
 
+  const totalDespesaRateio =
+    rateioRows.reduce((s, r) => s + (Number(r.valor_total_despesa) || 0), 0) / (rateioRows.length || 1) ||
+    valorTotal;
+
+  /**
+   * Atualiza uma linha do rateio. Se um cotista pagar 100% da despesa,
+   * zera automaticamente os demais e sinaliza que outro cliente pagou.
+   */
   const updateRateioRow = (id: string, patch: Partial<RateioRow>) =>
-    setRateioRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setRateioRows((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, ...patch } : r));
+      if (!("valor_pago_real" in patch)) return next;
+      const alvo = next.find((r) => r.id === id);
+      const total = Number(totalDespesaRateio) || valorTotal;
+      const pagouTudo = !!alvo && total > 0 && (Number(alvo.valor_pago_real) || 0) >= total - 0.01;
+      return next.map((r) => {
+        if (r.id === id) return { ...r, pago_por_outro: false };
+        if (pagouTudo) {
+          return {
+            ...r,
+            valor_pago_real: 0,
+            pago_por: alvo?.pago_por || alvo?.clientes_nome || alvo?.socios_nome || r.pago_por,
+            pago_por_outro: true,
+          };
+        }
+        return { ...r, pago_por_outro: false };
+      });
+    });
+
 
   // Load existing anexos
   useEffect(() => {
@@ -527,33 +572,39 @@ export default function BaixaPagamentoModal({
       }
 
       // 5. Update rateio_despesas para esta movimentação
-      if (comReembolso) {
-        // O rateio real por cotista só é conhecido quando o cliente quitar o
-        // reembolso — por ora fica "parcial", sem pagador definido, e sem
-        // marcar como pago diretamente (o fornecedor foi pago pela Share).
-        await supabase
-          .from("rateio_despesas")
-          .update({ pago_por: null, status: "parcial", pago_diretamente: false })
-          .eq("despesa_id", mov.id);
-      } else if (rateioRows.length > 0) {
-        // Persistir ajustes individuais por cotista (uso, valor rateado, quem pagou)
+      if (rateioRows.length > 0) {
         await Promise.all(
           rateioRows.map((r) =>
             supabase
               .from("rateio_despesas")
               .update({
                 percentual_uso: r.percentual_uso,
+                percentual_sociedade: r.percentual_sociedade ?? null,
+                tipo_rateio: r.tipo_rateio ?? null,
+                periodicidade: r.periodicidade ?? null,
                 valor_rateado: r.valor_rateado,
                 valor_pago_real: r.valor_pago_real,
                 pago_por: r.pago_por,
-                status: "pago",
+                status: comReembolso
+                  ? "parcial"
+                  : r.pago_por_outro
+                  ? "pago_por_outro"
+                  : "pago",
                 data_pagamento: dataPagamento,
-                pago_diretamente: true,
+                pago_diretamente: !comReembolso,
+                observacoes: r.pago_por_outro
+                  ? `Pago integralmente por ${r.pago_por || "outro cliente"}`
+                  : undefined,
                 comprovante_url: comprovante?.file_url || null,
-              })
+              } as any)
               .eq("id", r.id),
           ),
         );
+      } else if (comReembolso) {
+        await supabase
+          .from("rateio_despesas")
+          .update({ pago_por: null, status: "parcial", pago_diretamente: false })
+          .eq("despesa_id", mov.id);
       } else {
         await supabase
           .from("rateio_despesas")
@@ -746,101 +797,167 @@ export default function BaixaPagamentoModal({
             {pagoDiretamente ? "Pago diretamente" : "Com reembolso"}
           </div>
 
-          {/* Rateio entre cotistas — só se aplica quando o pagamento é direto,
-              já que no fluxo "Com Reembolso" o rateio real só é definido depois */}
-          {pagoDiretamente && rateioRows.length > 0 && (
+          {/* Rateio da despesa — sempre exibido quando existir rateio, mesmo que
+              a despesa não seja de reembolso */}
+          {rateioRows.length > 0 && (
             <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-300">
-                    Rateio entre cotistas
+                    Rateio da despesa
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    Ajuste o percentual de uso, valor rateado, valor pago e quem pagou por cotista.
+                    Dados do rateio pré-preenchidos. Se um cotista pagar 100% da despesa, os demais
+                    são zerados automaticamente.
                   </p>
                 </div>
                 <div className="text-right text-[11px] text-slate-500">
                   <div>Total rateado</div>
                   <div className="text-sm font-bold text-slate-100">
-                    {formatBRL(
-                      rateioRows.reduce((s, r) => s + (Number(r.valor_rateado) || 0), 0),
-                    )}
+                    {formatBRL(rateioRows.reduce((s, r) => s + (Number(r.valor_rateado) || 0), 0))}
+                  </div>
+                  <div className="mt-1">Total pago</div>
+                  <div className="text-sm font-bold text-emerald-300">
+                    {formatBRL(rateioRows.reduce((s, r) => s + (Number(r.valor_pago_real) || 0), 0))}
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="hidden md:grid grid-cols-12 gap-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  <div className="col-span-3">Cotista</div>
-                  <div className="col-span-2 text-right">Uso %</div>
-                  <div className="col-span-2 text-right">Valor rateado</div>
-                  <div className="col-span-2 text-right">Valor pago</div>
-                  <div className="col-span-3">Pago por</div>
-                </div>
+              <div className="space-y-3">
                 {rateioRows.map((r) => (
                   <div
                     key={r.id}
-                    className="grid grid-cols-12 gap-2 items-center rounded-lg border border-slate-800 bg-slate-800/40 px-2 py-2"
+                    className={`rounded-lg border px-3 py-3 ${
+                      r.pago_por_outro
+                        ? "border-amber-500/30 bg-amber-500/5"
+                        : "border-slate-800 bg-slate-800/40"
+                    }`}
                   >
-                    <div className="col-span-12 md:col-span-3 text-sm text-slate-100 truncate">
-                      {r.socios_nome || r.clientes_nome || "—"}
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-slate-100 truncate">
+                        {r.clientes_nome || r.socios_nome || "—"}
+                        {r.socios_nome && r.clientes_nome && (
+                          <span className="ml-2 text-xs font-normal text-slate-400">
+                            {r.socios_nome}
+                          </span>
+                        )}
+                      </div>
+                      {r.pago_por_outro && (
+                        <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                          Pago por {r.pago_por || "outro cliente"}
+                        </span>
+                      )}
                     </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={r.percentual_uso ?? ""}
-                        onChange={(e) =>
-                          updateRateioRow(r.id, {
-                            percentual_uso: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                        className={inputCls + " text-right"}
-                      />
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={r.valor_rateado ?? ""}
-                        onChange={(e) =>
-                          updateRateioRow(r.id, {
-                            valor_rateado: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                        className={inputCls + " text-right"}
-                      />
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={r.valor_pago_real ?? ""}
-                        onChange={(e) =>
-                          updateRateioRow(r.id, {
-                            valor_pago_real: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                        className={inputCls + " text-right"}
-                      />
-                    </div>
-                    <div className="col-span-12 md:col-span-3">
-                      <UISearchableCombobox
-                        items={socios.map((s) => ({ id: s.nome, label: s.nome }))}
-                        value={r.pago_por || ""}
-                        onChange={(_id, label) =>
-                          updateRateioRow(r.id, { pago_por: label })
-                        }
-                        placeholder="Cotista..."
-                        searchPlaceholder="Buscar cotista..."
-                        allowFreeText
-                      />
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          Tipo Rateio
+                        </label>
+                        <input
+                          value={r.tipo_rateio ?? ""}
+                          onChange={(e) => updateRateioRow(r.id, { tipo_rateio: e.target.value })}
+                          className={inputCls}
+                          placeholder="—"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          % Sociedade
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={r.percentual_sociedade ?? ""}
+                          onChange={(e) =>
+                            updateRateioRow(r.id, {
+                              percentual_sociedade:
+                                e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className={inputCls + " text-right"}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          % Uso
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={r.percentual_uso ?? ""}
+                          onChange={(e) =>
+                            updateRateioRow(r.id, {
+                              percentual_uso: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className={inputCls + " text-right"}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          Periodicidade
+                        </label>
+                        <input
+                          value={r.periodicidade ?? ""}
+                          onChange={(e) => updateRateioRow(r.id, { periodicidade: e.target.value })}
+                          className={inputCls}
+                          placeholder="—"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          Valor Rateado
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={r.valor_rateado ?? ""}
+                          onChange={(e) =>
+                            updateRateioRow(r.id, {
+                              valor_rateado: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className={inputCls + " text-right"}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          Valor Pago Real
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={r.valor_pago_real ?? ""}
+                          onChange={(e) =>
+                            updateRateioRow(r.id, {
+                              valor_pago_real:
+                                e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className={inputCls + " text-right"}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                          Pago por
+                        </label>
+                        <UISearchableCombobox
+                          items={socios.map((s) => ({ id: s.nome, label: s.nome }))}
+                          value={r.pago_por || ""}
+                          onChange={(_id, label) => updateRateioRow(r.id, { pago_por: label })}
+                          placeholder="Cotista..."
+                          searchPlaceholder="Buscar cotista..."
+                          allowFreeText
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
 
           {/* Attachments */}
           <div>

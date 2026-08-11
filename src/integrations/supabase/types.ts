@@ -272,6 +272,7 @@ export type Database = {
           modo_celula: string | null
           nome_proprietario: string
           numero_serie: string
+          performance_aeronave_id: string | null
           preco_hora: string | null
           proxima_revisao_data: string | null
           proxima_revisao_horas: number | null
@@ -297,6 +298,7 @@ export type Database = {
           modo_celula?: string | null
           nome_proprietario: string
           numero_serie: string
+          performance_aeronave_id?: string | null
           preco_hora?: string | null
           proxima_revisao_data?: string | null
           proxima_revisao_horas?: number | null
@@ -322,6 +324,7 @@ export type Database = {
           modo_celula?: string | null
           nome_proprietario?: string
           numero_serie?: string
+          performance_aeronave_id?: string | null
           preco_hora?: string | null
           proxima_revisao_data?: string | null
           proxima_revisao_horas?: number | null
@@ -331,7 +334,15 @@ export type Database = {
           url_imagem?: string | null
           velocidade_cruzeiro?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "aeronave_performance_aeronave_id_fkey"
+            columns: ["performance_aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "performance_aeronave"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agendamento_pagamentos: {
         Row: {
@@ -7321,6 +7332,42 @@ export type Database = {
           },
         ]
       }
+      performance_aeronave: {
+        Row: {
+          aprovado_rvsm: boolean
+          atualizado_em: string
+          categoria: string
+          criado_em: string
+          id: string
+          modelo: string
+          nivel_cruzeiro_max_ft: number
+          nivel_cruzeiro_min_ft: number
+          teto_servico_ft: number
+        }
+        Insert: {
+          aprovado_rvsm?: boolean
+          atualizado_em?: string
+          categoria: string
+          criado_em?: string
+          id?: string
+          modelo: string
+          nivel_cruzeiro_max_ft: number
+          nivel_cruzeiro_min_ft: number
+          teto_servico_ft: number
+        }
+        Update: {
+          aprovado_rvsm?: boolean
+          atualizado_em?: string
+          categoria?: string
+          criado_em?: string
+          id?: string
+          modelo?: string
+          nivel_cruzeiro_max_ft?: number
+          nivel_cruzeiro_min_ft?: number
+          teto_servico_ft?: number
+        }
+        Relationships: []
+      }
       permissoes_pasta_documentos: {
         Row: {
           criado_em: string | null
@@ -10442,6 +10489,10 @@ export type Database = {
       calcular_consumo_combustivel: {
         Args: { p_id: string }
         Returns: undefined
+      }
+      calcular_nivel_voo: {
+        Args: { p_aeronave_id: string; p_rumo_magnetico: number }
+        Returns: number
       }
       calculate_total_hours: {
         Args: {

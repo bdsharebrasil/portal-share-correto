@@ -5,8 +5,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { endOfMonth, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  ChevronLeft,
-  ChevronRight,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from "recharts";
+import {
   Printer,
   Plane,
   TrendingUp,
@@ -15,6 +34,16 @@ import {
   BarChart3,
   ClipboardList,
   BookOpen,
+  LayoutDashboard,
+  Scale,
+  Timer,
+  Calculator,
+  ArrowRight,
+  CheckCircle2,
+  Wallet,
+  Clock,
+  Fuel,
+  PlaneTakeoff,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +56,13 @@ const BRL = (v: number | null | undefined) =>
     currency: "BRL",
     minimumFractionDigits: 2,
   }).format(v ?? 0);
+
+const BRLCompacto = (v: number) => {
+  const n = Number(v ?? 0);
+  if (Math.abs(n) >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `R$ ${(n / 1_000).toFixed(0)}k`;
+  return `R$ ${n.toFixed(0)}`;
+};
 
 const NUM = (v: number | null | undefined, dec = 2) =>
   Number(v ?? 0).toFixed(dec).replace(".", ",");
@@ -51,6 +87,16 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const mesKey = (s?: string | null) => (s ? String(s).substring(0, 7) : "");
+const labelMes = (key: string) => {
+  if (!key) return "—";
+  const [y, m] = key.split("-");
+  return capitalize(format(new Date(Number(y), Number(m) - 1, 1), "MMM/yy", { locale: ptBR }));
+};
+
+const CORES_COTISTA = ["#38bdf8", "#fbbf24", "#34d399", "#a78bfa", "#f472b6", "#f87171"];
+const CORES_CATEGORIA = ["#38bdf8", "#fbbf24", "#34d399", "#a78bfa", "#f472b6", "#f87171", "#22d3ee", "#facc15"];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TIPOS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +104,8 @@ function capitalize(s: string) {
 interface CotistaInfo {
   id: string;
   nome: string;
+  percentualSociedade: number;
+  corHex: string;
 }
 
 interface RateioRow {
@@ -96,7 +144,7 @@ interface VooRow {
   natureza_voo: string | null;
   socios_id: string | null;
   socios_nome: string | null;
-  relatorio_numero?: string | null;
+  clientes_id?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +162,7 @@ function useDadosRelatorio(
     enabled: !!aeronaveId,
     staleTime: 120_000,
     queryFn: async () => {
-      const [ratRes, vooRes, aerRes, catRes] = await Promise.all([
+      const [ratRes, vooRes, aerRes, catRes, cotRes] = await Promise.all([
         (supabase as any)
           .from("rateio_despesas")
           .select([
@@ -138,7 +186,7 @@ function useDadosRelatorio(
           .select(
             "id, data_registro, aerodromo_partida, aerodromo_chegada, trecho, " +
             "tempo_voo, tempo_total, pousos_total, combustivel_adicionado, " +
-            "natureza_voo, socios_id, socios_nome"
+            "natureza_voo, socios_id, socios_nome, clientes_id"
           )
           .eq("aeronave_id", aeronaveId)
           .gte("data_registro", inicio)
@@ -152,11 +200,22 @@ function useDadosRelatorio(
           .maybeSingle(),
 
         (supabase as any).from("expense_configu").select("id, expense_type"),
+
+        (supabase as any)
+          .from("cotistas_aeronave")
+          .select("id, cliente_id, socio_id, percentual")
+          .eq("aeronave_id", aeronaveId),
       ]);
 
       const catMap = new Map<string, string>();
       ((catRes as any)?.data ?? []).forEach((c: any) => {
         if (c?.id) catMap.set(String(c.id), String(c.expense_type || ""));
+      });
+
+      const pctMap = new Map<string, number>();
+      ((cotRes as any)?.data ?? []).forEach((c: any) => {
+        const id = c.socio_id || c.cliente_id;
+        if (id) pctMap.set(String(id), Number(c.percentual ?? 0));
       });
 
       const mesDe = (s?: string | null) =>
@@ -173,6 +232,7 @@ function useDadosRelatorio(
         voos: ((vooRes.data ?? []) as VooRow[]).filter((v) => dentro(v.data_registro)),
         aeronave: aerRes.data,
         catMap,
+        pctMap,
       };
     },
   });
@@ -187,6 +247,9 @@ function nomeCategoria(raw: string | null | undefined, map?: Map<string, string>
   return v.toUpperCase();
 }
 
+const ehFixo = (r: RateioRow) =>
+  (r.tipo_rateio || r.periodicidade || "").toUpperCase().includes("FIXO");
+
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,8 +261,11 @@ interface Props {
   onClose?: () => void;
 }
 
+type TabKey = "visao" | "acerto" | "lancamentos" | "graficos" | "diario" | "metodologia";
+
 export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<"lancamentos" | "resumos" | "graficos" | "diario">("lancamentos");
+  const [activeTab, setActiveTab] = useState<TabKey>("visao");
+  const [cotistaFiltro, setCotistaFiltro] = useState<string>("todos");
 
   const hoje = new Date();
   const ano = anoProp ?? hoje.getFullYear();
@@ -230,7 +296,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     [data]
   );
 
-  // ── Extração e Cálculos de Dados ───────────────────────────────────────────
+  // ── Cotistas ───────────────────────────────────────────────────────────────
   const cotistas = useMemo<CotistaInfo[]>(() => {
     if (!data) return [];
     const map = new Map<string, string>();
@@ -239,8 +305,29 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       const nome = r.socios_nome || r.clientes_nome;
       if (id && nome && !map.has(id)) map.set(id, nome);
     });
-    return Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
+    data.voos.forEach((v) => {
+      const id = v.socios_id || v.clientes_id;
+      if (id && v.socios_nome && !map.has(id)) map.set(id, v.socios_nome);
+    });
+    return Array.from(map.entries()).map(([id, nome], i) => {
+      const pctBanco = data.pctMap?.get(id);
+      const pctRateio = data.rateios.find(
+        (r) => (r.socio_id === id || r.cliente_id === id) && Number(r.percentual_sociedade ?? 0) > 0
+      )?.percentual_sociedade;
+      return {
+        id,
+        nome,
+        percentualSociedade: Number(pctBanco || pctRateio || 0),
+        corHex: CORES_COTISTA[i % CORES_COTISTA.length],
+      };
+    });
   }, [data]);
+
+  const cotistaPorId = React.useCallback(
+    (id: string) =>
+      cotistas.find((c) => c.id === id) ?? { id, nome: "—", percentualSociedade: 0, corHex: "#64748b" },
+    [cotistas]
+  );
 
   const despesasAgrupadas = useMemo(() => {
     if (!data) return [];
@@ -258,7 +345,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
   }, [data]);
 
   const pivot = useMemo(() => {
-    const cats = new Map<string, Map<string, number>>(); 
+    const cats = new Map<string, Map<string, number>>();
     const cotTot = new Map<string, number>();
     let grand = 0;
 
@@ -288,23 +375,41 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     return { cats, cotTot, grand, sortedCats };
   }, [despesasAgrupadas, catNome]);
 
+  const totalGeral = despesasAgrupadas.reduce((s, d) => s + Number(d.ref.valor_total_despesa ?? 0), 0);
+  const totalHorasAeronave = (data?.voos ?? []).reduce((s, v) => s + Number(v.tempo_voo ?? v.tempo_total ?? 0), 0);
+  const totalPousos = (data?.voos ?? []).reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
+  const totalLitros = (data?.voos ?? []).reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
+  const qtdMeses = Math.max(1, mesesSelecionados.length);
+
   const resumoCotistas = useMemo(() => {
     if (!data) return [];
-    return cotistas.map((c) => {
-      const rows = data.rateios.filter((r) => r.socio_id === c.id || r.cliente_id === c.id);
-      const fixo = rows.filter((r) => (r.tipo_rateio || r.periodicidade || "").toUpperCase().includes("FIXO")).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
-      const variavel = rows.filter((r) => !(r.tipo_rateio || r.periodicidade || "").toUpperCase().includes("FIXO")).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
-      const voosCot = data.voos.filter((v) => v.socios_id === c.id);
-      const horas = voosCot.reduce((s, v) => s + Number(v.tempo_voo ?? 0), 0);
-      const pousos = voosCot.reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
-      const litros = voosCot.reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
-
-      return {
-        ...c, fixo, variavel, total: fixo + variavel,
-        horas, pousos, litros, custoHora: horas > 0 ? (fixo + variavel) / horas : 0,
-      };
-    });
-  }, [data, cotistas]);
+    const totalCusto = pivot.grand;
+    return cotistas
+      .map((c) => {
+        const rows = data.rateios.filter((r) => r.socio_id === c.id || r.cliente_id === c.id);
+        const fixo = rows.filter(ehFixo).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
+        const variavel = rows.filter((r) => !ehFixo(r)).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
+        const voosCot = data.voos.filter((v) => v.socios_id === c.id || v.clientes_id === c.id);
+        const horas = voosCot.reduce((s, v) => s + Number(v.tempo_voo ?? v.tempo_total ?? 0), 0);
+        const pousos = voosCot.reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
+        const litros = voosCot.reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
+        const total = fixo + variavel;
+        return {
+          ...c,
+          cotistaId: c.id,
+          fixo,
+          variavel,
+          total,
+          horas,
+          pousos,
+          litros,
+          custoHora: horas > 0 ? total / horas : 0,
+          participacaoHoras: totalHorasAeronave > 0 ? (horas / totalHorasAeronave) * 100 : 0,
+          participacaoCusto: totalCusto > 0 ? (total / totalCusto) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }, [data, cotistas, pivot.grand, totalHorasAeronave]);
 
   const saldos = useMemo(() => {
     const pagou = new Map<string, number>();
@@ -312,7 +417,12 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
     despesasAgrupadas.forEach(({ ref, rateios }) => {
       const pagadorNome = (ref.pago_por || "").toLowerCase();
-      const pagador = cotistas.find((c) => c.nome.toLowerCase().includes(pagadorNome) || pagadorNome.includes(c.nome.toLowerCase().split(" ")[0]));
+      const pagador = cotistas.find(
+        (c) =>
+          pagadorNome &&
+          (c.nome.toLowerCase().includes(pagadorNome) ||
+            pagadorNome.includes(c.nome.toLowerCase().split(" ")[0]))
+      );
       if (pagador) {
         pagou.set(pagador.id, (pagou.get(pagador.id) ?? 0) + Number(ref.valor_total_despesa ?? 0));
       }
@@ -325,39 +435,51 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
     return cotistas.map((c) => ({
       ...c,
+      cotistaId: c.id,
       pagou: pagou.get(c.id) ?? 0,
       deve: deve.get(c.id) ?? 0,
       saldo: (pagou.get(c.id) ?? 0) - (deve.get(c.id) ?? 0),
     }));
   }, [despesasAgrupadas, cotistas]);
 
-  const totalGeral = despesasAgrupadas.reduce((s, d) => s + Number(d.ref.valor_total_despesa ?? 0), 0);
-  const totalHorasAeronave = (data?.voos ?? []).reduce((s, v) => s + Number(v.tempo_voo ?? 0), 0);
-  const totalPousos = (data?.voos ?? []).reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
-  const totalLitros = (data?.voos ?? []).reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
-  const qtdMeses = Math.max(1, mesesSelecionados.length);
+  /** Algoritmo de menor número de transferências */
+  const transferencias = useMemo(() => {
+    const devedores = saldos
+      .filter((s) => s.saldo < -0.01)
+      .map((s) => ({ id: s.cotistaId, v: -s.saldo }))
+      .sort((a, b) => b.v - a.v);
+    const credores = saldos
+      .filter((s) => s.saldo > 0.01)
+      .map((s) => ({ id: s.cotistaId, v: s.saldo }))
+      .sort((a, b) => b.v - a.v);
 
-  const ranking = useMemo(() => {
-    const map = new Map<string, number>();
-    (data?.rateios ?? []).forEach((r) => {
-      const cat = catNome(r.categoria_custo);
-      map.set(cat, (map.get(cat) ?? 0) + Number(r.valor_rateado ?? 0));
-    });
-    const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
-    return Array.from(map.entries())
-      .map(([nome, valor]) => ({ nome, valor, pct: total > 0 ? (valor / total) * 100 : 0 }))
-      .sort((a, b) => b.valor - a.valor);
-  }, [data, catNome]);
+    const out: { de: string; para: string; valor: number }[] = [];
+    let i = 0;
+    let j = 0;
+    while (i < devedores.length && j < credores.length) {
+      const valor = Math.min(devedores[i].v, credores[j].v);
+      if (valor > 0.01) out.push({ de: devedores[i].id, para: credores[j].id, valor });
+      devedores[i].v -= valor;
+      credores[j].v -= valor;
+      if (devedores[i].v <= 0.01) i++;
+      if (credores[j].v <= 0.01) j++;
+    }
+    return out;
+  }, [saldos]);
 
   const baseCustos = useMemo(() => {
     const rows = data?.rateios ?? [];
-    const isFixo = (r: RateioRow) => (r.tipo_rateio || r.periodicidade || "").toUpperCase().includes("FIXO");
-    const fixo = rows.filter(isFixo).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
-    const variavel = rows.filter((r) => !isFixo(r)).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
-    const combustivel = rows.filter((r) => catNome(r.categoria_custo).includes("COMBUST")).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
+    const fixo = rows.filter(ehFixo).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
+    const variavel = rows.filter((r) => !ehFixo(r)).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
+    const combustivel = rows
+      .filter((r) => catNome(r.categoria_custo).includes("COMBUST"))
+      .reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
     const total = fixo + variavel;
     return {
-      fixo, variavel, combustivel, total,
+      fixo,
+      variavel,
+      combustivel,
+      total,
       fixoMes: fixo / qtdMeses,
       variavelHora: totalHorasAeronave > 0 ? variavel / totalHorasAeronave : 0,
       combustivelHora: totalHorasAeronave > 0 ? combustivel / totalHorasAeronave : 0,
@@ -378,8 +500,64 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       horasVoo: h > 0 && totalVoos > 0 ? h / totalVoos : 0,
       pousosMes: totalPousos / qtdMeses,
       litrosMes: totalLitros / qtdMeses,
+      fixoMes: baseCustos.fixoMes,
+      variavelHora: baseCustos.variavelHora,
+      combustivelHora: baseCustos.combustivelHora,
     };
   }, [baseCustos, data, qtdMeses, totalHorasAeronave, totalPousos, totalLitros]);
+
+  /** Série mensal fixo x variável x horas */
+  const serie = useMemo(() => {
+    const map = new Map<string, { mes: string; fixo: number; variavel: number; horas: number }>();
+    const get = (k: string) => {
+      if (!map.has(k)) map.set(k, { mes: k, fixo: 0, variavel: 0, horas: 0 });
+      return map.get(k)!;
+    };
+    (data?.rateios ?? []).forEach((r) => {
+      const k = mesKey(r.data_pagamento || r.data_vencimento);
+      if (!k) return;
+      const row = get(k);
+      const v = Number(r.valor_rateado ?? 0);
+      if (ehFixo(r)) row.fixo += v;
+      else row.variavel += v;
+    });
+    (data?.voos ?? []).forEach((v) => {
+      const k = mesKey(v.data_registro);
+      if (!k) return;
+      get(k).horas += Number(v.tempo_voo ?? v.tempo_total ?? 0);
+    });
+    return Array.from(map.values())
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+      .map((m) => {
+        const total = m.fixo + m.variavel;
+        return { ...m, label: labelMes(m.mes), total, custoHora: m.horas > 0 ? total / m.horas : 0 };
+      });
+  }, [data]);
+
+  /** Categorias com tipo e distribuição por cotista */
+  const categorias = useMemo(() => {
+    const map = new Map<string, { total: number; fixo: number; porCotista: Map<string, number> }>();
+    (data?.rateios ?? []).forEach((r) => {
+      const cat = catNome(r.categoria_custo);
+      const v = Number(r.valor_rateado ?? 0);
+      if (!map.has(cat)) map.set(cat, { total: 0, fixo: 0, porCotista: new Map() });
+      const row = map.get(cat)!;
+      row.total += v;
+      if (ehFixo(r)) row.fixo += v;
+      const cid = r.socio_id || r.cliente_id;
+      if (cid) row.porCotista.set(cid, (row.porCotista.get(cid) ?? 0) + v);
+    });
+    const total = Array.from(map.values()).reduce((s, r) => s + r.total, 0);
+    return Array.from(map.entries())
+      .map(([categoria, r]) => ({
+        categoria,
+        total: r.total,
+        tipo: r.fixo >= r.total / 2 ? "FIXO" : "VARIAVEL",
+        pct: total > 0 ? (r.total / total) * 100 : 0,
+        porCotista: r.porCotista,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [data, catNome]);
 
   const projecao = useMemo(() => {
     const fixoMes = baseCustos.fixoMes;
@@ -389,24 +567,68 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     for (let hrs = 1; hrs <= 45; hrs++) {
       const custoFixoHora = fixoMes / hrs;
       const custoHora = custoFixoHora + varHora;
-      const custoTotal = fixoMes + varHora * hrs;
-      linhas.push({ horas: hrs, custoVariavel: varHora, custoFixoHora, custoHora, custoTotal, indice: varHora > 0 ? custoHora / varHora : 0 });
+      linhas.push({
+        horas: hrs,
+        custoVariavel: varHora,
+        custoVariavelHora: varHora,
+        custoFixoHora,
+        custoHora,
+        custoTotal: fixoMes + varHora * hrs,
+        indice: varHora > 0 ? custoHora / varHora : 0,
+      });
     }
-    const pontoOtimo = linhas.find((l, i) => {
-      const prev = linhas[i - 1];
-      return prev && (prev.custoHora - l.custoHora) / prev.custoHora < 0.02;
-    }) ?? null;
+    const pontoOtimo =
+      linhas.find((l, i) => {
+        const prev = linhas[i - 1];
+        return prev && (prev.custoHora - l.custoHora) / prev.custoHora < 0.02;
+      }) ?? null;
     const taxaProjecao = medias.custoHora || (linhas[0]?.custoHora ?? 0);
     return { linhas, taxaProjecao, pontoOtimo };
   }, [baseCustos, medias]);
 
-  const maxProjCusto = Math.max(1, ...projecao.linhas.map((l) => l.custoHora));
+  const ranking = categorias.map((c) => ({ nome: c.categoria, valor: c.total, pct: c.pct }));
 
   const aeronaveLabel = data?.aeronave
     ? `${data.aeronave.matricula}${data.aeronave.modelo ? ` — ${data.aeronave.modelo}` : ""}`
     : aeronaveId;
 
-  const rateioDeC = (rateios: RateioRow[], cid: string) => rateios.find((r) => r.socio_id === cid || r.cliente_id === cid);
+  const rateioDeC = (rateios: RateioRow[], cid: string) =>
+    rateios.find((r) => r.socio_id === cid || r.cliente_id === cid);
+
+  const voosFiltrados = useMemo(() => {
+    const list = (data?.voos ?? []).filter(
+      (v) => cotistaFiltro === "todos" || v.socios_id === cotistaFiltro || v.clientes_id === cotistaFiltro
+    );
+    return list.slice().sort((a, b) => String(a.data_registro).localeCompare(String(b.data_registro)));
+  }, [data, cotistaFiltro]);
+
+  const horasFiltro = voosFiltrados.reduce((s, v) => s + Number(v.tempo_voo ?? v.tempo_total ?? 0), 0);
+  const pousosFiltro = voosFiltrados.reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
+  const litrosFiltro = voosFiltrados.reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
+
+  const dadosComposicao = [
+    { name: "Custos fixos", value: baseCustos.fixo, cor: "#38bdf8" },
+    { name: "Custos variáveis", value: baseCustos.variavel, cor: "#fbbf24" },
+  ];
+
+  const maiorCategoria = categorias[0];
+  const maiorUsuario = [...resumoCotistas].sort((a, b) => b.horas - a.horas)[0];
+
+  const dadosRadar = cotistas.map((c) => {
+    const r = resumoCotistas.find((x) => x.cotistaId === c.id);
+    return {
+      cotista: c.nome.split(" ")[0],
+      Cota: Number(c.percentualSociedade ?? 0),
+      Horas: Number(r?.participacaoHoras ?? 0),
+      Custo: Number(r?.participacaoCusto ?? 0),
+    };
+  });
+
+  const dadosCategoriaPie = categorias.map((c, i) => ({
+    name: c.categoria,
+    value: c.total,
+    cor: CORES_CATEGORIA[i % CORES_CATEGORIA.length],
+  }));
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -414,11 +636,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 antialiased print:bg-white print:text-black">
-      
+
       {/* HEADER FIXO */}
       <div className="sticky top-0 z-30 border-b border-slate-700 bg-slate-800/90 backdrop-blur-xl shadow-sm print:static print:border-none print:shadow-none print:bg-white">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
-          
+
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Plane className="h-5 w-5" />
@@ -427,9 +649,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               <p className="mb-0.5 text-[10px] uppercase font-bold tracking-widest text-slate-500">
                 Fechamento Financeiro
               </p>
-              <p className="truncate text-base font-bold text-slate-100">
-                {aeronaveLabel}
-              </p>
+              <p className="truncate text-base font-bold text-slate-100">{aeronaveLabel}</p>
             </div>
           </div>
 
@@ -445,10 +665,10 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               onClick={() => window.print()}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 active:scale-[0.97] print:hidden"
             >
-              <Printer className="h-4 w-4"/>
+              <Printer className="h-4 w-4" />
               Imprimir PDF
             </button>
-            
+
             {onClose && (
               <button
                 onClick={onClose}
@@ -459,15 +679,17 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             )}
           </div>
         </div>
-        
+
         {/* TAB BAR */}
         {!isLoading && (
           <div className="mx-auto max-w-[1400px] px-4 sm:px-6 print:hidden">
             <nav className="flex space-x-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <TabButton active={activeTab === "lancamentos"} onClick={() => setActiveTab("lancamentos")} icon={WalletCards} label="Lançamentos e Acertos" />
-              <TabButton active={activeTab === "resumos"} onClick={() => setActiveTab("resumos")} icon={ClipboardList} label="Resumo e Médias" />
-              <TabButton active={activeTab === "graficos"} onClick={() => setActiveTab("graficos")} icon={BarChart3} label="Gráficos e Projeções" />
+              <TabButton active={activeTab === "visao"} onClick={() => setActiveTab("visao")} icon={LayoutDashboard} label="Visão Geral" />
+              <TabButton active={activeTab === "acerto"} onClick={() => setActiveTab("acerto")} icon={WalletCards} label="Acerto de Contas" />
+              <TabButton active={activeTab === "lancamentos"} onClick={() => setActiveTab("lancamentos")} icon={ClipboardList} label="Lançamentos" />
+              <TabButton active={activeTab === "graficos"} onClick={() => setActiveTab("graficos")} icon={BarChart3} label="Gráficos e Análises" />
               <TabButton active={activeTab === "diario"} onClick={() => setActiveTab("diario")} icon={BookOpen} label="Diário de Bordo" />
+              <TabButton active={activeTab === "metodologia"} onClick={() => setActiveTab("metodologia")} icon={Scale} label="Explicando o Balanço" />
             </nav>
           </div>
         )}
@@ -484,95 +706,357 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
       {!isLoading && (
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 print:p-0">
-          
-          {/* ════════════════════════════════════════════════════════════════
-              ABA 1: LANÇAMENTOS E ACERTOS DE CONTAS
-              ════════════════════════════════════════════════════════════════ */}
-          <div className={`space-y-8 animate-fade-in print:block print:space-y-8 ${activeTab === "lancamentos" ? "block" : "hidden"}`}>
-            
-            {/* Acerto de Contas (A Receber De) */}
-            <section>
-              <TituloSecao titulo="Acerto de Contas (Quem deve pra quem)"/>
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="overflow-x-auto rounded-xl border border-slate-700/60 bg-card/80 shadow-sm">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr>
-                        <th className="border-b border-r border-slate-700/60 bg-slate-800/50 p-2" />
-                        <th colSpan={cotistas.length} className="border-b border-slate-700/60 bg-amber-500/15 py-2 text-center text-xs font-bold uppercase tracking-widest text-amber-400">
-                          Devem pagar para (A Receber De)
-                        </th>
-                      </tr>
-                      <tr className="bg-slate-800/50 text-xs font-semibold uppercase text-slate-500">
-                        <th className="border-b border-r border-slate-700/60 py-3 px-4 text-left">
-                          Quem Pagou ↓
-                        </th>
-                        {cotistas.map((c) => (
-                          <th key={c.id} className="border-b border-slate-700/60 py-3 px-4 text-center">
-                            {c.nome}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {saldos.map((row) => {
-                        const credoresTotal = saldos.filter((s) => s.saldo > 0).reduce((t, s) => t + s.saldo, 0);
-                        return (
-                          <tr key={row.id} className="hover:bg-slate-800/50">
-                            <td className="border-b border-r border-slate-700/60 bg-slate-800/50 py-3 px-4 font-semibold text-slate-200">
-                              {row.nome}
-                            </td>
-                            {saldos.map((col) => {
-                              if (row.id === col.id) {
-                                return <td key={col.id} className="border-b border-slate-700/60 py-3 px-4 text-center text-slate-500">—</td>;
-                              }
-                              let val = 0;
-                              if (row.saldo > 0.01 && col.saldo < -0.01 && credoresTotal > 0.01) {
-                                val = Math.abs(col.saldo) * (row.saldo / credoresTotal);
-                              }
-                              return (
-                                <td key={col.id} className={`border-b border-slate-700/60 py-3 px-4 text-right font-mono text-sm ${val > 0.01 ? "text-emerald-400 font-bold bg-emerald-500/15" : "text-slate-500"}`}>
-                                  {val > 0.01 ? BRL(val) : "R$ —"}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+
+          {/* ══════════════ ABA 1 — VISÃO GERAL ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "visao" ? "block" : "hidden"}`}>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <KpiCard
+                label="Custo total do período"
+                valor={BRL(baseCustos.total)}
+                detalhe={`${despesasAgrupadas.length} lançamentos em ${qtdMeses} ${qtdMeses > 1 ? "meses" : "mês"}`}
+                icone={<Wallet className="h-4 w-4" />}
+                destaque
+              />
+              <KpiCard
+                label="Horas voadas"
+                valor={hhMM(totalHorasAeronave)}
+                detalhe={`${(data?.voos ?? []).length} etapas • ${totalPousos} pousos`}
+                icone={<Clock className="h-4 w-4" />}
+              />
+              <KpiCard
+                label="Custo por hora"
+                valor={BRL(medias.custoHora)}
+                detalhe={`Fixo ${BRL(medias.fixoMes)}/mês diluído`}
+                icone={<PlaneTakeoff className="h-4 w-4" />}
+              />
+              <KpiCard
+                label="Combustível"
+                valor={`${NUM(totalLitros, 0)} L`}
+                detalhe={`${BRL(medias.valorLitro)}/L • ${NUM(medias.litrosHora, 1)} L/h`}
+                icone={<Fuel className="h-4 w-4" />}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <Painel
+                className="xl:col-span-2"
+                titulo="Evolução mensal do custo"
+                descricao="Separação entre o que a aeronave custa parada (fixo) e o que custa por voar (variável)."
+              >
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={serie} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <defs>
+                        <linearGradient id="gradFixo" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.02} />
+                        </linearGradient>
+                        <linearGradient id="gradVar" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="#fbbf24" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="#1C2A3F" vertical={false} />
+                      <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => BRLCompacto(Number(v))} />
+                      <Tooltip content={<TooltipGrafico />} cursor={{ stroke: "#2A3B54" }} />
+                      <Area type="monotone" dataKey="fixo" name="Fixos" stackId="1" stroke="#38bdf8" strokeWidth={2} fill="url(#gradFixo)" />
+                      <Area type="monotone" dataKey="variavel" name="Variáveis" stackId="1" stroke="#fbbf24" strokeWidth={2} fill="url(#gradVar)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {saldos.map((s) => (
-                    <div key={s.id} className={`rounded-xl border p-5 shadow-sm ${s.saldo >= 0 ? "border-emerald-500/30 bg-emerald-500/15" : "border-red-500/30 bg-red-500/15"}`}>
-                      <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-                        {s.nome}
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {serie.map((m) => (
+                    <div key={m.mes} className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{m.label}</p>
+                      <p className="mt-1 font-mono text-sm font-bold text-slate-100">{BRL(m.total)}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {hhMM(m.horas)} • {BRL(m.custoHora)}/h
                       </p>
-                      <div className="flex items-center gap-2 mb-2">
-                        {s.saldo >= 0 ? <TrendingUp className="h-5 w-5 text-emerald-400"/> : <TrendingDown className="h-5 w-5 text-red-400"/>}
-                        <p className={`text-2xl font-bold ${s.saldo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {BRL(Math.abs(s.saldo))}
-                        </p>
-                      </div>
-                      <p className="text-xs font-semibold text-slate-300 mb-4">
-                        {s.saldo >= 0 ? "Tem a receber" : "Tem a pagar"}
-                      </p>
-                      <div className="space-y-1.5 border-t border-slate-700/60/60 pt-3 text-xs">
-                        <div className="flex justify-between text-slate-300"><span>Pagou:</span><span className="font-mono font-medium">{BRL(s.pagou)}</span></div>
-                        <div className="flex justify-between text-slate-300"><span>Deve:</span><span className="font-mono font-medium">{BRL(s.deve)}</span></div>
-                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </section>
+              </Painel>
 
-            {/* Tabela de Lançamentos */}
+              <Painel titulo="Composição do custo" descricao="Fixo x variável em todo o período.">
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={dadosComposicao} dataKey="value" nameKey="name" innerRadius={54} outerRadius={78} paddingAngle={3} stroke="none">
+                        {dadosComposicao.map((d) => (
+                          <Cell key={d.name} fill={d.cor} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<TooltipGrafico />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-2 space-y-2">
+                  {dadosComposicao.map((d) => (
+                    <li key={d.name} className="flex items-center gap-2 text-xs">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.cor }} aria-hidden="true" />
+                      <span className="text-slate-400">{d.name}</span>
+                      <span className="ml-auto font-mono font-semibold text-slate-100">{BRL(d.value)}</span>
+                      <span className="w-12 text-right font-mono text-slate-500">
+                        {NUM(baseCustos.total > 0 ? (d.value / baseCustos.total) * 100 : 0, 0)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-4">
+                  <Nota titulo="Leitura rápida">
+                    <p>
+                      {NUM(baseCustos.total > 0 ? (baseCustos.fixo / baseCustos.total) * 100 : 0, 0)}% do custo acontece
+                      mesmo com a aeronave parada — por isso ele é dividido pela cota societária, e não por quem voou.
+                    </p>
+                  </Nota>
+                </div>
+              </Painel>
+            </div>
+
+            <Painel
+              titulo="Posição de cada cotista"
+              descricao="Quanto cada um consumiu, quanto adiantou do próprio bolso e o saldo resultante."
+              semPadding
+            >
+              {resumoCotistas.length === 0 ? (
+                <Vazio texto="Nenhum cotista com lançamentos no período." />
+              ) : (
+                <ul className="divide-y divide-slate-800">
+                  {resumoCotistas.map((r) => {
+                    const saldo = saldos.find((s) => s.cotistaId === r.cotistaId);
+                    const positivo = (saldo?.saldo ?? 0) >= 0;
+                    return (
+                      <li key={r.cotistaId} className="grid grid-cols-2 gap-4 p-5 lg:grid-cols-6 lg:items-center">
+                        <div className="col-span-2 flex items-center gap-3 lg:col-span-2">
+                          <AvatarCotista cotista={r} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-100">{r.nome}</p>
+                            <p className="text-xs text-slate-500">
+                              Cota {NUM(r.percentualSociedade, 0)}% • {NUM(r.participacaoHoras, 0)}% das horas
+                            </p>
+                          </div>
+                        </div>
+
+                        <Metrica titulo="Custo" valor={BRL(r.total)} sub={`${NUM(r.participacaoCusto, 0)}% do total`} />
+                        <Metrica titulo="Horas" valor={hhMM(r.horas)} sub={r.custoHora > 0 ? `${BRL(r.custoHora)}/h` : "sem voo"} />
+                        <Metrica titulo="Adiantou" valor={BRL(saldo?.pagou ?? 0)} sub="pago a fornecedores" />
+
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Saldo</p>
+                          <p className={`font-mono text-sm font-bold ${positivo ? "text-emerald-400" : "text-rose-400"}`}>
+                            {positivo ? "+" : "−"}
+                            {BRL(Math.abs(saldo?.saldo ?? 0))}
+                          </p>
+                          <p className="text-[11px] text-slate-500">{positivo ? "a receber" : "a pagar"}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Painel>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {maiorCategoria && (
+                <Nota titulo="Maior categoria de gasto" tom="atencao">
+                  <p>
+                    <strong>{maiorCategoria.categoria}</strong> concentra {NUM(maiorCategoria.pct, 0)}% do período (
+                    {BRL(maiorCategoria.total)}). Vale acompanhar cotação de fornecedor a cada fechamento.
+                  </p>
+                </Nota>
+              )}
+              {maiorUsuario && (
+                <Nota titulo="Quem mais usou a aeronave">
+                  <p>
+                    <strong>{maiorUsuario.nome}</strong> voou {hhMM(maiorUsuario.horas)} (
+                    {NUM(maiorUsuario.participacaoHoras, 0)}% das horas) e absorveu {NUM(maiorUsuario.participacaoCusto, 0)}% do
+                    custo total.
+                  </p>
+                </Nota>
+              )}
+              <Nota titulo="Eficiência atual" tom="positivo">
+                <p>
+                  Com {hhMM(medias.horasMes)} por mês, o custo hora está em {BRL(medias.custoHora)}. Cada hora adicional entra a
+                  apenas {BRL(medias.variavelHora)}.
+                </p>
+              </Nota>
+            </div>
+          </div>
+
+          {/* ══════════════ ABA 2 — ACERTO DE CONTAS ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "acerto" ? "block" : "hidden"}`}>
+            <Nota titulo="O que é o acerto de contas">
+              <p>
+                Durante o período cada cotista pagou fornecedores diretamente. O <strong>saldo</strong> é a diferença entre o que
+                a pessoa adiantou e o que de fato lhe cabe pelo rateio. Saldo positivo = tem a receber; saldo negativo = precisa
+                transferir.
+              </p>
+            </Nota>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {saldos.map((s) => {
+                const positivo = s.saldo >= 0;
+                return (
+                  <article
+                    key={s.cotistaId}
+                    className={`rounded-2xl border p-5 ${
+                      positivo ? "border-emerald-500/30 bg-emerald-500/[0.07]" : "border-rose-500/30 bg-rose-500/[0.07]"
+                    }`}
+                  >
+                    <div className="mb-4 flex items-center gap-3">
+                      <AvatarCotista cotista={s} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-100">{s.nome}</p>
+                        <p className="text-[11px] text-slate-500">Cota {NUM(s.percentualSociedade, 0)}%</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {positivo ? (
+                        <TrendingUp className="h-5 w-5 text-emerald-400" />
+                      ) : (
+                        <TrendingDown className="h-5 w-5 text-rose-400" />
+                      )}
+                      <p className={`font-mono text-2xl font-bold ${positivo ? "text-emerald-400" : "text-rose-400"}`}>
+                        {BRL(Math.abs(s.saldo))}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-slate-300">{positivo ? "Tem a receber" : "Tem a pagar"}</p>
+
+                    <dl className="mt-4 space-y-1.5 border-t border-slate-700/60 pt-3 text-xs">
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Adiantou</dt>
+                        <dd className="font-mono text-slate-200">{BRL(s.pagou)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-slate-500">Cabe a ele(a)</dt>
+                        <dd className="font-mono text-slate-200">{BRL(s.deve)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                );
+              })}
+            </div>
+
+            <Painel titulo="Transferências sugeridas" descricao="Menor número possível de pagamentos para zerar todos os saldos do período.">
+              {transferencias.length === 0 ? (
+                <p className="flex items-center gap-2 text-sm text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Todos os saldos já estão equilibrados.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {transferencias.map((t, i) => {
+                    const de = cotistaPorId(t.de);
+                    const para = cotistaPorId(t.para);
+                    return (
+                      <li
+                        key={`${t.de}-${t.para}-${i}`}
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-4"
+                      >
+                        <span className="flex items-center gap-2">
+                          <AvatarCotista cotista={de} tamanho="sm" />
+                          <span className="text-sm font-semibold text-slate-100">{de.nome}</span>
+                        </span>
+                        <ArrowRight className="h-4 w-4 text-slate-600" />
+                        <span className="flex items-center gap-2">
+                          <AvatarCotista cotista={para} tamanho="sm" />
+                          <span className="text-sm font-semibold text-slate-100">{para.nome}</span>
+                        </span>
+                        <span className="ml-auto font-mono text-base font-bold text-emerald-400">{BRL(t.valor)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Painel>
+
+            <Painel titulo="Matriz de acerto" descricao="Linha = quem transfere. Coluna = quem recebe." semPadding>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <caption className="sr-only">Matriz de transferências entre cotistas</caption>
+                  <thead>
+                    <tr className="bg-slate-900/80 text-[10px] uppercase tracking-widest text-slate-500">
+                      <th scope="col" className="border-r border-slate-700/60 px-4 py-3 text-left font-bold">
+                        Paga ↓ / Recebe →
+                      </th>
+                      {cotistas.map((c) => (
+                        <th key={c.id} scope="col" className="px-4 py-3 text-right font-bold">
+                          {c.nome.split(" ")[0]}
+                        </th>
+                      ))}
+                      <th scope="col" className="px-4 py-3 text-right font-bold text-slate-300">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {cotistas.map((linha) => {
+                      const totalLinha = transferencias.filter((t) => t.de === linha.id).reduce((s, t) => s + t.valor, 0);
+                      return (
+                        <tr key={linha.id} className="hover:bg-slate-800/40">
+                          <th
+                            scope="row"
+                            className="border-r border-slate-700/60 bg-slate-900/40 px-4 py-3 text-left text-xs font-semibold text-slate-200"
+                          >
+                            {linha.nome}
+                          </th>
+                          {cotistas.map((col) => {
+                            const t = transferencias.find((x) => x.de === linha.id && x.para === col.id);
+                            return (
+                              <td
+                                key={col.id}
+                                className={`px-4 py-3 text-right font-mono text-xs ${
+                                  t ? "bg-emerald-500/10 font-bold text-emerald-300" : "text-slate-600"
+                                }`}
+                              >
+                                {t ? BRL(t.valor) : linha.id === col.id ? "—" : "R$ —"}
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-3 text-right font-mono text-xs font-bold text-slate-100">
+                            {totalLinha > 0 ? BRL(totalLinha) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Painel>
+
+            <Painel titulo="Conferência do fechamento">
+              <ul className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
+                <li className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total pago a fornecedores</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-slate-100">
+                    {BRL(saldos.reduce((s, x) => s + x.pagou, 0))}
+                  </p>
+                </li>
+                <li className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total rateado</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-slate-100">
+                    {BRL(saldos.reduce((s, x) => s + x.deve, 0))}
+                  </p>
+                </li>
+                <li className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/80">Diferença</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-emerald-300">
+                    {BRL(saldos.reduce((s, x) => s + x.saldo, 0))}
+                  </p>
+                </li>
+              </ul>
+            </Painel>
+          </div>
+
+          {/* ══════════════ ABA 3 — LANÇAMENTOS ══════════════ */}
+          <div className={`space-y-8 animate-fade-in print:block ${activeTab === "lancamentos" ? "block" : "hidden"}`}>
             <section>
               <TituloSecao titulo="Todos os Lançamentos e Rateios" />
               {despesasAgrupadas.length === 0 ? (
-                <Vazio texto="Nenhum lançamento encontrado para este período."/>
+                <Vazio texto="Nenhum lançamento encontrado para este período." />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-700/60 bg-card/80 shadow-sm">
                   <table className="w-full border-collapse text-xs">
@@ -605,7 +1089,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/40">
-                      {despesasAgrupadas.map(({ ref, rateios }, i) => {
+                      {despesasAgrupadas.map(({ ref, rateios }) => {
                         const dataRef = ref.data_pagamento || ref.data_vencimento;
                         const doc = ref.numero_nf || ref.numero_doc || "—";
                         const prazo = inferirPrazo(catNome(ref.categoria_custo), ref.tipo_rateio);
@@ -657,20 +1141,15 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 </div>
               )}
             </section>
-          </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              ABA 2: RESUMO GERAL E MÉDIAS
-              ════════════════════════════════════════════════════════════════ */}
-          <div className={`space-y-8 animate-fade-in print:block print:space-y-8 ${activeTab === "resumos" ? "block" : "hidden"}`}>
-            
             <section>
               <TituloSecao titulo="Resumo Geral por Cotista" />
-              <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <KpiCard label="Custo Total" value={BRL(totalGeral)} />
-                <KpiCard label="Horas Voadas" value={hhMM(totalHorasAeronave)} />
-                <KpiCard label="Qtd Pousos" value={String(totalPousos)} />
-                <KpiCard label="Combustível" value={`${NUM(totalLitros, 0)} L`} />
+              <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+                <KpiCard label="Custo Mês (Médio)" valor={BRL(medias.custoMes)} />
+                <KpiCard label="Custo Hora (Médio)" valor={BRL(medias.custoHora)} />
+                <KpiCard label="Custo Pouso (Médio)" valor={BRL(medias.custoPouso)} />
+                <KpiCard label="Valor Médio Litro" valor={BRL(medias.valorLitro)} />
+                <KpiCard label="Consumo Litros/Hora" valor={`${NUM(medias.litrosHora, 1)} L`} />
               </div>
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -681,10 +1160,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       <p className="text-lg font-bold text-slate-100">{c.nome}</p>
                     </div>
                     <div className="p-5 space-y-4 text-sm">
-                      <div className="space-y-2">
-                        <LinhaResumo label="Custos Fixos" value={c.fixo} bold />
-                        <LinhaResumo label="Custos Variáveis" value={c.variavel} bold />
-                      </div>
+                      <LinhaResumo label="Custos Fixos" value={c.fixo} bold />
+                      <LinhaResumo label="Custos Variáveis" value={c.variavel} bold />
                       <div className="border-t border-slate-700/40 pt-3 flex justify-between items-center bg-slate-800/50 p-2 rounded-lg">
                         <span className="text-slate-300 font-bold uppercase text-xs">Custo Total</span>
                         <span className="font-mono text-base font-bold text-primary">{BRL(c.total)}</span>
@@ -703,257 +1180,324 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 ))}
               </div>
             </section>
-
-            <section>
-              <TituloSecao titulo="Análise de Médias e Composição de Custos" />
-              <p className="mb-5 -mt-3 text-sm text-slate-500">
-                Considerando <strong>{qtdMeses} {qtdMeses > 1 ? "meses fechados" : "mês fechado"}</strong>, com um total de <strong>{hhMM(totalHorasAeronave)} horas</strong> e <strong>{totalPousos} pousos</strong>.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5 mb-6">
-                <KpiCard label="Custo Mês (Médio)" value={BRL(medias.custoMes)} />
-                <KpiCard label="Custo Hora (Médio)" value={BRL(medias.custoHora)} />
-                <KpiCard label="Custo Pouso (Médio)" value={BRL(medias.custoPouso)} />
-                <KpiCard label="Valor Médio Litro" value={BRL(medias.valorLitro)} />
-                <KpiCard label="Consumo Litros/Hora" value={`${NUM(medias.litrosHora, 1)} L`} />
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border border-slate-700/60 bg-card/80 p-6 shadow-sm">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Composição Global de Custo</p>
-                  <div className="flex h-6 overflow-hidden rounded-full bg-slate-800/60 mb-4">
-                    <div className="h-full bg-blue-500" style={{ width: `${baseCustos.total > 0 ? (baseCustos.fixo / baseCustos.total) * 100 : 0}%` }} title="Fixos" />
-                    <div className="h-full bg-amber-400" style={{ width: `${baseCustos.total > 0 ? (baseCustos.variavel / baseCustos.total) * 100 : 0}%` }} title="Variáveis" />
-                  </div>
-                  <div className="space-y-3">
-                    <LinhaResumo label="Custos Fixos (Azul)" value={baseCustos.fixo} bold />
-                    <LinhaResumo label="Custos Variáveis (Amarelo)" value={baseCustos.variavel} bold />
-                    <div className="border-t border-slate-700/40 pt-2 mt-2">
-                      <LinhaResumo label="Gasto com Combustível (Dentro do Variável)" value={baseCustos.combustivel} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-700/60 bg-card/80 p-6 shadow-sm">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Bases Para Rateio</p>
-                  <div className="space-y-3">
-                    <LinhaResumo label="Custo Fixo Mensal" value={baseCustos.fixoMes} bold />
-                    <LinhaResumo label="Custo Variável por Hora Voada" value={baseCustos.variavelHora} bold />
-                    <LinhaResumo label="Combustível por Hora Voada" value={baseCustos.combustivelHora} bold />
-                  </div>
-                  <div className="mt-5 rounded-lg bg-slate-800/50 p-4 border border-slate-700/40 text-xs text-slate-300 leading-relaxed">
-                    <strong>Como funciona:</strong> O custo fixo mensal se mantém independente de voar (Hangaragem, Tripulação). O custo variável (Combustível, Manutenção Hora) é acionado exclusivamente quando a aeronave voa.
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              ABA 3: GRÁFICOS E ANÁLISES DE CUSTO
-              ════════════════════════════════════════════════════════════════ */}
-          <div className={`space-y-8 animate-fade-in print:block print:space-y-8 ${activeTab === "graficos" ? "block" : "hidden"}`}>
-            
-            <section>
-              <TituloSecao titulo="Distribuição por Categoria de Gasto" />
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2 overflow-x-auto rounded-xl border border-slate-700/60 bg-card/80 shadow-sm">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-slate-800/50 text-xs font-bold uppercase text-slate-500">
-                        <Th className="text-left py-3 px-4">Categoria</Th>
-                        {cotistas.map((c) => <Th key={c.id} right>{c.nome}</Th>)}
-                        <Th className="text-slate-100" right>Total Geral</Th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/40">
-                      {pivot.sortedCats.map((cat) => {
-                        const byC = pivot.cats.get(cat)!;
-                        const rowTotal = Array.from(byC.values()).reduce((s, v) => s + v, 0);
-                        return (
-                          <tr key={cat} className="hover:bg-slate-800/50">
-                            <Td className="font-bold text-slate-200 py-3 px-4" upper>{cat}</Td>
-                            {cotistas.map((c) => (
-                              <Td key={c.id} dim={!byC.get(c.id)} mono right>
-                                {byC.get(c.id) ? BRL(byC.get(c.id)!) : "—"}
-                              </Td>
-                            ))}
-                            <Td className="font-bold text-slate-100" mono right>{BRL(rowTotal)}</Td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-primary/15 text-xs font-bold text-primary border-t-2 border-primary/30">
-                        <td className="py-3 px-4 uppercase">Total Geral</td>
-                        {cotistas.map((c) => (
-                          <td key={c.id} className="py-3 px-4 text-right font-mono text-primary">{BRL(pivot.cotTot.get(c.id) ?? 0)}</td>
+          {/* ══════════════ ABA 4 — GRÁFICOS E ANÁLISES ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "graficos" ? "block" : "hidden"}`}>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+              <Painel
+                className="xl:col-span-3"
+                titulo="Custo por mês e categoria de custo"
+                descricao="Barras empilhadas por tipo de custo em cada competência."
+              >
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={serie} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <CartesianGrid stroke="#1C2A3F" vertical={false} />
+                      <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => BRLCompacto(Number(v))} />
+                      <Tooltip content={<TooltipGrafico />} cursor={{ fill: "#131E2F" }} />
+                      <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8", paddingTop: 8 }} iconType="circle" iconSize={8} />
+                      <Bar dataKey="fixo" name="Fixos" stackId="a" fill="#38bdf8" />
+                      <Bar dataKey="variavel" name="Variáveis" stackId="a" fill="#fbbf24" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Painel>
+
+              <Painel className="xl:col-span-2" titulo="Participação por categoria">
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={dadosCategoriaPie} dataKey="value" nameKey="name" innerRadius={48} outerRadius={80} paddingAngle={2} stroke="none">
+                        {dadosCategoriaPie.map((d) => (
+                          <Cell key={d.name} fill={d.cor} />
                         ))}
-                        <td className="py-3 px-4 text-right font-mono">{BRL(pivot.grand)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </Pie>
+                      <Tooltip content={<TooltipGrafico />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {dadosCategoriaPie.map((d, i) => (
+                    <li key={d.name} className="flex items-center gap-2 text-[11px]">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.cor }} />
+                      <span className="truncate text-slate-400">{d.name}</span>
+                      <span className="ml-auto font-mono text-slate-200">{BRL(d.value)}</span>
+                      <span className="w-10 text-right font-mono text-slate-500">{NUM(categorias[i]?.pct ?? 0, 0)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </Painel>
+            </div>
+
+            <Painel
+              titulo="Ranking de gastos e divisão entre cotistas"
+              descricao="Cada barra mostra como o valor da categoria foi distribuído entre os sócios."
+            >
+              {categorias.length === 0 ? (
+                <Vazio texto="Sem gastos registrados." />
+              ) : (
+                <>
+                  <ul className="space-y-5">
+                    {categorias.map((c, i) => (
+                      <li key={c.categoria}>
+                        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="w-6 font-mono text-xs font-bold text-slate-600">{i + 1}º</span>
+                          <span className="text-sm font-bold uppercase tracking-wide text-slate-100">{c.categoria}</span>
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              c.tipo === "FIXO" ? "bg-sky-500/15 text-sky-300" : "bg-amber-500/15 text-amber-300"
+                            }`}
+                          >
+                            {c.tipo === "FIXO" ? "Fixo" : "Variável"}
+                          </span>
+                          <span className="ml-auto font-mono text-sm font-bold text-slate-100">{BRL(c.total)}</span>
+                          <span className="w-12 text-right font-mono text-xs text-slate-500">{NUM(c.pct, 1)}%</span>
+                        </div>
+                        <BarraCotistas cotistas={cotistas} valores={c.porCotista} total={c.total} />
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-5 flex flex-wrap gap-4 border-t border-slate-800 pt-4">
+                    {cotistas.map((c) => (
+                      <span key={c.id} className="flex items-center gap-2 text-[11px] text-slate-400">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.corHex }} />
+                        {c.nome}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </Painel>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+              <Painel
+                className="xl:col-span-3"
+                titulo="Projeção do custo por hora voada"
+                descricao="Quanto mais horas no mês, mais o custo fixo se dilui. O custo variável permanece constante."
+              >
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={projecao.linhas} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <CartesianGrid stroke="#1C2A3F" vertical={false} />
+                      <XAxis dataKey="horas" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}h`} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => BRLCompacto(Number(v))} />
+                      <Tooltip content={<TooltipGrafico />} cursor={{ stroke: "#2A3B54" }} />
+                      <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8", paddingTop: 8 }} iconType="circle" iconSize={8} />
+                      <Line type="monotone" dataKey="custoHora" name="Custo total / hora" stroke="#38bdf8" strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="custoFixoHora" name="Parcela fixa / hora" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                      <Line type="monotone" dataKey="custoVariavelHora" name="Parcela variável / hora" stroke="#fbbf24" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div className="rounded-xl border border-slate-700/60 bg-card/80 p-5 shadow-sm flex flex-col gap-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Participação Gráfica</p>
-                  {pivot.sortedCats.map((cat) => {
-                    const byC = pivot.cats.get(cat)!;
-                    const rowTotal = Array.from(byC.values()).reduce((s, v) => s + v, 0);
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[5, 10, 20, 30].map((h) => {
+                    const custo = medias.fixoMes / h + medias.variavelHora;
                     return (
-                      <div key={cat} className="space-y-1.5">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-bold text-slate-200 uppercase">{cat}</span>
-                          <span className="font-mono font-semibold text-slate-300">{BRL(rowTotal)}</span>
-                        </div>
-                        <div className="flex h-5 overflow-hidden rounded-full bg-slate-800/60">
-                          {cotistas.map((c, ci) => {
-                            const val = byC.get(c.id) ?? 0;
-                            const pct = pivot.grand > 0 ? (val / pivot.grand) * 100 : 0;
-                            return (
-                              <div
-                                key={c.id}
-                                title={`${c.nome}: ${BRL(val)}`}
-                                style={{ width: `${pct}%` }}
-                                className={`h-full ${BAR_COLORS[ci % BAR_COLORS.length]}`}
-                              />
-                            );
-                          })}
-                        </div>
+                      <div key={h} className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{h}h / mês</p>
+                        <p className="mt-1 font-mono text-sm font-bold text-sky-300">{BRL(custo)}</p>
+                        <p className="text-[11px] text-slate-500">por hora voada</p>
                       </div>
                     );
                   })}
-                  <div className="mt-4 pt-4 border-t border-slate-700/40 flex flex-wrap gap-3">
-                    {cotistas.map((c, ci) => (
-                      <div key={c.id} className="flex items-center gap-2 text-xs font-medium text-slate-300">
-                        <span className={`h-3 w-3 rounded-full ${BAR_COLORS[ci % BAR_COLORS.length]}`} />
-                        {c.nome}
-                      </div>
-                    ))}
-                  </div>
                 </div>
+              </Painel>
+
+              <div className="space-y-6 xl:col-span-2">
+                <Painel titulo="Cota x uso x custo" descricao="Desvios grandes indicam desequilíbrio no rateio.">
+                  <div className="h-60">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={dadosRadar} outerRadius="72%">
+                        <PolarGrid stroke="#1C2A3F" />
+                        <PolarAngleAxis dataKey="cotista" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                        <Tooltip content={<TooltipGrafico moeda={false} sufixo="%" />} />
+                        <Radar name="Cota %" dataKey="Cota" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.18} />
+                        <Radar name="Horas %" dataKey="Horas" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.14} />
+                        <Radar name="Custo %" dataKey="Custo" stroke="#34d399" fill="#34d399" fillOpacity={0.1} />
+                        <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} iconType="circle" iconSize={8} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Painel>
+
+                {projecao.pontoOtimo && (
+                  <Nota titulo="Ponto de equilíbrio de utilização" tom="positivo">
+                    <p>
+                      A partir de <strong>{projecao.pontoOtimo.horas}h por mês</strong> o custo hora se estabiliza em torno de{" "}
+                      <strong>{BRL(projecao.pontoOtimo.custoHora)}</strong>. Voar menos que isso encarece cada hora rapidamente,
+                      porque o custo fixo de {BRL(medias.fixoMes)}/mês é dividido por poucas horas.
+                    </p>
+                  </Nota>
+                )}
+
+                <Nota titulo="Base de cálculo">
+                  <p>
+                    Custo fixo médio: <strong>{BRL(medias.fixoMes)}/mês</strong>.
+                  </p>
+                  <p>
+                    Custo variável médio: <strong>{BRL(medias.variavelHora)}/hora</strong>, dos quais{" "}
+                    {BRL(medias.combustivelHora)} são de combustível.
+                  </p>
+                </Nota>
               </div>
-            </section>
+            </div>
 
-            <section>
-              <TituloSecao titulo="Ranking dos Maiores Gastos" />
-              {ranking.length === 0 ? (
-                <Vazio texto="Sem gastos registrados." />
-              ) : (
-                <div className="rounded-xl border border-slate-700/60 bg-card/80 shadow-sm divide-y divide-slate-700/40">
-                  {ranking.map((r, i) => (
-                    <div key={r.nome} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-800/50">
-                      <span className="w-8 text-center text-sm font-bold text-slate-500">{i + 1}º</span>
-                      <span className="flex-1 truncate text-sm font-bold uppercase text-slate-200">{r.nome}</span>
-                      <span className="w-32 text-right font-mono text-sm font-semibold text-slate-100">{BRL(r.valor)}</span>
-                      <span className="w-16 shrink-0 rounded-lg bg-primary/15 px-2 py-1 text-center text-xs font-bold text-primary">
-                        {NUM(r.pct, 0)}%
-                      </span>
-                      <div className="hidden h-2 w-48 shrink-0 overflow-hidden rounded-full bg-slate-800/60 sm:block">
-                        <div className="h-full bg-blue-500" style={{ width: `${Math.max(2, r.pct)}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section>
-              <TituloSecao titulo="Projeção de Custos por Hora Voada" />
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-2 space-y-5">
-                  <div className="rounded-xl bg-blue-600 p-6 text-white shadow-md">
-                    <p className="text-xs uppercase font-bold tracking-widest text-blue-200/80 mb-2">
-                      Taxa Atual de Projeção
-                    </p>
-                    <p className="font-mono text-3xl font-bold">
-                      {BRL(projecao.taxaProjecao)} <span className="text-lg font-normal text-blue-200/80">/ hora</span>
-                    </p>
-                    <p className="mt-3 text-sm text-blue-100/80">
-                      Este é o custo/hora baseado na utilização atual. A tabela ao lado projeta diferentes cenários de uso.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-700/60 bg-card/80 p-5 text-sm text-slate-300 space-y-3 shadow-sm">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-100">Como analisar:</p>
-                    <p>O <strong>Custo Variável</strong> ({BRL(baseCustos.variavelHora)}) ocorre a cada hora de voo.</p>
-                    <p>O <strong>Custo Fixo</strong> ({BRL(baseCustos.fixoMes)}) é diluído nas horas voadas. Voar mais, reduz drasticamente o peso fixo da aeronave.</p>
-                    {projecao.pontoOtimo && (
-                      <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/15 p-3 text-emerald-400 font-medium">
-                        O Ponto Ideal de uso é a partir de <strong>{projecao.pontoOtimo.horas}h/mês</strong>, onde a diluição de custos se estabiliza.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-3 max-h-[500px] overflow-auto rounded-xl border border-slate-700/60 shadow-sm bg-card/80">
-                  <table className="w-full border-collapse text-xs">
-                    <thead className="sticky top-0 z-10">
-                      <tr className="bg-slate-800/60 text-[10px] font-bold uppercase text-slate-300 shadow-sm">
-                        <Th className="py-3 px-3" right>H. Voadas</Th>
-                        <Th right>Variável (Fixo)</Th>
-                        <Th right>Fixo / Hora</Th>
-                        <Th right>Custo Hora</Th>
-                        <Th right>Índice</Th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/40">
-                      {projecao.linhas.map((l) => {
-                        const destaque = projecao.pontoOtimo && l.horas === projecao.pontoOtimo.horas;
-                        return (
-                          <tr key={l.horas} className={destaque ? "bg-emerald-500/15" : "hover:bg-slate-800/50"}>
-                            <Td className={`font-bold py-2 ${destaque ? 'text-emerald-400' : 'text-slate-100'}`} mono right>{l.horas}h</Td>
-                            <Td dim mono right>{BRL(l.custoVariavel)}</Td>
-                            <Td dim mono right>{BRL(l.custoFixoHora)}</Td>
-                            <Td className={`font-bold ${destaque ? 'text-emerald-400' : 'text-primary'}`} mono right>{BRL(l.custoHora)}</Td>
-                            <Td className="text-slate-500 font-medium" mono right>{NUM(l.indice, 2)}x</Td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+            <Painel titulo="Distribuição por categoria e cotista" semPadding>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-slate-800/50 text-xs font-bold uppercase text-slate-500">
+                      <Th className="text-left py-3 px-4">Categoria</Th>
+                      {cotistas.map((c) => <Th key={c.id} right>{c.nome}</Th>)}
+                      <Th className="text-slate-100" right>Total Geral</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/40">
+                    {pivot.sortedCats.map((cat) => {
+                      const byC = pivot.cats.get(cat)!;
+                      const rowTotal = Array.from(byC.values()).reduce((s, v) => s + v, 0);
+                      return (
+                        <tr key={cat} className="hover:bg-slate-800/50">
+                          <Td className="font-bold text-slate-200 py-3 px-4" upper>{cat}</Td>
+                          {cotistas.map((c) => (
+                            <Td key={c.id} dim={!byC.get(c.id)} mono right>
+                              {byC.get(c.id) ? BRL(byC.get(c.id)!) : "—"}
+                            </Td>
+                          ))}
+                          <Td className="font-bold text-slate-100" mono right>{BRL(rowTotal)}</Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-primary/15 text-xs font-bold text-primary border-t-2 border-primary/30">
+                      <td className="py-3 px-4 uppercase">Total Geral</td>
+                      {cotistas.map((c) => (
+                        <td key={c.id} className="py-3 px-4 text-right font-mono text-primary">{BRL(pivot.cotTot.get(c.id) ?? 0)}</td>
+                      ))}
+                      <td className="py-3 px-4 text-right font-mono">{BRL(pivot.grand)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-            </section>
+            </Painel>
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              ABA 4: DIÁRIO DE BORDO
-              ════════════════════════════════════════════════════════════════ */}
-          <div className={`space-y-8 animate-fade-in print:block print:space-y-8 ${activeTab === "diario" ? "block" : "hidden"}`}>
-            <section>
-              <TituloSecao titulo="Registros do Diário de Bordo" />
-              {!data?.voos || data.voos.length === 0 ? (
+          {/* ══════════════ ABA 5 — DIÁRIO DE BORDO ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "diario" ? "block" : "hidden"}`}>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <KpiCard label="Horas no filtro" valor={hhMM(horasFiltro)} detalhe={`${voosFiltrados.length} etapas`} destaque />
+              <KpiCard label="Pousos" valor={String(pousosFiltro)} detalhe={`${BRL(medias.custoPouso)} por pouso`} />
+              <KpiCard label="Abastecido" valor={`${NUM(litrosFiltro, 0)} L`} detalhe={`${NUM(medias.litrosHora, 1)} L/h médios`} />
+              <KpiCard
+                label="Etapa média"
+                valor={hhMM(voosFiltrados.length ? horasFiltro / voosFiltrados.length : 0)}
+                detalhe="tempo por trecho"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <Painel className="xl:col-span-2" titulo="Horas voadas por cotista" descricao="Base do rateio das despesas variáveis.">
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={resumoCotistas.map((r) => ({ nome: r.nome.split(" ")[0], horas: r.horas, cor: r.corHex }))}
+                      margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+                    >
+                      <CartesianGrid stroke="#1C2A3F" vertical={false} />
+                      <XAxis dataKey="nome" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}h`} />
+                      <Tooltip content={<TooltipGrafico moeda={false} sufixo="h" />} cursor={{ fill: "#131E2F" }} />
+                      <Bar dataKey="horas" name="Horas" radius={[6, 6, 0, 0]}>
+                        {resumoCotistas.map((r) => (
+                          <Cell key={r.id} fill={r.corHex} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Painel>
+
+              <Painel titulo="Utilização mensal">
+                <ul className="space-y-3">
+                  {serie.map((m) => {
+                    const maxH = Math.max(...serie.map((x) => x.horas), 1);
+                    return (
+                      <li key={m.mes}>
+                        <div className="mb-1.5 flex items-center justify-between text-xs">
+                          <span className="text-slate-300">{m.label}</span>
+                          <span className="font-mono font-semibold text-slate-100">{hhMM(m.horas)}</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full bg-sky-500" style={{ width: `${(m.horas / maxH) * 100}%` }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Painel>
+            </div>
+
+            <Painel
+              titulo="Registros do diário de bordo"
+              acao={
+                <label className="flex items-center gap-2 text-[11px] text-slate-400">
+                  Cotista
+                  <select
+                    value={cotistaFiltro}
+                    onChange={(e) => setCotistaFiltro(e.target.value)}
+                    className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 outline-none focus:border-sky-500"
+                  >
+                    <option value="todos">Todos</option>
+                    {cotistas.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              }
+              semPadding
+            >
+              {voosFiltrados.length === 0 ? (
                 <Vazio texto="Nenhum voo registrado neste período." />
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-700/60 bg-card/80 shadow-sm">
-                  <table className="w-full border-collapse text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-800/50 text-xs font-bold uppercase text-slate-500">
+                      <tr className="bg-slate-900/80 text-[10px] uppercase tracking-widest text-slate-500">
                         <Th className="py-3 px-4">Data</Th>
-                        <Th>Partida</Th>
-                        <Th>Chegada</Th>
-                        <Th>Trecho / Info</Th>
+                        <Th>Competência</Th>
+                        <Th>Trecho</Th>
+                        <Th>Natureza</Th>
                         <Th right>Horas</Th>
                         <Th right>Pousos</Th>
-                        <Th right>Abast.</Th>
-                        <Th>Natureza</Th>
+                        <Th right>Abastec.</Th>
                         <Th>Responsável</Th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700/40">
-                      {data.voos.map((v) => (
+                    <tbody className="divide-y divide-slate-800">
+                      {voosFiltrados.map((v) => (
                         <tr key={v.id} className="hover:bg-slate-800/50">
                           <Td className="py-3 px-4" mono>{fmtDate(v.data_registro)}</Td>
-                          <Td fontSemibold>{v.aerodromo_partida || "—"}</Td>
-                          <Td fontSemibold>{v.aerodromo_chegada || "—"}</Td>
-                          <Td max="160px" dim>{v.trecho || "—"}</Td>
-                          <Td className="font-bold text-slate-200" mono right>{v.tempo_voo ? hhMM(v.tempo_voo) : v.tempo_total ? hhMM(v.tempo_total) : "—"}</Td>
-                          <Td mono right dim>{v.pousos_total ?? "—"}</Td>
-                          <Td mono right className="text-amber-400 font-medium">{v.combustivel_adicionado ? `${NUM(v.combustivel_adicionado, 0)} L` : "—"}</Td>
+                          <Td dim>{labelMes(mesKey(v.data_registro))}</Td>
+                          <Td mono fontSemibold>
+                            {(v.aerodromo_partida || "—")} → {(v.aerodromo_chegada || "—")}
+                          </Td>
                           <Td dim upper>{v.natureza_voo || "—"}</Td>
+                          <Td className="font-bold text-slate-100" mono right>
+                            {hhMM(Number(v.tempo_voo ?? v.tempo_total ?? 0))}
+                          </Td>
+                          <Td mono right dim>{v.pousos_total ?? "—"}</Td>
+                          <Td mono right className="text-amber-300 font-medium">
+                            {v.combustivel_adicionado ? `${NUM(v.combustivel_adicionado, 0)} L` : "—"}
+                          </Td>
                           <Td>
-                            <span className="rounded-md bg-primary/15 px-2 py-1 text-xs font-bold text-primary border border-primary/20">
+                            <span className="flex items-center gap-2 text-slate-200">
+                              <AvatarCotista cotista={cotistaPorId(v.socios_id || v.clientes_id || "")} tamanho="sm" />
                               {v.socios_nome || "—"}
                             </span>
                           </Td>
@@ -961,24 +1505,119 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-slate-800 text-xs font-bold text-white">
-                        <td colSpan={4} className="py-3 px-4 text-right uppercase">Total do Período</td>
-                        <td className="py-3 px-4 text-right font-mono text-blue-300">{hhMM(totalHorasAeronave)}</td>
-                        <td className="py-3 px-4 text-right font-mono">{totalPousos}</td>
-                        <td className="py-3 px-4 text-right font-mono text-amber-300">{NUM(totalLitros, 0)} L</td>
-                        <td colSpan={2} />
+                      <tr className="bg-slate-800 text-xs font-bold text-slate-100">
+                        <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-widest text-slate-400">Total</td>
+                        <td className="px-3 py-3 text-right font-mono text-sky-300">{hhMM(horasFiltro)}</td>
+                        <td className="px-3 py-3 text-right font-mono">{pousosFiltro}</td>
+                        <td className="px-3 py-3 text-right font-mono text-amber-300">{NUM(litrosFiltro, 0)} L</td>
+                        <td />
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               )}
-            </section>
+            </Painel>
+          </div>
+
+          {/* ══════════════ ABA 6 — EXPLICANDO O BALANÇO ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "metodologia" ? "block" : "hidden"}`}>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <article className="rounded-2xl border border-sky-500/30 bg-sky-500/[0.07] p-5">
+                <Scale className="mb-3 h-5 w-5 text-sky-300" />
+                <h2 className="text-sm font-bold text-slate-100">1. Custos fixos → cota societária</h2>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                  Hangaragem, seguro, tripulação e administração existem mesmo que a aeronave não decole. São divididos pelo
+                  percentual de propriedade de cada cotista.
+                </p>
+                <p className="mt-3 rounded-lg bg-slate-900/70 p-3 font-mono text-[11px] text-sky-200">
+                  valor_cotista = valor_total × cota%
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] p-5">
+                <Timer className="mb-3 h-5 w-5 text-amber-300" />
+                <h2 className="text-sm font-bold text-slate-100">2. Custos variáveis → horas voadas</h2>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                  Combustível, manutenção por hora e tarifas aeroportuárias só ocorrem quando se voa. São divididos pela
+                  proporção de horas de cada cotista <strong>no mês da despesa</strong>.
+                </p>
+                <p className="mt-3 rounded-lg bg-slate-900/70 p-3 font-mono text-[11px] text-amber-200">
+                  valor_cotista = valor_total × (horas_cotista ÷ horas_mês)
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] p-5">
+                <Calculator className="mb-3 h-5 w-5 text-emerald-300" />
+                <h2 className="text-sm font-bold text-slate-100">3. Saldo e acerto</h2>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                  Confronta-se o que cada um adiantou a fornecedores com o que lhe cabe pelo rateio. A diferença vira
+                  transferências entre os cotistas.
+                </p>
+                <p className="mt-3 rounded-lg bg-slate-900/70 p-3 font-mono text-[11px] text-emerald-200">
+                  saldo = total_pago − total_rateado
+                </p>
+              </article>
+            </div>
+
+            <Painel titulo="Classificação das categorias do período" semPadding>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-900/80 text-[10px] uppercase tracking-widest text-slate-500">
+                      <Th className="py-3 px-4">Categoria</Th>
+                      <Th>Tipo</Th>
+                      <Th>Critério de rateio</Th>
+                      <Th right>Participação</Th>
+                      <Th right className="px-4">Total no período</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {categorias.map((c) => (
+                      <tr key={c.categoria} className="hover:bg-slate-800/40">
+                        <Td className="py-3 px-4 font-bold text-slate-100" upper>{c.categoria}</Td>
+                        <Td>
+                          <span
+                            className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                              c.tipo === "FIXO" ? "bg-sky-500/15 text-sky-300" : "bg-amber-500/15 text-amber-300"
+                            }`}
+                          >
+                            {c.tipo === "FIXO" ? "Fixo" : "Variável"}
+                          </span>
+                        </Td>
+                        <Td dim>{c.tipo === "FIXO" ? "Cota societária" : "Horas voadas no mês"}</Td>
+                        <Td mono right dim>{NUM(c.pct, 1)}%</Td>
+                        <Td className="px-4 font-semibold text-slate-100" mono right>{BRL(c.total)}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Painel>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Nota titulo="Regras de conferência" tom="atencao">
+                <p>
+                  Só entram no fechamento lançamentos <strong>conferidos</strong>, com data de pagamento dentro do período (ou
+                  vencimento, quando ainda não pago).
+                </p>
+                <p>
+                  A soma dos rateios sempre precisa ser igual ao total pago aos fornecedores — a diferença exibida na tela de
+                  acerto deve ser zero.
+                </p>
+              </Nota>
+              <Nota titulo="Quando não há horas no mês">
+                <p>
+                  Se em um mês nenhum cotista voar, as despesas variáveis daquele mês passam a ser divididas pela cota
+                  societária, evitando divisão por zero e mantendo o fechamento consistente.
+                </p>
+              </Nota>
+            </div>
           </div>
 
           <footer className="mt-12 border-t border-slate-700 pt-6 text-center text-xs text-slate-500 font-medium">
-            Gerado pelo Sistema Share Brasil • {aeronaveLabel} • {mesLabel} • Impresso em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            Gerado pelo Sistema Share Brasil • {aeronaveLabel} • {mesLabel} • Impresso em{" "}
+            {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
           </footer>
-
         </div>
       )}
     </div>
@@ -989,22 +1628,12 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 // SUB-COMPONENTES E UI
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BAR_COLORS = [
-  "bg-blue-500",
-  "bg-amber-500",
-  "bg-emerald-500",
-  "bg-violet-500",
-  "bg-rose-500",
-];
-
-function TabButton({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) {
+function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: any; label: string }) {
   return (
     <button
       onClick={onClick}
       className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-4 text-sm font-bold transition-colors ${
-        active 
-          ? "border-blue-600 text-primary" 
-          : "border-transparent text-slate-500 hover:border-slate-600 hover:text-slate-200"
+        active ? "border-blue-600 text-primary" : "border-transparent text-slate-500 hover:border-slate-600 hover:text-slate-200"
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -1013,12 +1642,136 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean, on
   );
 }
 
+function Painel({
+  titulo,
+  descricao,
+  children,
+  className = "",
+  semPadding,
+  acao,
+}: {
+  titulo: string;
+  descricao?: string;
+  children?: React.ReactNode;
+  className?: string;
+  semPadding?: boolean;
+  acao?: React.ReactNode;
+}) {
+  return (
+    <section className={`rounded-2xl border border-slate-700/60 bg-card/80 shadow-sm ${className}`}>
+      <header className="flex flex-wrap items-center gap-3 border-b border-slate-700/60 px-5 py-4">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-slate-100">{titulo}</h2>
+          {descricao && <p className="mt-0.5 text-xs text-slate-500">{descricao}</p>}
+        </div>
+        {acao && <div className="ml-auto">{acao}</div>}
+      </header>
+      <div className={semPadding ? "" : "p-5"}>{children}</div>
+    </section>
+  );
+}
+
+function Nota({ titulo, children, tom }: { titulo: string; children: React.ReactNode; tom?: "positivo" | "atencao" }) {
+  const cls =
+    tom === "positivo"
+      ? "border-emerald-500/30 bg-emerald-500/[0.07]"
+      : tom === "atencao"
+      ? "border-amber-500/30 bg-amber-500/[0.07]"
+      : "border-slate-700/60 bg-slate-900/60";
+  return (
+    <div className={`rounded-2xl border p-4 ${cls}`}>
+      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{titulo}</p>
+      <div className="space-y-1.5 text-xs leading-relaxed text-slate-300">{children}</div>
+    </div>
+  );
+}
+
+function AvatarCotista({ cotista, tamanho }: { cotista: { nome: string; corHex?: string }; tamanho?: "sm" }) {
+  const iniciais = (cotista?.nome || "?")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+  const size = tamanho === "sm" ? "h-6 w-6 text-[10px]" : "h-9 w-9 text-xs";
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold text-slate-900 ${size}`}
+      style={{ background: cotista?.corHex || "#64748b" }}
+    >
+      {iniciais}
+    </span>
+  );
+}
+
+function Metrica({ titulo, valor, sub }: { titulo: string; valor: string; sub?: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{titulo}</p>
+      <p className="font-mono text-sm font-bold text-slate-100">{valor}</p>
+      {sub && <p className="text-[11px] text-slate-500">{sub}</p>}
+    </div>
+  );
+}
+
+function BarraCotistas({
+  cotistas,
+  valores,
+  total,
+}: {
+  cotistas: CotistaInfo[];
+  valores: Map<string, number>;
+  total: number;
+}) {
+  return (
+    <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-800">
+      {cotistas.map((c) => {
+        const val = valores.get(c.id) ?? 0;
+        const pct = total > 0 ? (val / total) * 100 : 0;
+        if (pct <= 0) return null;
+        return <div key={c.id} title={`${c.nome}: ${BRL(val)}`} style={{ width: `${pct}%`, background: c.corHex }} className="h-full" />;
+      })}
+    </div>
+  );
+}
+
+function TooltipGrafico({
+  active,
+  payload,
+  label,
+  sufixo,
+  moeda = true,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  sufixo?: string;
+  moeda?: boolean;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-slate-600 bg-slate-900/95 px-3 py-2 shadow-xl backdrop-blur">
+      {label && <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</p>}
+      <ul className="space-y-1">
+        {payload.map((p, i) => (
+          <li key={i} className="flex items-center gap-2 text-xs">
+            <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+            <span className="text-slate-400">{p.name}</span>
+            <span className="ml-auto font-mono font-semibold text-slate-100">
+              {moeda ? BRL(p.value ?? 0) : `${Number(p.value ?? 0).toFixed(1).replace(".", ",")}${sufixo ?? ""}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function TituloSecao({ titulo }: { titulo: string }) {
   return (
     <div className="mb-6 flex items-center gap-3 print:mb-4">
-      <h2 className="text-lg font-bold tracking-tight text-slate-100">
-        {titulo}
-      </h2>
+      <h2 className="text-lg font-bold tracking-tight text-slate-100">{titulo}</h2>
       <div className="h-px flex-1 bg-slate-700/50" />
     </div>
   );
@@ -1032,13 +1785,31 @@ function Vazio({ texto }: { texto: string }) {
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({
+  label,
+  valor,
+  detalhe,
+  icone,
+  destaque,
+}: {
+  label: string;
+  valor: string;
+  detalhe?: string;
+  icone?: React.ReactNode;
+  destaque?: boolean;
+}) {
   return (
-    <div className="rounded-xl border border-slate-700/60 bg-card/80 p-5 shadow-sm transition-all hover:shadow-md">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="font-mono text-2xl font-bold tracking-tight text-primary">
-        {value}
-      </p>
+    <div
+      className={`rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${
+        destaque ? "border-primary/40 bg-primary/10" : "border-slate-700/60 bg-card/80"
+      }`}
+    >
+      <div className="mb-2 flex items-center gap-2 text-slate-500">
+        {icone}
+        <p className="text-[10px] font-bold uppercase tracking-widest">{label}</p>
+      </div>
+      <p className="font-mono text-2xl font-bold tracking-tight text-primary">{valor}</p>
+      {detalhe && <p className="mt-1 text-[11px] text-slate-500">{detalhe}</p>}
     </div>
   );
 }
@@ -1064,7 +1835,25 @@ function Th({ children, right, className = "" }: { children?: React.ReactNode; r
   );
 }
 
-function Td({ children, right, mono, upper, dim, fontSemibold, max, className = "" }: { children?: React.ReactNode; right?: boolean; mono?: boolean; upper?: boolean; dim?: boolean; fontSemibold?: boolean; max?: string; className?: string }) {
+function Td({
+  children,
+  right,
+  mono,
+  upper,
+  dim,
+  fontSemibold,
+  max,
+  className = "",
+}: {
+  children?: React.ReactNode;
+  right?: boolean;
+  mono?: boolean;
+  upper?: boolean;
+  dim?: boolean;
+  fontSemibold?: boolean;
+  max?: string;
+  className?: string;
+}) {
   return (
     <td
       style={max ? { maxWidth: max, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : undefined}

@@ -62,6 +62,116 @@ function calculateBalance(items: any[], wb: any, fuelLitros = 0) {
   return { lines, totalWeight, totalMoment, cg, zfw, mtow, mlw, mzfw, cgFwd, cgAft, alerts, dentroLimites: hasLimits && totalWeight > 0 && !alerts.some((alert) => alert.level === 'error') };
 }
 
+/* ---------------------------------------------------------------------- */
+/* Indicador visual de CG — aviãozinho que se inclina conforme o desvio   */
+/* ---------------------------------------------------------------------- */
+
+function AircraftCGIndicator({ calc }: { calc: any }) {
+  const { cg, cgFwd, cgAft, totalWeight, mtow, alerts } = calc;
+  const hasEnvelope = cgFwd > 0 && cgAft > 0 && cgAft > cgFwd;
+
+  // posição normalizada do CG dentro do envelope: 0 = limite dianteiro, 1 = limite traseiro
+  const range = hasEnvelope ? cgAft - cgFwd : 0;
+  const pos = hasEnvelope ? (cg - cgFwd) / range : 0.5;
+
+  // quanto passou do limite (negativo = à frente do dianteiro, positivo = atrás do traseiro)
+  const overshoot = pos < 0 ? pos : pos > 1 ? pos - 1 : 0;
+
+  // ângulo de inclinação do aviãozinho: nariz baixo (CG à frente), nariz alto (CG atrás)
+  const tiltDeg = Math.max(-22, Math.min(22, overshoot * 45));
+
+  const overWeight = mtow > 0 && totalWeight > mtow;
+  const hasError = alerts?.some((a: any) => a.level === 'error') || overWeight;
+  const hasWarn = !hasError && alerts?.some((a: any) => a.level === 'warn');
+
+  const bodyColor = hasError ? '#f87171' : hasWarn ? '#fbbf24' : '#45d1b5';
+  const statusLabel = !hasEnvelope
+    ? 'Sem limites cadastrados'
+    : hasError
+    ? (overshoot < 0 ? 'CG muito à frente do limite' : overshoot > 0 ? 'CG muito atrás do limite' : 'Fora dos limites')
+    : hasWarn
+    ? 'Atenção'
+    : 'Dentro do envelope';
+
+  // ---- régua estendida: mostra visualmente o quanto passou do limite ----
+  // faixa exibida: -30% a 130% do range original (margem de "excesso" visível pra ambos os lados)
+  const DISPLAY_MIN = -0.3;
+  const DISPLAY_MAX = 1.3;
+  const DISPLAY_SPAN = DISPLAY_MAX - DISPLAY_MIN;
+
+  const toDisplayPct = (value: number) => ((value - DISPLAY_MIN) / DISPLAY_SPAN) * 100;
+  const clampedPos = Math.max(DISPLAY_MIN, Math.min(DISPLAY_MAX, pos));
+  const markerPct = toDisplayPct(clampedPos);
+  const safeZoneStartPct = toDisplayPct(0);
+  const safeZoneEndPct = toDisplayPct(1);
+  const isOutOfRange = pos < DISPLAY_MIN || pos > DISPLAY_MAX;
+
+  return (
+    <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5">
+      <h3 className="mb-3 text-sm font-semibold text-slate-200">Situação do carregamento</h3>
+
+      <div className="flex items-center justify-center py-4">
+        <svg width="220" height="140" viewBox="0 0 220 140">
+          {/* linha de referência (horizonte) */}
+          <line x1="10" y1="90" x2="210" y2="90" stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
+
+          <g transform={`rotate(${tiltDeg} 110 80)`} style={{ transition: 'transform 300ms ease-out' }}>
+            {/* fuselagem */}
+            <ellipse cx="110" cy="80" rx="75" ry="10" fill={bodyColor} opacity="0.9" />
+            {/* nariz (indica a frente do avião) */}
+            <polygon points="180,80 210,80 180,72 180,88" fill={bodyColor} />
+            {/* asa */}
+            <polygon points="95,80 60,50 75,80 60,110 95,80" fill={bodyColor} opacity="0.6" />
+            {/* empenagem (cauda) */}
+            <polygon points="38,80 10,62 25,80 10,98 38,80" fill={bodyColor} opacity="0.6" />
+            {/* marcador do CG */}
+            <circle cx={110 - (pos - 0.5) * 100} cy="80" r="5" fill="#0f172a" stroke="#fff" strokeWidth="1.5" />
+          </g>
+        </svg>
+      </div>
+
+      {hasEnvelope && (
+        <div className="mb-2">
+          <div className="relative h-3 overflow-visible rounded-full bg-slate-800">
+            {/* zona segura (dentro do envelope) */}
+            <div
+              className="absolute top-0 h-3 rounded-full bg-ctm-teal/25"
+              style={{ left: `${safeZoneStartPct}%`, width: `${safeZoneEndPct - safeZoneStartPct}%` }}
+            />
+            {/* limites dianteiro/traseiro */}
+            <div className="absolute top-0 h-3 w-[2px] bg-slate-500" style={{ left: `${safeZoneStartPct}%` }} />
+            <div className="absolute top-0 h-3 w-[2px] bg-slate-500" style={{ left: `${safeZoneEndPct}%` }} />
+            {/* marcador do CG, pode ir além da zona segura */}
+            <div
+              className="absolute -top-1.5 h-6 w-6 -translate-x-1/2 rounded-full border-2 border-white shadow"
+              style={{ left: `${markerPct}%`, background: bodyColor }}
+              title={`CG ${fmt(cg, 3)} m`}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+            <span>Dianteiro {fmt(cgFwd, 3)} m</span>
+            <span>Traseiro {fmt(cgAft, 3)} m</span>
+          </div>
+          {overshoot !== 0 && (
+            <p className="mt-1 text-center text-[11px] text-slate-400">
+              {isOutOfRange ? 'Muito' : ''} {fmt(Math.abs(overshoot) * range, 3)} m {overshoot < 0 ? 'à frente do limite dianteiro' : 'atrás do limite traseiro'}
+            </p>
+          )}
+        </div>
+      )}
+
+      <p
+        className={cn(
+          'text-center text-sm font-semibold',
+          hasError ? 'text-red-400' : hasWarn ? 'text-amber-400' : 'text-ctm-teal'
+        )}
+      >
+        {statusLabel}
+      </p>
+    </div>
+  );
+}
+
 export function PesoBalanceamentoTab({ aircraftId }: { aircraftId: string }) {
   const [activeTab, setActiveTab] = useState<'ficha' | 'carregamentos'>('ficha');
   const [aeronave, setAeronave] = useState<any>(null);
@@ -299,7 +409,11 @@ function TechnicalSheet({ wb, stations, limits, setLimits, savingLimits, saveLim
         {showStationForm && <div className="mb-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4 print:hidden"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-semibold text-slate-300">Nova estação</p><button onClick={() => setShowStationForm(false)}><X className="h-4 w-4 text-slate-400" /></button></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><input className="ctm-input" placeholder="Descrição (ex.: PILOTO)" value={stationForm.descricao} onChange={(e) => setStationForm((form: any) => ({ ...form, descricao: e.target.value }))} /><select className="ctm-input" value={stationForm.categoria} onChange={(e) => setStationForm((form: any) => ({ ...form, categoria: e.target.value }))}>{CATEGORIAS.map((category) => <option key={category} value={category}>{category}</option>)}</select><input className="ctm-input" placeholder="Peso de referência (kg)" inputMode="decimal" value={stationForm.peso} onChange={(e) => setStationForm((form: any) => ({ ...form, peso: e.target.value }))} /><input className="ctm-input" placeholder="Braço (m)" inputMode="decimal" value={stationForm.braco} onChange={(e) => setStationForm((form: any) => ({ ...form, braco: e.target.value }))} /></div><div className="mt-3 flex justify-end"><button onClick={saveStation} className="inline-flex items-center gap-1.5 rounded-lg bg-ctm-teal px-3 py-1.5 text-xs font-semibold text-[hsl(var(--ctm-navy))]"><Save className="h-3.5 w-3.5" /> Salvar estação</button></div></div>}
         <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-800 text-[11px] uppercase tracking-wide text-slate-500"><th className="px-2 py-2 text-left">Estação</th><th className="px-2 py-2 text-right">Peso (kg)</th><th className="px-2 py-2 text-right">Braço (m)</th><th className="px-2 py-2 text-right">Momento</th><th className="px-2 py-2 print:hidden" /></tr></thead><tbody>{stations.map((station: any) => <tr key={station.id} className="border-b border-slate-900/70 odd:bg-slate-900/20"><td className="px-2 py-2"><p className="font-medium text-slate-200">{station.descricao}</p><p className="text-[10px] uppercase text-slate-500">{station.categoria || 'OUTRO'}</p></td><td className="px-2 py-1.5 text-right"><input className="w-20 rounded border border-transparent bg-transparent px-1 py-0.5 text-right text-slate-200 outline-none hover:border-slate-700 focus:border-ctm-teal" defaultValue={station.peso_sem_combustivel ?? 0} onBlur={(e) => updateStation(station, { peso_sem_combustivel: n(e.target.value) })} /></td><td className="px-2 py-1.5 text-right"><input className="w-20 rounded border border-transparent bg-transparent px-1 py-0.5 text-right text-slate-200 outline-none hover:border-slate-700 focus:border-ctm-teal" defaultValue={station['braço_posicao'] ?? 0} onBlur={(e) => updateStation(station, { 'braço_posicao': n(e.target.value) })} /></td><td className="px-2 py-2 text-right text-slate-300">{fmt(n(station.peso_sem_combustivel) * n(station['braço_posicao']), 1)}</td><td className="px-2 py-2 text-right print:hidden"><button onClick={() => deleteStation(station.id)} className="text-slate-500 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button></td></tr>)}{stations.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-slate-500">Nenhuma estação cadastrada.</td></tr>}</tbody></table></div>
       </div>
-      <div className="space-y-5"><div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5"><h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200"><Gauge className="h-4 w-4 text-cyan-400" /> Envelope de Centro de Gravidade</h3>{envelope ? <ResponsiveContainer width="100%" height={280}><ComposedChart margin={{ top: 10, right: 16, bottom: 16, left: 0 }}><CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.25} /><XAxis type="number" dataKey="cg" domain={[envelope.cgFwd - 0.15, envelope.cgAft + 0.15]} tickFormatter={(value) => Number(value).toFixed(2)} stroke="hsl(var(--muted-foreground))" fontSize={11} /><YAxis type="number" dataKey="peso" domain={[Math.round(envelope.pesoMin * 0.9), Math.round(envelope.mtow * 1.05)]} stroke="hsl(var(--muted-foreground))" fontSize={11} /><ReferenceArea x1={envelope.cgFwd} x2={envelope.cgAft} y1={envelope.pesoMin} y2={envelope.mtow} fill="#06b6d4" fillOpacity={0.12} stroke="#06b6d4" strokeOpacity={0.5} /><Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 }} /><Scatter name="Referência" data={[{ cg: calc.cg, peso: calc.totalWeight }]} fill="#10b981" shape="circle" /></ComposedChart></ResponsiveContainer> : <p className="py-12 text-center text-xs text-slate-500">Informe MTOW e os limites de CG para desenhar o envelope.</p>}<p className="mt-2 text-center text-[11px] text-slate-500">Ponto de referência: CG {fmt(calc.cg, 3)} m · {fmt(calc.totalWeight, 1)} kg</p></div>
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5"><h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200"><Gauge className="h-4 w-4 text-cyan-400" /> Envelope de Centro de Gravidade</h3>{envelope ? <ResponsiveContainer width="100%" height={280}><ComposedChart margin={{ top: 10, right: 16, bottom: 16, left: 0 }}><CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.25} /><XAxis type="number" dataKey="cg" domain={[envelope.cgFwd - 0.15, envelope.cgAft + 0.15]} tickFormatter={(value) => Number(value).toFixed(2)} stroke="hsl(var(--muted-foreground))" fontSize={11} /><YAxis type="number" dataKey="peso" domain={[Math.round(envelope.pesoMin * 0.9), Math.round(envelope.mtow * 1.05)]} stroke="hsl(var(--muted-foreground))" fontSize={11} /><ReferenceArea x1={envelope.cgFwd} x2={envelope.cgAft} y1={envelope.pesoMin} y2={envelope.mtow} fill="#06b6d4" fillOpacity={0.12} stroke="#06b6d4" strokeOpacity={0.5} /><Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 }} /><Scatter name="Referência" data={[{ cg: calc.cg, peso: calc.totalWeight }]} fill="#10b981" shape="circle" /></ComposedChart></ResponsiveContainer> : <p className="py-12 text-center text-xs text-slate-500">Informe MTOW e os limites de CG para desenhar o envelope.</p>}<p className="mt-2 text-center text-[11px] text-slate-500">Ponto de referência: CG {fmt(calc.cg, 3)} m · {fmt(calc.totalWeight, 1)} kg</p></div>
+
+        <AircraftCGIndicator calc={calc} />
+
         <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5"><div className="mb-3 flex items-center justify-between"><div><h3 className="text-sm font-semibold text-slate-200">Limites certificados</h3><p className="text-xs text-slate-500">Usados como base dos carregamentos dos pilotos.</p></div><button onClick={saveLimits} disabled={savingLimits} className="inline-flex items-center gap-1.5 rounded-lg bg-ctm-teal px-3 py-1.5 text-xs font-semibold text-[hsl(var(--ctm-navy))] disabled:opacity-50 print:hidden">{savingLimits ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Salvar</button></div><div className="grid grid-cols-2 gap-3">{LIMITES.map((limit) => <label key={limit.key} className="block"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">{limit.label}</span><input className="ctm-input w-full" inputMode="decimal" value={limits[limit.key] ?? ''} onChange={(e) => setLimits((current) => ({ ...current, [limit.key]: e.target.value }))} /></label>)}</div></div>
       </div>
     </div>
@@ -314,7 +428,13 @@ function LoadingsView({ loadings, showNewLoading, openNewLoading, setShowNewLoad
 }
 
 function LoadingForm({ setShowNewLoading, loadingForm, setLoadingForm, loadingItems, updateLoadingItem, loadingCalc, justification, setJustification, finalizeLoading, savingLoading }: any) {
-  return <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/80 p-5"><div className="mb-4 flex items-center justify-between"><div><h3 className="text-base font-bold text-slate-100">Novo carregamento</h3><p className="text-xs text-slate-500">Braços e limites vieram da ficha técnica e não podem ser alterados aqui.</p></div><button onClick={() => setShowNewLoading(false)}><X className="h-5 w-5 text-slate-400" /></button></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Data do voo</span><input type="date" className="ctm-input w-full" value={loadingForm.data_voo} onChange={(e) => setLoadingForm((form: any) => ({ ...form, data_voo: e.target.value }))} /></label><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Número do voo</span><input className="ctm-input w-full" placeholder="Ex.: 1234" value={loadingForm.numero_voo} onChange={(e) => setLoadingForm((form: any) => ({ ...form, numero_voo: e.target.value }))} /></label><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Combustível (litros)</span><input type="number" min="0" className="ctm-input w-full" placeholder="0" value={loadingForm.fuel_litros} onChange={(e) => setLoadingForm((form: any) => ({ ...form, fuel_litros: e.target.value }))} /></label></div><div className="mt-5 overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-800 text-[11px] uppercase tracking-wide text-slate-500"><th className="px-2 py-2 text-left">Estação</th><th className="px-2 py-2 text-right">Peso informado (kg)</th><th className="px-2 py-2 text-right">Braço travado (m)</th><th className="px-2 py-2 text-right">Momento</th></tr></thead><tbody>{loadingItems.map((item: any) => <tr key={item.estacao_id} className="border-b border-slate-900/70"><td className="px-2 py-2 text-slate-200">{item.descricao}<span className="ml-2 text-[10px] uppercase text-slate-500">{item.categoria}</span></td><td className="px-2 py-1.5 text-right"><input type="number" min="0" className="w-28 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-right text-slate-100 outline-none focus:border-cyan-500" placeholder="0" value={item.peso_kg} onChange={(e) => updateLoadingItem(item.estacao_id, e.target.value)} /></td><td className="px-2 py-2 text-right text-slate-400">{fmt(item.braco_posicao, 3)}</td><td className="px-2 py-2 text-right text-slate-300">{fmt(n(item.peso_kg) * n(item.braco_posicao), 1)}</td></tr>)}</tbody></table></div><div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5"><Kpi label="Peso total" value={`${fmt(loadingCalc.totalWeight, 1)} kg`} /><Kpi label="ZFW" value={`${fmt(loadingCalc.zfw, 1)} kg`} /><Kpi label="CG" value={`${fmt(loadingCalc.cg, 3)} m`} /><Kpi label="MTOW" value={`${fmt(loadingCalc.mtow, 1)} kg`} /><Kpi label="Resultado" value={loadingCalc.dentroLimites ? 'Aprovado' : 'Verificar'} /></div>{loadingCalc.alerts.length > 0 && <div className="mt-4 space-y-2">{loadingCalc.alerts.map((alert: any, index: number) => <div key={index} className={cn('flex items-center gap-2 rounded-xl border px-3 py-2 text-xs', alert.level === 'error' ? 'border-red-500/25 bg-red-500/10 text-red-400' : 'border-amber-500/25 bg-amber-500/10 text-amber-400')}><AlertTriangle className="h-4 w-4 shrink-0" /> {alert.msg}</div>)}</div>}{loadingCalc.alerts.length > 0 && <label className="mt-4 block"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-400">Justificativa operacional obrigatória</span><textarea className="ctm-input min-h-20 w-full" value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Descreva a autorização e a ação operacional prevista." /></label>}<div className="mt-5 flex justify-end gap-2"><button onClick={() => setShowNewLoading(false)} className="rounded-lg px-3 py-2 text-xs text-slate-400 hover:text-slate-200">Cancelar</button><button onClick={finalizeLoading} disabled={savingLoading} className="inline-flex items-center gap-1.5 rounded-lg bg-ctm-teal px-4 py-2 text-xs font-semibold text-[hsl(var(--ctm-navy))] disabled:opacity-50">{savingLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Finalizar carregamento</button></div></div>;
+  return <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/80 p-5"><div className="mb-4 flex items-center justify-between"><div><h3 className="text-base font-bold text-slate-100">Novo carregamento</h3><p className="text-xs text-slate-500">Braços e limites vieram da ficha técnica e não podem ser alterados aqui.</p></div><button onClick={() => setShowNewLoading(false)}><X className="h-5 w-5 text-slate-400" /></button></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Data do voo</span><input type="date" className="ctm-input w-full" value={loadingForm.data_voo} onChange={(e) => setLoadingForm((form: any) => ({ ...form, data_voo: e.target.value }))} /></label><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Número do voo</span><input className="ctm-input w-full" placeholder="Ex.: 1234" value={loadingForm.numero_voo} onChange={(e) => setLoadingForm((form: any) => ({ ...form, numero_voo: e.target.value }))} /></label><label><span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Combustível (litros)</span><input type="number" min="0" className="ctm-input w-full" placeholder="0" value={loadingForm.fuel_litros} onChange={(e) => setLoadingForm((form: any) => ({ ...form, fuel_litros: e.target.value }))} /></label></div><div className="mt-5 overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-800 text-[11px] uppercase tracking-wide text-slate-500"><th className="px-2 py-2 text-left">Estação</th><th className="px-2 py-2 text-right">Peso informado (kg)</th><th className="px-2 py-2 text-right">Braço travado (m)</th><th className="px-2 py-2 text-right">Momento</th></tr></thead><tbody>{loadingItems.map((item: any) => <tr key={item.estacao_id} className="border-b border-slate-900/70"><td className="px-2 py-2 text-slate-200">{item.descricao}<span className="ml-2 text-[10px] uppercase text-slate-500">{item.categoria}</span></td><td className="px-2 py-1.5 text-right"><input type="number" min="0" className="w-28 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-right text-slate-100 outline-none focus:border-cyan-500" placeholder="0" value={item.peso_kg} onChange={(e) => updateLoadingItem(item.estacao_id, e.target.value)} /></td><td className="px-2 py-2 text-right text-slate-400">{fmt(item.braco_posicao, 3)}</td><td className="px-2 py-2 text-right text-slate-300">{fmt(n(item.peso_kg) * n(item.braco_posicao), 1)}</td></tr>)}</tbody></table></div><div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5"><Kpi label="Peso total" value={`${fmt(loadingCalc.totalWeight, 1)} kg`} /><Kpi label="ZFW" value={`${fmt(loadingCalc.zfw, 1)} kg`} /><Kpi label="CG" value={`${fmt(loadingCalc.cg, 3)} m`} /><Kpi label="MTOW" value={`${fmt(loadingCalc.mtow, 1)} kg`} /><Kpi label="Resultado" value={loadingCalc.dentroLimites ? 'Aprovado' : 'Verificar'} /></div>
+
+    <div className="mt-5">
+      <AircraftCGIndicator calc={loadingCalc} />
+    </div>
+
+    {loadingCalc.alerts.length > 0 && <div className="mt-4 space-y-2">{loadingCalc.alerts.map((alert: any, index: number) => <div key={index} className={cn('flex items-center gap-2 rounded-xl border px-3 py-2 text-xs', alert.level === 'error' ? 'border-red-500/25 bg-red-500/10 text-red-400' : 'border-amber-500/25 bg-amber-500/10 text-amber-400')}><AlertTriangle className="h-4 w-4 shrink-0" /> {alert.msg}</div>)}</div>}{loadingCalc.alerts.length > 0 && <label className="mt-4 block"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-400">Justificativa operacional obrigatória</span><textarea className="ctm-input min-h-20 w-full" value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Descreva a autorização e a ação operacional prevista." /></label>}<div className="mt-5 flex justify-end gap-2"><button onClick={() => setShowNewLoading(false)} className="rounded-lg px-3 py-2 text-xs text-slate-400 hover:text-slate-200">Cancelar</button><button onClick={finalizeLoading} disabled={savingLoading} className="inline-flex items-center gap-1.5 rounded-lg bg-ctm-teal px-4 py-2 text-xs font-semibold text-[hsl(var(--ctm-navy))] disabled:opacity-50">{savingLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Finalizar carregamento</button></div></div>;
 }
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
