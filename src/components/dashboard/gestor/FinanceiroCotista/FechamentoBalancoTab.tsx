@@ -648,10 +648,16 @@ export function FechamentoBalancoTab({
 
                                 {/* Coluna 3: Notas / Edição */}
                                 <div className="flex flex-col space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-                                  <div className="flex items-center justify-between">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
                                       Observações
                                     </h4>
+                                    <button
+                                      onClick={() => setEditingRateio(r)}
+                                      className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-200 transition-colors hover:bg-teal-500/20 hover:text-teal-300"
+                                    >
+                                      <Edit2 className="h-3 w-3" /> Editar
+                                    </button>
                                   </div>
                                   <div className="flex-1 rounded bg-slate-950/50 p-2 border border-slate-800/80">
                                     <p className="text-[10px] italic text-slate-400">
@@ -683,7 +689,7 @@ export function FechamentoBalancoTab({
                                       };
                                       return (
                                       <div key={`${o.id}-${i}`} className="rounded-md border border-slate-700/50 bg-slate-900/50 p-3 space-y-2">
-                                        <div className="flex items-start justify-between">
+                                        <div className="flex items-start justify-between gap-3">
                                           <div className="flex-1 min-w-0">
                                             <p className="text-[10px] font-bold text-slate-200 truncate">
                                               {o.socios_nome || o.clientes_nome || "—"}
@@ -692,11 +698,19 @@ export function FechamentoBalancoTab({
                                               Quota: {o.percentual_sociedade != null ? `${num(o.percentual_sociedade)}%` : "—"}
                                             </p>
                                           </div>
-                                          <span className={`rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ml-2 ${
-                                            statusColors[oStatus.tone]
-                                          }`}>
-                                            {statusIcons[oStatus.tone]} {oStatus.label}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => setEditingRateio(o)}
+                                              className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[9px] font-bold text-slate-200 transition-colors hover:bg-teal-500/20 hover:text-teal-300"
+                                            >
+                                              <Edit2 className="h-3 w-3" /> Editar
+                                            </button>
+                                            <span className={`rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ${
+                                              statusColors[oStatus.tone]
+                                            }`}>
+                                              {statusIcons[oStatus.tone]} {oStatus.label}
+                                            </span>
+                                          </div>
                                         </div>
                                         <div className="border-t border-slate-700/50 pt-2 space-y-1">
                                           <div className="flex justify-between text-[9px]">
@@ -726,6 +740,41 @@ export function FechamentoBalancoTab({
                           </motion.tr>
                         )}
                       </AnimatePresence>
+                      {isExpanded && editingRateio && grupo.todos.some((o) => o.id === editingRateio.id) && (
+                        <motion.tr
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-slate-950/90 border-b border-slate-800/60"
+                        >
+                          <td colSpan={visibleColumnCount} className="px-4 py-4">
+                            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 shadow-inner">
+                              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className="text-sm font-bold text-slate-100">Editar lançamento</p>
+                                  <p className="text-[11px] text-slate-400">Ajuste no fechamento de balanço sem sair do expansor.</p>
+                                </div>
+                                <button
+                                  onClick={() => setEditingRateio(null)}
+                                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-[10px] font-bold text-slate-200 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                                >
+                                  Fechar edição
+                                </button>
+                              </div>
+                              <EditRateioPanel
+                                rateio={editingRateio}
+                                onClose={() => setEditingRateio(null)}
+                                onSaved={() => {
+                                  setEditingRateio(null);
+                                  qc.invalidateQueries({ queryKey: ["balanco-aeronave"] });
+                                  qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
+                                  onRefresh?.();
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      )}
                     </Fragment>
                   );
                 })
@@ -755,27 +804,12 @@ export function FechamentoBalancoTab({
         </div>
       </div>
 
-      {/* Edit modal (Inalterado) */}
-      <AnimatePresence>
-        {editingRateio && (
-          <EditRateioModal
-            rateio={editingRateio}
-            onClose={() => setEditingRateio(null)}
-            onSaved={() => {
-              setEditingRateio(null);
-              qc.invalidateQueries({ queryKey: ["balanco-aeronave"] });
-              qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
-              onRefresh?.();
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
-// ============== Edit Modal ==============
-function EditRateioModal({
+// ============== Edit Panel ==============
+function EditRateioPanel({
   rateio,
   onClose,
   onSaved,
