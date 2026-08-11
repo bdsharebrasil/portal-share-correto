@@ -16,7 +16,6 @@ import {
 export const SHARE_BRASIL = "SHARE BRASIL";
 
 const PERIODICIDADES = [
-  { id: "UNICA", label: "Única" },
   { id: "MENSAL", label: "Mensal" },
   { id: "BIMESTRAL", label: "Bimestral" },
   { id: "TRIMESTRAL", label: "Trimestral" },
@@ -48,7 +47,6 @@ const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-slat
 
 const TIPOS_RATEIO = [
   { id: "FIXO", label: "Fixo" },
-  { id: "MENSAL", label: "Mensal" },
   { id: "EXTRA", label: "Extra" },
   { id: "VARIAVEL_POR_VOO", label: "Variável por Voo" },
   { id: "VARIAVEL_POR_HORA", label: "Variável por Hora" },
