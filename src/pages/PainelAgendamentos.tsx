@@ -151,7 +151,7 @@ export default function PainelAgendamentos() {
       </div>
 
       <DetalhesVooDialog
-        voo={selectedBooking}
+        voo={selectedBooking ? solicitacoes.find((solicitacao) => solicitacao.id === selectedBooking.id) ?? selectedBooking : null}
         open={detalhesAberto}
         onOpenChange={(open) => {
           if (!open) setSelectedBooking(null);

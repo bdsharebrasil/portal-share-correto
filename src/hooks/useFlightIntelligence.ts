@@ -83,7 +83,7 @@ export function useFlightIntelligence(
   const { getMultipleNOTAMs, fetchPreferentialRoutes } = useAISWeb();
   const { solarData: originSolar } = useSolarData(origin || null);
   const isNight = useMemo(
-    () => isCurrentTimeNight(originSolar?.day.sunrise, originSolar?.day.sunset),
+    () => isCurrentTimeNight(originSolar?.day?.sunrise, originSolar?.day?.sunset),
     [originSolar],
   );
   const [state, setState] = useState<FlightIntelligence>({

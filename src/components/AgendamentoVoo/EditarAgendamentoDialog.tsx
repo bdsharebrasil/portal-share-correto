@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Solicitacao, useAeronavesAgendamento, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { type Solicitacao, useAeronavesAgendamento, useAgendamentoMutations, useTripulantes } from "@/hooks/useAgendamentoVoo";
 
 interface Props {
   voo: Solicitacao | null;
@@ -38,9 +38,10 @@ function useClientesLista() {
 }
 
 export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
-  const { atualizarSolicitacao } = useAgendamentoMutations();
+  const { atualizarSolicitacao, alterarStatusVoo, aprovar } = useAgendamentoMutations();
   const { data: clientes = [] } = useClientesLista();
   const { data: aeronaves = [] } = useAeronavesAgendamento();
+  const { data: tripulantes = [] } = useTripulantes();
 
   const [form, setForm] = useState({
     cliente_id: "",
@@ -52,6 +53,8 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
     dias_duracao: "1",
     qtd_passageiros: "1",
     observacoes: "",
+    piloto_id: "",
+    copiloto_id: "",
   });
 
   useEffect(() => {
@@ -66,6 +69,8 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
         dias_duracao: String(voo.dias_duracao ?? 1),
         qtd_passageiros: String(voo.qtd_passageiros ?? 1),
         observacoes: voo.observacoes ?? "",
+        piloto_id: voo.piloto_id ?? "",
+        copiloto_id: voo.copiloto_id ?? "",
       });
     }
   }, [open, voo]);
@@ -74,23 +79,36 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
 
   const ok = !!form.aeronave_id && !!form.origem && !!form.destino && !!form.data_agendada;
 
+  const dadosFormulario: Partial<Solicitacao> = {
+    cliente_id: form.cliente_id || null,
+    aeronave_id: form.aeronave_id,
+    origem: form.origem.toUpperCase(),
+    destino: form.destino.toUpperCase(),
+    data_agendada: form.data_agendada,
+    horario_previsto_agendamento: form.horario_previsto_agendamento
+      ? `${form.horario_previsto_agendamento}:00`.slice(0, 8)
+      : null,
+    dias_duracao: Number(form.dias_duracao) || 1,
+    qtd_passageiros: Number(form.qtd_passageiros) || 1,
+    observacoes: form.observacoes || null,
+    piloto_id: form.piloto_id || null,
+    copiloto_id: form.copiloto_id || null,
+  };
+
   const salvar = () => {
     atualizarSolicitacao.mutate(
+      { id: voo.id, dados: dadosFormulario },
+      { onSuccess: () => onOpenChange(false) },
+    );
+  };
+
+  const confirmar = () => {
+    aprovar.mutate(
       {
-        id: voo.id,
-        dados: {
-          cliente_id: form.cliente_id || null,
-          aeronave_id: form.aeronave_id,
-          origem: form.origem.toUpperCase(),
-          destino: form.destino.toUpperCase(),
-          data_agendada: form.data_agendada,
-          horario_previsto_agendamento: form.horario_previsto_agendamento
-            ? `${form.horario_previsto_agendamento}:00`.slice(0, 8)
-            : null,
-          dias_duracao: Number(form.dias_duracao) || 1,
-          qtd_passageiros: Number(form.qtd_passageiros) || 1,
-          observacoes: form.observacoes || null,
-        },
+        solicitacao: voo,
+        pilotoId: form.piloto_id,
+        copilotoId: form.copiloto_id || null,
+        dados: dadosFormulario,
       },
       { onSuccess: () => onOpenChange(false) },
     );
@@ -196,6 +214,41 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Comandante (PIC)</Label>
+              <Select value={form.piloto_id} onValueChange={(v) => setForm((f) => ({ ...f, piloto_id: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tripulantes.map((tripulante) => (
+                    <SelectItem key={tripulante.id} value={tripulante.id}>
+                      {tripulante.nome_completo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Copiloto (SIC)</Label>
+              <Select value={form.copiloto_id} onValueChange={(v) => setForm((f) => ({ ...f, copiloto_id: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Opcional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tripulantes
+                    .filter((tripulante) => tripulante.id !== form.piloto_id)
+                    .map((tripulante) => (
+                      <SelectItem key={tripulante.id} value={tripulante.id}>
+                        {tripulante.nome_completo}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Observações</Label>
             <Textarea
@@ -205,13 +258,30 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button disabled={!ok || atualizarSolicitacao.isPending} onClick={salvar}>
-            Salvar alterações
-          </Button>
+        <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+          {!["cancelado", "concluido", "rejeitado"].includes(voo.status) && (
+            <Button
+              variant="destructive"
+              disabled={alterarStatusVoo.isPending}
+              onClick={() => alterarStatusVoo.mutate({ solicitacao: voo, status: "cancelado" }, { onSuccess: () => onOpenChange(false) })}
+            >
+              Cancelar voo
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Fechar
+            </Button>
+            {voo.status === "pendente" ? (
+              <Button disabled={!ok || !form.piloto_id || aprovar.isPending} onClick={confirmar}>
+                Confirmar voo
+              </Button>
+            ) : (
+              <Button disabled={!ok || atualizarSolicitacao.isPending} onClick={salvar}>
+                Salvar alterações
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
