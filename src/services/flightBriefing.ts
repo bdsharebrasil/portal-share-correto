@@ -101,8 +101,8 @@ export function generateFlightBriefing(plan: FlightPlanResponse): string {
 Emitido em: ${timestamp}
 
 ▶ ROTA
-  Origem  : ${dep.icao} — ${dep.nome}
-  Destino : ${dest.icao} — ${dest.nome}
+  Origem  : ${dep.icao} — ${dep.name}
+  Destino : ${dest.icao} — ${dest.name}
   Rota ATC: ${fp.route}
   Distância: ${fp.distance_nm} NM / ${distKm} km
 

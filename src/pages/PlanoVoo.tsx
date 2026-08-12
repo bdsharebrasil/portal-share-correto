@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSolarData } from '@/hooks/useSolarData';
 import { calculateDistance, calculateMagneticHeading, type ROTAERData } from '@/lib/aviation';
 import { parseAerodromeCoordLatLng } from '@/lib/geo';
+import { suggestFlightLevel } from '@/lib/flightLevel';
 import type { RouteValidation } from '@/types/aisweb';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
@@ -66,6 +67,7 @@ export default function PlanoVooPage() {
   const [originCharts, setOriginCharts] = useState<ChartData[]>([]);
   const [destCharts, setDestCharts] = useState<ChartData[]>([]);
   const [isLoadingCharts, setIsLoadingCharts] = useState(false);
+  const [autoNotams, setAutoNotams] = useState<Record<string, any[]>>({});
   const [showBriefing, setShowBriefing] = useState(false);
   const [restrictionsModal, setRestrictionsModal] = useState<{ icao: string; restrictions: string[] } | null>(null);
 
@@ -139,7 +141,8 @@ export default function PlanoVooPage() {
     setOriginCharts(flightIntelligence.charts[formData.origin.toUpperCase()] ?? []);
     setDestCharts(flightIntelligence.charts[formData.destination.toUpperCase()] ?? []);
     setIsLoadingCharts(flightIntelligence.loading);
-  }, [flightIntelligence.weather, flightIntelligence.charts, flightIntelligence.loading, formData.origin, formData.destination]);
+    setAutoNotams(flightIntelligence.notams ?? {});
+  }, [flightIntelligence.weather, flightIntelligence.charts, flightIntelligence.notams, flightIntelligence.loading, formData.origin, formData.destination]);
 
   useEffect(() => {
     if (!flightIntelligence.suggestedRoute) return;
@@ -181,8 +184,8 @@ export default function PlanoVooPage() {
     const originAd = getAerodromeByCode(formData.origin);
     const destAd = getAerodromeByCode(formData.destination);
     if (!originAd || !destAd) { toast.error('Selecione origem e destino'); return; }
-    const oc = parseCoordinates(originAd.coordenadas);
-    const dc = parseCoordinates(destAd.coordenadas);
+    const oc = parseAerodromeCoordLatLng(originAd.coordenadas);
+    const dc = parseAerodromeCoordLatLng(destAd.coordenadas);
     if (!oc || !dc) { toast.error('Coordenadas não disponíveis'); return; }
 
     setIsValidating(true);
@@ -201,11 +204,12 @@ export default function PlanoVooPage() {
       const vResult = await validateFlightPlan(formData.origin, formData.destination, [oc, dc], altitude);
       setValidation(vResult);
 
-      const altData = calculateOptimalAltitude(
-        bearing,
-        formData.flightRule,
-        (vResult?.restrictions as any[]) || []
-      );
+      const flSuggestion = suggestFlightLevel(bearing, formData.flightRule);
+      const altData = {
+        suggested: flSuggestion.label,
+        warnings: (vResult?.restrictions as any[])?.map((r) => String(r)) || [],
+        alternatives: flSuggestion.alternatives.map((a) => a.label),
+      };
 
       setCalculations({
         distance: Math.round(distance), bearing: Math.round(bearing), time: timeHours,
@@ -387,7 +391,7 @@ export default function PlanoVooPage() {
 
             {/* NOTAMs */}
             <TabsContent value="notam" className="space-y-4">
-              {validation ? Object.entries(validation.notams).map(([icao, notams]) => (
+              {Object.keys(validation?.notams ?? autoNotams).length > 0 ? Object.entries(validation?.notams ?? autoNotams).map(([icao, notams]) => (
                 <Card key={icao} className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2"><Shield className="w-5 h-5 text-primary" /><h3 className="font-semibold">{icao}</h3></div>
@@ -411,7 +415,7 @@ export default function PlanoVooPage() {
                   )}
                 </Card>
               )) : (
-                <div className="text-center py-12 text-muted-foreground">Calcule o plano para ver NOTAMs</div>
+                <div className="text-center py-12 text-muted-foreground">Selecione origem e destino para ver NOTAMs</div>
               )}
             </TabsContent>
 
