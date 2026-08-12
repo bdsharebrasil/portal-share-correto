@@ -10,7 +10,6 @@ import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProject
 import { DECEA_WMS_URL, WAC_LAYERS, REA_LAYERS, ARC_LAYERS, CNAV_LAYERS, AIRSPACE_LAYERS } from './deceaLayers';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService'; 
 import type { AISWebMETARData } from '@/services/aiswebWeather';
-import type { RoutePoint } from './FlightRouteMap';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet default icons
@@ -21,6 +20,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+
+export interface RoutePoint {
+  icao: string;
+  name: string;
+  lat: number;
+  lng: number;
+  type: 'departure' | 'arrival' | 'alternate' | 'waypoint';
+}
 
 interface LegCalc {
   from: string;

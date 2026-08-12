@@ -13,36 +13,20 @@ import { useAeronaves } from '@/hooks/useAeronaves';
 import { useAISWeb } from '@/hooks/useAISWeb';
 import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { usePreferredRoutes } from '@/hooks/usePreferredRoutes';
+import { useFlightIntelligence } from '@/hooks/useFlightIntelligence';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSolarData } from '@/hooks/useSolarData';
-import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
+import { calculateDistance, calculateMagneticHeading, type ROTAERData } from '@/lib/aviation';
+import { parseAerodromeCoordLatLng } from '@/lib/geo';
+import type { RouteValidation } from '@/types/aisweb';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 import { FlightPlanSidebar, type FlightPlanFormData } from '@/components/plano-voo/FlightPlanSidebar';
 import { SkyVectorMap } from '@/components/plano-voo/SkyVectorMap';
-import type { RoutePoint } from '@/components/plano-voo/FlightRouteMap';
+import type { RoutePoint } from '@/components/plano-voo/SkyVectorMap';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-
-// Parse coordinates from DB
-function parseCoordinates(coordStr: string | null): { lat: number; lng: number } | null {
-  if (!coordStr) return null;
-  if (coordStr.includes(',') && !coordStr.includes(' ')) {
-    const [lat, lng] = coordStr.split(',').map(Number);
-    if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
-  }
-  const dmsRegex = /(\d+)\s+(\d+)\s+([\d.]+)\s*([NSEW])\s+(\d+)\s+(\d+)\s+([\d.]+)\s*([NSEW])/i;
-  const match = coordStr.match(dmsRegex);
-  if (match) {
-    let lng = parseInt(match[1]) + parseInt(match[2]) / 60 + parseFloat(match[3]) / 3600;
-    let lat = parseInt(match[5]) + parseInt(match[6]) / 60 + parseFloat(match[7]) / 3600;
-    if (match[4].toUpperCase() === 'W') lng = -lng;
-    if (match[8].toUpperCase() === 'S') lat = -lat;
-    return { lat, lng };
-  }
-  return null;
-}
 
 function formatNOTAMDate(dateValue: any): string {
   try {
@@ -66,22 +50,13 @@ interface FlightCalculations {
   alternatives: string[];
 }
 
-interface ValidationResult {
-  valid: boolean;
-  notams: Record<string, NOTAMData[]>;
-  originStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
-  destinationStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
-  restrictions: any[];
-  warnings: string[];
-}
-
 export default function PlanoVooPage() {
   const [formData, setFormData] = useState<FlightPlanFormData>({
-    aircraftId: '', registration: '', origin: '', destination: '', alternate: '',
+    aircraftId: '', aeronaveId: '', registration: '', origin: '', destination: '', alternate: '',
     cruiseSpeed: 0, altitude: 5500, fuelOnBoard: 0, route: '', flightRule: 'V', departure: '', picId: '',
   });
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validation, setValidation] = useState<RouteValidation | null>(null);
   const [originWeather, setOriginWeather] = useState<AISWebMETARData | null>(null);
   const [destWeather, setDestWeather] = useState<AISWebMETARData | null>(null);
   const [originROTAER, setOriginROTAER] = useState<ROTAERData | null>(null);
@@ -97,13 +72,20 @@ export default function PlanoVooPage() {
   const { user } = useAuth();
   const { aerodromes } = useAerodromes();
   const { aeronaves } = useAeronaves();
-  const { getNOTAMs, getMultipleNOTAMs, getROTAER, validateFlightPlan, loading: aiswebLoading, error: aiswebError } = useAISWeb();
+  const { getROTAER, validateFlightPlan, error: aiswebError } = useAISWeb();
   const { flightPlans, createFlightPlan, deleteFlightPlan } = useFlightPlans();
   const { routes: preferredRoutes, loading: loadingRoutes, fetchRoutes } = usePreferredRoutes();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const toggleSidebar = useCallback(() => setIsSidebarOpen((value) => !value), []);
   const { solarData: originSolar } = useSolarData(formData.origin || null);
   const { solarData: destSolar } = useSolarData(formData.destination || null);
+  const flightIntelligence = useFlightIntelligence(
+    formData.origin,
+    formData.destination,
+    formData.alternate,
+    formData.aeronaveId || null,
+    formData.flightRule,
+  );
 
   // Crew members
   const { data: crewMembers = [] } = useQuery({
@@ -122,7 +104,7 @@ export default function PlanoVooPage() {
     const addPoint = (code: string, type: RoutePoint['type']) => {
       const ad = getAerodromeByCode(code);
       if (!ad) return;
-      const coords = parseCoordinates(ad.coordenadas);
+      const coords = parseAerodromeCoordLatLng(ad.coordenadas);
       if (coords) points.push({ icao: ad.designativo, name: ad.nome, lat: coords.lat, lng: coords.lng, type });
     };
     if (formData.origin) addPoint(formData.origin, 'departure');
@@ -134,7 +116,7 @@ export default function PlanoVooPage() {
   // Leg calculations
   const legCalcs = useMemo(() => {
     const legs: Array<{ from: string; to: string; distanceNM: number; bearing: number }> = [];
-    const mainPoints = routePoints.filter(p => p.tipo !== 'alternate');
+    const mainPoints = routePoints.filter(p => p.type !== 'alternate');
     for (let i = 0; i < mainPoints.length - 1; i++) {
       const from = mainPoints[i], to = mainPoints[i + 1];
       const dist = calculateDistance(from.lat, from.lng, to.lat, to.lng);
@@ -150,23 +132,28 @@ export default function PlanoVooPage() {
     return { totalDistanceNM, estimatedTimeMinutes, fuelBurnLiters, legs };
   }, [routePoints, formData.cruiseSpeed, formData.aeronaveId, aeronaves]);
 
-  // Auto-fetch weather when origin/destination change
   useEffect(() => {
-    const fetchWeather = async () => {
-      if (!formData.origin && !formData.destination) return;
-      setIsLoadingWeather(true);
-      try {
-        const [ow, dw] = await Promise.all([
-          formData.origin ? fetchAISWebMETAR(formData.origin) : Promise.resolve(null),
-          formData.destination ? fetchAISWebMETAR(formData.destination) : Promise.resolve(null),
-        ]);
-        setOriginWeather(ow);
-        setDestWeather(dw);
-      } catch { /* silently fail */ }
-      finally { setIsLoadingWeather(false); }
-    };
-    fetchWeather();
-  }, [formData.origin, formData.destination]);
+    setOriginWeather(flightIntelligence.weather[formData.origin.toUpperCase()] ?? null);
+    setDestWeather(flightIntelligence.weather[formData.destination.toUpperCase()] ?? null);
+    setIsLoadingWeather(flightIntelligence.loading);
+    setOriginCharts(flightIntelligence.charts[formData.origin.toUpperCase()] ?? []);
+    setDestCharts(flightIntelligence.charts[formData.destination.toUpperCase()] ?? []);
+    setIsLoadingCharts(flightIntelligence.loading);
+  }, [flightIntelligence.weather, flightIntelligence.charts, flightIntelligence.loading, formData.origin, formData.destination]);
+
+  useEffect(() => {
+    if (!flightIntelligence.suggestedRoute) return;
+    setFormData((current) => current.route === flightIntelligence.suggestedRoute
+      ? current
+      : { ...current, route: flightIntelligence.suggestedRoute });
+  }, [flightIntelligence.suggestedRoute]);
+
+  useEffect(() => {
+    if (!flightIntelligence.suggestedAltitudeFt) return;
+    setFormData((current) => current.altitude === flightIntelligence.suggestedAltitudeFt
+      ? current
+      : { ...current, altitude: flightIntelligence.suggestedAltitudeFt });
+  }, [flightIntelligence.suggestedAltitudeFt]);
 
   // Auto-fetch ROTAER
   useEffect(() => {
@@ -176,23 +163,6 @@ export default function PlanoVooPage() {
     };
     if (formData.origin || formData.destination) fetch();
   }, [formData.origin, formData.destination, getROTAER]);
-
-  // Auto-fetch charts
-  useEffect(() => {
-    const fetch = async () => {
-      setIsLoadingCharts(true);
-      try {
-        const [oc, dc] = await Promise.all([
-          formData.origin ? fetchAirportCharts(formData.origin) : Promise.resolve([]),
-          formData.destination ? fetchAirportCharts(formData.destination) : Promise.resolve([]),
-        ]);
-        setOriginCharts(oc);
-        setDestCharts(dc);
-      } catch { /* */ }
-      finally { setIsLoadingCharts(false); }
-    };
-    if (formData.origin || formData.destination) fetch();
-  }, [formData.origin, formData.destination]);
 
   // Auto-fetch preferred routes
   useEffect(() => {

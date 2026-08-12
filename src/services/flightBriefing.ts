@@ -75,7 +75,7 @@ function notamSummary(alerts: string[]): string {
 function alternatesSummary(alternates: FlightPlanResponse['alternates']): string {
   if (!alternates.length) return 'Nenhum alternado identificado na faixa de 150 km.'
   return alternates
-    .map(a => `  • ${a.icao} — ${a.nome} (${a.distance_km} km)`)
+    .map(a => `  • ${a.icao} — ${a.name} (${a.distance_km} km)`)
     .join('\n')
 }
 

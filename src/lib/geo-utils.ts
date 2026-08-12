@@ -1,1 +1,10 @@
-export { calculateDistanceNM, parseDMSCoordinate } from '@/lib/geo';
+export {
+  calculateDistance,
+  calculateDistanceNM,
+  calculateMagneticHeading,
+  calcularRumo,
+  parseAerodromeCoordLatLng,
+  parseAerodromeCoordString,
+  parseDMSCoordinate,
+  type LatLon,
+} from '@/lib/geo';
