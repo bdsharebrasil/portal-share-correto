@@ -956,6 +956,7 @@ export type Database = {
           nome_pic: string | null
           nome_sic: string | null
           nome_socio: string | null
+          numero_voo: string | null
           observacoes: string | null
           pernoite: boolean | null
           responsavel_id: string | null
@@ -982,6 +983,7 @@ export type Database = {
           nome_pic?: string | null
           nome_sic?: string | null
           nome_socio?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pernoite?: boolean | null
           responsavel_id?: string | null
@@ -1008,6 +1010,7 @@ export type Database = {
           nome_pic?: string | null
           nome_sic?: string | null
           nome_socio?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pernoite?: boolean | null
           responsavel_id?: string | null
@@ -5627,6 +5630,7 @@ export type Database = {
           hotel_id: string | null
           id: string
           nome_hotel: string
+          numero_voo: string | null
           observacoes: string | null
           pais: string | null
           quantidade_hospedes: number | null
@@ -5650,6 +5654,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           nome_hotel: string
+          numero_voo?: string | null
           observacoes?: string | null
           pais?: string | null
           quantidade_hospedes?: number | null
@@ -5673,6 +5678,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           nome_hotel?: string
+          numero_voo?: string | null
           observacoes?: string | null
           pais?: string | null
           quantidade_hospedes?: number | null
@@ -6740,7 +6746,6 @@ export type Database = {
           status: string
           tipo_caixa: string | null
           tipo_rateio: string | null
-          valor_original: number | null
           valor_pago_real: number | null
           valor_rateado: number
           valor_total: number | null
@@ -6793,7 +6798,6 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
-          valor_original?: number | null
           valor_pago_real?: number | null
           valor_rateado: number
           valor_total?: number | null
@@ -6846,7 +6850,6 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
-          valor_original?: number | null
           valor_pago_real?: number | null
           valor_rateado?: number
           valor_total?: number | null
@@ -7359,6 +7362,7 @@ export type Database = {
           nivel_cruzeiro_max_ft: number
           nivel_cruzeiro_min_ft: number
           teto_servico_ft: number
+          velocidade_cruzeiro_kt: number | null
         }
         Insert: {
           aprovado_rvsm?: boolean
@@ -7370,6 +7374,7 @@ export type Database = {
           nivel_cruzeiro_max_ft: number
           nivel_cruzeiro_min_ft: number
           teto_servico_ft: number
+          velocidade_cruzeiro_kt?: number | null
         }
         Update: {
           aprovado_rvsm?: boolean
@@ -7381,6 +7386,7 @@ export type Database = {
           nivel_cruzeiro_max_ft?: number
           nivel_cruzeiro_min_ft?: number
           teto_servico_ft?: number
+          velocidade_cruzeiro_kt?: number | null
         }
         Relationships: []
       }
@@ -10509,6 +10515,13 @@ export type Database = {
         Args: { p_login: string; p_senha: string }
         Returns: Json
       }
+      buscar_telefone_coordenacao: {
+        Args: never
+        Returns: {
+          telefone_coordenacao_1: string
+          telefone_coordenacao_2: string
+        }[]
+      }
       calcular_consumo_combustivel: {
         Args: { p_id: string }
         Returns: undefined
@@ -10555,6 +10568,20 @@ export type Database = {
       }
       create_logbook_from_cycle: {
         Args: { p_cycle_id: string; p_pic_id: string; p_sic_id?: string }
+        Returns: string
+      }
+      criar_solicitacao_reserva_voo: {
+        Args: {
+          p_aeronave_id: string
+          p_cliente_id: string
+          p_data_agendada: string
+          p_destino: string
+          p_dias_duracao: number
+          p_horario_previsto: string
+          p_observacoes?: string
+          p_origem: string
+          p_quantidade_passageiros: number
+        }
         Returns: string
       }
       dms_to_decimal: { Args: { dms_str: string }; Returns: string }
@@ -10647,6 +10674,25 @@ export type Database = {
       is_gestor_master: { Args: never; Returns: boolean }
       is_privileged_user: { Args: never; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
+      listar_reservas_aeronave: {
+        Args: { p_aeronave_id: string; p_cliente_id: string }
+        Returns: {
+          aeronave_id: string
+          aprovado_em: string
+          cliente_id: string
+          criado_em: string
+          data_agendada: string
+          destino: string
+          dias_duracao: number
+          horario_previsto_agendamento: string
+          id: string
+          motivo_rejeicao: string
+          observacoes: string
+          origem: string
+          qtd_passageiros: number
+          status: string
+        }[]
+      }
       marcar_recado_lido: { Args: { p_recado_id: string }; Returns: undefined }
       next_receipt_number:
         | { Args: never; Returns: number }
