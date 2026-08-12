@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, usePernasVoo, useTripulantes } from "@/hooks/useAgendamentoVoo";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,10 +77,11 @@ function statusLabel(status: string, voo?: Solicitacao) {
 
 
 export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
-  const { alterarStatusVoo } = useAgendamentoMutations();
+  const { alterarStatusVoo, excluirSolicitacao } = useAgendamentoMutations();
   const navigate = useNavigate();
   const { data: tripulantes = [], isLoading: tripulantesLoading } = useTripulantes();
   const [editarAberto, setEditarAberto] = useState(false);
+  const [exclusaoAberta, setExclusaoAberta] = useState(false);
   const [pernaAberta, setPernaAberta] = useState(false);
   const { data: pernas = [] } = usePernasVoo(open ? voo?.id : null);
   const { data: checklistPreVoo } = usePreVooChecklist(open ? voo?.id : null);
@@ -311,15 +322,49 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
               </Button>
             )}
 
-            {(voo.status === "cancelado" || voo.status === "rejeitado" || temPouso) && (
+            {(voo.status === "cancelado" || voo.status === "rejeitado") && (
+              <Button variant="destructive" onClick={() => setExclusaoAberta(true)}>
+                <Trash2 className="mr-1 h-4 w-4" /> Excluir voo
+              </Button>
+            )}
+
+            {temPouso && (
               <Button disabled variant="secondary">
-                {temPouso ? "Voo Concluído" : "Voo Finalizado"}
+                Voo Concluído
               </Button>
             )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={exclusaoAberta} onOpenChange={setExclusaoAberta}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Excluir voo?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir o voo <strong className="text-foreground">{voo.aeronave?.matricula ?? "—"} ({voo.origem ?? "—"} → {voo.destino ?? "—"})</strong>? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              excluirSolicitacao.mutate(voo);
+              setExclusaoAberta(false);
+              onOpenChange(false);
+            }}
+            disabled={excluirSolicitacao.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {excluirSolicitacao.isPending ? "Excluindo..." : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <EditarAgendamentoDialog voo={voo} open={editarAberto} onOpenChange={setEditarAberto} />
     <NovaPernaDialog voo={voo} open={pernaAberta} onOpenChange={setPernaAberta} />
