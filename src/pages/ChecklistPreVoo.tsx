@@ -63,8 +63,16 @@ export default function ChecklistPreVoo() {
 
   const readOnly = checklist?.status === "concluido";
 
+  // Só sincroniza o formulário com o servidor quando é de fato um checklist
+  // diferente (troca de solicitação) ou o primeiro carregamento — nunca por
+  // causa de um refetch em segundo plano do mesmo checklist, senão qualquer
+  // edição em andamento (ex: texto do reporte) seria apagada no meio da
+  // digitação.
+  const checklistIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!checklist) return;
+    if (checklistIdRef.current === checklist.id) return;
+    checklistIdRef.current = checklist.id;
     setRespostas(checklist.respostas || respostasVazias);
     setPrecisaAbastecer(checklist.precisa_abastecer);
     setAbastecimentoId(checklist.abastecimento_id);

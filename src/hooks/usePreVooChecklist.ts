@@ -42,6 +42,10 @@ export function usePreVooChecklist(solicitacaoId?: string | null) {
   return useQuery({
     queryKey: ["checklist-pre-voo", solicitacaoId],
     enabled: !!solicitacaoId,
+    // Evita que um refetch em segundo plano (ex: troca de aba/foco na janela)
+    // sobrescreva edições em andamento no formulário.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<ChecklistPreVoo | null> => {
       const { data, error } = await db
         .from("checklists_pre_voo")
@@ -114,8 +118,15 @@ export function usePreVooChecklistMutations() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ["checklist-pre-voo", vars.solicitacao_id] });
+    onSuccess: (data, vars) => {
+      // Atualiza o cache direto com o retorno da mutation, sem forçar um
+      // novo fetch — evita a corrida entre "usuário ainda digitando" e
+      // "refetch chegando" que apagava edições em andamento (ex: campo de
+      // observação do reporte).
+      qc.setQueryData(["checklist-pre-voo", vars.solicitacao_id], {
+        ...data,
+        respostas: { itens: {}, docs: {}, ...(data.respostas || {}) },
+      });
       qc.invalidateQueries({ queryKey: ["checklists-pre-voo-lista"] });
       toast.success(vars.concluir ? "Checklist concluído" : "Rascunho salvo");
     },

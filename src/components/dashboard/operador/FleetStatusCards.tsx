@@ -39,7 +39,7 @@ const STATUS_META: Record<string, { label: string; dot: string; chip: string }> 
   disponivel: { label: "Disponível", dot: "bg-sky-400", chip: "bg-sky-500/15 text-sky-400 border-sky-500/25" },
 };
 
-type Filtro = "todas" | "em_voo" | "agendadas" | "manutencao";
+type Filtro =  | "em_voo" | "agendadas" | "manutencao";
 
 export function FleetStatusCards() {
   const navigate = useNavigate();
@@ -159,7 +159,6 @@ export function FleetStatusCards() {
   const emRota = aeronaves.filter((a) => a.estado === "em_voo").length;
 
   const chips: { id: Filtro; label: string }[] = [
-    { id: "todas", label: "Todas" },
     { id: "em_voo", label: "Em voo" },
     { id: "agendadas", label: "Agendadas" },
     { id: "manutencao", label: "Manutenção" },
@@ -167,105 +166,11 @@ export function FleetStatusCards() {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-4 py-3.5">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="rounded-xl border border-primary/25 bg-primary/10 p-2 text-primary">
-            <Radar className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-foreground">Frota em Tempo Real</h3>
-            <p className="text-xs text-muted-foreground">
-              {aeronaves.length} aeronave(s) em operação · {emRota} em rota agora
-            </p>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" className="text-primary" onClick={() => navigate("/painel-agendamentos")}>
-          Ver todas <ArrowRight className="ml-1 h-4 w-4" />
-        </Button>
-      </header>
-
-      <div className="flex flex-wrap gap-2 px-4 py-3">
-        {chips.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setFiltro(c.id)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              filtro === c.id
-                ? "border-primary/40 bg-primary/15 text-primary"
-                : "border-border/60 text-muted-foreground hover:bg-accent/40",
-            )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2">
-        {filtradas.length === 0 ? (
-          <p className="col-span-full rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
-            Nenhuma aeronave agendada ou em voo no momento.
-          </p>
-        ) : (
-          filtradas.map(({ aeronave, proximo, estado, voos }) => {
-            const meta = STATUS_META[estado] ?? STATUS_META.disponivel;
-            return (
-              <button
-                key={aeronave.id}
-                onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(aeronave.id)}`)}
-                className="group rounded-xl border border-border/60 bg-background/40 p-4 text-left transition-all hover:border-primary/40 hover:bg-background/70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", meta.chip)}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                      {meta.label}
-                    </span>
-                    <p className="mt-2 font-mono text-lg font-bold text-foreground">{aeronave.matricula}</p>
-                    <p className="truncate text-xs text-muted-foreground">{aeronave.modelo ?? "—"}</p>
-                  </div>
-                  {estado === "manutencao" ? (
-                    <Wrench className="h-7 w-7 text-orange-400/70" />
-                  ) : (
-                    <Plane className={cn("h-7 w-7 -rotate-45 transition-transform group-hover:translate-x-0.5", estado === "em_voo" ? "text-emerald-400/80" : "text-primary/60")} />
-                  )}
-                </div>
-
-                {proximo && (
-                  <div className="mt-3 space-y-1.5 border-t border-border/40 pt-3">
-                    <div className="flex items-center justify-between gap-2 font-mono text-sm text-foreground">
-                      <span>{proximo.origem ?? "—"}</span>
-                      <span className="h-px flex-1 bg-gradient-to-r from-primary/40 to-primary/10" />
-                      <span>{proximo.destino ?? "—"}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarClock className="h-3 w-3" />
-                        {format(new Date(`${proximo.data_agendada}T00:00:00`), "dd/MM", { locale: ptBR })}
-                        {proximo.horario_previsto_agendamento
-                          ? ` · ${proximo.horario_previsto_agendamento.slice(0, 5)} UTC`
-                          : ""}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="h-3 w-3" /> {proximo.qtd_passageiros ?? 0}
-                      </span>
-                      {voos.length > 1 && (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">+{voos.length - 1} voo(s)</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </button>
-            );
-          })
-        )}
-      </div>
-
       {/* Painel de operações — tabela expansível */}
-      <div className="border-t border-border/50">
+      <div>
         <button
           onClick={() => setExpandido((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/30"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent/30"
         >
           <span className="flex min-w-0 items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
@@ -337,6 +242,103 @@ export function FleetStatusCards() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Frota em Tempo Real */}
+      <div className="border-t border-border/50">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-4 py-3.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="rounded-xl border border-primary/25 bg-primary/10 p-2 text-primary">
+              <Radar className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold text-foreground">Frota em Tempo Real</h3>
+              <p className="text-xs text-muted-foreground">
+                {aeronaves.length} aeronave(s) em operação · {emRota} em rota agora
+              </p>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="text-primary" onClick={() => navigate("/painel-agendamentos")}>
+            Ver todas <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </header>
+
+        <div className="flex flex-wrap gap-2 px-4 py-3">
+          {chips.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setFiltro(c.id)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                filtro === c.id
+                  ? "border-primary/40 bg-primary/15 text-primary"
+                  : "border-border/60 text-muted-foreground hover:bg-accent/40",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2">
+          {filtradas.length === 0 ? (
+            <p className="col-span-full rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+              Nenhuma aeronave agendada ou em voo no momento.
+            </p>
+          ) : (
+            filtradas.map(({ aeronave, proximo, estado, voos }) => {
+              const meta = STATUS_META[estado] ?? STATUS_META.disponivel;
+              return (
+                <button
+                  key={aeronave.id}
+                  onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(aeronave.id)}`)}
+                  className="group rounded-xl border border-border/60 bg-background/40 p-4 text-left transition-all hover:border-primary/40 hover:bg-background/70"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", meta.chip)}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                        {meta.label}
+                      </span>
+                      <p className="mt-2 font-mono text-lg font-bold text-foreground">{aeronave.matricula}</p>
+                      <p className="truncate text-xs text-muted-foreground">{aeronave.modelo ?? "—"}</p>
+                    </div>
+                    {estado === "manutencao" ? (
+                      <Wrench className="h-7 w-7 text-orange-400/70" />
+                    ) : (
+                      <Plane className={cn("h-7 w-7 -rotate-45 transition-transform group-hover:translate-x-0.5", estado === "em_voo" ? "text-emerald-400/80" : "text-primary/60")} />
+                    )}
+                  </div>
+
+                  {proximo && (
+                    <div className="mt-3 space-y-1.5 border-t border-border/40 pt-3">
+                      <div className="flex items-center justify-between gap-2 font-mono text-sm text-foreground">
+                        <span>{proximo.origem ?? "—"}</span>
+                        <span className="h-px flex-1 bg-gradient-to-r from-primary/40 to-primary/10" />
+                        <span>{proximo.destino ?? "—"}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarClock className="h-3 w-3" />
+                          {format(new Date(`${proximo.data_agendada}T00:00:00`), "dd/MM", { locale: ptBR })}
+                          {proximo.horario_previsto_agendamento
+                            ? ` · ${proximo.horario_previsto_agendamento.slice(0, 5)} UTC`
+                            : ""}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Users className="h-3 w-3" /> {proximo.qtd_passageiros ?? 0}
+                        </span>
+                        {voos.length > 1 && (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">+{voos.length - 1} voo(s)</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );
