@@ -579,7 +579,7 @@ export default function EmissaoRecibo() {
               valor_rateado: isDECEAorINFRAERO
                 ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo))
                 : valorRecibo,
-              data_competencia: dataEmissaoStr,
+              data_emissao: dataEmissaoStr,
               data_vencimento: dataVencimento,
               aeronave_id: selectedAircraftId || null,
               clientes_id: normalizeId(originalForm.clienteId),
@@ -647,7 +647,7 @@ export default function EmissaoRecibo() {
                 tipo: "receita",
                 categoria_id: originalForm.reembolsoCategoriaId || null,
                 valor_rateado: valorRecibo,
-                data_competencia: dataEmissaoStr,
+                data_emissao: dataEmissaoStr,
                 data_vencimento: dataVencimento,
                 aeronave_id: selectedAircraftId || null,
                 clientes_id: normalizedClienteId,
@@ -680,7 +680,7 @@ export default function EmissaoRecibo() {
                     cliente_id: normalizedClienteId,
                     aeronave_id: selectedAircraftId,
                     valor: valorRecibo,
-                    data_competencia: dataEmissaoStr,
+                    data_emissao: dataEmissaoStr,
                     data_vencimento: dataVencimento,
                     numero_doc: receiptData.numero_recibo,
                     descricao_origem: brDescription,

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
@@ -51,6 +51,7 @@ interface FuelRecord {
   litros: number;
   valor_unitario: number;
   valor_total: number;
+  desconto?: number | null;
   abastecimento_galoes: number | null;
   comanda_url: string | null;
   nota_url: string | null;
@@ -181,6 +182,7 @@ export function FuelRecordsByAircraft({
   const [searchText, setSearchText] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dateSortAsc, setDateSortAsc] = useState<boolean>(false);
+  const [dateColumnType, setDateColumnType] = useState<'data' | 'data_pagamento'>('data');
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [currentClientId, setCurrentClientId] = useState<string>(client.id);
@@ -230,6 +232,7 @@ export function FuelRecordsByAircraft({
     comanda: "",
     litros: "",
     valor_unitario: "",
+    desconto: "",
     valor_total: "",
     valor_total_manual: false,
     abastecimento_galoes: "",
@@ -237,7 +240,7 @@ export function FuelRecordsByAircraft({
     combustivel_tipo: "",
     client_id: "",
     partner_selected: "",
-    status: "em aberto",
+    status: "pendente",
     tipo_faturamento: "",
     banco: "",
     data_vencimento_boleto: "",
@@ -408,13 +411,15 @@ export function FuelRecordsByAircraft({
 
   useEffect(() => {
     const itens = formData.litros && formData.valor_unitario ? parseFloat(formData.litros) * parseFloat(formData.valor_unitario) : 0;
+    const descontoNum = formData.desconto ? parseFloat(formData.desconto) : 0;
+    const itensComDesconto = Math.max(0, itens - descontoNum);
     if (!formData.valor_total_manual) {
       setFormData(prev => ({
         ...prev,
-        valor_total: itens > 0 ? itens.toFixed(2) : "",
+        valor_total: itensComDesconto > 0 ? itensComDesconto.toFixed(2) : "",
       }));
     }
-  }, [formData.litros, formData.valor_unitario, formData.valor_total_manual]);
+  }, [formData.litros, formData.valor_unitario, formData.desconto, formData.valor_total_manual]);
 
   useEffect(() => {
     if (!formData.abastecedor_id || !formData.combustivel_tipo) return;
@@ -618,10 +623,15 @@ export function FuelRecordsByAircraft({
     setCurrentPage(1);
   };
 
+  const getRecordDateValue = (record: FuelRecord): string | null => {
+    if (dateColumnType === 'data_pagamento') {
+      return record.data_pagamento || record.data;
+    }
+    return record.data;
+  };
+
   const getRecordSortTime = (record: FuelRecord) => {
-    const dateToUse = (record.status === "pago" && record.data_pagamento)
-      ? record.data_pagamento
-      : record.data;
+    const dateToUse = getRecordDateValue(record);
     const parsed = parseDateSafe(dateToUse);
     return parsed ? parsed.getTime() : 0;
   };
@@ -639,9 +649,7 @@ export function FuelRecordsByAircraft({
 
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
-        const dateToUse = (record.status === "pago" && record.data_pagamento)
-          ? record.data_pagamento
-          : record.data;
+        const dateToUse = getRecordDateValue(record);
         const recordDate = parseDateSafe(dateToUse);
         if (!recordDate) return false;
         const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
@@ -792,7 +800,7 @@ export function FuelRecordsByAircraft({
       const fornecedorNome = formData.abastecedor_id
         ? suppliers.find(s => s.id === formData.abastecedor_id)?.nome_fornecedor || null
         : null;
-      const dataVencimento = formData.status === "em aberto"
+      const dataVencimento = formData.status === "pendente"
         ? (formData.data_vencimento_boleto || formData.data)
         : formData.data;
       const pago = formData.status === "pago";
@@ -836,7 +844,7 @@ export function FuelRecordsByAircraft({
             tipo: "despesa",
             tipo_caixa: "cliente",
             valor_rateado: valorPorSocio,
-            data_competencia: formData.data,
+            data_emissao: formData.data,
             data_vencimento: dataVencimento,
             data_pagamento: pago ? formData.data_pagamento : null,
             aeronave_id: aircraft.id,
@@ -952,13 +960,13 @@ export function FuelRecordsByAircraft({
       const nfNumero = anexoNumeroPorTipo(anexos, "nf") || formData.nf;
 
 
-      let statusFinal = formData.status || "em aberto";
+      let statusFinal = formData.status || "pendente";
       if (statusFinal === "pago") {
         const temComprovante = comprovanteUrl || (editingRecord as any)?.comprovante_pagamento || (editingRecord as any)?.comprovante_url;
         const temDataPagamento = formData.data_pagamento;
         if (!temComprovante || !temDataPagamento) {
-          toast.warning("Não é possível marcar como pago sem comprovante e data de pagamento. Salvando como 'em aberto'.");
-          statusFinal = "em aberto";
+          toast.warning("Não é possível marcar como pago sem comprovante e data de pagamento. Salvando como 'pendente'.");
+          statusFinal = "pendente";
         }
       }
 
@@ -981,6 +989,13 @@ export function FuelRecordsByAircraft({
       const observacaoFinal = formData.observacao || null;
       const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
       const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.nome : null;
+      const totalFromField = formData.valor_total ? parseFloat(formData.valor_total) : NaN;
+      const baseTotal = !isNaN(totalFromField) ? totalFromField : litros * valorUnitario;
+      const descontoField = formData.desconto ? parseFloat(formData.desconto) : NaN;
+      const desconto = !isNaN(descontoField)
+        ? descontoField
+        : Math.max(0, litros * valorUnitario - baseTotal);
+      const valorTotal = baseTotal;
 
       // Colunas corretas do schema da tabela abastecimentos:
       const recordData: any = {
@@ -993,13 +1008,14 @@ export function FuelRecordsByAircraft({
         comanda: comandaNumero || null,
         litros: litros,
         valor_unitario: valorUnitario,
+        desconto: desconto || 0,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
         abastecedor: supplierName,
         status: statusFinal,
         tipo_faturamento: formData.tipo_faturamento || null,
         forma_pagamento: formData.tipo_faturamento || null,
         banco: formData.banco || null,
-        data_vencimento_boleto: statusFinal === "em aberto" ? formData.data_vencimento_boleto || null : null,
+        data_vencimento_boleto: statusFinal === "pendente" ? formData.data_vencimento_boleto || null : null,
         observacao: observacaoFinal,
         socio_nome: partnerNameValue ? partnerNameValue.replace(/^\[|\]$/g, "") : null,
         comanda_url: comandaUrl || null,
@@ -1098,6 +1114,7 @@ export function FuelRecordsByAircraft({
       comanda: record.comanda || "",
       litros: record.litros.toString(),
       valor_unitario: record.valor_unitario.toString(),
+      desconto: Math.max(0, (record.litros * record.valor_unitario) - (record.valor_total || 0)).toFixed(2),
       valor_total: (record.valor_total || (record.litros * record.valor_unitario)).toString(),
       valor_total_manual: true,
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
@@ -1105,7 +1122,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.id_clientes || record.client_id || client.id,
       partner_selected: record.socio_nome || (record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : ""),
-      status: record.status || "em aberto",
+      status: record.status || "pendente",
       tipo_faturamento: record.tipo_faturamento || record.forma_pagamento || "",
       banco: record.banco || "",
       data_vencimento_boleto: record.data_vencimento_boleto || "",
@@ -1162,6 +1179,7 @@ export function FuelRecordsByAircraft({
       comanda: "",
       litros: "",
       valor_unitario: "",
+      desconto: "",
       valor_total: "",
       valor_total_manual: false,
       abastecimento_galoes: "",
@@ -1169,7 +1187,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: "",
       client_id: client.id,
       partner_selected: "",
-      status: "em aberto",
+      status: "pendente",
       tipo_faturamento: "",
       banco: "",
       data_vencimento_boleto: "",
@@ -1204,7 +1222,7 @@ export function FuelRecordsByAircraft({
    * Exporta o relatório em PDF. Suporta dois modos:
    * - Mês/Ano: `month` = 1-12, ou null para "todos os meses do ano informado"
    * - Período personalizado: `dateFrom`/`dateTo` (yyyy-MM-dd) sobrepõem o filtro por mês/ano
-   *   quando informados. Ambos são opcionais — se só um for passado, filtra em aberto
+   *   quando informados. Ambos são opcionais — se só um for passado, filtra pendente
    *   naquela ponta (ex: só dateFrom = "a partir dessa data").
    */
   const handleExportPDF = (month: number | null, year: string, dateFrom?: string | null, dateTo?: string | null) => {
@@ -1298,7 +1316,7 @@ export function FuelRecordsByAircraft({
                 <th>TRECHOS</th>
                 <th>LOCAL ABAST</th>
                 <th>COMANDA</th>
-                ${hasExportPartnerColumn ? `<th>SÓCIO</th>` : ""}
+                ${hasExportPartnerColumn ? `<th>CLIENTE</th>` : ""}
                 <th class="text-right">LITROS</th>
                 <th class="text-right">VALOR LITRO</th>
                 <th class="text-right">VALOR TOTAL</th>
@@ -1329,159 +1347,130 @@ export function FuelRecordsByAircraft({
     }, 250);
   };
 
-  const displayTotalRecords = filterMonth !== "all" && filterYear ? filteredTotalRecords : records.length;
-  const displayTotalLitros = filterMonth !== "all" && filterYear ? filteredTotalLitros : records.reduce((sum, r) => sum + r.litros, 0);
-  const displayTotalValue = filterMonth !== "all" && filterYear ? filteredTotalValue : records.reduce((sum, r) => sum + r.valor_total, 0);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
           <ChevronLeft className="h-4 w-4" />
           Voltar
         </Button>
         <div>
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Plane className="h-6 w-6 text-primary" />
+          <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
+            <Plane className="h-5 w-5 text-primary" />
             Registros de Abastecimento
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{displayClient.razao_social} • {aircraft.matricula}</p>
+          <p className="mt-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            {displayClient.razao_social} • {aircraft.matricula}
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Exibir data</span>
+          <Select value={dateColumnType} onValueChange={(value) => setDateColumnType(value as 'data' | 'data_pagamento')}>
+            <SelectTrigger className="h-9 w-48 text-sm">
+              <SelectValue placeholder="Data" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="data">Data do Abastecimento</SelectItem>
+              <SelectItem value="data_pagamento">Data do Pagamento</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {records.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Total de Registros</p>
-                  <p className="text-2xl font-semibold text-white">{displayTotalRecords}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
+      <Card className="border-border/60 bg-slate-950/45 shadow-none">
+        <CardContent className="p-4 md:p-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="xl:col-span-2">
+              <Label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Buscar</Label>
+              <div className="relative mt-1.5">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Trecho, local, fornecedor, comanda, NF..."
+                  value={searchText}
+                  onChange={(e) => {
+                    setSearchText(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 border-border/70 bg-background/50 pl-9 text-sm"
+                />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Total de Litros</p>
-                  <p className="text-2xl font-semibold text-white">{displayTotalLitros.toFixed(2)} L</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20 overflow-hidden">
-            <CardContent className="p-4 relative z-10">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Gasto Total</p>
-                  <p className="text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">R$ {displayTotalValue.toFixed(2)}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-300">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 flex-1">
-          <div>
-            <Label className="text-xs font-semibold text-muted-foreground">Buscar</Label>
-            <Input
-              type="text"
-              placeholder="Buscar por qualquer campo..."
-              value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value);
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">CLIENTE</Label>
+              <Select value={filterPartner} onValueChange={value => {
+                setFilterPartner(value);
                 setCurrentPage(1);
-              }}
-              className="mt-1 h-9 text-sm"
-            />
+              }}>
+                <SelectTrigger className="!my-0 mt-1.5 h-9 border-border/70 bg-background/50 text-sm">
+                  <SelectValue placeholder="Todos os sócios" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="__no_partner__">Sem sócio (Cliente)</SelectItem>
+                  {(() => {
+                    const uniquePartners = Array.from(new Set(records.map(r => resolveFuelRecordPartnerName(r)).filter(Boolean))) as string[];
+                    return uniquePartners.map(name => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Mês</Label>
+              <Select value={filterMonth} onValueChange={value => {
+                setFilterMonth(value);
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="!my-0 mt-1.5 h-9 border-border/70 bg-background/50 text-sm">
+                  <SelectValue placeholder="Selecione um mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="01">Janeiro</SelectItem>
+                  <SelectItem value="02">Fevereiro</SelectItem>
+                  <SelectItem value="03">Março</SelectItem>
+                  <SelectItem value="04">Abril</SelectItem>
+                  <SelectItem value="05">Maio</SelectItem>
+                  <SelectItem value="06">Junho</SelectItem>
+                  <SelectItem value="07">Julho</SelectItem>
+                  <SelectItem value="08">Agosto</SelectItem>
+                  <SelectItem value="09">Setembro</SelectItem>
+                  <SelectItem value="10">Outubro</SelectItem>
+                  <SelectItem value="11">Novembro</SelectItem>
+                  <SelectItem value="12">Dezembro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ano</Label>
+              <Select value={filterYear} onValueChange={value => {
+                setFilterYear(value);
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="!my-0 mt-1.5 h-9 border-border/70 bg-background/50 text-sm">
+                  <SelectValue placeholder="Selecione um ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 10 }, (_, i) => {
+                    const year = (new Date().getFullYear() - i).toString();
+                    return <SelectItem key={year} value={year}>{year}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Sócio</Label>
-            <Select value={filterPartner} onValueChange={value => {
-              setFilterPartner(value);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="mt-1 h-9 text-sm">
-                <SelectValue placeholder="Todos os sócios" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="__no_partner__">Sem sócio (Cliente)</SelectItem>
-                {(() => {
-                  const uniquePartners = Array.from(new Set(records.map(r => resolveFuelRecordPartnerName(r)).filter(Boolean))) as string[];
-                  return uniquePartners.map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ));
-                })()}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Mês</Label>
-            <Select value={filterMonth} onValueChange={value => {
-              setFilterMonth(value);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="mt-1 h-9 text-sm">
-                <SelectValue placeholder="Selecione um mês" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="01">Janeiro</SelectItem>
-                <SelectItem value="02">Fevereiro</SelectItem>
-                <SelectItem value="03">Março</SelectItem>
-                <SelectItem value="04">Abril</SelectItem>
-                <SelectItem value="05">Maio</SelectItem>
-                <SelectItem value="06">Junho</SelectItem>
-                <SelectItem value="07">Julho</SelectItem>
-                <SelectItem value="08">Agosto</SelectItem>
-                <SelectItem value="09">Setembro</SelectItem>
-                <SelectItem value="10">Outubro</SelectItem>
-                <SelectItem value="11">Novembro</SelectItem>
-                <SelectItem value="12">Dezembro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Ano</Label>
-            <Select value={filterYear} onValueChange={value => {
-              setFilterYear(value);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="mt-1 h-9 text-sm">
-                <SelectValue placeholder="Selecione um ano" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 10 }, (_, i) => {
-                  const year = (new Date().getFullYear() - i).toString();
-                  return <SelectItem key={year} value={year}>{year}</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Dialog open={isDialogOpen} onOpenChange={open => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-white font-semibold shadow-lg">
+            <Button className="h-9 gap-2 bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-none hover:bg-primary-dark">
               <Plus className="h-5 w-5" />
               Novo Registro
             </Button>
@@ -1606,7 +1595,7 @@ export function FuelRecordsByAircraft({
               </div>
 
               <div>
-                <Label className="text-sm font-semibold mb-2 block">Cliente e Sócios</Label>
+                <Label className="text-sm font-semibold mb-2 block">Cliente</Label>
                 <div className="space-y-2">
                   {clientPartners.length > 0 && (
                     <div className="space-y-2 border-l-2 border-primary/30 pl-3">
@@ -1781,7 +1770,7 @@ export function FuelRecordsByAircraft({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="em aberto">Em Aberto</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
                       <SelectItem value="pago">Pago</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1841,13 +1830,22 @@ export function FuelRecordsByAircraft({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Total em Litros <span className="text-red-500">*</span></Label>
                   <Input type="number" step="0.01" value={formData.litros} onChange={e => setFormData({
                     ...formData,
                     litros: e.target.value
                   })} placeholder="0.00" required className="mt-1 h-9 text-sm" />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Desconto (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.desconto} onChange={e => setFormData({
+                    ...formData,
+                    desconto: e.target.value,
+                    valor_total_manual: false,
+                  })} placeholder="0.00" className="mt-1 h-9 text-sm" />
                 </div>
 
                 <div>
@@ -1907,7 +1905,7 @@ export function FuelRecordsByAircraft({
 
         {/* Visualizador de anexos em tela cheia (fora do dialog de edição) */}
         <Dialog open={!!viewingAttachment} onOpenChange={(open) => !open && setViewingAttachment(null)}>
-          <DialogContent className="z-[200] max-w-[96vw] w-[96vw] h-[94vh] p-0 flex flex-col overflow-hidden">
+          <DialogContent className="z-[1100] max-w-[96vw] w-[96vw] h-[94vh] p-0 flex flex-col overflow-hidden">
             <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between gap-3 space-y-0">
               <DialogTitle className="truncate text-base">{viewingAttachment?.name || "Anexo"}</DialogTitle>
               <div className="flex items-center gap-2 pr-8">
@@ -1943,20 +1941,20 @@ export function FuelRecordsByAircraft({
         <Button
           onClick={() => setIsExportModalOpen(true)}
           variant="outline"
-          className="gap-2 border-border/60 bg-slate-900/60 text-slate-200 font-medium hover:bg-slate-900 hover:text-white hover:border-slate-600 shadow-sm"
+          className="h-9 gap-2 border-border/70 bg-background/50 px-3 text-sm font-medium shadow-none hover:bg-muted/60"
         >
           <Download className="h-4 w-4" />
           Exportar PDF
         </Button>
       </div>
 
-      <Card className="border border-border/50 shadow-card">
+      <Card className="overflow-hidden border-border/60 bg-slate-950/30 shadow-none">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow className="border-b border-border/50 hover:bg-transparent">
-                  <TableHead className="font-semibold text-foreground">
+            <Table className="min-w-[1120px]">
+              <TableHeader className="bg-slate-950/75">
+                <TableRow className="border-b border-border/60 hover:bg-transparent">
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     <button
                       type="button"
                       onClick={() => setDateSortAsc(prev => !prev)}
@@ -1966,17 +1964,17 @@ export function FuelRecordsByAircraft({
                       {dateSortAsc ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </button>
                   </TableHead>
-                  <TableHead className="font-semibold text-foreground">Trecho</TableHead>
-                  <TableHead className="font-semibold text-foreground">Local</TableHead>
-                  <TableHead className="font-semibold text-foreground">Comanda</TableHead>
-                  <TableHead className="font-semibold text-foreground">N.F</TableHead>
-                  <TableHead className="font-semibold text-foreground">Fornecedor</TableHead>
-                  {hasPartnerColumn && <TableHead className="font-semibold text-foreground">Sócio</TableHead>}
-                  <TableHead className="font-semibold text-foreground">Status</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground">Litros</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground">Valor Unit.</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
-                  <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Trecho</TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Local</TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Comanda</TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">N.F</TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Fornecedor</TableHead>
+                  {hasPartnerColumn && <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Cliente</TableHead>}
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Status</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Litros</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Valor Unit.</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Valor Total</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1986,12 +1984,12 @@ export function FuelRecordsByAircraft({
                     id={`fuel-record-${record.id}`}
                     className="border-b border-border/50 hover:bg-muted/30"
                   >
-                    <TableCell className="font-medium text-foreground">
-                      {formatDateBrazil(record.data, "dd/MM/yyyy")}
+                    <TableCell className="px-4 py-3 text-xs font-medium text-foreground">
+                      {formatDateBrazil(getRecordDateValue(record), "dd/MM/yyyy")}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
-                    <TableCell className="font-mono text-foreground">
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">{record.trecho || "-"}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">{record.local || "-"}</TableCell>
+                    <TableCell className="px-4 py-3 font-mono text-xs text-foreground">
                       {record.comanda_url ? (
                         <button
                           type="button"
@@ -2004,7 +2002,7 @@ export function FuelRecordsByAircraft({
                         record.comanda || "-"
                       )}
                     </TableCell>
-                    <TableCell className="font-mono text-foreground">
+                    <TableCell className="px-4 py-3 font-mono text-xs text-foreground">
                       {record.nota_url ? (
                         <button
                           type="button"
@@ -2017,25 +2015,25 @@ export function FuelRecordsByAircraft({
                         record.nf || "-"
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">{record.abastecedor || "-"}</TableCell>
                     {hasPartnerColumn && (
-                      <TableCell className="text-muted-foreground font-medium">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
+                      <TableCell className="px-4 py-3 text-xs font-medium text-muted-foreground">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
                     )}
                     <TableCell>
                       {record.status === "pago" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
                           <FileCheck className="h-4 w-4" /> Pago
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">
-                          <DollarSign className="h-4 w-4" /> Em Aberto
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
+                          <DollarSign className="h-4 w-4" /> Pendente
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-foreground">{record.litros.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">R$ {record.valor_unitario.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-semibold text-success">R$ {record.valor_total.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-4 py-3 text-right font-mono text-xs font-medium text-foreground">{record.litros.toFixed(2)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">R$ {record.valor_unitario.toFixed(2)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right font-mono text-xs font-semibold text-success">R$ {record.valor_total.toFixed(2)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} className="h-8 w-8">
                           <Edit className="h-4 w-4" />

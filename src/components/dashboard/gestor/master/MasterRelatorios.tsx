@@ -147,12 +147,12 @@ export default function MasterRelatorios() {
         supabase
           .from("movimentacoes")
           .select(
-            `id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, conta_bancaria, reembolsavel`
+            `id, descricao, tipo, valor_rateado, valor_original, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, conta_bancaria, reembolsavel`
           )
-          .gte("data_competencia", `${ano}-01-01`)
-          .lte("data_competencia", `${ano}-12-31`)
+          .gte("data_emissao", `${ano}-01-01`)
+          .lte("data_emissao", `${ano}-12-31`)
           .neq("status", "cancelado")
-          .order("data_competencia", { ascending: false })
+          .order("data_emissao", { ascending: false })
           .limit(5000),
         supabase.from("clientes").select("id, razao_social, proprietario"),
         supabase.from("salarios").select("salario_bruto, beneficios"),
@@ -191,7 +191,7 @@ export default function MasterRelatorios() {
   const movs = useMemo(() => {
     const all = data?.movimentacoes || [];
     return all.filter((m: any) => {
-      const mes = Number(String(m.data_competencia).slice(5, 7)) - 1;
+      const mes = Number(String(m.data_emissao).slice(5, 7)) - 1;
       return mes >= mesInicio && mes <= mesLimite;
     });
   }, [data?.movimentacoes, mesInicio, mesLimite]);
@@ -230,7 +230,7 @@ export default function MasterRelatorios() {
     }));
     (data?.movimentacoes || []).forEach((m: any) => {
       if (!isPago(m) && !Boolean(m.reembolsavel)) return;
-      const i = Number(String(m.data_competencia).slice(5, 7)) - 1;
+      const i = Number(String(m.data_emissao).slice(5, 7)) - 1;
       if (i < 0 || i > 11) return;
       const caixa = m.tipo_caixa === "cliente" ? "Cliente" : "Share";
       const key = `${isEntrada(m) ? "receita" : "despesa"}${caixa}`;
@@ -427,7 +427,7 @@ export default function MasterRelatorios() {
     const header = ["Data", "Caixa", "Tipo", "Categoria", "Natureza", "Descrição", "Cliente", "Status", "Valor"];
     const linhas = movs.map((m: any) =>
       [
-        m.data_competencia, m.tipo_caixa || "-", m.tipo, m.categoria_nome || "-", naturezaDe(m),
+        m.data_emissao, m.tipo_caixa || "-", m.tipo, m.categoria_nome || "-", naturezaDe(m),
         m.descricao, clientNames.get(m.clientes_id || "") || m.fornecedor_nome || "-", m.status, val(m).toFixed(2),
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)

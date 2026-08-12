@@ -98,7 +98,7 @@ interface Movimentacao {
   valor?: string | number | null;
   valor_original?: string | number | null;
   aeronave_id?: string | null;
-  data_competencia: string | null;
+  data_emissao: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
   clientes_id: string | null;
@@ -187,7 +187,7 @@ const formatDate = (d?: string | null) =>
   d ? new Date(d + (d.length <= 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
 
 function txnId(m: Movimentacao): string {
-  const d = m.data_competencia || m.data_vencimento || m.data_pagamento || "";
+  const d = m.data_emissao || m.data_vencimento || m.data_pagamento || "";
   const ym = d.slice(2, 4) + d.slice(5, 7);
   const suffix = m.id.replace(/-/g, "").slice(-4).toUpperCase();
   return `TXN-${ym || "0000"}-${suffix}`;
@@ -314,7 +314,7 @@ export default function FluxoCaixaTab() {
       const { data, error: e } = await supabase
         .from("movimentacoes")
         .select("*")
-        .order("data_competencia", { ascending: false })
+        .order("data_emissao", { ascending: false })
         .limit(5000);
       if (e) throw e;
       setMovs((data ?? []) as unknown as Movimentacao[]);
@@ -451,8 +451,8 @@ export default function FluxoCaixaTab() {
   const dateOf = useCallback(
     (m: Movimentacao) =>
       dateMode === "pagamento"
-        ? m.data_pagamento || m.data_vencimento || m.data_competencia || ""
-        : m.data_competencia || m.data_vencimento || "",
+        ? m.data_pagamento || m.data_vencimento || m.data_emissao || ""
+        : m.data_emissao || m.data_vencimento || "",
     [dateMode],
   );
 
@@ -614,14 +614,22 @@ export default function FluxoCaixaTab() {
     }
   }, [baixaMov, fetchMovs, queryClient]);
 
+  const caixaDaTabAtiva = useMemo<"share" | "cliente">(() => (
+    activeTab === "caixa_cliente" ? "cliente" :
+    activeTab === "contas_pagar" ? contasCaixa :
+    "share"
+  ), [activeTab, contasCaixa]);
+
+  // Se o usuário troca de tab com o formulário aberto, o formulário acompanha o caixa da tab.
+  useEffect(() => {
+    setNewMovCaixa(caixaDaTabAtiva);
+  }, [caixaDaTabAtiva]);
+
   const openNewMov = useCallback(() => {
-    const caixa: "share" | "cliente" =
-      activeTab === "caixa_cliente" ? "cliente" :
-      activeTab === "contas_pagar" ? contasCaixa :
-      "share";
-    setNewMovCaixa(caixa);
+    setNewMovCaixa(caixaDaTabAtiva);
     setShowNewMov(true);
-  }, [activeTab, contasCaixa]);
+  }, [caixaDaTabAtiva]);
+
 
   const onNewMovSaved = useCallback((createdMovs: Movimentacao[]) => {
     setMovs((prev) => [...createdMovs, ...prev]);
@@ -661,7 +669,7 @@ export default function FluxoCaixaTab() {
     const rows = filteredMovs.map((m) => {
       const entrada = isEntrada(m);
       const name = resolveName(m);
-      const date = formatDate(m.data_pagamento || m.data_vencimento || m.data_competencia);
+      const date = formatDate(m.data_pagamento || m.data_vencimento || m.data_emissao);
       const status = statusOf(m).label;
       const valor = formatBRL(valorDe(m));
       return `<tr><td>${date}</td><td>${entrada ? "Entrada" : "Saída"}</td><td>${m.descricao || "—"}</td><td>${name}</td><td style="text-align:right">${valor}</td><td>${status}</td></tr>`;

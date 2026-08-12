@@ -363,7 +363,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         tipo: "receita",
         categoria_id: categoriaId,
         valor,
-        data_competencia: hoje,
+        data_emissao: hoje,
         data_vencimento: hoje,
         clientes_id: clienteId,
         status: "pendente",

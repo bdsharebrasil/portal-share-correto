@@ -302,9 +302,11 @@ const CSS = `
   .wc-front {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: -8px;
     height: 38px;
-    padding: 0 8px;
+    margin-left: -48px;
+    margin-right: -48px;
+    padding: 0;
     background: #ffffff;
     border-radius: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,.10);

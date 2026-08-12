@@ -1,28 +1,34 @@
-// @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
 import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
-  ShoppingCart, FileText, Clock, CheckCircle, XCircle,
-  Edit, AlertCircle, CalendarIcon, CreditCard, Paperclip,
-  Search, Users, Building2, Folder, FolderOpen, ChevronRight,
-  ChevronLeft, Wallet, TrendingUp, TrendingDown
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  CircleDollarSign,
+  ClipboardList,
+  Package,
+  Plus,
+  Search,
+  Send,
+  ShoppingBag,
+  Wrench,
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { formatDistanceToNow, format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PurchaseRequest {
   id: string;
@@ -35,132 +41,110 @@ interface PurchaseRequest {
   solicitante_nome: string | null;
   departamento: string | null;
   centro_custo: string | null;
-  data_solicitacao: string;
+  data_solicitacao: string | null;
   data_necessaria: string | null;
- 
- 
+  priority: string | null;
   status: string;
-  aprovador_1_id: string | null;
-  data_aprovacao_1: string | null;
-  motivo_rejeicao_1: string | null;
-  aprovador_2_id: string | null;
-  data_aprovacao_2: string | null;
-  motivo_rejeicao_2: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
-interface PaymentRequestHistory {
+interface PurchaseRequestItem {
   id: string;
-  descricao: string;
-  valor: number;
-  data_competencia: string | null;
-  data_vencimento: string | null;
-  status: string | null;
-  observacoes: string | null;
-  criado_por: string | null;
-  solicitante_nome: string | null;
-  contas_apagar_id: string | null;
-  cliente_id?: string | null;
-  socio_id?: string | null;
-  data_pagamento: string | null;
-  comprovante_pagamento_url: string | null;
-  nf_url: string | null;
-  boleto_url: string | null;
-  recibo_url: string | null;
-  arquivo_pdf_url: string | null;
-  reference_type?: string | null;
-  reference_id?: string | null;
+  purchase_request_id: string;
+  quantidade: number;
+  valor_unitario: number;
 }
 
-interface MovimentoPagamento {
-  id: string;
-  descricao: string | null;
-  valor: number | string | null;
-  data_competencia: string | null;
-  data_vencimento: string | null;
-  status: string | null;
-  observacoes: string | null;
-  criado_por: string | null;
-  contas_apagar_id: string | null;
-  clientes_id?: string | null;
-  recibo_url?: string | null;
-  socio_id?: string | null;
-  reference_type?: string | null;
-  reference_id?: string | null;
-}
+const statusOptions = [
+  { value: "todos", label: "Todos" },
+  { value: "analise", label: "Em análise" },
+  { value: "aprovado", label: "Aprovadas" },
+  { value: "reprovado", label: "Rejeitadas" },
+  { value: "rascunho", label: "Rascunhos" },
+] as const;
 
-interface ContaPagamentoResumo {
-  id: string;
-  status: string | null;
-  data_pagamento: string | null;
-  comprovante_pagamento_url: string | null;
-  nf_url: string | null;
-  boleto_url: string | null;
-  recibo_url: string | null;
-  arquivo_pdf_url: string | null;
-}
+type StatusFilter = (typeof statusOptions)[number]["value"];
 
-interface Cliente {
-  id: string;
-  razao_social: string;
-  proprietario: string;
-}
+const statusStyles: Record<string, { label: string; className: string }> = {
+  rascunho: {
+    label: "Rascunho",
+    className: "border-slate-500/35 bg-slate-400/10 text-slate-300",
+  },
+  enviado: {
+    label: "Em análise",
+    className: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  },
+  em_analise: {
+    label: "Em análise",
+    className: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  },
+  aprovado: {
+    label: "Concluída",
+    className: "border-teal-400/30 bg-teal-400/10 text-teal-300",
+  },
+  reprovado: {
+    label: "Rejeitada",
+    className: "border-rose-400/30 bg-rose-400/10 text-rose-300",
+  },
+  cancelado: {
+    label: "Cancelada",
+    className: "border-orange-400/30 bg-orange-400/10 text-orange-300",
+  },
+  entregue: {
+    label: "Concluída",
+    className: "border-teal-400/30 bg-teal-400/10 text-teal-300",
+  },
+};
 
-interface Socio {
-  id: string;
-  cliente_id: string;
-  nome: string;
-}
+const priorityStyles: Record<string, { label: string; className: string }> = {
+  baixa: { label: "Baixa", className: "border-slate-500/35 bg-slate-400/10 text-slate-300" },
+  normal: { label: "Normal", className: "border-teal-400/25 bg-teal-400/10 text-teal-300" },
+  media: { label: "Normal", className: "border-teal-400/25 bg-teal-400/10 text-teal-300" },
+  alta: { label: "Alta", className: "border-orange-400/30 bg-orange-400/10 text-orange-300" },
+  urgente: { label: "Urgente", className: "border-orange-400/30 bg-orange-400/10 text-orange-300" },
+};
 
-const SEM_CLIENTE = "__sem_cliente__";
-const SEM_SOCIO = "__sem_socio__";
+const compactInputClass =
+  "h-10 rounded-md border-[#223252] bg-[#0b1428] px-3 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-teal-400/70 focus-visible:ring-teal-400/20";
 
-const isPagoStatus = (status: string | null | undefined) =>
-  ['pago', 'paid', 'quitado', 'liquidado', 'paga'].includes((status || '').toLowerCase());
+const extractAircraft = (observacoes: string | null) => {
+  const match = observacoes?.match(/^\[Aeronave: (.+?)\]/);
+  return match?.[1] ?? "—";
+};
+
+const formatRequestDate = (date: string | null) => {
+  if (!date) return "—";
+  const parsedDate = new Date(date);
+  return Number.isNaN(parsedDate.getTime())
+    ? "—"
+    : format(parsedDate, "dd/MM/yyyy", { locale: ptBR });
+};
 
 export default function SolicitacaoCompras() {
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestHistory[]>([]);
-
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [socios, setSocios] = useState<Socio[]>([]);
-
-  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [requestItems, setRequestItems] = useState<PurchaseRequestItem[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
 
-  // Form states
-  const [formExpanded, setFormExpanded] = useState(false);
-  const [tipo, setTipo] = useState("compra");
+  const [tipo, setTipo] = useState<"compra" | "servico">("compra");
   const [descricao, setDescricao] = useState("");
-  const [dataNecessaria, setDataNecessaria] = useState("");
-  const [dataNecessariaDate, setDataNecessariaDate] = useState<Date | undefined>();
-  const [departamento, setDepartamento] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [aeronave, setAeronave] = useState("");
+  const [fornecedor, setFornecedor] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
+  const [unidade, setUnidade] = useState("UN");
+  const [valorEstimado, setValorEstimado] = useState("");
   const [prioridade, setPrioridade] = useState("normal");
+  const [dataNecessaria, setDataNecessaria] = useState("");
   const [tipoDeServico, setTipoDeServico] = useState("");
-
-  // Edit dialog states
-  const [editingRequest, setEditingRequest] = useState<PurchaseRequest | null>(null);
-  const [editStatus, setEditStatus] = useState("");
-  const [editAprovador, setEditAprovador] = useState("");
-  const [editMotivo, setEditMotivo] = useState("");
-
-  // Filter states
-  const [searchCompras, setSearchCompras] = useState("");
-  const [searchPagamentos, setSearchPagamentos] = useState("");
-  const [filtroStatusPagamento, setFiltroStatusPagamento] = useState<"todos" | "pago" | "pendente">("todos");
-
-  // Navigation (folder drill-down) states for the Pagamentos tab
-  const [navCliente, setNavCliente] = useState<string | null>(null);
-  const [navSocio, setNavSocio] = useState<string | null>(null);
+  const [detalhes, setDetalhes] = useState("");
 
   useEffect(() => {
-    loadCurrentUser();
-    loadRequests();
-    loadPaymentRequests();
-    loadClientesESocios();
+    void loadCurrentUser();
+    void loadRequests();
   }, []);
 
   const loadCurrentUser = async () => {
@@ -168,827 +152,494 @@ export default function SolicitacaoCompras() {
     if (!user) return;
 
     setCurrentUserId(user.id);
-
     const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('full_name')
-      .eq('id', user.id)
+      .from("user_profiles")
+      .select("full_name")
+      .eq("id", user.id)
       .single();
 
-    if (profile) setCurrentUserName(profile.full_name || user.email || '');
-
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-
-    if (roles) setUserRoles(roles.map(r => r.role));
-  };
-
-  const loadClientesESocios = async () => {
-    const { data: clientesData } = await supabase
-      .from('clientes')
-      .select('id, razao_social, proprietario')
-      .order('razao_social');
-
-    if (clientesData) setClientes(clientesData as Cliente[]);
-
-    const { data: sociosData } = await supabase
-      .from('socios')
-      .select('id, cliente_id, nome')
-      .order('nome');
-
-    if (sociosData) setSocios(sociosData as Socio[]);
+    setCurrentUserName(profile?.full_name || user.email || "");
   };
 
   const loadRequests = async () => {
-    const { data, error } = await supabase
-      .from('purchase_requests')
-      .select('*')
-      .order('data_solicitacao', { ascending: false });
+    const [{ data: requestData, error }, { data: itemData }] = await Promise.all([
+      supabase
+        .from("purchase_requests")
+        .select("*")
+        .order("data_solicitacao", { ascending: false }),
+      supabase.from("purchase_request_items").select("id, purchase_request_id, quantidade, valor_unitario"),
+    ]);
 
     if (error) {
-      toast({ title: "Erro", description: "Erro ao carregar solicitações", variant: "destructive" });
+      toast({
+        title: "Erro ao carregar solicitações",
+        description: "Não foi possível consultar as solicitações de compra.",
+        variant: "destructive",
+      });
       return;
     }
-    setRequests((data || []) as unknown as PurchaseRequest[]);
+
+    setRequests((requestData || []) as PurchaseRequest[]);
+    setRequestItems((itemData || []) as PurchaseRequestItem[]);
   };
 
-  const loadPaymentRequests = async () => {
-    try {
-      const normalizePaymentStatus = (status?: string | null) => {
-        const normalized = (status || '').toString().trim().toLowerCase();
-        if (['pago', 'paid', 'quitado', 'liquidado', 'paga'].includes(normalized)) return 'pago';
-        return normalized || 'pendente';
-      };
+  const itemSummaryByRequest = useMemo(() => {
+    return requestItems.reduce<Record<string, { quantity: number; total: number }>>((summary, item) => {
+      const current = summary[item.purchase_request_id] || { quantity: 0, total: 0 };
+      current.quantity += Number(item.quantidade || 0);
+      current.total += Number(item.quantidade || 0) * Number(item.valor_unitario || 0);
+      summary[item.purchase_request_id] = current;
+      return summary;
+    }, {});
+  }, [requestItems]);
 
-      const { data: movements, error: movementsError } = await supabase
-        .from('movimentacoes')
-        .select('id, descricao, valor, data_competencia, data_vencimento, status, observacoes, criado_por, contas_apagar_id, clientes_id, socio_id, recibo_url, reference_type, reference_id')
-        .in('reference_type', ['solicitacao_pagamento', 'travel_expense_report', 'travel_report'])
-        .order('data_competencia', { ascending: false });
+  const filteredRequests = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
 
-      if (movementsError) throw movementsError;
+    return requests.filter((request) => {
+      const matchesSearch = !normalizedSearch || [
+        request.numero_solicitacao,
+        request.descricao,
+        request.departamento || "",
+        request.solicitante_nome || "",
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
 
-      const contaIds = [...new Set((movements || []).map((m: MovimentoPagamento) => m.contas_apagar_id).filter((id: string | null): id is string => typeof id === 'string'))] as string[];
-      const contasMap = new Map<string, ContaPagamentoResumo>();
+      const matchesStatus =
+        statusFilter === "todos" ||
+        (statusFilter === "analise" && ["enviado", "em_analise"].includes(request.status)) ||
+        (statusFilter === "aprovado" && ["aprovado", "entregue"].includes(request.status)) ||
+        (statusFilter === "reprovado" && ["reprovado", "cancelado"].includes(request.status)) ||
+        (statusFilter === "rascunho" && request.status === "rascunho");
 
-      if (contaIds.length > 0) {
-        const { data: contasData, error: contasError } = await supabase
-          .from('contas_apagar')
-          .select('id, status, data_pagamento, comprovante_pagamento_url, nf_url, boleto_url, recibo_url, arquivo_pdf_url')
-          .in('id', contaIds);
+      return matchesSearch && matchesStatus;
+    });
+  }, [requests, search, statusFilter]);
 
-        if (contasError) throw contasError;
-        (contasData || []).forEach((conta: ContaPagamentoResumo) => contasMap.set(conta.id, conta));
-      }
+  const statusCount = (filter: StatusFilter) => {
+    if (filter === "todos") return requests.length;
+    if (filter === "analise") return requests.filter((request) => ["enviado", "em_analise"].includes(request.status)).length;
+    if (filter === "aprovado") return requests.filter((request) => ["aprovado", "entregue"].includes(request.status)).length;
+    if (filter === "reprovado") return requests.filter((request) => ["reprovado", "cancelado"].includes(request.status)).length;
+    return requests.filter((request) => request.status === "rascunho").length;
+  };
 
-      const userIds: string[] = [...new Set<string>(
-        (movements || [])
-          .map((m: MovimentoPagamento) => m.criado_por)
-          .filter((id: string | null): id is string => typeof id === 'string')
-      )];
-      const userMap = new Map<string, string>();
+  const resetForm = () => {
+    setTipo("compra");
+    setDescricao("");
+    setCategoria("");
+    setAeronave("");
+    setFornecedor("");
+    setQuantidade("1");
+    setUnidade("UN");
+    setValorEstimado("");
+    setPrioridade("normal");
+    setDataNecessaria("");
+    setTipoDeServico("");
+    setDetalhes("");
+  };
 
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, full_name')
-          .in('id', userIds);
+  const closeForm = () => {
+    resetForm();
+    setIsFormOpen(false);
+  };
 
-        if (profilesError) throw profilesError;
-        (profiles || []).forEach((profile: { id: string; full_name?: string | null }) => userMap.set(profile.id, profile.full_name || ''));
-      }
-
-      const mappedPayments = (movements || []).map((movement: MovimentoPagamento) => {
-        const conta = movement.contas_apagar_id ? contasMap.get(movement.contas_apagar_id) : null;
-        const contaStatus = normalizePaymentStatus(conta?.status);
-        const movementStatus = normalizePaymentStatus(movement.status);
-        const paymentStatus = contaStatus === 'pago' || movementStatus === 'pago' ? 'pago' : (contaStatus || movementStatus || 'pendente');
-
-        return {
-          ...movement,
-          cliente_id: movement.clientes_id ?? null,
-          status: paymentStatus,
-          descricao: movement.descricao || 'Solicitação de pagamento',
-          valor: Number(movement.valor || 0),
-          solicitante_nome: movement.criado_por ? userMap.get(movement.criado_por) || null : null,
-          data_pagamento: conta?.data_pagamento || null,
-          comprovante_pagamento_url: conta?.comprovante_pagamento_url || null,
-          nf_url: conta?.nf_url || null,
-          boleto_url: conta?.boleto_url || null,
-          recibo_url: movement.recibo_url || conta?.recibo_url || null,
-          arquivo_pdf_url: conta?.arquivo_pdf_url || null,
-        } as PaymentRequestHistory;
+  const submitRequest = async (status: "rascunho" | "em_analise") => {
+    if (!currentUserId || !currentUserName) {
+      toast({
+        title: "Usuário não autenticado",
+        description: "Entre novamente para enviar uma solicitação.",
+        variant: "destructive",
       });
-
-      setPaymentRequests(mappedPayments);
-    } catch (error) {
-      console.error('Error loading payment history:', error);
-      setPaymentRequests([]);
+      return;
     }
-  };
 
-  const canEditRequests = userRoles.some(role =>
-    ['admin', 'financeiro_master', 'gestor_master'].includes(role)
-  );
+    if (!descricao.trim()) {
+      toast({ title: "Informe o item ou serviço", variant: "destructive" });
+      return;
+    }
 
-  const gerarNumeroSolicitacao = async () => `SOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUserId || !currentUserName) return toast({ title: "Erro", description: "Usuário não autenticado", variant: "destructive" });
-    if (!tipo) return toast({ title: "Campo obrigatório", description: "Selecione o tipo de solicitação", variant: "destructive" });
-    if (tipo === 'servico' && !tipoDeServico) return toast({ title: "Campo obrigatório", description: "Selecione o tipo de serviço", variant: "destructive" });
-    if (!descricao.trim()) return toast({ title: "Campo obrigatório", description: "Descreva a solicitação", variant: "destructive" });
+    if (tipo === "servico" && !tipoDeServico) {
+      toast({ title: "Selecione o tipo de serviço", variant: "destructive" });
+      return;
+    }
 
     setLoading(true);
     try {
-      const numeroSolicitacao = await gerarNumeroSolicitacao();
-      const payload: Record<string, string | number | null> = {
-        numero_solicitacao: numeroSolicitacao,
-        tipo,
-        descricao,
-        user_id: currentUserId,
-        solicitante_nome: currentUserName,
-        priority: prioridade,
-        departamento: departamento || null,
-        tipo_de_servico: tipoDeServico || null,
-        data_necessaria: dataNecessaria || null,
-        status: 'enviado',
-       
-      };
-
-      const { error } = await supabase.from('purchase_requests' as any).insert(payload as any);
-
+      const numeroSolicitacao = `SOL-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      const aircraftNote = aeronave.trim() ? `[Aeronave: ${aeronave.trim()}]` : "";
+      const observacoes = [aircraftNote, detalhes.trim()].filter(Boolean).join("\n\n") || null;
+      const { data: request, error } = await supabase
+        .from("purchase_requests")
+        .insert({
+          numero_solicitacao: numeroSolicitacao,
+          tipo,
+          tipo_de_servico: tipo === "servico" ? tipoDeServico || null : null,
+          descricao: descricao.trim(),
+          user_id: currentUserId,
+          solicitante_nome: currentUserName,
+          departamento: categoria.trim() || null,
+          observacoes,
+          priority: prioridade,
+          data_necessaria: dataNecessaria || null,
+          status,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
-      toast({ title: "Sucesso", description: `Solicitação ${numeroSolicitacao} enviada para aprovação!` });
-      setTipo("compra"); setDescricao(""); setDataNecessaria(""); setDataNecessariaDate(undefined);
-      setDepartamento(""); setPrioridade("normal"); setTipoDeServico(""); setFormExpanded(false);
-      loadRequests();
+      const itemError = await supabase.from("purchase_request_items").insert({
+        purchase_request_id: request.id,
+        numero_item: 1,
+        descricao: descricao.trim(),
+        quantidade: Number(quantidade) || 1,
+        unidade: unidade.trim().toUpperCase() || "UN",
+        valor_unitario: Number(valorEstimado) || 0,
+        especificacoes: detalhes.trim() || null,
+      });
+
+      if (itemError.error) throw itemError.error;
+
+      if (fornecedor.trim()) {
+        const supplierError = await supabase.from("purchase_request_suppliers").insert({
+          purchase_request_id: request.id,
+          nome_fornecedor: fornecedor.trim(),
+        });
+        if (supplierError.error) throw supplierError.error;
+      }
+
+      toast({
+        title: status === "rascunho" ? "Rascunho salvo" : "Solicitação enviada",
+        description: status === "rascunho"
+          ? "Você pode continuar a edição quando quiser."
+          : "A área de suprimentos foi notificada para análise.",
+      });
+      closeForm();
+      await loadRequests();
     } catch (error) {
-      toast({ title: "Erro", description: "Erro ao criar solicitação", variant: "destructive" });
+      toast({
+        title: "Não foi possível salvar a solicitação",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateStatus = async () => {
-    if (!editingRequest) return;
-    try {
-      const updateData: Record<string, string | null> = { status: editStatus };
-      if (editStatus === 'aprovado' && editAprovador === 'nivel1') { updateData.aprovador_1_id = currentUserId; updateData.data_aprovacao_1 = new Date().toISOString(); }
-      else if (editStatus === 'aprovado' && editAprovador === 'nivel2') { updateData.aprovador_2_id = currentUserId; updateData.data_aprovacao_2 = new Date().toISOString(); }
-      else if (editStatus === 'reprovado' && editAprovador === 'nivel1') { updateData.motivo_rejeicao_1 = editMotivo; }
-      else if (editStatus === 'reprovado' && editAprovador === 'nivel2') { updateData.motivo_rejeicao_2 = editMotivo; }
+  if (isFormOpen) {
+    return (
+      <Layout>
+        <div className="min-h-full bg-[#080f20] px-3 py-4 text-slate-100 md:px-6 md:py-6">
+          <div className="mx-auto max-w-5xl">
+            <header className="mb-5 flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={closeForm}
+                  className="mt-1 h-8 w-8 shrink-0 rounded-md border border-[#243452] bg-[#101a31] text-slate-400 hover:bg-[#17233d] hover:text-slate-100"
+                  aria-label="Voltar para solicitações"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-0 border-l-2 border-teal-400 pl-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Suprimentos · nova solicitação
+                  </p>
+                  <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
+                    Abrir pedido de compra ou serviço
+                  </h1>
+                </div>
+              </div>
+              <Badge className="shrink-0 border border-[#2a4260] bg-[#13243e] px-2 py-1 text-[10px] font-medium text-slate-300">
+                Rascunho não salvo
+              </Badge>
+            </header>
 
-    
+            <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#1c2a45] bg-[#0c1528] px-4 py-3 text-xs text-slate-400">
+              <CircleDollarSign className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" />
+              <p>
+                Após o envio, a solicitação entra em <span className="font-semibold text-teal-300">análise</span> pela área de suprimentos. Pedidos acima de R$ 50.000 exigem aprovação da diretoria.
+              </p>
+            </div>
 
-      toast({ title: "Sucesso", description: "Solicitação atualizada com sucesso!" });
-      setEditingRequest(null);
-      loadRequests();
-    } catch (error) {
-      toast({ title: "Erro", description: "Erro ao atualizar solicitação", variant: "destructive" });
-    }
-  };
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitRequest("em_analise");
+              }}
+              className="overflow-hidden rounded-xl border border-[#233452] bg-[#0d172b] shadow-[0_18px_60px_rgba(0,0,0,0.2)]"
+            >
+              <div className="border-b border-[#1e2c47] px-4 py-4 md:px-5">
+                <div className="border-l-2 border-teal-400 pl-3">
+                  <h2 className="text-sm font-semibold text-slate-100">Dados da solicitação</h2>
+                  <p className="mt-1 text-[11px] text-slate-500">Informe o que precisa ser comprado ou contratado</p>
+                </div>
+              </div>
 
-  const enviarSolicitacao = async (requestId: string) => {
-    try {
-      const { error } = await supabase.from('purchase_requests').update({ status: 'enviado' }).eq('id', requestId);
-      if (error) throw error;
-      toast({ title: "Sucesso", description: "Solicitação enviada para análise!" });
-      loadRequests();
-    } catch (error) {
-      toast({ title: "Erro", description: "Erro ao enviar solicitação", variant: "destructive" });
-    }
-  };
+              <div className="space-y-5 px-4 py-5 md:px-5">
+                <div>
+                  <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo de solicitação</Label>
+                  <div className="grid max-w-md grid-cols-2 gap-2 rounded-lg bg-[#101a30] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setTipo("compra")}
+                      className={`flex h-9 items-center justify-center gap-2 rounded-md border text-xs font-semibold transition-colors ${
+                        tipo === "compra"
+                          ? "border-teal-400/50 bg-teal-400/10 text-teal-300"
+                          : "border-transparent text-slate-400 hover:bg-[#17233d] hover:text-slate-200"
+                      }`}
+                    >
+                      <Package className="h-3.5 w-3.5" /> Compra
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipo("servico")}
+                      className={`flex h-9 items-center justify-center gap-2 rounded-md border text-xs font-semibold transition-colors ${
+                        tipo === "servico"
+                          ? "border-teal-400/50 bg-teal-400/10 text-teal-300"
+                          : "border-transparent text-slate-400 hover:bg-[#17233d] hover:text-slate-200"
+                      }`}
+                    >
+                      <Wrench className="h-3.5 w-3.5" /> Serviço
+                    </button>
+                  </div>
+                </div>
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; className: string }> = {
-      rascunho: { label: 'Rascunho', className: 'bg-gray-500/20 text-gray-700 dark:text-gray-400' },
-      enviado: { label: 'Enviado', className: 'bg-blue-500/20 text-blue-700 dark:text-blue-400' },
-      em_analise: { label: 'Em Análise', className: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-400' },
-      aprovado: { label: 'Aprovado', className: 'bg-green-500/20 text-green-700 dark:text-green-400' },
-      reprovado: { label: 'Reprovado', className: 'bg-red-500/20 text-red-700 dark:text-red-400' },
-      cancelado: { label: 'Cancelado', className: 'bg-orange-500/20 text-orange-700 dark:text-orange-400' },
-      entregue: { label: 'Entregue', className: 'bg-purple-500/20 text-purple-700 dark:text-purple-400' }
-    };
-    const config = statusMap[status] || { label: status, className: 'bg-muted' };
-    return <Badge className={config.className}>{config.label}</Badge>;
-  };
+                <div>
+                  <Label htmlFor="item-ou-servico" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Item ou serviço</Label>
+                  <Input
+                    id="item-ou-servico"
+                    value={descricao}
+                    onChange={(event) => setDescricao(event.target.value)}
+                    placeholder={tipo === "compra" ? "Ex.: Kit de pastilhas de freio — trem principal" : "Ex.: Revisão do sistema hidráulico"}
+                    className={compactInputClass}
+                    required
+                  />
+                </div>
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "aprovado": case "entregue": return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "enviado": case "em_analise": return <Clock className="h-4 w-4 text-yellow-600" />;
-      case "reprovado": return <XCircle className="h-4 w-4 text-red-600" />;
-      default: return null;
-    }
-  };
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor="categoria" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Categoria</Label>
+                    <Input
+                      id="categoria"
+                      value={categoria}
+                      onChange={(event) => setCategoria(event.target.value)}
+                      placeholder="Peças e componentes"
+                      className={compactInputClass}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="aeronave" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Aeronave</Label>
+                    <Input
+                      id="aeronave"
+                      value={aeronave}
+                      onChange={(event) => setAeronave(event.target.value)}
+                      placeholder="PR-SHB — Cessna Citation CJ3"
+                      className={compactInputClass}
+                    />
+                  </div>
+                </div>
 
-  const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                {tipo === "servico" && (
+                  <div>
+                    <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo de serviço</Label>
+                    <Select value={tipoDeServico} onValueChange={setTipoDeServico}>
+                      <SelectTrigger className="!my-0 border-[#223252] bg-[#0b1428] text-sm text-slate-100">
+                        <SelectValue placeholder="Selecione o tipo de serviço" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manutencao_infraestrutura">Manutenção e infraestrutura</SelectItem>
+                        <SelectItem value="servicos_tecnicos">Serviços técnicos</SelectItem>
+                        <SelectItem value="limpeza_conservacao">Limpeza e conservação</SelectItem>
+                        <SelectItem value="outros">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-  const formatDateLabel = (value: string | null | undefined) => {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return format(parsed, 'dd/MM/yyyy');
-  };
+                <div>
+                  <Label htmlFor="fornecedor" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Fornecedor sugerido</Label>
+                  <Input
+                    id="fornecedor"
+                    value={fornecedor}
+                    onChange={(event) => setFornecedor(event.target.value)}
+                    placeholder="Ex.: AeroParts do Brasil"
+                    className={compactInputClass}
+                  />
+                </div>
 
-  const getPaymentStatusBadge = (status: string | null) => {
-    if (isPagoStatus(status)) {
-      return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 gap-1"><CheckCircle className="h-3 w-3" /> Paga</Badge>;
-    }
-    return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 gap-1"><Clock className="h-3 w-3" /> Pendente</Badge>;
-  };
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <Label htmlFor="quantidade" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Quantidade</Label>
+                    <Input id="quantidade" type="number" min="1" value={quantidade} onChange={(event) => setQuantidade(event.target.value)} className={compactInputClass} />
+                  </div>
+                  <div>
+                    <Label htmlFor="unidade" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Unidade</Label>
+                    <Input id="unidade" value={unidade} onChange={(event) => setUnidade(event.target.value)} className={compactInputClass} />
+                  </div>
+                  <div>
+                    <Label htmlFor="valor" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Valor estimado</Label>
+                    <Input id="valor" type="number" min="0" step="0.01" value={valorEstimado} onChange={(event) => setValorEstimado(event.target.value)} placeholder="0,00" className={compactInputClass} />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Prioridade</Label>
+                    <Select value={prioridade} onValueChange={setPrioridade}>
+                      <SelectTrigger className="!my-0 border-[#223252] bg-[#0b1428] text-sm text-slate-100"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="baixa">Baixa</SelectItem>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="urgente">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-  const getAttachmentLinks = (request: PaymentRequestHistory) => {
-    return [
-      { label: 'Comprovante', url: request.comprovante_pagamento_url },
-      { label: 'NF', url: request.nf_url },
-      { label: 'Boleto', url: request.boleto_url },
-      { label: 'Recibo', url: request.recibo_url || request.arquivo_pdf_url || undefined },
-      { label: 'Anexo', url: request.arquivo_pdf_url },
-    ].filter((link): link is { label: string; url: string } => Boolean(link.url)) as Array<{ label: string; url: string }>;
-  };
+                <div className="grid gap-4 md:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
+                  <div>
+                    <Label htmlFor="necessidade" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Data de necessidade</Label>
+                    <div className="relative">
+                      <CalendarDays className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Input id="necessidade" type="date" value={dataNecessaria} onChange={(event) => setDataNecessaria(event.target.value)} className={`${compactInputClass} pl-10`} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="detalhes" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Observações</Label>
+                    <Textarea id="detalhes" value={detalhes} onChange={(event) => setDetalhes(event.target.value)} placeholder="Especificações ou instruções adicionais" className="min-h-10 resize-y border-[#223252] bg-[#0b1428] text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-teal-400/70 focus-visible:ring-teal-400/20" />
+                  </div>
+                </div>
+              </div>
 
-  // ---------- Compras (unchanged logic) ----------
-  const comprasFiltradas = requests.filter(req =>
-    req.descricao.toLowerCase().includes(searchCompras.toLowerCase()) ||
-    req.numero_solicitacao.toLowerCase().includes(searchCompras.toLowerCase())
-  );
-
-  const stats = {
-    total: requests.length,
-    rascunhos: requests.filter(r => r.status === 'rascunho').length,
-    enviadas: requests.filter(r => r.status === 'enviado').length,
-    aprovadas: requests.filter(r => r.status === 'aprovado').length,
-    reprovadas: requests.filter(r => r.status === 'reprovado').length,
-  };
-
-  // ---------- Pagamentos: lookups ----------
-  const clienteById = useMemo(() => new Map(clientes.map(c => [c.id, c])), [clientes]);
-  const socioById = useMemo(() => new Map(socios.map(s => [s.id, s])), [socios]);
-
-  const clienteNome = (id: string) => {
-    const c = clienteById.get(id);
-    return c?.razao_social || c?.proprietario || 'Cliente';
-  };
-  const socioNome = (id: string) => socioById.get(id)?.nome || 'Sócio';
-
-  // Base filter: search text + paid/pending status, applied at every navigation level
-  const pagamentosBase = useMemo(() => paymentRequests.filter(req => {
-    const matchesSearch =
-      req.descricao.toLowerCase().includes(searchPagamentos.toLowerCase()) ||
-      (req.solicitante_nome || '').toLowerCase().includes(searchPagamentos.toLowerCase());
-    const paga = isPagoStatus(req.status);
-    const matchesStatus =
-      filtroStatusPagamento === 'todos' ||
-      (filtroStatusPagamento === 'pago' ? paga : !paga);
-    return matchesSearch && matchesStatus;
-  }), [paymentRequests, searchPagamentos, filtroStatusPagamento]);
-
-  const paymentStats = useMemo(() => {
-    const pagas = paymentRequests.filter(r => isPagoStatus(r.status));
-    const pendentes = paymentRequests.filter(r => !isPagoStatus(r.status));
-    return {
-      total: paymentRequests.length,
-      pagas: pagas.length,
-      pendentes: pendentes.length,
-      valorPago: pagas.reduce((sum, r) => sum + (r.valor || 0), 0),
-      valorPendente: pendentes.reduce((sum, r) => sum + (r.valor || 0), 0),
-    };
-  }, [paymentRequests]);
-
-  // Level 0: group by cliente
-  const clienteGroups = useMemo(() => {
-    const map = new Map<string, { id: string; nome: string; count: number; valor: number }>();
-    pagamentosBase.forEach(req => {
-      const key = req.cliente_id || SEM_CLIENTE;
-      const nome = req.cliente_id ? clienteNome(req.cliente_id) : 'Sem Cliente Vinculado';
-      const existing = map.get(key) || { id: key, nome, count: 0, valor: 0 };
-      existing.count += 1;
-      existing.valor += req.valor || 0;
-      map.set(key, existing);
-    });
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.id === SEM_CLIENTE) return 1;
-      if (b.id === SEM_CLIENTE) return -1;
-      return a.nome.localeCompare(b.nome);
-    });
-  }, [pagamentosBase, clienteById]);
-
-  // Level 1: group by socio, within the selected cliente
-  const recordsForCliente = useMemo(() => {
-    if (!navCliente) return [];
-    return pagamentosBase.filter(req => (req.cliente_id || SEM_CLIENTE) === navCliente);
-  }, [pagamentosBase, navCliente]);
-
-  const socioGroups = useMemo(() => {
-    if (!navCliente) return [];
-    const map = new Map<string, { id: string; nome: string; count: number; valor: number }>();
-    recordsForCliente.forEach(req => {
-      const key = req.socio_id || SEM_SOCIO;
-      const nome = req.socio_id ? socioNome(req.socio_id) : 'Sem Sócio Vinculado';
-      const existing = map.get(key) || { id: key, nome, count: 0, valor: 0 };
-      existing.count += 1;
-      existing.valor += req.valor || 0;
-      map.set(key, existing);
-    });
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.id === SEM_SOCIO) return 1;
-      if (b.id === SEM_SOCIO) return -1;
-      return a.nome.localeCompare(b.nome);
-    });
-  }, [recordsForCliente, socioById, navCliente]);
-
-  // Only show the sócio folder level if there's at least one real sócio grouping
-  const showSocioLevel = navCliente !== null && socioGroups.some(g => g.id !== SEM_SOCIO);
-
-  // Level 2: final list of requests to display as cards
-  const pagamentosFiltrados = useMemo(() => {
-    if (!navCliente) return [];
-    if (showSocioLevel && !navSocio) return [];
-    let list = recordsForCliente;
-    if (navSocio) {
-      list = list.filter(req => (req.socio_id || SEM_SOCIO) === navSocio);
-    }
-    return list;
-  }, [recordsForCliente, navCliente, navSocio, showSocioLevel]);
-
-  const handleOpenCliente = (id: string) => {
-    setNavCliente(id);
-    setNavSocio(null);
-  };
-  const handleOpenSocio = (id: string) => setNavSocio(id);
-  const handleBackToClientes = () => { setNavCliente(null); setNavSocio(null); };
-  const handleBackToSocios = () => setNavSocio(null);
+              <footer className="flex flex-col-reverse gap-2 border-t border-[#1e2c47] bg-[#0b1425] px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
+                <Button type="button" variant="ghost" onClick={closeForm} className="text-slate-400 hover:bg-[#17233d] hover:text-slate-100">Cancelar</Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" variant="outline" disabled={loading} onClick={() => void submitRequest("rascunho")} className="border-[#2a4260] bg-[#101b31] text-slate-200 hover:bg-[#172942] hover:text-slate-50">
+                    Salvar rascunho
+                  </Button>
+                  <Button type="submit" disabled={loading} className="bg-teal-400 px-5 font-semibold text-[#06201f] hover:bg-teal-300">
+                    <Send className="h-4 w-4" /> {loading ? "Enviando..." : "Enviar solicitação"}
+                  </Button>
+                </div>
+              </footer>
+            </form>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Solicitações e Pagamentos</h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Gerencie suas compras, serviços e faturamentos
-            </p>
-          </div>
-        </div>
-
-        <Tabs defaultValue="compras" className="w-full space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-[500px]">
-            <TabsTrigger value="compras" className="gap-2"><ShoppingCart className="h-4 w-4"/> Compras e Serviços</TabsTrigger>
-            <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4"/> Pagamentos</TabsTrigger>
-          </TabsList>
-
-          {/* ABA DE COMPRAS */}
-          <TabsContent value="compras" className="space-y-6 animate-in fade-in-50">
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por descrição ou número..."
-                  value={searchCompras}
-                  onChange={(e) => setSearchCompras(e.target.value)}
-                  className="pl-9 bg-background"
-                />
-              </div>
-              <Button onClick={() => setFormExpanded(!formExpanded)} className="w-full sm:w-auto gap-2">
-                <ShoppingCart className="h-4 w-4" /> Nova Solicitação
-              </Button>
+      <div className="min-h-full bg-[#080f20] px-3 py-4 text-slate-100 md:px-6 md:py-6">
+        <div className="mx-auto max-w-7xl">
+          <header className="mb-5 flex flex-col gap-4 border-b border-[#1d2a44] pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="border-l-2 border-teal-400 pl-3">
+              <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">Solicitações realizadas</h1>
+              <p className="mt-1 text-xs text-slate-400">Acompanhe o andamento de cada pedido de compra ou serviço</p>
             </div>
+            <Button onClick={() => setIsFormOpen(true)} className="bg-teal-400 px-4 text-xs font-semibold text-[#06201f] hover:bg-teal-300">
+              <Plus className="h-4 w-4" /> Nova solicitação
+            </Button>
+          </header>
 
-            {formExpanded && (
-              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/2 animate-in slide-in-from-top-4">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Criar Nova Solicitação
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo *</Label>
-                        <Select value={tipo} onValueChange={setTipo} required>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="compra">Compra</SelectItem>
-                            <SelectItem value="servico">Serviço</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Prioridade *</Label>
-                        <Select value={prioridade} onValueChange={setPrioridade}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="baixa">Baixa</SelectItem>
-                            <SelectItem value="normal">Normal</SelectItem>
-                            <SelectItem value="alta">Alta</SelectItem>
-                            <SelectItem value="urgente">Urgente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {tipo === 'servico' && (
-                      <div className="space-y-2">
-                        <Label>Tipo de Serviço *</Label>
-                        <Select value={tipoDeServico} onValueChange={setTipoDeServico}>
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manutencao_infraestrutura">Manutenção Infraestrutura</SelectItem>
-                            <SelectItem value="servicos_tecnicos">Serviços Técnicos</SelectItem>
-                            <SelectItem value="limpeza_conservacao">Limpeza e Conservação</SelectItem>
-                            <SelectItem value="outros">Outros</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Departamento</Label>
-                        <Input placeholder="Ex: Operações" value={departamento} onChange={(e) => setDepartamento(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Data Necessária</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal">
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {dataNecessariaDate ? format(dataNecessariaDate, "dd/MM") : "Selecione"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={dataNecessariaDate}
-                              onSelect={(date) => {
-                                setDataNecessariaDate(date);
-                                setDataNecessaria(date ? format(date, "yyyy-MM-dd") : "");
-                              }}
-                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Descrição *</Label>
-                      <Textarea
-                        placeholder={tipo === 'compra' ? "O que está sendo solicitado?" : "Descreva o serviço necessário"}
-                        rows={3}
-                        value={descricao}
-                        onChange={(e) => setDescricao(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <Button type="submit" disabled={loading} className="w-32"><ShoppingCart className="mr-2 h-4 w-4" />{loading ? 'Criando...' : 'Criar'}</Button>
-                      <Button type="button" variant="ghost" onClick={() => setFormExpanded(false)}>Cancelar</Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              <Card className="text-center p-4">
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </Card>
-              <Card className="text-center p-4">
-                <p className="text-sm text-muted-foreground">Rascunhos</p>
-                <p className="text-2xl font-bold text-gray-600">{stats.rascunhos}</p>
-              </Card>
-              <Card className="text-center p-4">
-                <p className="text-sm text-muted-foreground">Enviadas</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.enviadas}</p>
-              </Card>
-              <Card className="text-center p-4">
-                <p className="text-sm text-muted-foreground">Aprovadas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.aprovadas}</p>
-              </Card>
-              <Card className="text-center p-4">
-                <p className="text-sm text-muted-foreground">Reprovadas</p>
-                <p className="text-2xl font-bold text-red-600">{stats.reprovadas}</p>
-              </Card>
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-sm">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nº, item, aeronave..." className={`${compactInputClass} pl-9`} />
             </div>
-
-            {/* Grid de Compras */}
-            {comprasFiltradas.length === 0 ? (
-              <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Nenhuma solicitação encontrada.</AlertDescription></Alert>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {comprasFiltradas.map((request) => (
-                  <Card key={request.id} className="flex flex-col hover:shadow-lg transition-all border-primary/10 hover:border-primary/30">
-                    <CardContent className="p-4 flex-1 flex flex-col">
-                      <div className="flex justify-between mb-2">
-                        <Badge variant="outline" className="font-mono">{request.numero_solicitacao}</Badge>
-                        {getStatusIcon(request.status)}
-                      </div>
-                      <h3 className="font-semibold text-sm mb-3 line-clamp-2 min-h-[2.5rem]">{request.descricao}</h3>
-                      <div className="border-t my-3"></div>
-                      <div className="space-y-2 mb-4 text-xs">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Tipo:</span><span className="capitalize">{request.tipo}</span></div>
-                        {request.tipo_de_servico && request.tipo === 'servico' && (
-                          <div className="flex justify-between"><span className="text-muted-foreground">Tipo de Serviço:</span><span className="capitalize">{request.tipo_de_servico.replace(/_/g, ' ')}</span></div>
-                        )}
-                        <div className="flex justify-between"><span className="text-muted-foreground">Solicitante:</span><span className="max-w-[60%] truncate text-right">{request.solicitante_nome || 'N/A'}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Data:</span><span>{format(new Date(request.data_solicitacao), 'dd/MM/yy')}</span></div>
-                      </div>
-                      <div className="space-y-3 mt-auto">
-                        <div>{getStatusBadge(request.status)}</div>
-                        <div className="flex gap-2">
-                          {request.status === 'rascunho' && request.user_id === currentUserId && (
-                            <Button variant="outline" size="sm" onClick={() => enviarSolicitacao(request.id)} className="w-full">Enviar</Button>
-                          )}
-                          {canEditRequests && request.status !== 'rascunho' && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => { setEditingRequest(request); setEditStatus(request.status); }} className="w-full gap-1"><Edit className="h-3 w-3" /> Gerenciar</Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-md">
-                                <DialogHeader><DialogTitle>Gerenciar Solicitação</DialogTitle></DialogHeader>
-                                <div className="space-y-4 py-4">
-                                  <div className="space-y-2"><Label>Status</Label>
-                                    <Select value={editStatus} onValueChange={setEditStatus}>
-                                      <SelectTrigger><SelectValue /></SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="enviado">Enviado</SelectItem>
-                                        <SelectItem value="em_analise">Em Análise</SelectItem>
-                                        <SelectItem value="aprovado">Aprovado</SelectItem>
-                                        <SelectItem value="reprovado">Reprovado</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  {editStatus === 'aprovado' && (
-                                    <div className="space-y-2"><Label>Nível</Label>
-                                      <Select value={editAprovador} onValueChange={setEditAprovador}>
-                                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="nivel1">Gestor (Nível 1)</SelectItem>
-                                          <SelectItem value="nivel2">Admin (Nível 2)</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  )}
-                                  <Button onClick={handleUpdateStatus} className="w-full">Salvar</Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ABA DE PAGAMENTOS */}
-          <TabsContent value="pagamentos" className="space-y-6 animate-in fade-in-50">
-
-            {/* Stats de pagamentos */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Wallet className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="text-xl font-bold">{paymentStats.total}</p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Pagas ({paymentStats.pagas})</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(paymentStats.valorPago)}</p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <TrendingDown className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Pendentes ({paymentStats.pendentes})</p>
-                  <p className="text-lg font-bold text-amber-600">{formatCurrency(paymentStats.valorPendente)}</p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Clientes</p>
-                  <p className="text-xl font-bold">{clienteGroups.filter(g => g.id !== SEM_CLIENTE).length}</p>
-                </div>
-              </Card>
-            </div>
-
-            {/* Busca + filtro de status */}
-            <div className="bg-card p-4 rounded-lg border shadow-sm flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por descrição ou solicitante..."
-                  value={searchPagamentos}
-                  onChange={(e) => setSearchPagamentos(e.target.value)}
-                  className="pl-9 bg-background"
-                />
-              </div>
-              <div className="flex gap-2 bg-muted/50 p-1 rounded-lg w-fit">
-                {([
-                  { key: 'todos', label: 'Todas' },
-                  { key: 'pendente', label: 'Pendentes' },
-                  { key: 'pago', label: 'Pagas' },
-                ] as const).map(opt => (
+            <div className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-[#1d2b46] bg-[#0d172b] p-1 lg:w-auto">
+              {statusOptions.map((option) => {
+                const active = statusFilter === option.value;
+                return (
                   <button
-                    key={opt.key}
-                    onClick={() => setFiltroStatusPagamento(opt.key)}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      filtroStatusPagamento === opt.key
-                        ? 'bg-background shadow-sm font-medium text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
+                    type="button"
+                    key={option.value}
+                    onClick={() => setStatusFilter(option.value)}
+                    className={`whitespace-nowrap rounded-md px-3 py-2 text-[10px] font-semibold transition-colors ${
+                      active ? "bg-[#1d344b] text-slate-50 shadow-sm" : "text-slate-500 hover:bg-[#14213a] hover:text-slate-200"
                     }`}
                   >
-                    {opt.label}
+                    {option.label} <span className="ml-1 text-[9px] text-slate-400">{statusCount(option.value)}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-[#1d2a45] bg-[#0c1528]">
+            <div className="overflow-x-auto">
+              <table className="min-w-[980px] w-full border-collapse text-left">
+                <thead className="border-b border-[#1e2d48] bg-[#0b1426]">
+                  <tr className="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    <th className="px-4 py-3">Nº / tipo</th>
+                    <th className="px-4 py-3">Item ou serviço</th>
+                    <th className="px-4 py-3">Aeronave</th>
+                    <th className="px-4 py-3 text-center">Qtd.</th>
+                    <th className="px-4 py-3">Valor estimado</th>
+                    <th className="px-4 py-3">Prioridade</th>
+                    <th className="px-4 py-3">Necessidade</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRequests.map((request) => {
+                    const itemSummary = itemSummaryByRequest[request.id];
+                    const status = statusStyles[request.status] || { label: request.status, className: "border-slate-500/35 bg-slate-400/10 text-slate-300" };
+                    const priority = priorityStyles[request.priority || "normal"] || priorityStyles.normal;
+                    const isService = request.tipo === "servico";
+
+                    return (
+                      <tr key={request.id} className="border-b border-[#17243c] last:border-0 transition-colors hover:bg-[#101c33]">
+                        <td className="px-4 py-3 align-top">
+                          <p className="font-mono text-[11px] font-semibold text-slate-300">{request.numero_solicitacao}</p>
+                          <p className="mt-1 flex items-center gap-1 text-[9px] text-slate-500">
+                            {isService ? <Wrench className="h-2.5 w-2.5" /> : <ShoppingBag className="h-2.5 w-2.5" />}
+                            {isService ? "Serviço" : "Compra"}
+                          </p>
+                        </td>
+                        <td className="max-w-[260px] px-4 py-3 align-top">
+                          <p className="truncate text-[11px] font-semibold text-slate-100">{request.descricao}</p>
+                          <p className="mt-1 truncate text-[9px] text-slate-500">{request.departamento || request.tipo_de_servico || "Sem categoria"}</p>
+                        </td>
+                        <td className="px-4 py-3 align-top text-[10px] text-slate-400">{extractAircraft(request.observacoes)}</td>
+                        <td className="px-4 py-3 text-center align-top text-[10px] font-medium text-slate-300">{itemSummary?.quantity || "—"}</td>
+                        <td className="px-4 py-3 align-top text-[10px] font-semibold text-slate-100">
+                          {itemSummary?.total ? itemSummary.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <Badge className={`border px-2 py-0.5 text-[9px] font-medium ${priority.className}`}>{priority.label}</Badge>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <p className="text-[10px] text-slate-300">{formatRequestDate(request.data_necessaria)}</p>
+                          <p className="mt-1 text-[9px] text-slate-500">Aberta em {formatRequestDate(request.data_solicitacao)}</p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <Badge className={`border px-2 py-0.5 text-[9px] font-medium ${status.className}`}>{status.label}</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Breadcrumb de navegação */}
-            <div className="flex items-center gap-1.5 text-sm">
-              <button
-                onClick={handleBackToClientes}
-                className={`flex items-center gap-1.5 ${navCliente ? 'text-muted-foreground hover:text-foreground' : 'font-semibold text-foreground'}`}
-              >
-                <Building2 className="h-3.5 w-3.5" /> Pastas de Clientes
-              </button>
-              {navCliente && (
-                <>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                  <button
-                    onClick={handleBackToSocios}
-                    className={`${navSocio ? 'text-muted-foreground hover:text-foreground' : 'font-semibold text-foreground'}`}
-                  >
-                    {navCliente === SEM_CLIENTE ? 'Sem Cliente Vinculado' : clienteNome(navCliente)}
-                  </button>
-                </>
-              )}
-              {navSocio && (
-                <>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-semibold text-foreground">
-                    {navSocio === SEM_SOCIO ? 'Sem Sócio Vinculado' : socioNome(navSocio)}
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* NÍVEL 0: pastas de clientes */}
-            {!navCliente && (
-              clienteGroups.length === 0 ? (
-                <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Nenhum pagamento encontrado.</AlertDescription></Alert>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {clienteGroups.map(group => (
-                    <button
-                      key={group.id}
-                      onClick={() => handleOpenCliente(group.id)}
-                      className="group text-left bg-card border rounded-xl p-4 hover:border-primary/40 hover:shadow-md transition-all flex flex-col items-center text-center gap-2"
-                    >
-                      <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                        <Folder className="h-7 w-7 text-primary" strokeWidth={1.75} />
-                      </div>
-                      <p className="font-semibold text-sm leading-tight line-clamp-2 w-full">
-                        {group.id === SEM_CLIENTE ? 'Sem Cliente Vinculado' : group.nome}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {group.count} {group.count === 1 ? 'solicitação' : 'solicitações'}
-                      </p>
-                      <p className="text-xs font-medium text-primary">{formatCurrency(group.valor)}</p>
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-
-            {/* NÍVEL 1: pastas de sócios (quando aplicável) */}
-            {navCliente && showSocioLevel && !navSocio && (
-              <div className="space-y-4">
-                <Button variant="ghost" size="sm" onClick={handleBackToClientes} className="gap-1 -ml-2">
-                  <ChevronLeft className="h-4 w-4" /> Voltar para Clientes
+            {filteredRequests.length === 0 && (
+              <div className="flex flex-col items-center justify-center px-4 py-14 text-center">
+                <ClipboardList className="mb-3 h-8 w-8 text-slate-600" />
+                <p className="text-sm font-medium text-slate-300">Nenhuma solicitação encontrada</p>
+                <p className="mt-1 text-xs text-slate-500">Ajuste os filtros ou abra uma nova solicitação.</p>
+                <Button onClick={() => setIsFormOpen(true)} variant="outline" className="mt-4 border-[#2a4260] bg-[#101b31] text-slate-200 hover:bg-[#172942] hover:text-slate-50">
+                  <Plus className="h-4 w-4" /> Nova solicitação
                 </Button>
-                {socioGroups.length === 0 ? (
-                  <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Nenhum sócio com pagamentos encontrado.</AlertDescription></Alert>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {socioGroups.map(group => (
-                      <button
-                        key={group.id}
-                        onClick={() => handleOpenSocio(group.id)}
-                        className="group text-left bg-card border rounded-xl p-4 hover:border-primary/40 hover:shadow-md transition-all flex flex-col items-center text-center gap-2"
-                      >
-                        <div className="h-14 w-14 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors">
-                          <Users className="h-6 w-6 text-amber-600" strokeWidth={1.75} />
-                        </div>
-                        <p className="font-semibold text-sm leading-tight line-clamp-2 w-full">
-                          {group.id === SEM_SOCIO ? 'Sem Sócio Vinculado' : group.nome}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {group.count} {group.count === 1 ? 'solicitação' : 'solicitações'}
-                        </p>
-                        <p className="text-xs font-medium text-primary">{formatCurrency(group.valor)}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
+          </div>
 
-            {/* NÍVEL 2: lista de solicitações */}
-            {navCliente && (!showSocioLevel || navSocio) && (
-              <div className="space-y-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={showSocioLevel ? handleBackToSocios : handleBackToClientes}
-                  className="gap-1 -ml-2"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Voltar
-                </Button>
-
-                {pagamentosFiltrados.length === 0 ? (
-                  <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Nenhum pagamento atende aos filtros aplicados.</AlertDescription></Alert>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {pagamentosFiltrados.map((request) => {
-                      const attachments = getAttachmentLinks(request);
-                      const isPaid = isPagoStatus(request.status);
-
-                      return (
-                        <Card key={request.id} className="flex flex-col hover:shadow-lg transition-all border-amber-500/10 hover:border-amber-500/30">
-                          <CardContent className="p-4 flex-1 flex flex-col">
-                            <div className="flex justify-between mb-2">
-                              <Badge variant="secondary" className="font-mono bg-amber-500/10 text-amber-700">
-                                PAG-{request.id.slice(0, 8).toUpperCase()}
-                              </Badge>
-                              {isPaid ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Clock className="h-4 w-4 text-amber-600" />}
-                            </div>
-                            <h3 className="font-semibold text-sm mb-3 line-clamp-2 min-h-[2.5rem]">{request.descricao}</h3>
-
-                            <div className="border-t my-3"></div>
-
-                            <div className="space-y-2 flex-1 text-xs mb-4">
-                              <div className="flex justify-between"><span className="text-muted-foreground">Valor:</span><span className="font-semibold text-primary">{formatCurrency(request.valor)}</span></div>
-                              <div className="flex justify-between"><span className="text-muted-foreground">Solicitante:</span><span className="max-w-[60%] truncate">{request.solicitante_nome || 'N/A'}</span></div>
-                              <div className="flex justify-between"><span className="text-muted-foreground">Data:</span><span>{formatDateLabel(request.data_competencia)}</span></div>
-                            </div>
-
-                            <div className="space-y-3 mt-auto">
-                              {getPaymentStatusBadge(request.status)}
-                              <p className="text-xs text-muted-foreground">
-                                {isPaid ? `Pago em ${request.data_pagamento ? format(new Date(request.data_pagamento), 'dd/MM/yyyy') : 'data não informada'}.` : 'Pagamento pendente ou em análise.'}
-                              </p>
-                              {attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-                                  {attachments.map((attachment) => (
-                                    <Button key={attachment.label} variant="outline" size="sm" className="h-7 px-2 text-[10px] gap-1" asChild>
-                                      <a href={attachment.url} target="_blank" rel="noreferrer">
-                                        <Paperclip className="h-3 w-3" /> {attachment.label}
-                                      </a>
-                                    </Button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
+          <p className="mt-3 text-right text-[10px] text-slate-500">{filteredRequests.length} {filteredRequests.length === 1 ? "solicitação exibida" : "solicitações exibidas"}</p>
+        </div>
       </div>
     </Layout>
   );

@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
-import { BookOpen, Image, Plus, Upload, ChevronRight, X, Loader2, Save, Clock, RefreshCw } from 'lucide-react';
+import { BookOpen, Image, Plus, Upload, ChevronRight, X, Loader2, Save, Clock, RefreshCw, FileDown, Pencil } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { gerarRelatorioRAS } from './rasRelatorio';
 
 interface RASTabProps { aircraftId: string; }
 
@@ -11,6 +12,18 @@ export function RASTab({ aircraftId }: RASTabProps) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [aeronave, setAeronave] = useState<{ matricula?: string | null; modelo?: string | null } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('aeronave')
+        .select('matricula, modelo')
+        .eq('id', aircraftId)
+        .maybeSingle();
+      if (data) setAeronave(data as any);
+    })();
+  }, [aircraftId]);
 
   async function loadRAS() {
     const { data, error } = await supabase
@@ -29,6 +42,7 @@ export function RASTab({ aircraftId }: RASTabProps) {
   if (selected) return (
     <RASDetail
       ras={selected}
+      aeronave={aeronave}
       onBack={() => setSelected(null)}
       onRefresh={async () => {
         // Re-busca o RAS selecionado atualizado
@@ -302,13 +316,14 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
   }
 
   return (
-    <div className="ctm-card p-5 mb-6 border-[hsl(var(--ctm-teal)/0.3)]">
-      <div className="flex items-center justify-between mb-4">
+    <div className="ctm-card mb-6 border-[hsl(var(--ctm-teal)/0.3)] p-4 sm:p-6">
+      <div className="mb-5 flex items-center justify-between border-b border-border pb-3">
         <h3 className="font-semibold teal-text">Novo RAS</h3>
-        <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Identificação</p>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Linha 1 */}
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Número RAS *</label>
@@ -406,10 +421,10 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
         </div>
 
         {/* Linha 5 — Descrição */}
-        <div className="md:col-span-3">
+        <div className="sm:col-span-2 lg:col-span-3">
           <label className="text-xs text-muted-foreground block mb-1">Descrição / Objetivo das Inspeções Realizadas</label>
           <textarea
-            className="ctm-input w-full h-20 resize-none"
+            className="ctm-input h-28 w-full resize-y"
             placeholder="Descreva os serviços realizados, discrepâncias encontradas, etc."
             value={form.descricao}
             onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
@@ -484,65 +499,70 @@ function RASItemsList({ title, items, tipo, onAdd, onUpdate, onRemove }: any) {
   const total = items.reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0);
   const isPeca = tipo === 'peca';
   return (
-    <div className="mb-5">
-      <div className="flex items-center justify-between mb-2">
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</label>
         <button onClick={onAdd} className="text-xs teal-text hover:underline flex items-center gap-1">
           <Plus className="h-3 w-3" /> Adicionar
         </button>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {items.map((item: any, idx: number) => (
-          <div key={idx} className="flex items-start gap-2 flex-wrap bg-secondary/40 rounded-lg p-3">
-            <div className="flex-1 min-w-[200px]">
+          <div key={idx} className="relative rounded-xl border border-border/60 bg-secondary/40 p-4">
+            {items.length > 1 && (
+              <button
+                onClick={() => onRemove(idx)}
+                className="absolute right-2 top-2 rounded-md p-1 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            <div className={cn('grid grid-cols-2 gap-3 pr-8 sm:grid-cols-3', isPeca ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
+            <div className="col-span-2 sm:col-span-3 lg:col-span-2">
               <label className="text-xs text-muted-foreground">Descrição *</label>
               <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Descrição do item" value={item.descricao} onChange={e => onUpdate(idx, 'descricao', e.target.value)} />
             </div>
             {isPeca && (
               <>
-                <div className="w-28">
+                <div>
                   <label className="text-xs text-muted-foreground">P/N</label>
                   <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Part Number" value={item.numero_peca || ''} onChange={e => onUpdate(idx, 'numero_peca', e.target.value)} />
                 </div>
-                <div className="w-28">
+                <div>
                   <label className="text-xs text-muted-foreground">S/N</label>
                   <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Serial Number" value={item.numero_serie || ''} onChange={e => onUpdate(idx, 'numero_serie', e.target.value)} />
                 </div>
               </>
             )}
-            <div className="w-28">
+            <div>
               <label className="text-xs text-muted-foreground">Fornecedor</label>
               <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Fornecedor" value={item.fornecedor} onChange={e => onUpdate(idx, 'fornecedor', e.target.value)} />
             </div>
-            <div className="w-24">
+            <div>
               <label className="text-xs text-muted-foreground">Período</label>
               <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Ex: 50h" value={item.periodo} onChange={e => onUpdate(idx, 'periodo', e.target.value)} />
             </div>
             {isPeca && (
-              <div className="w-28">
+              <div>
                 <label className="text-xs text-muted-foreground">NF/Fatura</label>
                 <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Nº fatura" value={item.numero_fatura || ''} onChange={e => onUpdate(idx, 'numero_fatura', e.target.value)} />
               </div>
             )}
-            <div className="w-20">
+            <div>
               <label className="text-xs text-muted-foreground">Qtd</label>
               <input type="number" min="1" step="0.01" className="ctm-input w-full mt-0.5 text-sm text-center" value={item.quantidade} onChange={e => onUpdate(idx, 'quantidade', e.target.value)} />
             </div>
-            <div className="w-32">
+            <div>
               <label className="text-xs text-muted-foreground">Valor Unit. R$</label>
               <input type="number" min="0" step="0.01" className="ctm-input w-full mt-0.5 text-sm text-right" placeholder="0,00" value={item.valor_unitario} onChange={e => onUpdate(idx, 'valor_unitario', e.target.value)} />
             </div>
-            <div className="w-32">
+            <div>
               <label className="text-xs text-muted-foreground">Total R$</label>
-              <div className="ctm-input mt-0.5 text-sm text-right font-semibold teal-text bg-secondary">
+              <div className="ctm-input mt-0.5 w-full bg-secondary text-right text-sm font-semibold teal-text">
                 {Number(item.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
             </div>
-            {items.length > 1 && (
-              <button onClick={() => onRemove(idx)} className="mt-5 text-red-400 hover:text-red-300 p-1">
-                <X className="h-4 w-4" />
-              </button>
-            )}
+            </div>
           </div>
         ))}
       </div>
@@ -554,9 +574,16 @@ function RASItemsList({ title, items, tipo, onAdd, onUpdate, onRemove }: any) {
 }
 
 // ── RAS Detail ───────────────────────────────────────────────────────────────
-function RASDetail({ ras, onBack, onRefresh }: { ras: any; onBack: () => void; onRefresh: () => void }) {
+function RASDetail({ ras, aeronave, onBack, onRefresh }: {
+  ras: any;
+  aeronave?: { matricula?: string | null; modelo?: string | null } | null;
+  onBack: () => void;
+  onRefresh: () => void;
+}) {
   const [uploading, setUploading] = useState(false);
   const [fotos, setFotos] = useState<any[]>(ras.ctm_ras_fotos || []);
+  const [editandoLegenda, setEditandoLegenda] = useState<string | null>(null);
+  const [legendaDraft, setLegendaDraft] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const items = ras.ctm_ras_itens || [];
@@ -564,27 +591,39 @@ function RASDetail({ ras, onBack, onRefresh }: { ras: any; onBack: () => void; o
   const pecas = items.filter((i: any) => i.item_tipo === 'peca' || i.item_tipo === 'part');
 
   async function uploadFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setUploading(true);
 
-    const ext = file.name.split('.').pop();
-    const path = `ras/${ras.id}/${Date.now()}.${ext}`;
+    for (const file of files) {
+      const ext = file.name.split('.').pop();
+      const path = `ras/${ras.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
-    const { error: upErr } = await supabase.storage.from('ras-photos').upload(path, file, { upsert: true });
-    if (upErr) { toast.error('Erro ao fazer upload: ' + upErr.message); setUploading(false); return; }
+      const { error: upErr } = await supabase.storage.from('ras-photos').upload(path, file, { upsert: true });
+      if (upErr) { toast.error('Erro ao fazer upload: ' + upErr.message); continue; }
 
-    const { data: { publicUrl } } = supabase.storage.from('ras-photos').getPublicUrl(path);
+      const { data: { publicUrl } } = supabase.storage.from('ras-photos').getPublicUrl(path);
 
-    const { data: fotoData } = await supabase.from('ctm_ras_fotos').insert({
-      ras_id: ras.id,
-      url_foto: publicUrl,
-      legenda: file.name,
-    }).select().single();
+      const { data: fotoData } = await supabase.from('ctm_ras_fotos').insert({
+        ras_id: ras.id,
+        url_foto: publicUrl,
+        legenda: null,
+      }).select().single();
 
-    if (fotoData) setFotos(prev => [...prev, fotoData]);
-    toast.success('Foto adicionada!');
+      if (fotoData) setFotos(prev => [...prev, fotoData]);
+    }
+
+    toast.success(files.length > 1 ? 'Fotos adicionadas!' : 'Foto adicionada!');
     setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function salvarLegenda(fotoId: string) {
+    const legenda = legendaDraft.trim() || null;
+    await supabase.from('ctm_ras_fotos').update({ legenda }).eq('id', fotoId);
+    setFotos(prev => prev.map(f => (f.id === fotoId ? { ...f, legenda } : f)));
+    setEditandoLegenda(null);
+    toast.success('Legenda salva');
   }
 
   async function deleteFoto(foto: any) {
@@ -612,6 +651,15 @@ function RASDetail({ ras, onBack, onRefresh }: { ras: any; onBack: () => void; o
       <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         ← Voltar para lista
       </button>
+
+      <div className="mb-5 flex justify-end">
+        <button
+          onClick={() => gerarRelatorioRAS({ ...ras, ctm_ras_itens: items }, fotos, aeronave)}
+          className="flex items-center gap-2 rounded-full border border-[#45d1b5] px-4 py-1.5 text-sm font-medium text-[#45d1b5] transition-colors hover:bg-[#45d1b5]/10"
+        >
+          <FileDown className="h-4 w-4" /> Gerar Relatório (com fotos)
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-5">
@@ -735,7 +783,7 @@ function RASDetail({ ras, onBack, onRefresh }: { ras: any; onBack: () => void; o
                 {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
                 Adicionar Foto
               </button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadFoto} />
+              <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={uploadFoto} />
             </div>
             {fotos.length === 0 ? (
               <div
@@ -760,7 +808,29 @@ function RASDetail({ ras, onBack, onRefresh }: { ras: any; onBack: () => void; o
                     >
                       <X className="h-3 w-3 text-white" />
                     </button>
-                    {foto.legenda && <p className="text-xs text-muted-foreground mt-1 text-center truncate">{foto.legenda}</p>}
+                    {editandoLegenda === foto.id ? (
+                      <div className="mt-1 flex gap-1">
+                        <input
+                          autoFocus
+                          className="ctm-input flex-1 text-xs"
+                          value={legendaDraft}
+                          placeholder="Legenda da foto (sai no relatório)"
+                          onChange={e => setLegendaDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') salvarLegenda(foto.id); }}
+                        />
+                        <button onClick={() => salvarLegenda(foto.id)} className="teal-text px-1">
+                          <Save className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setEditandoLegenda(foto.id); setLegendaDraft(foto.legenda || ''); }}
+                        className="mt-1 flex w-full items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <Pencil className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{foto.legenda || 'Adicionar legenda'}</span>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

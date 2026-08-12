@@ -42,7 +42,7 @@ export async function syncNFSaidaFinance(input: NFSaidaSyncInput) {
     aeronave_registro: input.aeronave_registro,
     valor: input.valor,
     valor_total_despesa: input.valor,
-    data_competencia: input.data_criacao,
+    data_emissao: input.data_criacao,
     data_vencimento: input.data_vencimento,
     status: input.status,
     categoria_origem_label: input.categoria_label || null,

@@ -288,7 +288,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       const { data } = await supabase
         .from("movimentacoes")
         .select(`
-          id, descricao, tipo, grupo_custo, valor, data_competencia,
+          id, descricao, tipo, grupo_custo, valor, data_emissao,
           data_pagamento, fornecedor_nome, status, observacoes,
           aeronave_id, client_id
         `)
@@ -309,7 +309,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         tipo: "despesa",
         grupo_custo: p.grupo_custo ?? "FIXO",
         valor: p.valor_total ?? p.valor ?? 0,
-        data_competencia: p.data ?? p.data_vencimento ?? null,
+        data_emissao: p.data ?? p.data_vencimento ?? null,
         data_pagamento: p.data_pagamento ?? null,
         data_vencimento: p.data_vencimento ?? null,
         fornecedor_nome: p.fornecedor ?? null,
@@ -473,7 +473,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       setDescricao(editingFinal.descricao ?? "");
       setGrupo((editingFinal.grupo_custo as GrupoCusto) ?? "FIXO");
       setValor(String(editingFinal.valor ?? ""));
-      setDataCompetencia(editingFinal.data_competencia ?? format(new Date(), "yyyy-MM-dd"));
+      setDataCompetencia(editingFinal.data_emissao ?? format(new Date(), "yyyy-MM-dd"));
       setDataPagamento(editingFinal.data_pagamento ?? "");
       setStatus((editingFinal.status as any) === "pago" ? "pago" : "pendente");
       setObservacoes(editingFinal.observacoes ?? "");
@@ -764,7 +764,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         grupo_custo: grupo,
         valor_rateado: valorNum,
         valor_original: valorNum,
-        data_competencia: dataCompetencia,
+        data_emissao: dataCompetencia,
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         clientes_id: clienteId,

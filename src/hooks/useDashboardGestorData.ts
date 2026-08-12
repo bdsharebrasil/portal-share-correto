@@ -56,13 +56,13 @@ export function useDashboardGestorData(currentDate: Date) {
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria)
         `)
-        .order("data_competencia", { ascending: false });
+        .order("data_emissao", { ascending: false });
 
       if (error) throw error;
 
       return (data || []).map((row: any) => ({
         ...row,
-        data: row.data_pagamento || row.data_vencimento || row.data_competencia,
+        data: row.data_pagamento || row.data_vencimento || row.data_emissao,
         tipo_movimento:
           row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
         valor: Number(row.valor_rateado ?? row.valor_original ?? 0),

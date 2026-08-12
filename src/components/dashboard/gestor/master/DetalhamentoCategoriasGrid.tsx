@@ -15,7 +15,7 @@ interface MovimentacaoRow {
   tipo?: string;
   valor_rateado?: number | null;
   valor_original?: number | null;
-  data_competencia: string; // YYYY-MM-DD
+  data_emissao: string; // YYYY-MM-DD
   status?: string;
   data_pagamento?: string | null;
   tipo_caixa?: string | null;
@@ -116,7 +116,7 @@ export default function DetalhamentoCategoriasGrid({
     return movimentacoes
       .filter((m) => !isEntrada(m) && isPago(m) && isDespesaParticular(m))
       .map((m) => {
-        const mesIdx = Number(String(m.data_competencia).slice(5, 7)) - 1;
+        const mesIdx = Number(String(m.data_emissao).slice(5, 7)) - 1;
         return {
           id: m.id,
           mesIdx,

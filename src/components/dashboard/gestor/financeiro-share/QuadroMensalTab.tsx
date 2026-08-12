@@ -74,7 +74,7 @@ function useMovimentacoesMensal() {
           tipo,
           tipo_caixa,
           valor,
-          data_competencia,
+          data_emissao,
           data_vencimento,
           data_pagamento,
           status,
@@ -94,7 +94,7 @@ function useMovimentacoesMensal() {
           comprovante_url
         `
         )
-        .order("data_competencia", { ascending: false });
+        .order("data_emissao", { ascending: false });
 
       if (error) throw error;
 
@@ -148,7 +148,7 @@ function useMovimentacoesMensal() {
 
       return movimentacoes.map((row: any) => ({
         id: row.id,
-        data: row.data_competencia,
+        data: row.data_emissao,
         tipo_movimento: row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
         descricao: row.descricao,
         categoria_id: row.categoria_id,
@@ -340,7 +340,7 @@ export function QuadroMensalTab() {
   const normalizeTransactionDate = (transacao: any) => {
     if (transacao.data) return new Date(transacao.data);
     if (transacao.data_vencimento) return new Date(transacao.data_vencimento);
-    if (transacao.data_competencia) return new Date(transacao.data_competencia);
+    if (transacao.data_emissao) return new Date(transacao.data_emissao);
     if (transacao.criado_em) return new Date(transacao.criado_em);
     return null;
   };

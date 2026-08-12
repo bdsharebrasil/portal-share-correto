@@ -514,7 +514,7 @@ export default function ImportarDemonstrativoTab() {
             tipo: "SAIDA",
             valor_rateado: valorCotistas,
             valor_original: valorCotistas,
-            data_competencia: today,
+            data_emissao: today,
             data_vencimento: today,
             aeronave_id: aircraftId,
             reembolsavel: true,

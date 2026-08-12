@@ -98,7 +98,7 @@ interface Movimentacao {
   valor_rateado: string | number | null;
   valor_original: string | number | null;
   valor_pago_real: string | number | null;
-  data_competencia: string | null;
+  data_emissao: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
   aeronave_id: string | null;

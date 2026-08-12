@@ -53,7 +53,7 @@ interface Movimentacao {
   categoria_id?: string | null;
   categoria_nome?: string | null;
   aeronave_id?: string | null;
-  data_competencia: string | null;
+  data_emissao: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
   clientes_id: string | null;

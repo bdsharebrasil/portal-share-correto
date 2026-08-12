@@ -23,12 +23,10 @@ export default function DespesasParticularesTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_pagamento, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
+            "id, descricao, tipo, valor_rateado, valor_original, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
           )
-          .gte("data_competencia", `${ano}-01-01`)
-          .lte("data_competencia", `${ano}-12-31`)
           .neq("status", "cancelado")
-          .order("data_competencia", { ascending: false })
+          .order("criado_em", { ascending: false })
           .limit(5000),
         supabase
           .from("categorias_movimentacao")
@@ -45,11 +43,23 @@ export default function DespesasParticularesTab() {
       });
       setCategoriaMap(catMap);
 
-      return (movRes.data || []).filter(
-        (m: any) => String(m.tipo_caixa || "").toLowerCase() === "share",
-      );
+      // Muitos lançamentos não possuem data_emissao — usamos pagamento/criação
+      // como referência para agrupar por mês e filtrar o ano.
+      return (movRes.data || [])
+        .filter((m: any) => {
+          const caixa = String(m.tipo_caixa || "").toLowerCase();
+          return caixa === "share" || caixa === "";
+        })
+        .map((m: any) => ({
+          ...m,
+          data_emissao: String(
+            m.data_emissao || m.data_pagamento || m.criado_em || "",
+          ).slice(0, 10),
+        }))
+        .filter((m: any) => m.data_emissao.startsWith(String(ano)));
     },
   });
+
 
   return (
     <div className="space-y-4">

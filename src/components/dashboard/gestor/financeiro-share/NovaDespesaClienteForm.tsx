@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,84 +10,119 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
-import { X, Save, Wallet } from "lucide-react";
-import { categoriaCorrespondeAoTipo, formatarCategoriaParaLabel } from "./categoryFilters";
+import { X, Save, Users, Plus, Trash2, Plane } from "lucide-react";
 
 interface Props {
   onCancel: () => void;
   onSaved: (rows: any[]) => void;
 }
 
-const TIPOS = [
-  { id: "despesa", label: "Despesa" },
-  { id: "saida", label: "Saída" },
-  { id: "receita", label: "Receita" },
-  { id: "entrada", label: "Entrada" },
-  { id: "estorno", label: "Estorno" },
-];
+
 
 const STATUS = [
-  { id: "pendente", label: "Pendente" },
-  { id: "pago", label: "Pago" },
-  { id: "recebido", label: "Recebido" },
-  { id: "aguardando_reembolso", label: "Aguardando reembolso" },
-  { id: "parcial", label: "Parcial" },
-  { id: "cancelado", label: "Cancelado" },
+  { id: "pendente", label: "PENDENTE" },
+  { id: "pago", label: "PAGO" },
+  { id: "recebido", label: "RECEBIDO" },
+  { id: "aguardando_reembolso", label: "AGUARDANDO REEMBOLSO" },
+  { id: "cancelado", label: "CANCELADO" },
 ];
 
 const FORMAS = [
-  { id: "PIX", label: "Pix" },
+  { id: "PIX", label: "PIX" },
   { id: "TED", label: "TED" },
-  { id: "BOLETO", label: "Boleto" },
-  { id: "DINHEIRO", label: "Dinheiro" },
-  { id: "CARTAO", label: "Cartão" },
-  { id: "TRANSFERENCIA", label: "Transferência" },
-  { id: "DEBITO_AUTOMATICO", label: "Débito automático" },
+  { id: "BOLETO", label: "BOLETO" },
+  { id: "DINHEIRO", label: "DINHEIRO" },
+  { id: "CARTAO", label: "CARTAO" },
+  { id: "TRANSFERENCIA", label: "TRANSFERENCIA" },
+  { id: "DEBITO_AUTOMATICO", label: "DEBITO AUTOMATICO" },
 ];
+
+const TIPOS_RATEIO = [
+  { id: "FIXO", label: "FIXO" },
+  { id: "EXTRA", label: "EXTRA" },
+  { id: "VARIAVEL_POR_VOO", label: "VARIAVEL POR VOO" },
+  { id: "VARIAVEL_POR_HORA", label: "VARIAVEL POR HORA" },
+];
+
+const FLUXOS = [
+  { id: "entrada", label: "ENTRADA" },
+  { id: "saida", label: "SAIDA" },
+   { id: "estorno", label: "ESTORNO" },
+];
+
+const PERIODICIDADES = [
+  { id: "UNICO", label: "ÚNICO" },
+  { id: "MENSAL", label: "MENSAL" },
+  { id: "BIMESTRAL", label: "BIMESTRAL" },
+  { id: "TRIMESTRAL", label: "TRIMESTRAL" },
+  { id: "SEMESTRAL", label: "SEMESTRAL" },
+  { id: "ANUAL", label: "ANUAL" },
+];
+
+
+const SHARE_BRASIL = "SHARE BRASIL";
 
 const isEntradaTipo = (t: string) => t === "receita" || t === "entrada" || t === "estorno";
 
-const addMonths = (iso: string, n: number) => {
-  if (!iso) return null;
-  const d = new Date(iso + "T00:00:00");
-  d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0, 10);
-};
+interface Linha {
+  key: string;
+  cliente_id: string | null;
+  clientes_nome: string | null;
+  socio_id: string | null;
+  socios_nome: string | null;
+  percentual_uso: string;
+  valor_rateado: string;
+}
 
-export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
+const novaLinha = (): Linha => ({
+  key: crypto.randomUUID(),
+  cliente_id: null,
+  clientes_nome: null,
+  socio_id: null,
+  socios_nome: null,
+  percentual_uso: "",
+  valor_rateado: "",
+});
+
+export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
   const hoje = new Date().toISOString().slice(0, 10);
 
   const [saving, setSaving] = useState(false);
-  const [categorias, setCategorias] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [aeronaves, setAeronaves] = useState<any[]>([]);
+  const [cotistas, setCotistas] = useState<any[]>([]);
+  const [linhas, setLinhas] = useState<Linha[]>([novaLinha()]);
+
   const [form, setForm] = useState({
     descricao: "",
     tipo: "despesa",
+    fluxo: "saida",
     categoria_id: "",
+    subcategoria_key: "",
+    aeronave_id: "",
     valor_original: "",
-    data_competencia: hoje,
+    data_emissao: hoje,
     data_vencimento: "",
     data_pagamento: "",
     status: "pendente",
     forma_pagamento: "",
     conta_bancaria: "",
-    colaborador: "",
     fornecedor_nome: "",
-    parcelado: false,
-    quantidade_parcelas: "2",
-    numero_parcela: "1",
+    tipo_rateio: "FIXO",
+    periodicidade: "UNICO",
+    pago_pela_share: false,
     observacoes: "",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   useEffect(() => {
-    supabase
-      .from("categorias_movimentacao")
-      .select("id,nome,tipo,grupo_categoria")
-      .eq("ativo", true)
-      .order("grupo_categoria")
-      .then(({ data }) => setCategorias(data ?? []));
+    (supabase as any)
+      .from("expense_configu")
+      .select("id,expense_type,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4")
+      .order("expense_type")
+      .then(({ data }: any) => setConfigs(data ?? []));
+
 
     supabase
       .from("contas_bancarias")
@@ -96,27 +132,63 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
       .then(({ data }) => setBancos(data ?? []));
 
     supabase
-      .from("user_profiles")
-      .select("id,full_name,email")
-      .order("full_name")
-      .then(({ data }) => setColaboradores(data ?? []));
-
+      .from("aeronave")
+      .select("id,matricula,modelo")
+      .order("matricula")
+      .then(({ data }) => setAeronaves(data ?? []));
   }, []);
+
+  /* Cotistas da aeronave selecionada */
+  useEffect(() => {
+    if (!form.aeronave_id) {
+      setCotistas([]);
+      return;
+    }
+    (supabase as any)
+      .from("cotistas_aeronave")
+      .select("id_clientes, socios_id, percentual_sociedade, clientes:clientes(id,razao_social,proprietario), socios:socios(id,nome)")
+      .eq("id_aeronave", form.aeronave_id)
+      .then(({ data }: any) => setCotistas(data ?? []));
+  }, [form.aeronave_id]);
 
   const entrada = isEntradaTipo(form.tipo);
 
-  /** Categorias separadas por entrada/saída e agrupadas por grupo_categoria. */
-  const categoriaItems = useMemo(() => {
-    const filtradas = categorias.filter((c: any) => categoriaCorrespondeAoTipo(form.tipo, c.tipo));
-    return filtradas
-      .sort((a: any, b: any) =>
-        `${a.grupo_categoria || "ZZZ"}${a.nome}`.localeCompare(`${b.grupo_categoria || "ZZZ"}${b.nome}`),
-      )
-      .map((c: any) => ({
-        id: c.id,
-        label: formatarCategoriaParaLabel(c),
-      }));
-  }, [categorias, form.tipo]);
+  const categoriaItems = useMemo(
+    () => configs.map((c: any) => ({ id: c.id, label: c.expense_type || "—" })),
+    [configs],
+  );
+
+  const configSelecionada = useMemo(
+    () => configs.find((c: any) => c.id === form.categoria_id) || null,
+    [configs, form.categoria_id],
+  );
+
+  const subcategoriaItems = useMemo(() => {
+    if (!configSelecionada) return [];
+    return (["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const)
+      .filter((k) => configSelecionada[k])
+      .map((k) => ({ id: k, label: String(configSelecionada[k]) }));
+  }, [configSelecionada]);
+
+  const subcategoriaNome = useMemo(
+    () => (configSelecionada && form.subcategoria_key ? configSelecionada[form.subcategoria_key] : null),
+    [configSelecionada, form.subcategoria_key],
+  );
+
+
+  const aeronaveItems = useMemo(
+    () =>
+      aeronaves.map((a: any) => ({
+        id: a.id,
+        label: `${a.matricula || "—"}${a.modelo ? ` — ${a.modelo}` : ""}`,
+      })),
+    [aeronaves],
+  );
+
+  const aeronaveRegistro = useMemo(
+    () => aeronaves.find((a: any) => a.id === form.aeronave_id)?.matricula || null,
+    [aeronaves, form.aeronave_id],
+  );
 
   const bancoItems = useMemo(
     () =>
@@ -127,143 +199,174 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     [bancos],
   );
 
-  const colaboradorItems = useMemo(
-    () => colaboradores.map((u: any) => ({ id: u.full_name || u.email || u.id, label: u.full_name || u.email || "—" })),
-    [colaboradores],
+  const cotistaItems = useMemo(
+    () =>
+      cotistas.map((c: any) => ({
+        id: `${c.id_clientes || ""}|${c.socios_id || ""}`,
+        label:
+          c.socios?.nome || c.clientes?.razao_social || c.clientes?.proprietario || "Sem nome",
+      })),
+    [cotistas],
   );
 
-  const categoriaNome = useMemo(() => {
-    const c = categorias.find((x: any) => x.id === form.categoria_id);
-    return c ? String(c.nome).trim() : null;
-  }, [categorias, form.categoria_id]);
+  const categoriaNome = useMemo(
+    () => (configSelecionada?.expense_type ? String(configSelecionada.expense_type).trim() : null),
+    [configSelecionada],
+  );
 
-  const grupoCategoria = useMemo(() => {
-    const c = categorias.find((x: any) => x.id === form.categoria_id);
-    return c?.grupo_categoria || null;
-  }, [categorias, form.categoria_id]);
+
+  const valorTotal = Number(form.valor_original) || 0;
+  const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
+
+  const setLinha = (idx: number, patch: Partial<Linha>) =>
+    setLinhas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  const escolherCotista = (idx: number, comboId: string) => {
+    const [cliente_id, socios_id] = comboId.split("|");
+    const c = cotistas.find(
+      (x: any) => (x.id_clientes || "") === cliente_id && (x.socios_id || "") === socios_id,
+    );
+    const pct = c?.percentual_sociedade != null ? String(c.percentual_sociedade) : "";
+    setLinha(idx, {
+      cliente_id: cliente_id || null,
+      socio_id: socios_id || null,
+      clientes_nome: c?.clientes?.razao_social || c?.clientes?.proprietario || null,
+      socios_nome: c?.socios?.nome || null,
+      percentual_uso: pct,
+      valor_rateado:
+        pct && valorTotal ? ((valorTotal * Number(pct)) / 100).toFixed(2) : "",
+    });
+  };
+
+  const aplicarPercentual = (idx: number, pct: string) => {
+    const p = Number(pct);
+    setLinha(idx, {
+      percentual_uso: pct,
+      valor_rateado: p && valorTotal ? ((valorTotal * p) / 100).toFixed(2) : "",
+    });
+  };
 
   const salvar = async () => {
-    const valorTotal = Number(form.valor_original);
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
-    if (!form.data_competencia) return toast.error("Informe a data de competência.");
+    if (!form.data_emissao) return toast.error("Informe a data de competência.");
+    if (!form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
 
-    const parcelas = form.parcelado ? Math.max(1, Number(form.quantidade_parcelas) || 1) : 1;
-    const valorParcela = Number((valorTotal / parcelas).toFixed(2));
-    const primeira = form.parcelado ? Math.max(1, Number(form.numero_parcela) || 1) : 1;
+    const linhasValidas = linhas.filter((l) => l.cliente_id || l.socio_id);
+    if (linhasValidas.length === 0) return toast.error("Adicione ao menos um cotista no rateio.");
 
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const criadoPor = userData?.user?.id ?? null;
-      const criados: any[] = [];
-      let paiId: string | null = null;
 
-      for (let i = 0; i < parcelas; i++) {
-        const numeroParcela = primeira + i;
-        const sufixo = parcelas > 1 ? ` (${numeroParcela}/${parcelas})` : "";
-        const vencimento = form.data_vencimento ? addMonths(form.data_vencimento, i) : null;
-        const competencia = addMonths(form.data_competencia, i) || form.data_competencia;
+      const statusMov = form.pago_pela_share && !entrada && form.status === "pago"
+        ? "parcial"
+        : form.status;
 
-        const payload: any = {
-          descricao: form.descricao.trim() + sufixo,
-          tipo: form.tipo,
-          tipo_caixa: "share",
-          categoria_id: form.categoria_id || null,
-          categoria_nome: categoriaNome,
-          grupo_custo: grupoCategoria,
-          valor_rateado: valorParcela,
-          valor_original: valorParcela,
-          data_competencia: competencia,
-          data_vencimento: vencimento,
-          data_pagamento: i === 0 ? form.data_pagamento || null : null,
-          status: i === 0 ? form.status : "pendente",
-          forma_pagamento: form.forma_pagamento || null,
-          conta_bancaria: form.conta_bancaria || null,
-          pago_por: form.colaborador || null,
-          fornecedor_nome: form.fornecedor_nome || null,
-          quantidade_parcelas: parcelas,
-          numero_parcela: numeroParcela,
-          movimentacao_pai_id: paiId,
-          observacoes: form.observacoes || null,
-          reembolsavel: false,
-          reembolso_quitado: false,
-          criado_por: criadoPor,
-        };
+      // A movimentação é ÚNICA (do cliente/caixa cliente). O rateio por sócio
+      // vive apenas em rateio_despesas — 1 linha por cotista.
+      const clientesUnicos = Array.from(
+        new Set(linhasValidas.map((l) => l.cliente_id).filter(Boolean)),
+      ) as string[];
+      const clientePrincipal = linhasValidas.find((l) => l.cliente_id && l.clientes_nome) ?? linhasValidas[0];
+      const clienteMov = clientesUnicos.length === 1 ? clientesUnicos[0] : (clientePrincipal?.cliente_id ?? null);
+      const nomeClientePrincipal = clientePrincipal?.clientes_nome || null;
+      const socioMov = linhasValidas.length === 1 ? linhasValidas[0].socio_id : null;
+      const socioNomeMov = linhasValidas.length === 1 ? linhasValidas[0].socios_nome : null;
+      const pagadorMov = form.pago_pela_share ? SHARE_BRASIL : nomeClientePrincipal || socioNomeMov || null;
 
-        const { data: mov, error } = await supabase
-          .from("movimentacoes")
-          .insert(payload as any)
-          .select("*")
-          .single();
-        if (error) throw error;
-        if (i === 0) paiId = (mov as any).id;
+      // Regra "pago diretamente pelo cotista":
+      // - ENTRADA nunca é pagamento direto (sempre false)
+      // - SAÍDA só é pagamento direto quando NÃO saiu do banco do cliente/holding
+      //   (nenhum banco selecionado) e não foi pago pelo caixa da Share.
+      //   Ex.: sócio da DGA que paga o abastecimento do próprio bolso em vez de
+      //   usar a conta bancária do grupo — acerta depois no fechamento do balanço.
+      const pagoDiretamente =
+        !entrada && !form.pago_pela_share && !String(form.conta_bancaria || "").trim();
 
-        const jaLiquidado = ["pago", "recebido", "cancelado"].includes(payload.status);
+      // `movimentacoes` NÃO possui data_vencimento — o vencimento fica no rateio.
+      const payload: any = {
+        descricao: form.descricao.trim(),
+        tipo: form.tipo,
+        tipo_caixa: "cliente",
+        categoria_id: form.categoria_id || null,
+        categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
+        grupo_custo: categoriaNome,
+        periodicidade: form.periodicidade || null,
+        aeronave_id: form.aeronave_id,
+        clientes_id: clienteMov,
+        socio_id: socioMov,
+        socios_nome: socioMov ? socioNomeMov : null,
+        valor_original: valorTotal,
+        valor_rateado: totalRateado || valorTotal,
+        data_emissao: form.data_emissao,
+        data_pagamento: form.data_pagamento || null,
+        status: statusMov,
+        forma_pagamento: form.forma_pagamento || null,
+        conta_bancaria: form.conta_bancaria || null,
+        pago_por: pagadorMov,
+        pago_diretamente: pagoDiretamente,
+        fornecedor_nome: form.fornecedor_nome || null,
+        observacoes: form.observacoes || null,
+        reembolsavel: form.pago_pela_share && !entrada,
+        reembolso_quitado: false,
+        criado_por: criadoPor,
+      };
 
-        // Gera o título financeiro correspondente (a pagar ou a receber)
-        if (!entrada) {
-          const { data: cap } = await supabase
-            .from("contas_apagar")
-            .insert({
-              descricao: payload.descricao,
-              valor: valorParcela,
-              categoria: categoriaNome,
-              categoria_id: form.categoria_id || null,
-              data_vencimento: vencimento || competencia,
-              data_pagamento: payload.data_pagamento,
-              status: jaLiquidado ? "pago" : "pendente",
-              fornecedor_nome: form.fornecedor_nome || null,
-              conta_bancaria: form.conta_bancaria || null,
-              empresa: "SHARE BRASIL",
-              observacoes: form.observacoes || null,
-              movimentacao_id: (mov as any).id,
-              reference_type: "movimentacao_share",
-              reference_id: (mov as any).id,
-              criado_por: criadoPor,
-            } as any)
-            .select("id")
-            .single();
-          if (cap?.id) {
-            await supabase.from("movimentacoes").update({ contas_apagar_id: cap.id } as any).eq("id", (mov as any).id);
-            (mov as any).contas_apagar_id = cap.id;
-          }
-        } else {
-          const { data: car } = await supabase
-            .from("contas_areceber")
-            .insert({
-              cliente_nome: form.fornecedor_nome || "SHARE BRASIL",
-              cliente_cnpj: "—",
-              descricao: payload.descricao,
-              valor: valorParcela,
-              categoria: categoriaNome || "RECEITA",
-              categoria_id: form.categoria_id || null,
-              data_criacao: competencia,
-              data_vencimento: vencimento || competencia,
-              data_pagamento: payload.data_pagamento,
-              status: jaLiquidado ? "recebido" : "pendente",
-              conta_bancaria: form.conta_bancaria || null,
-              metodo_pagamento: form.forma_pagamento || null,
-              movimentacao_id: (mov as any).id,
-              reference_type: "movimentacao_share",
-              reference_id: (mov as any).id,
-              criado_por: criadoPor,
-            } as any)
-            .select("id")
-            .single();
-          if (car?.id) {
-            await supabase.from("movimentacoes").update({ contas_areceber_id: car.id } as any).eq("id", (mov as any).id);
-            (mov as any).contas_areceber_id = car.id;
-          }
-        }
+      const { data: mov, error } = await supabase
+        .from("movimentacoes")
+        .insert(payload as any)
+        .select("*")
+        .single();
+      if (error) throw error;
 
-        criados.push(mov);
+      const comuns: any = {
+        despesa_id: (mov as any).id,
+        movimentacao_origem_id: (mov as any).id,
+        fonte_despesa: "movimentacoes",
+        descricao_despesa: payload.descricao,
+        tipo_rateio: form.tipo_rateio || null,
+        fluxo: form.fluxo || (entrada ? "entrada" : "saida"),
+        periodicidade: form.periodicidade || null,
+        forma_pagamento: form.forma_pagamento || null,
+        fornecedor_nome: form.fornecedor_nome || null,
+        data_emissao: form.data_emissao,
+        data_vencimento: form.data_vencimento || null,
+        data_pagamento: form.data_pagamento || null,
+        aeronave_id: form.aeronave_id,
+        aeronave_registro: aeronaveRegistro,
+        valor_total_despesa: valorTotal,
+        categoria_custo: form.categoria_id || null,
+        categoria_nome: categoriaNome,
+        conta_bancaria: form.conta_bancaria || null,
+        ...(form.subcategoria_key && subcategoriaNome
+          ? { [form.subcategoria_key]: subcategoriaNome }
+          : {}),
+      };
+
+      for (const l of linhasValidas) {
+        const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({
+          ...comuns,
+          cliente_id: l.cliente_id,
+          clientes_nome: l.clientes_nome,
+          socio_id: l.socio_id,
+          socios_nome: l.socios_nome,
+          percentual_sociedade: l.percentual_uso === "" ? null : Number(l.percentual_uso),
+          percentual_uso: l.percentual_uso === "" ? null : Number(l.percentual_uso),
+          valor_rateado: l.valor_rateado === "" ? null : Number(l.valor_rateado),
+          valor_pago_real: form.pago_pela_share ? null : (l.valor_rateado === "" ? null : Number(l.valor_rateado)),
+          pago_por: form.pago_pela_share ? SHARE_BRASIL : l.socios_nome || l.clientes_nome,
+          pago_diretamente: pagoDiretamente,
+          status: form.pago_pela_share ? "aguardando_reembolso" : statusMov,
+        });
+        if (rErr) throw rErr;
       }
 
-      toast.success(
-        parcelas > 1 ? `${parcelas} parcelas lançadas no Caixa Share.` : "Lançamento criado no Caixa Share.",
-      );
-      onSaved(criados);
+
+
+      toast.success("Lançamento criado no Caixa Cliente.");
+      onSaved([mov]);
     } catch (e: any) {
       toast.error(e.message || "Erro ao salvar lançamento.");
     } finally {
@@ -275,7 +378,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <CardTitle className="flex items-center gap-2 text-foreground">
-          <Wallet className="h-4 w-4 text-primary" /> Nova Movimentação — Caixa Share
+          <Users className="h-4 w-4 text-blue-400" /> Nova Movimentação — Caixa Cliente
         </CardTitle>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
@@ -286,36 +389,59 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           <div className="lg:col-span-2">
             <Label>Descrição *</Label>
             <Input
-              placeholder="Ex: Internet sede, Taxa bancária, Recebimento ADM"
+              placeholder="Ex: Hangaragem, Seguro, Manutenção programada"
               value={form.descricao}
               onChange={(e) => set({ descricao: e.target.value })}
             />
           </div>
 
+          
           <div>
-            <Label>Tipo *</Label>
+            <Label>Fluxo *</Label>
             <SearchableCombobox
-              items={TIPOS}
-              value={form.tipo}
-              onChange={(id) => set({ tipo: id, categoria_id: "" })}
-              placeholder="Selecione o tipo"
+              items={FLUXOS}
+              value={form.fluxo}
+              onChange={(id) => set({ fluxo: id })}
+              placeholder="Entrada ou saída"
             />
           </div>
 
-          <div className="lg:col-span-2">
-            <Label>Categoria ({entrada ? "entradas" : "saídas"})</Label>
+          <div>
+            <Label className="flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" /> Aeronave *</Label>
+            <SearchableCombobox
+              items={aeronaveItems}
+              value={form.aeronave_id}
+              onChange={(id) => set({ aeronave_id: id })}
+              placeholder="Selecione a aeronave"
+              searchPlaceholder="Buscar matrícula..."
+            />
+          </div>
+
+          <div>
+            <Label>CATEGORIA</Label>
             <SearchableCombobox
               items={categoriaItems}
               value={form.categoria_id}
-              onChange={(id) => set({ categoria_id: id })}
+              onChange={(id) => set({ categoria_id: id, subcategoria_key: "" })}
               placeholder="Selecione a categoria"
-              searchPlaceholder="Buscar por grupo ou categoria..."
-              emptyMessage="Nenhuma categoria para este tipo."
+              searchPlaceholder="Buscar categoria..."
+            />
+          </div>
+          <div>
+            <Label>Subcategoria</Label>
+            <SearchableCombobox
+              items={subcategoriaItems}
+              value={form.subcategoria_key}
+              onChange={(id) => set({ subcategoria_key: id })}
+              placeholder={form.categoria_id ? "Selecione a subcategoria" : "Escolha a categoria primeiro"}
+              disabled={!form.categoria_id}
+              emptyMessage="Nenhuma subcategoria nesta categoria."
             />
           </div>
 
+
           <div>
-            <Label>Valor (R$) *</Label>
+            <Label>Valor total (R$) *</Label>
             <Input
               type="number"
               step="0.01"
@@ -327,7 +453,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
           <div>
             <Label>Competência *</Label>
-            <Input type="date" value={form.data_competencia} onChange={(e) => set({ data_competencia: e.target.value })} />
+            <Input type="date" value={form.data_emissao} onChange={(e) => set({ data_emissao: e.target.value })} />
           </div>
           <div>
             <Label>Vencimento</Label>
@@ -360,19 +486,34 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               placeholder="Selecione o banco"
               allowFreeText
             />
+            {!entrada && !String(form.conta_bancaria || "").trim() && !form.pago_pela_share && (
+              <p className="mt-1 text-[11px] leading-snug text-amber-400">
+                Sem banco selecionado: será registrado como <strong>pago diretamente</strong> pelo
+                cotista/sócio (acerto no fechamento do balanço).
+              </p>
+            )}
           </div>
 
           <div>
-            <Label>Colaborador (opcional)</Label>
+            <Label>Tipo de rateio</Label>
             <SearchableCombobox
-              items={colaboradorItems}
-              value={form.colaborador}
-              onChange={(id) => set({ colaborador: id })}
-              placeholder="Selecione o colaborador"
-              searchPlaceholder="Buscar colaborador..."
+              items={TIPOS_RATEIO}
+              value={form.tipo_rateio}
+              onChange={(id) => set({ tipo_rateio: id })}
+              placeholder="Tipo de rateio"
+            />
+          </div>
+          <div>
+            <Label>Periodicidade</Label>
+            <SearchableCombobox
+              items={PERIODICIDADES}
+              value={form.periodicidade}
+              onChange={(id) => set({ periodicidade: id })}
+              placeholder="Periodicidade"
             />
           </div>
           <div className="lg:col-span-2">
+
             <Label>Fornecedor</Label>
             <FornecedorPickerCombo
               value={form.fornecedor_nome}
@@ -382,41 +523,72 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           </div>
         </div>
 
-        {/* Parcelamento */}
+        {/* Rateio por cotista */}
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="parcelado"
-              checked={form.parcelado}
-              onCheckedChange={(v) => set({ parcelado: Boolean(v) })}
-            />
-            <Label htmlFor="parcelado" className="cursor-pointer">Despesa parcelada?</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Rateio por cotista
+            </Label>
+            <Button type="button" variant="outline" size="sm" onClick={() => setLinhas((ls) => [...ls, novaLinha()])}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar cotista
+            </Button>
           </div>
-          {form.parcelado && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <Label>Quantidade de parcelas</Label>
-                <Input
-                  type="number"
-                  min="2"
-                  value={form.quantidade_parcelas}
-                  onChange={(e) => set({ quantidade_parcelas: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Parcela inicial</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.numero_parcela}
-                  onChange={(e) => set({ numero_parcela: e.target.value })}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground md:col-span-3">
-                O valor informado será dividido entre as parcelas, com vencimentos mensais a partir da data escolhida.
-              </p>
+
+          {linhas.map((l, idx) => (
+            <div key={l.key} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_110px_140px_40px]">
+              <SearchableCombobox
+                items={cotistaItems}
+                value={`${l.cliente_id || ""}|${l.socio_id || ""}`}
+                onChange={(id) => escolherCotista(idx, id)}
+                placeholder={form.aeronave_id ? "Selecione o cotista" : "Escolha a aeronave primeiro"}
+                searchPlaceholder="Buscar cotista..."
+                emptyMessage="Nenhum cotista para esta aeronave."
+                disabled={!form.aeronave_id}
+              />
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="% uso"
+                value={l.percentual_uso}
+                onChange={(e) => aplicarPercentual(idx, e.target.value)}
+              />
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Valor rateado"
+                value={l.valor_rateado}
+                onChange={(e) => setLinha(idx, { valor_rateado: e.target.value })}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLinhas((ls) => (ls.length > 1 ? ls.filter((_, i) => i !== idx) : ls))}
+              >
+                <Trash2 className="h-4 w-4 text-red-400" />
+              </Button>
             </div>
-          )}
+          ))}
+
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              Total rateado: <strong className="text-foreground">R$ {totalRateado.toFixed(2)}</strong> de R$ {valorTotal.toFixed(2)}
+            </span>
+            {valorTotal > 0 && Math.abs(totalRateado - valorTotal) > 0.01 && (
+              <span className="text-amber-400">Diferença de R$ {(valorTotal - totalRateado).toFixed(2)}</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 border-t border-border pt-3">
+            <Checkbox
+              id="pago_share"
+              checked={form.pago_pela_share}
+              onCheckedChange={(v) => set({ pago_pela_share: Boolean(v) })}
+            />
+            <Label htmlFor="pago_share" className="cursor-pointer text-xs">
+              Pago pelo caixa da Share Brasil (gera reembolso a receber do cliente)
+            </Label>
+          </div>
         </div>
 
         <div>

@@ -66,7 +66,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     tipo: "despesa",
     categoria_id: "",
     valor_original: "",
-    data_competencia: hoje,
+    data_emissao: hoje,
     data_vencimento: "",
     data_pagamento: "",
     status: "pendente",
@@ -156,7 +156,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     const valorTotal = Number(form.valor_original);
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
-    if (!form.data_competencia) return toast.error("Informe a data de competência.");
+    if (!form.data_emissao) return toast.error("Informe a data de competência.");
 
     const parcelas = form.parcelado ? Math.max(1, Number(form.quantidade_parcelas) || 1) : 1;
     const valorParcela = Number((valorTotal / parcelas).toFixed(2));
@@ -173,7 +173,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
         const numeroParcela = primeira + i;
         const sufixo = parcelas > 1 ? ` (${numeroParcela}/${parcelas})` : "";
         const vencimento = form.data_vencimento ? addMonths(form.data_vencimento, i) : null;
-        const competencia = addMonths(form.data_competencia, i) || form.data_competencia;
+        const competencia = addMonths(form.data_emissao, i) || form.data_emissao;
 
         const payload: any = {
           descricao: form.descricao.trim() + sufixo,
@@ -184,7 +184,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           grupo_custo: grupoCategoria,
           valor_rateado: valorParcela,
           valor_original: valorParcela,
-          data_competencia: competencia,
+          data_emissao: competencia,
           data_vencimento: vencimento,
           data_pagamento: i === 0 ? form.data_pagamento || null : null,
           status: i === 0 ? form.status : "pendente",
@@ -351,7 +351,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
           <div>
             <Label>Competência *</Label>
-            <Input type="date" value={form.data_competencia} onChange={(e) => set({ data_competencia: e.target.value })} />
+            <Input type="date" value={form.data_emissao} onChange={(e) => set({ data_emissao: e.target.value })} />
           </div>
           <div>
             <Label>Vencimento</Label>

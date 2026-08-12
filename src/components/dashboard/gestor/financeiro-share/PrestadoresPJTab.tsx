@@ -567,7 +567,7 @@ function NotasPanel() {
         valor_rateado: num(payingNota.valor),
         valor_original: num(payingNota.valor),
         valor_pago_real: num(payingNota.valor),
-        data_competencia: paymentForm.data_pagamento,
+        data_emissao: paymentForm.data_pagamento,
         data_vencimento: payingNota.data_vencimento || paymentForm.data_pagamento,
         data_pagamento: paymentForm.data_pagamento,
         fornecedor_nome: prestador,

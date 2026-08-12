@@ -10,7 +10,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       expand={false}
       richColors={false}
       closeButton={false}
-      className="toaster group"
+      className="toaster group ml-[76px] mr-[76px]"
       toastOptions={{
         unstyled: true,
         classNames: {

@@ -128,7 +128,7 @@ export function useCreateInvoice() {
               descricao: `NF ${invoiceNumber} - ${invoiceData.clientName}`,
               tipo: "receita",
               valor_rateado: amount,
-              data_competencia: issueDateStr,
+              data_emissao: issueDateStr,
               data_vencimento: dueDateStr,
               status: "pendente",
               numero_nf: invoiceNumber,

@@ -76,7 +76,7 @@ if (input.pagador !== FinancePayorType.COMPANY) {
     tipo: "receita",
     categoria_id: categoriaId,
     valor_rateado: input.valorTotal,
-    data_competencia: input.data,
+    data_emissao: input.data,
     data_vencimento: input.data,
     data_pagamento: null,
     status: "pendente",

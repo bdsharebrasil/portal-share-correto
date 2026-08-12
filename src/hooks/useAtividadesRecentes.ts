@@ -16,9 +16,9 @@ export function useAtividadesRecentes() {
     queryFn: async (): Promise<Atividade[]> => {
       const { data, error } = await (supabase as any).from("movimentacoes")
         .select(
-          "id, descricao, valor_rateado, valor_original, status, tipo, data_pagamento, data_vencimento, data_competencia"
+          "id, descricao, valor_rateado, valor_original, status, tipo, data_pagamento, data_vencimento, data_emissao"
         )
-        .order("data_competencia", { ascending: false })
+        .order("data_emissao", { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -32,7 +32,7 @@ export function useAtividadesRecentes() {
           tipo_movimento:
             item.tipo === "receita" || item.tipo === "entrada" ? "entrada" : "saida",
           timeAgo: getTimeAgo(
-            item.data_pagamento || item.data_vencimento || item.data_competencia
+            item.data_pagamento || item.data_vencimento || item.data_emissao
           ),
         })) || []
       );

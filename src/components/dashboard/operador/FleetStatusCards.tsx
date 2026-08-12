@@ -39,7 +39,7 @@ const STATUS_META: Record<string, { label: string; dot: string; chip: string }> 
   disponivel: { label: "Disponível", dot: "bg-sky-400", chip: "bg-sky-500/15 text-sky-400 border-sky-500/25" },
 };
 
-type Filtro =  | "em_voo" | "agendadas" | "manutencao";
+type Filtro = "todas" | "em_voo" | "agendadas" | "manutencao";
 
 export function FleetStatusCards() {
   const navigate = useNavigate();

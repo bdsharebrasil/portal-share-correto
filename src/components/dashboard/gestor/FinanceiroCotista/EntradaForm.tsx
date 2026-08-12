@@ -290,7 +290,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         tipo: "entrada",
         tipo_caixa: "cliente",
         valor_rateado: valorNum,
-        data_competencia: dataCompetencia,
+        data_emissao: dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         client_id: clienteId,
         socio_id: cotistaPagador,
@@ -332,7 +332,8 @@ export default function EntradaForm(props: EntradaFormProps) {
         pago_por: cotistaPagador,
         pago_por_tipo: "SOCIO",
         pago_por_id: cotistaPagador,
-        pago_diretamente: true,
+        // Entradas/depósitos nunca são "pago diretamente"
+        pago_diretamente: false,
         forma_pagamento: formaPgto || null,
         comprovante_url: anexos.find((anexo) => anexo.tipo === "comprovante")?.url || anexos[0]?.url || null,
         periodicidade: "EVENTUAL",
