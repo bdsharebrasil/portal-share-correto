@@ -306,7 +306,7 @@ function PortalClienteDashboard() {
           .eq("aeronave_id", activeAircraftId)
           .order("data_pagamento", { ascending: false, nullsFirst: false });
         if (err) throw err;
-        setRateios((data ?? []) as Rateio[]);
+        setRateios(((data ?? []) as any[]).map((r) => ({ ...r, valor_total_despesa: r.valor_total_despesa ?? r.valor_total ?? null })) as Rateio[]);
       } catch (e: any) {
         setError(e.message);
       } finally {

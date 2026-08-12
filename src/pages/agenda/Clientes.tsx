@@ -35,11 +35,11 @@ const AVATAR_FALLBACK =
   "bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-white font-semibold";
 
 interface ClientDocument {
-  nome: string;
+  nome?: string;
   legenda?: string;
-  url: string;
+  url?: string;
   tipo?: string;
-  enviado_em: string;
+  enviado_em?: string;
 }
 
 interface AeronavePropriedade {
@@ -80,6 +80,7 @@ interface AeronaveOpcao {
 
 const toFolder = (s: string) => (s || 'sem_cliente').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-_]/g, '_');
 
+// MÁSCARAS E FORMATAÇÕES
 const formatCPF = (value: string): string => {
   const digitsOnly = value.replace(/\D/g, '');
   if (digitsOnly.length === 0) return '';
@@ -89,13 +90,23 @@ const formatCPF = (value: string): string => {
   return `${digitsOnly.slice(0, 3)}.${digitsOnly.slice(3, 6)}.${digitsOnly.slice(6, 9)}-${digitsOnly.slice(9, 11)}`;
 };
 
-const ensureTravelReportsFolder = async (name: string) => {
-  const folder = toFolder(name);
-  const emptyBlob = new Blob([''], { type: 'text/plain' });
-  await supabase.storage.from('travel-reports').upload(`${folder}/.keep`, emptyBlob, {
-    upsert: true,
-    contentType: 'text/plain'
-  });
+const formatCNPJ = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+};
+
+const formatIE = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}.${digits.slice(9, 12)}`; // Formato comum XXX.XXX.XXX.XXX
 };
 
 const formatPhoneNumber = (value: string): string => {
@@ -104,6 +115,15 @@ const formatPhoneNumber = (value: string): string => {
   if (digitsOnly.length <= 2) return `(${digitsOnly}`;
   if (digitsOnly.length <= 7) return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2)}`;
   return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 7)}-${digitsOnly.slice(7, 11)}`;
+};
+
+const ensureTravelReportsFolder = async (name: string) => {
+  const folder = toFolder(name);
+  const emptyBlob = new Blob([''], { type: 'text/plain' });
+  await supabase.storage.from('travel-reports').upload(`${folder}/.keep`, emptyBlob, {
+    upsert: true,
+    contentType: 'text/plain'
+  });
 };
 
 interface FormData {
@@ -140,6 +160,14 @@ const emptyFormData: FormData = {
 
 const initials = (name: string) =>
   (name || '').split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
+const getDocumentTitle = (doc?: Partial<ClientDocument>) => doc?.legenda || doc?.nome || 'Documento sem nome';
+
+const isPdfDocument = (doc?: Partial<ClientDocument>) => {
+  const tipo = String(doc?.tipo || '').toLowerCase();
+  const nome = String(doc?.nome || '').toLowerCase();
+  return tipo.includes('pdf') || nome.endsWith('.pdf');
+};
 
 export default function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -609,8 +637,6 @@ export default function Clientes() {
   const activeClientes = filteredClientes.filter(c => isActive(c.status));
   const inactiveClientes = filteredClientes.filter(c => !isActive(c.status));
 
-  // Compact row used by the "Lista" view — kept local since it's reused for
-  // both the active and inactive segments below.
   const ClienteRow = ({ cliente }: { cliente: Cliente }) => (
     <button
       onClick={() => handleViewCliente(cliente)}
@@ -677,7 +703,6 @@ export default function Clientes() {
           </div>
 
           <div className="flex items-stretch gap-4">
-
             <Card
               onClick={() => setShowInactive(true)}
               className={`mx-[52px] flex min-h-0 items-stretch justify-end overflow-auto px-[6px] cursor-pointer transition-all duration-200 rounded-xl bg-slate-900/50 border ${showInactive ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-slate-800/80 hover:border-slate-700'}`}
@@ -946,8 +971,8 @@ export default function Clientes() {
                         <FileText className="h-5 w-5 text-cyan-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">{doc.legenda || doc.nome}</p>
-                        <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
+                        <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">{getDocumentTitle(doc)}</p>
+                        <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome || 'Documento'} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
                       </div>
                     </button>
                   ))}
@@ -964,14 +989,18 @@ export default function Clientes() {
       <Dialog open={!!previewDoc} onOpenChange={open => { if (!open) setPreviewDoc(null); }}>
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 overflow-hidden bg-slate-950 border border-slate-800 rounded-xl">
           <div className="h-full w-full">
-            {previewDoc && (previewDoc.tipo?.includes("pdf") || previewDoc.nome.toLowerCase().endsWith(".pdf")) ? (
-              <iframe src={`${previewDoc.url}#toolbar=1&navpanes=0`} className="w-full h-full" title={previewDoc.nome} />
+            {previewDoc && isPdfDocument(previewDoc) ? (
+              <iframe src={`${previewDoc.url || '#'}#toolbar=1&navpanes=0`} className="w-full h-full" title={getDocumentTitle(previewDoc)} />
             ) : (
               <div className="p-6 space-y-3">
                 <p className="text-sm text-slate-400">Visualização não suportada. Faça o download abaixo.</p>
-                <a href={previewDoc?.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 underline underline-offset-2">
-                  Baixar arquivo
-                </a>
+                {previewDoc?.url ? (
+                  <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 underline underline-offset-2">
+                    Baixar arquivo
+                  </a>
+                ) : (
+                  <p className="text-sm text-slate-500">Arquivo sem URL disponível.</p>
+                )}
               </div>
             )}
           </div>
@@ -1018,7 +1047,22 @@ export default function Clientes() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <Label htmlFor="razao_social" className={LABEL}>Nome da Empresa *</Label>
-                    <Input id="razao_social" value={formData.razao_social} onChange={e => setFormData({ ...formData, razao_social: e.target.value })} placeholder="Razão Social" className={FIELD} />
+                    <Input 
+                      id="razao_social" 
+                      value={formData.razao_social} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const updates: Partial<FormData> = { razao_social: val };
+                        // Se o código_cliente estiver vazio, sugere as 3 primeiras letras
+                        if (!formData.codigo_cliente && val) {
+                          const lettersOnly = val.replace(/[^A-Za-z]/g, '');
+                          updates.codigo_cliente = lettersOnly.slice(0, 3).toUpperCase() || null;
+                        }
+                        setFormData(prev => ({ ...prev, ...updates }));
+                      }} 
+                      placeholder="Razão Social" 
+                      className={FIELD} 
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <Label htmlFor="proprietario" className={LABEL}>Proprietário ou Responsável</Label>
@@ -1026,15 +1070,36 @@ export default function Clientes() {
                   </div>
                   <div>
                     <Label htmlFor="cnpj" className={LABEL}>CNPJ *</Label>
-                    <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({ ...formData, cnpj: e.target.value })} placeholder="00.000.000/0000-00" className={FIELD} />
+                    <Input 
+                      id="cnpj" 
+                      value={formData.cnpj} 
+                      onChange={e => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })} 
+                      placeholder="00.000.000/0000-00" 
+                      maxLength={18}
+                      className={FIELD} 
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="codigo_cliente" className={LABEL}>Código Cliente</Label>
-                    <Input id="codigo_cliente" value={formData.codigo_cliente || ''} onChange={e => setFormData({ ...formData, codigo_cliente: e.target.value.toUpperCase().slice(0, 3) || null })} placeholder="Ex: GAS" maxLength={3} className={`${FIELD} uppercase`} />
+                    <Label htmlFor="codigo_cliente" className={LABEL}>Código para identificação do cliente com 3 letras</Label>
+                    <Input 
+                      id="codigo_cliente" 
+                      value={formData.codigo_cliente || ''} 
+                      onChange={e => setFormData({ ...formData, codigo_cliente: e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || null })} 
+                      placeholder="Codigo cliente" 
+                      maxLength={3} 
+                      className={`${FIELD} uppercase`} 
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <Label htmlFor="inscricao_estadual" className={LABEL}>Inscrição Estadual</Label>
-                    <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({ ...formData, inscricao_estadual: e.target.value })} placeholder="000.000.000.000" className={FIELD} />
+                    <Input 
+                      id="inscricao_estadual" 
+                      value={formData.inscricao_estadual} 
+                      onChange={e => setFormData({ ...formData, inscricao_estadual: formatIE(e.target.value) })} 
+                      placeholder="000.000.000.000" 
+                      maxLength={15}
+                      className={FIELD} 
+                    />
                   </div>
                 </div>
               </div>
@@ -1068,7 +1133,14 @@ export default function Clientes() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="telefone" className={`${LABEL} flex items-center gap-1.5`}><Phone className="h-3.5 w-3.5" />Telefone</Label>
-                    <Input id="telefone" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: formatPhoneNumber(e.target.value) })} placeholder="(00) 00000-0000" maxLength={15} className={FIELD} />
+                    <Input 
+                      id="telefone" 
+                      value={formData.telefone} 
+                      onChange={e => setFormData({ ...formData, telefone: formatPhoneNumber(e.target.value) })} 
+                      placeholder="(00) 00000-0000" 
+                      maxLength={15} 
+                      className={FIELD} 
+                    />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -1293,7 +1365,7 @@ export default function Clientes() {
                                   </div>
                                   <div>
                                     <Label className="text-slate-400 mb-1.5 block text-xs">Código</Label>
-                                    <Input value={partner.codigo_cliente || ''} onChange={e => updatePartner(index, 'codigo_cliente', e.target.value.toUpperCase().slice(0, 3) || null)} placeholder="Ex: DEJ" maxLength={3} className={`${FIELD} uppercase`} />
+                                    <Input value={partner.codigo_cliente || ''} onChange={e => updatePartner(index, 'codigo_cliente', e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || null)} placeholder="Ex: DEJ" maxLength={3} className={`${FIELD} uppercase`} />
                                   </div>
                                 </div>
                                 <Button type="button" variant="ghost" size="sm" onClick={() => removePartner(index)} className="h-9 w-9 p-0 mt-6 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg flex-shrink-0" title="Remover sócio">
@@ -1394,8 +1466,8 @@ export default function Clientes() {
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">{doc.legenda || doc.nome}</a>
-                              <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
+                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">{getDocumentTitle(doc)}</a>
+                              <p className="text-xs text-slate-500">{doc.legenda ? `${doc.nome || 'Documento'} · ` : ""}{doc.enviado_em ? new Date(doc.enviado_em).toLocaleDateString('pt-BR') : ""}</p>
                             </div>
                           </div>
                           <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg flex-shrink-0">

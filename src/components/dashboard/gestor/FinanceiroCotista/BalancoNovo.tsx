@@ -222,7 +222,7 @@ function useRateios(aeronaveId: string | null, ano: number) {
       const { data, error } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc",
+          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_pagamento, data_vencimento, valor_total, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc",
           // Para popular a seção "ANEXOS/OBSERVAÇÕES" do painel expandido,
           // acrescente aqui: ", forma_pagamento, status_pagamento, observacoes, anexo_nota_fiscal_url, anexo_recibo_url, anexo_boleto_url"
           // assim que confirmar esses nomes de coluna na view rateio_despesas.
@@ -232,7 +232,7 @@ function useRateios(aeronaveId: string | null, ano: number) {
           `and(data_pagamento.gte.${inicio},data_pagamento.lte.${fim}),and(data_pagamento.is.null,data_vencimento.gte.${inicio},data_vencimento.lte.${fim})`,
         );
       if (error) throw error;
-      return (data ?? []) as Rateio[];
+      return ((data ?? []) as any[]).map((r) => ({ ...r, valor_total_despesa: r.valor_total ?? null })) as Rateio[];
     },
     staleTime: 60_000,
   });

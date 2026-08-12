@@ -52,6 +52,7 @@ interface PurchaseRequestItem {
   purchase_request_id: string;
   quantidade: number;
   valor_unitario: number;
+  codigo_fornecedor?: string | null;
 }
 
 const statusOptions = [
@@ -296,17 +297,10 @@ export default function SolicitacaoCompras() {
         unidade: unidade.trim().toUpperCase() || "UN",
         valor_unitario: Number(valorEstimado) || 0,
         especificacoes: detalhes.trim() || null,
+        codigo_fornecedor: fornecedor.trim() || null,
       });
 
       if (itemError.error) throw itemError.error;
-
-      if (fornecedor.trim()) {
-        const supplierError = await supabase.from("purchase_request_suppliers").insert({
-          purchase_request_id: request.id,
-          nome_fornecedor: fornecedor.trim(),
-        });
-        if (supplierError.error) throw supplierError.error;
-      }
 
       toast({
         title: status === "rascunho" ? "Rascunho salvo" : "Solicitação enviada",
@@ -414,7 +408,7 @@ export default function SolicitacaoCompras() {
                     id="item-ou-servico"
                     value={descricao}
                     onChange={(event) => setDescricao(event.target.value)}
-                    placeholder={tipo === "compra" ? "Ex.: Kit de pastilhas de freio — trem principal" : "Ex.: Revisão do sistema hidráulico"}
+                    placeholder={tipo === "compra" ? "Ex.: Mercado - produtos de limpeza" : "Ex.: Revisão do ar condicionado"}
                     className={compactInputClass}
                     required
                   />
@@ -427,7 +421,7 @@ export default function SolicitacaoCompras() {
                       id="categoria"
                       value={categoria}
                       onChange={(event) => setCategoria(event.target.value)}
-                      placeholder="Peças e componentes"
+                      placeholder="MERCADO"
                       className={compactInputClass}
                     />
                   </div>
@@ -437,7 +431,7 @@ export default function SolicitacaoCompras() {
                       id="aeronave"
                       value={aeronave}
                       onChange={(event) => setAeronave(event.target.value)}
-                      placeholder="PR-SHB — Cessna Citation CJ3"
+                      placeholder=""
                       className={compactInputClass}
                     />
                   </div>

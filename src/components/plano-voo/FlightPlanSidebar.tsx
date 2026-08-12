@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AerodromeCombobox } from './AerodromeCombobox';
+import { NivelVooSugerido } from './NivelVooSugerido';
 import type { Aerodromo } from '@/hooks/useAerodromes';
 import type { Aeronave } from '@/hooks/useAeronaves';
 import type { PreferredRoute } from '@/hooks/usePreferredRoutes';
-import { getAircraftSpeed } from '@/constants/aircraftSpeeds';
+import { formatSpeedCode } from '@/lib/aircraft-speeds';
 import { suggestFlightLevel } from '@/lib/flightLevel';
 import { cn } from '@/lib/utils';
 
@@ -102,12 +103,12 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   const handleAircraftChange = useCallback((aircraftId: string) => {
     const ac = aeronaves.find(a => a.id === aircraftId);
     if (ac) {
-      const speed = getAircraftSpeed(ac.modelo);
+      const speedCode = formatSpeedCode((ac as any).performance_aeronave?.velocidade_cruzeiro_kt);
       onFormChange({
         aircraftId,
         aeronaveId: aircraftId,
         registration: ac.matricula,
-        cruiseSpeed: speed,
+        cruiseSpeed: speedCode as any,
         fuelOnBoard: 0,
       });
     }
@@ -268,38 +269,46 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
         <div className={cn('space-y-4 pt-2 border-t border-border/60', !step2Ok && 'opacity-60')}>
           <SectionHeader step={3} title="Velocidade, Nível e Rota" icon={<Gauge className="w-3 h-3" />} done={!!formData.cruiseSpeed && !!formData.altitude} />
 
-          {/* Sugestão automática de FL */}
+          {/* Sugestão automática de FL - usando NivelVooSugerido */}
           {suggestion && (
-            <div className="rounded-md border border-primary/40 bg-primary/10 p-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
-                  <Wand2 className="w-3 h-3" /> Nível sugerido
-                </span>
-                <span className="font-mono font-bold text-primary">{suggestion.label}</span>
+            <>
+              <NivelVooSugerido 
+                nivelSugeridoFt={suggestion.altitudeFt}
+                rumo={mainBearing}
+                carregando={false}
+                erro={null}
+              />
+              <div className="rounded-md border border-primary/40 bg-primary/10 p-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
+                    <Wand2 className="w-3 h-3" /> Nível sugerido
+                  </span>
+                  <span className="font-mono font-bold text-primary">{suggestion.label}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">{suggestion.rationale}</p>
+                <div className="flex flex-wrap gap-1">
+                  {suggestion.alternatives.map((alt) => (
+                    <button
+                      key={alt.altitudeFt}
+                      type="button"
+                      onClick={() => { setAutoAltitude(false); onFormChange({ altitude: alt.altitudeFt }); }}
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted/40 hover:bg-muted text-foreground"
+                    >
+                      {alt.label}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoAltitude}
+                    onChange={(e) => setAutoAltitude(e.target.checked)}
+                    className="accent-primary"
+                  />
+                  Aplicar nível automaticamente
+                </label>
               </div>
-              <p className="text-[10px] text-muted-foreground leading-tight">{suggestion.rationale}</p>
-              <div className="flex flex-wrap gap-1">
-                {suggestion.alternatives.map((alt) => (
-                  <button
-                    key={alt.altitudeFt}
-                    type="button"
-                    onClick={() => { setAutoAltitude(false); onFormChange({ altitude: alt.altitudeFt }); }}
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted/40 hover:bg-muted text-foreground"
-                  >
-                    {alt.label}
-                  </button>
-                ))}
-              </div>
-              <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoAltitude}
-                  onChange={(e) => setAutoAltitude(e.target.checked)}
-                  className="accent-primary"
-                />
-                Aplicar nível automaticamente
-              </label>
-            </div>
+            </>
           )}
 
           <div className="grid grid-cols-3 gap-2">

@@ -905,6 +905,9 @@ export function useAgendamentoMutations() {
 
   const excluirSolicitacao = useMutation({
     mutationFn: async (solicitacao: Solicitacao) => {
+      if (!["cancelado", "rejeitado"].includes(solicitacao.status)) {
+        throw new Error("Somente solicitações canceladas ou rejeitadas podem ser excluídas");
+      }
       if (solicitacao.aeronave_id) {
         await sb
           .from("datas_bloqueadas_voo")

@@ -56,12 +56,13 @@ function parseMETARExtras(raw: string | null | undefined) {
 }
 
 const CAT_COLOR: Record<string, string> = {
-  VFR: "hsl(142 71% 45%)",
-  MVFR: "hsl(217 91% 60%)",
-  IFR: "hsl(0 84% 60%)",
-  LIFR: "hsl(280 75% 60%)",
-  UNK: "hsl(220 9% 46%)",
+  VFR: "#22c55e",  // Verde vibrante
+  MVFR: "#3b82f6", // Azul moderno
+  IFR: "#ef4444",  // Vermelho de alerta
+  LIFR: "#a855f7", // Roxo elegante
+  UNK: "#71717a",  // Cinza neutro
 };
+
 const CAT_LABEL: Record<string, string> = {
   VFR: "VFR — Visual",
   MVFR: "MVFR — Marginal",
@@ -70,19 +71,17 @@ const CAT_LABEL: Record<string, string> = {
   UNK: "Condições desconhecidas",
 };
 
-// Ícone atualizado para receber a prop isNight
 const WeatherIcon = ({ cat, isNight }: { cat?: string; isNight?: boolean }) => {
   const c = cat ?? "UNK";
   const color = CAT_COLOR[c];
   
   if (c === "VFR") {
-    // Retorna a Lua se for de noite, Sol se for de dia
     return isNight ? (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
       </svg>
     ) : (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="4" />
         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
       </svg>
@@ -90,7 +89,7 @@ const WeatherIcon = ({ cat, isNight }: { cat?: string; isNight?: boolean }) => {
   }
   if (c === "MVFR") {
     return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 15.7" />
         <circle cx="8" cy="8" r="3" />
       </svg>
@@ -98,7 +97,7 @@ const WeatherIcon = ({ cat, isNight }: { cat?: string; isNight?: boolean }) => {
   }
   if (c === "IFR" || c === "LIFR") {
     return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M16 13a4 4 0 0 0-8 0" />
         <path d="M8 19v1M12 19v2M16 19v1" />
         <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" />
@@ -106,7 +105,7 @@ const WeatherIcon = ({ cat, isNight }: { cat?: string; isNight?: boolean }) => {
     );
   }
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -115,8 +114,8 @@ const WeatherIcon = ({ cat, isNight }: { cat?: string; isNight?: boolean }) => {
 };
 
 const IcoRefresh = ({ spin }: { spin: boolean }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    style={{ animation: spin ? "wc-spin .9s linear infinite" : undefined }}>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ animation: spin ? "wc-spin 1s linear infinite" : undefined }}>
     <polyline points="23 4 23 10 17 10" />
     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
   </svg>
@@ -130,22 +129,16 @@ export default function WeatherWidget() {
     typeof window !== "undefined" ? localStorage.getItem("selectedAirport") || null : null
   );
   
-  // Novo estado para controlar o período (dia/noite)
   const [isNight, setIsNight] = useState(false);
-
   const { getWeather } = useAISWeb();
 
-  // Efeito para verificar o horário e ativar/desativar o dark mode
   useEffect(() => {
     const checkTime = () => {
       const hour = new Date().getHours();
-      // Considera noite após as 18:00 e antes das 06:00
       setIsNight(hour >= 18 || hour < 6);
     };
-    
-    checkTime(); // Checagem inicial
-    const timeInterval = setInterval(checkTime, 60 * 1000); // Atualiza a cada minuto
-    
+    checkTime();
+    const timeInterval = setInterval(checkTime, 60 * 1000);
     return () => clearInterval(timeInterval);
   }, []);
 
@@ -218,7 +211,6 @@ export default function WeatherWidget() {
     <>
       <style>{CSS}</style>
 
-      {/* Repassa a classe de noite para o Overlay se ativado */}
       {showSelector && (
         <div className={`wc-overlay ${isNight ? "wc-night-modal" : ""}`} onClick={() => setShowSelector(false)}>
           <div className="wc-modal" onClick={e => e.stopPropagation()}>
@@ -236,8 +228,11 @@ export default function WeatherWidget() {
         </div>
       )}
 
-      {/* Aplica a classe wc-night no Root */}
-      <div className={`wc-root ${isNight ? "wc-night" : ""}`}>
+      {/* Variável CSS inline para a cor da categoria (para usar no glow) */}
+      <div 
+        className={`wc-root ${isNight ? "wc-night" : ""}`} 
+        style={{ "--cat-color": color } as React.CSSProperties}
+      >
         <div className="wc-front">
           <span className="wc-dot" style={{ background: color }} />
           <WeatherIcon cat={wx.cat} isNight={isNight} />
@@ -275,7 +270,7 @@ export default function WeatherWidget() {
               <span className="wc-cell-val">{isOk ? (wx.icao ?? "—") : "—"}</span>
             </div>
             <div className="wc-cell">
-              <span className="wc-cell-lbl">hora</span>
+              <span className="wc-cell-lbl">Hora</span>
               <span className="wc-cell-val">{isOk ? (wx.time ?? "—") : "—"}</span>
             </div>
           </div>
@@ -289,19 +284,51 @@ export default function WeatherWidget() {
 const CSS = `
   @keyframes wc-spin    { to { transform: rotate(360deg); } }
   @keyframes wc-fade-in { from { opacity:0; } to { opacity:1; } }
-  @keyframes wc-slide   { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes wc-slide   { from { opacity:0; transform:translateY(15px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
   @keyframes wc-bounce  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
   .wc-root {
+    /* Variáveis - Tema Claro */
+    --wc-bg: transparent; /* Pega a cor do wrapper do Header */
+    --wc-bg-hover: rgba(5, 5, 15, 0.04);
+    --wc-text-main: #b2c4f7;
+    --wc-text-sub: #b5c4db;
+    --wc-btn-bg: rgba(1, 4, 14, 0.53);
+    --wc-btn-hover: rgba(2, 4, 22, 0.84);
+    --wc-drop-bg: rgba(1, 5, 8, 0.6);
+    --wc-drop-border: rgba(0, 0, 0, 0.3);
+    --wc-cell-border: rgba(0, 0, 0, 0.38);
+
     position: relative;
     display: inline-block;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     user-select: none;
+    z-index: 60;
+  }
+
+  .wc-root.wc-night {
+    /* Variáveis - Tema Escuro */
+    --wc-bg-hover: rgba(255, 255, 255, 0.08);
+    --wc-text-main: #07325c;
+    --wc-text-sub: #1a273a;
+    --wc-btn-bg: rgba(255, 255, 255, 0.1);
+    --wc-btn-hover: rgba(255, 255, 255, 0.18);
+    --wc-drop-bg: rgba(15, 23, 42, 0.9);
+    --wc-drop-border: rgba(255, 255, 255, 0.12);
+    --wc-cell-border: rgba(255, 255, 255, 0.06);
   }
 
   .wc-front {
     display: flex;
     align-items: center;
+<<<<<<< HEAD
+    gap: 8px;
+    height: 100%; /* Ajusta à altura do container pai no Header */
+    min-height: 36px;
+    padding: 0 12px 0 10px;
+    background: var(--wc-bg);
+    border-radius: 99px; /* Formato Pílula */
+=======
     gap: -8px;
     height: 38px;
     margin-left: -48px;
@@ -310,169 +337,171 @@ const CSS = `
     background: #ffffff;
     border-radius: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,.10);
+>>>>>>> refs/remotes/origin/main
     cursor: default;
-    transition: background .25s, border-radius .25s;
+    transition: background 0.3s ease;
     white-space: nowrap;
   }
 
-  .wc-root:not(.wc-night):hover .wc-front {
-    background: #FFE87C;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+  .wc-root:hover .wc-front {
+    background: var(--wc-bg-hover);
   }
 
   .wc-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
-    transition: background .4s;
+    box-shadow: 0 0 8px var(--cat-color); /* Efeito Glow */
+    transition: background 0.4s;
   }
 
   .wc-info {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    justify-content: center;
+    gap: 0px;
     min-width: 90px;
   }
 
   .wc-temp {
     font-size: 13px;
     font-weight: 700;
-    color: #111;
-    line-height: 1;
-    transition: color .25s;
+    color: var(--wc-text-main);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    transition: color 0.3s;
   }
 
   .wc-loc {
-    font-size: 9.5px;
-    color: #666;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--wc-text-sub);
     line-height: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 130px;
-    transition: color .25s;
+    transition: color 0.3s;
   }
 
   .wc-btn {
-    background: rgba(0,0,0,.06);
+    background: var(--wc-btn-bg);
     border: none;
-    border-radius: 6px;
+    border-radius: 50%;
     width: 22px; height: 22px;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; color: #555;
-    transition: background .15s, color .25s; padding: 0; flex-shrink: 0;
+    cursor: pointer; color: var(--wc-text-sub);
+    transition: all 0.2s ease; padding: 0; flex-shrink: 0;
   }
-  .wc-btn:hover { background: rgba(0,0,0,.12); }
+  .wc-btn:hover { 
+    background: var(--wc-btn-hover); 
+    color: var(--wc-text-main);
+  }
 
   .wc-drop {
     position: absolute;
-    top: 38px; left: 0;
-    width: 220px;
-    background: #ffffff;
-    border-radius: 0 12px 12px 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    top: calc(100% + 10px); /* Descolado (Tooltip) */
+    right: 0; /* Alinha à direita no header */
+    width: 240px;
+    background: var(--wc-drop-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--wc-drop-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px -10px rgba(0,0,0,0.25);
     overflow: hidden;
-    max-height: 0;
     opacity: 0;
-    pointer-events: none;
-    transition: max-height .3s cubic-bezier(.4,0,.2,1), opacity .2s ease, background .25s;
-    z-index: 9999;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transform-origin: top right;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1000;
   }
 
   .wc-root:hover .wc-drop {
-    max-height: 200px;
     opacity: 1;
-    pointer-events: auto;
+    visibility: visible;
+    transform: translateY(0) scale(1);
   }
 
   .wc-row {
     display: flex;
-    padding: 8px 12px 6px;
-    border-bottom: 1px solid #f2f2f2;
-    gap: 4px;
-    transition: border-color .25s;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--wc-cell-border);
+    gap: 8px;
   }
-  .wc-row-last { border-bottom: none; padding-bottom: 8px; }
+  .wc-row-last { border-bottom: none; padding-bottom: 12px; }
 
   .wc-cell {
-    display: flex; flex-direction: column; gap: 2px; flex: 1;
+    display: flex; flex-direction: column; gap: 3px; flex: 1;
   }
 
   .wc-cell-lbl {
-    font-size: 8.5px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: .06em; color: #aaa;
-    transition: color .25s;
+    font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--wc-text-sub);
   }
 
   .wc-cell-val {
-    font-size: 11px; font-weight: 700; color: #222; white-space: nowrap;
-    transition: color .25s;
+    font-size: 12px; font-weight: 700; color: var(--wc-text-main); white-space: nowrap;
   }
 
   .wc-cat {
-    padding: 5px 0;
+    padding: 6px 0;
     text-align: center;
-    font-size: 9.5px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: .05em;
-    color: white;
+    letter-spacing: 0.04em;
+    color: rgba(206, 248, 248, 0.9);
+    text-shadow: 0 1px 2px rgba(12, 6, 6, 0.38);
   }
 
+  /* MODAL MODERNO */
   .wc-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,.45);
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: center;
     z-index: 99999;
-    animation: wc-fade-in .3s ease;
-    backdrop-filter: blur(4px);
+    animation: wc-fade-in 0.3s ease;
   }
 
   .wc-modal {
-    background: white; border-radius: 18px;
-    padding: 28px 24px;
-    max-width: 380px; width: 90%;
-    max-height: 80vh; overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,.22);
-    animation: wc-slide .3s ease;
-    transition: background .25s;
+    background: #b5bef3ff; 
+    border-radius: 24px;
+    padding: 32px 24px;
+    max-width: 420px; width: 90%;
+    max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+    animation: wc-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .wc-modal-icon { font-size: 42px; text-align: center; margin-bottom: 10px; animation: wc-bounce 2s ease-in-out infinite; }
-  .wc-modal-title { font-size: 1.1rem; font-weight: 700; color: #111; text-align: center; margin: 0 0 16px; transition: color .25s; }
-  .wc-airport-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; }
+  .wc-modal-icon { font-size: 42px; text-align: center; margin-bottom: 12px; animation: wc-bounce 2s ease-in-out infinite; }
+  .wc-modal-title { font-size: 1.25rem; font-weight: 700; color: #0f172a; text-align: center; margin: 0 0 24px; }
+  .wc-airport-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 10px; }
 
   .wc-airport-btn {
-    background: #f7f8fa; border: 2px solid #e2e8f0; border-radius: 10px;
-    padding: 10px 6px; cursor: pointer; transition: all .2s;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: #34475a; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 12px 8px; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
   }
-  .wc-airport-btn:hover { border-color: #667eea; background: #f0f4ff; }
-
-  .wc-airport-icao { font-weight: 800; font-size: 0.73rem; color: #667eea; font-family: monospace; }
-  .wc-airport-name { font-size: 0.62rem; color: #555; text-align: center; line-height: 1.3; transition: color .25s; }
-
-  /* =========================================
-     ESTILOS DO DARK MODE (NIGHT)
-     ========================================= */
-  
-  .wc-root.wc-night .wc-front { background: #1e1e24; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
-  .wc-root.wc-night:hover .wc-front { 
-    background: #2b2b36; 
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+  .wc-airport-btn:hover { 
+    border-color: #3b82f6; background: #8097b6; 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -4px rgba(59, 130, 246, 0.2);
   }
-  
-  .wc-root.wc-night .wc-temp { color: #f5f5f5; }
-  .wc-root.wc-night .wc-loc { color: #a0a0a0; }
-  
-  .wc-root.wc-night .wc-btn { background: rgba(255,255,255,.08); color: #ccc; }
-  .wc-root.wc-night .wc-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
-  
-  .wc-root.wc-night .wc-drop { background: #1e1e24; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
-  .wc-root.wc-night .wc-row { border-bottom-color: #33333d; }
-  .wc-root.wc-night .wc-cell-lbl { color: #777; }
-  .wc-root.wc-night .wc-cell-val { color: #eee; }
 
+<<<<<<< HEAD
+  .wc-airport-icao { font-weight: 800; font-size: 0.8rem; color: #3b82f6; font-family: ui-monospace, monospace; }
+  .wc-airport-name { font-size: 0.65rem; color: #64748b; text-align: center; line-height: 1.3; }
+
+  /* Modal Escuro */
+  .wc-overlay.wc-night-modal .wc-modal { background: #5b6c92ff; border: 1px solid rgba(255,255,255,0.1); }
+  .wc-overlay.wc-night-modal .wc-modal-title { color: #f8fafc; }
+  .wc-overlay.wc-night-modal .wc-airport-btn { background: #1e293b; border-color: #334155; }
+  .wc-overlay.wc-night-modal .wc-airport-btn:hover { border-color: #3b82f6; background: #0f172a; }
+  .wc-overlay.wc-night-modal .wc-airport-name { color: #94a3b8; }
+`;
+=======
   /* Dark mode para o modal */
   .wc-overlay.wc-night-modal .wc-modal { background: #1e1e24; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
   .wc-overlay.wc-night-modal .wc-modal-title { color: #f5f5f5; }
@@ -480,3 +509,4 @@ const CSS = `
   .wc-overlay.wc-night-modal .wc-airport-btn:hover { border-color: #667eea; background: #323242; }
   .wc-overlay.wc-night-modal .wc-airport-name { color: #a0a0a0; }
 `;
+>>>>>>> refs/remotes/origin/main

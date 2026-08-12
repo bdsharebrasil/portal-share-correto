@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +24,7 @@ import { VacationManagement } from "@/components/Ferias/VacationManagement";
 import { EmployeeVacationTab } from "@/components/Ferias/EmployeeVacationTab";
 import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt, UserPlus } from "lucide-react";
 import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
-import { NovoFuncionarioDialog } from "@/components/user-management/NovoFuncionarioDialog";
+import { CreateUserForm } from "@/components/user-management/CreateUserForm";
 import { APP_ROLE_VALUES, ROLE_LABELS, type AppRole } from "@/lib/roles";
 import { formatRoleLabel } from "@/lib/roles";
 interface CrewMemberData {
@@ -569,7 +570,11 @@ export default function GestaoFuncionarios() {
       </>;
   };
   return <Layout>
-      <NovoFuncionarioDialog open={isNewEmployeeOpen} onOpenChange={setIsNewEmployeeOpen} />
+      <Dialog open={isNewEmployeeOpen} onOpenChange={setIsNewEmployeeOpen}>
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+          <CreateUserForm defaultUserType="colaborador" />
+        </DialogContent>
+      </Dialog>
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
         <Tabs defaultValue="funcionarios" className="space-y-8">
           {/* Header */}

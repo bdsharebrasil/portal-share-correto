@@ -86,6 +86,22 @@ export function resolverTipoRateioPadraoParaDespesa(label: string | null | undef
   return null;
 }
 
+export function resolverModoSolicitacaoPadrao(params: {
+  modo?: string | null;
+  origemReciboReembolso?: boolean | null;
+}): "SHARE" | "REEMBOLSO" | "DIRETO" | null {
+  const modoInformado = (params.modo || "").trim().toUpperCase();
+  if (modoInformado === "SHARE" || modoInformado === "REEMBOLSO" || modoInformado === "DIRETO") {
+    return modoInformado;
+  }
+
+  if (params.origemReciboReembolso) {
+    return "REEMBOLSO";
+  }
+
+  return null;
+}
+
 export function resolverPagoPorSolicitacao(params: {
   socioNome?: string | null;
   clienteNome?: string | null;

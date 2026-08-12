@@ -21,9 +21,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { calculateDistance, calculateMagneticHeading } from '@/lib/aviation';
 import {
-  getSuggestedSpeedCode,
-  getSuggestedSpeed,
-  getSuggestedAltitude,
+  formatSpeedCode,
+  getSuggestedAltitudeFallback,
   calculateMinimumEndurance,
 } from '@/lib/aircraft-speeds';
 
@@ -38,6 +37,14 @@ interface Aircraft {
   matricula: string;
   modelo: string;
   fabricante: string;
+  performance_aeronave_id: string | null;
+  performance_aeronave: {
+    categoria: string;
+    teto_servico_ft: number;
+    nivel_cruzeiro_min_ft: number;
+    nivel_cruzeiro_max_ft: number;
+    velocidade_cruzeiro_kt: number | null;
+  } | null;
 }
 
 interface Aerodrome {
@@ -74,15 +81,20 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
   const fetchData = async () => {
     try {
       const [aircraftRes, aerodromesRes] = await Promise.all([
-        supabase
+        (supabase as any)
           .from('aeronave')
-          .select('id, matricula, modelo, fabricante')
-          .eq('status', 'ativa'),
+          .select(`
+            id, matricula, modelo, fabricante,
+            performance_aeronave_id,
+            performance_aeronave:performance_aeronave_id (
+              categoria, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, velocidade_cruzeiro_kt
+            )
+          `),
         supabase.from('aerodromes').select('*').order('designativo'),
       ]);
 
       if (aircraftRes.data) {
-        setAircraft(aircraftRes.data);
+        setAircraft(aircraftRes.data as unknown as Aircraft[]);
       }
       if (aerodromesRes.data) {
         setAerodromes(aerodromesRes.data as Aerodrome[]);
@@ -180,7 +192,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
     const estimatedTimeMinutes = (distanceNM / cruiseSpeed) * 60;
 
     const isIFR = formData.flightRules === 'I' || formData.flightRules === 'Y';
-    const suggestedAltitude = getSuggestedAltitude(
+    const suggestedAltitude = getSuggestedAltitudeFallback(
       distanceNM,
       magneticHeading,
       isIFR
@@ -239,7 +251,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
   const handleAircraftChange = (aircraftId: string) => {
     const selected = aircraft.find((a) => a.id === aircraftId);
     if (selected) {
-      const speedCode = getSuggestedSpeedCode(selected.matricula);
+      const speedCode = formatSpeedCode(selected.performance_aeronave?.velocidade_cruzeiro_kt);
       updateFormData({
         aircraftId: selected.id,
         aircraftRegistration: selected.matricula,

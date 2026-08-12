@@ -869,8 +869,8 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
 
             {isReembolso && (
               <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 mt-4 text-sm text-emerald-300">
-                Ao finalizar, este recibo de reembolso será enviado automaticamente para a
-                <strong> Programação de Pagamento</strong> (Contas a Pagar, Contas a Receber, Movimentações e Rateio).
+                Ao finalizar, este recibo de reembolso você será encaminhado a tela de
+                <strong> Programação de Pagamento</strong>.
               </div>
             )}
           </div>

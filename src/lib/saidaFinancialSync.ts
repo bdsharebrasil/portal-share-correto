@@ -435,7 +435,11 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const movComum = {
     descricao: descricaoBase,
     valor_rateado: valor,
+<<<<<<< HEAD
+    valor_total: input.valor_total_despesa ?? valor,
+=======
     valor_original: input.valor_total_despesa ?? valor,
+>>>>>>> refs/remotes/origin/main
     data_emissao,
     data_vencimento,
     status,
@@ -463,7 +467,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     origem_id,
     {
       ...movComum,
-      tipo: tipoShare,          // 'receita' ou 'entrada' (subcat C.M.A)
+      fluxo: tipoShare,        // 'receita' ou 'entrada' (subcat C.M.A)
       tipo_caixa: "share",
       categoria_id: categoriaMovimentacaoId,
     }
@@ -507,7 +511,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     origem_id,
     {
       ...movComum,
-      tipo: "despesa",
+      fluxo: "despesa",
       tipo_caixa: "cliente",
       categoria_id: categoriaExpenseId,
       contas_areceber_id: contasAreceberId,
@@ -548,7 +552,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     percentual_uso: input.percentual_uso ?? 100,
     descricao_despesa: descricaoBase,
     periodicidade: "MENSAL",
-    valor_total_despesa: input.valor_total_despesa ?? valor,
+    valor_total: input.valor_total_despesa ?? valor,
     valor_rateado: valor,
     status: "pendente",
     observacoes: input.observacoes || null,

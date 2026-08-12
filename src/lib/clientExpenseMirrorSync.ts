@@ -72,9 +72,13 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     descricao: `[ADM SHARE] ${descricaoBase.trim()}${
       input.descricao_origem ? ` - ${input.descricao_origem}` : ""
     }`,
-    tipo: "despesa",
+    fluxo: "despesa",
     categoria_id: categoriaId,
     valor_rateado: input.valor,
+<<<<<<< HEAD
+    valor_total: input.valor,
+=======
+>>>>>>> refs/remotes/origin/main
     data_emissao: input.data_emissao,
     data_vencimento: input.data_vencimento,
     data_pagamento: status === "pago" ? input.data_emissao : null,

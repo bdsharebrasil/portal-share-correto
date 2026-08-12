@@ -238,9 +238,12 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
         if (!existingMov) {
           const movPayload: any = {
             descricao: descricaoBase,
-            tipo: "despesa",
-            grupo_custo: "VARIAVEL",
+            fluxo: "despesa",
             valor_rateado: t.valor,
+<<<<<<< HEAD
+            valor_total: t.valor,
+=======
+>>>>>>> refs/remotes/origin/main
             data_emissao: params.dataReferencia,
             data_pagamento: null, // ainda não pago pela Share
             aeronave_id: params.aeronaveId || null,

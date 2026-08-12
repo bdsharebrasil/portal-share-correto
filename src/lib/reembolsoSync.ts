@@ -28,7 +28,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
 
   const { data: mov, error: movErr } = await client
     .from("movimentacoes")
-    .select("id, reference_type, reference_id, contas_areceber_id, valor_rateado, valor_original")
+    .select("id, reference_type, reference_id, contas_areceber_id, valor_rateado, valor_total")
     .eq("id", movId)
     .maybeSingle();
   if (movErr) throw movErr;
@@ -37,7 +37,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
   const patchShare: Record<string, any> = {
     reembolso_quitado: quitado,
     status: quitado ? "reembolsado" : "reembolso parcial",
-    tipo: "entrada",
+    fluxo: "entrada",
     data_pagamento: data,
     pago_por: pagador,
     valor_pago_real: valorRecebido,

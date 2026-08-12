@@ -30,6 +30,7 @@ import {
   normalizarTipoRateio,
   resolverClienteParaRateio,
   resolverFornecedorSolicitacao,
+  resolverModoSolicitacaoPadrao,
   resolverPagoPorSolicitacao,
   resolverTipoRateioPadraoParaDespesa,
   validarSomaPercentualClientes,
@@ -63,7 +64,7 @@ const MODOS: { key: ModoSolicitacao; titulo: string; descricao: string; accent: 
   {
     key: "REEMBOLSO",
     titulo: "Envio despesa cliente com reembolso",
-    descricao: "A Share paga adiantado e cobra o reembolso do cliente após a baixa (contas a pagar + contas a receber).",
+    descricao: "A Share paga adiantado e cobra o reembolso do cliente após a baixa.",
     accent: "border-amber-500/40 bg-amber-500/[0.07]",
     dot: "bg-amber-400",
     text: "text-amber-300",
@@ -273,7 +274,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
   const [reciboExistentePorCliente, setReciboExistentePorCliente] = useState<Record<string, string>>({});
-  const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | "recibo" | null; id: string | null; mensagem: string | null }>({ tipo: null, id: null, mensagem: null });
+  const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | "recibo" | null; id: string | null; mensagem: string | null }>({ fluxo: null, id: null, mensagem: null });
 
   const [clienteLinhas, setClienteLinhas] = useState<ClienteLinhaState[]>([]);
   const [clienteId, setClienteId] = useState("");
@@ -426,12 +427,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   useEffect(() => {
     if (!open || !initialData) return;
     try {
+      const modoPredefinido = resolverModoSolicitacaoPadrao({
+        modo: initialData.modo || initialData.flow_mode || null,
+        origemReciboReembolso: Boolean(initialData.origem_recibo_reembolso),
+      });
+      if (modoPredefinido) setModo(modoPredefinido as ModoSolicitacao);
+
       if (initialData.data_emissao) setDataEmissao(new Date(initialData.data_emissao));
       if (initialData.data_vencimento) setDataVencimento(new Date(initialData.data_vencimento));
       if (initialData.descricao_despesa) setDescricao(initialData.descricao_despesa);
       if (initialData.descricao) setDescricao(initialData.descricao);
-      if (initialData.valor_total) setValorTotal(String(initialData.valor_total));
-      if (initialData.valor) setValorTotal(String(initialData.valor));
+      if (initialData.valor_total_despesa) setValorTotal(String(initialData.valor_total_despesa));
       if (initialData.cliente_id) setClienteId(initialData.cliente_id);
       if (initialData.clientes_nome) setFornecedorNome(initialData.clientes_nome);
       if (initialData.socio_id) setSocioId(initialData.socio_id);
@@ -1501,7 +1507,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           try {
             movId = await insertAndGetId("movimentacoes", {
               descricao: descricaoViagemModo,
-              tipo: "despesa", tipo_caixa: "cliente",
+              fluxo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaCaixaClienteId || categoriaContaId, valor_rateado: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
@@ -1622,7 +1628,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
-                tipo: "despesa", tipo_caixa: "cliente",
+                fluxo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaCaixaClienteId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
                 data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
@@ -1685,7 +1691,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           let shareMovId: string | null = null;
           try {
             shareMovId = await insertAndGetId("movimentacoes", {
-              descricao, tipo: "despesa", tipo_caixa: "share",
+              descricao, fluxo: "despesa", tipo_caixa: "share",
               categoria_id: categoriaContaId, categoria_nome: tipoDespesaLabel || null, valor_rateado: valorNumericoFinal, valor_original: valorNumericoFinal,
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
@@ -1845,11 +1851,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               // Entrada pendente no Caixa Share aguardando o reembolso do cliente
               await supabaseClient.from("movimentacoes").insert({
                 descricao: `Reembolso — ${descricaoCliente}`,
-                tipo: "entrada",
+                fluxo: "entrada",
                 tipo_caixa: "share",
                 status: "aguardando_reembolso",
                 categoria_id: categoriaContaId,
-                valor: valorCliente,
                 valor_rateado: valorCliente,
                 valor_original: valorNumericoFinal,
                 data_emissao: dataComp,

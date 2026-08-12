@@ -141,7 +141,7 @@ export function SupplierDirectory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <MapPin className="h-6 w-6 text-primary" />
@@ -159,19 +159,19 @@ export function SupplierDirectory() {
           }}
         >
           <DialogTrigger asChild>
-            <Button className="gap-2 bg-gradient-to-r from-primary to-primary-dark hover:from-primary hover:to-primary-dark">
+            <Button className="w-full gap-2 bg-gradient-to-r from-primary to-primary-dark hover:from-primary hover:to-primary-dark sm:w-auto">
               <Plus className="h-4 w-4" />
               Novo Fornecedor
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl w-[calc(100%-1rem)] rounded-lg p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>{editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               <div>
                 <Label className="text-base font-semibold mb-3 block">Localização</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label className="text-sm">Cidade</Label>
                     <Input
@@ -209,7 +209,7 @@ export function SupplierDirectory() {
 
               <div>
                 <Label className="text-base font-semibold mb-3 block">Informações de Contato</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label className="text-sm">Pessoa de Contato</Label>
                     <Input
@@ -233,7 +233,7 @@ export function SupplierDirectory() {
 
               <div>
                 <Label className="text-base font-semibold mb-3 block">Preços de Combustível</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label className="text-sm">Valor AVGAS (R$)</Label>
                     <Input
@@ -259,11 +259,11 @@ export function SupplierDirectory() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary-dark">
+                <Button type="submit" className="w-full bg-primary hover:bg-primary-dark sm:w-auto">
                   {editingSupplier ? "Atualizar" : "Criar"}
                 </Button>
               </div>

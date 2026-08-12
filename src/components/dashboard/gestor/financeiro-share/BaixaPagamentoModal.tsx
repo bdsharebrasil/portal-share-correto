@@ -273,11 +273,12 @@ export default function BaixaPagamentoModal({
       const { data } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, percentual_sociedade, tipo_rateio, periodicidade, valor_total_despesa, valor_rateado, valor_pago_real, pago_por, status",
+          "id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, percentual_sociedade, tipo_rateio, periodicidade, valor_total, valor_rateado, valor_pago_real, pago_por, status",
         )
         .eq("despesa_id", mov.id);
-      const rows = ((data as RateioRow[]) || []).map((r) => ({
+      const rows = ((data as any[]) || []).map((r) => ({
         ...r,
+        valor_total_despesa: (r as any).valor_total ?? null,
         // Sugestão: o cotista paga o que lhe foi rateado
         valor_pago_real:
           r.valor_pago_real === null || r.valor_pago_real === undefined

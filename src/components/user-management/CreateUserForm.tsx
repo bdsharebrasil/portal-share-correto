@@ -18,6 +18,37 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import type { AppRole } from "@/lib/roles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  const splitAt = digits.length > 10 ? 7 : 6;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, splitAt)}-${digits.slice(splitAt)}`;
+};
+
+const formatCPF = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  return digits
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+};
+
+const formatRG = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 9);
+  return digits
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1-$2");
+};
+
+const formatAccount = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 12);
+  return digits.length > 1 ? `${digits.slice(0, -1)}-${digits.slice(-1)}` : digits;
+};
+
+const onlyDigits = (value: string, maxLength: number) => value.replace(/\D/g, "").slice(0, maxLength);
+
 // Mapeamento de setor para role
 const DEPARTMENT_TO_ROLE_MAP: Record<string, AppRole> = {
   "financeiro": "financeiro",
@@ -26,7 +57,7 @@ const DEPARTMENT_TO_ROLE_MAP: Record<string, AppRole> = {
   "ctm": "operacoes",
   "tripulacao": "tripulante",
   "piloto_chefe": "piloto_chefe",
-  "administrativo": "adm",
+  "administrativo": "administrativo",
   "coordenacao_voo": "coordenador_de_voo",
 };
 
@@ -35,9 +66,9 @@ const colaboradorSchema = z.object({
   password: z.string().optional(),
   full_name: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
-  phone: z.string().optional(),
+  telefone: z.string().optional(),
   birth_date: z.string().optional(),
-  address: z.string().optional(),
+  endereco: z.string().optional(),
   admission_date: z.string().optional(),
   cpf: z.string().optional(),
   rg: z.string().optional(),
@@ -74,9 +105,9 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
       password: "",
       full_name: "",
       email: "",
-      phone: "",
+      telefone: "",
       birth_date: "",
-      address: "",
+      endereco: "",
       admission_date: "",
       cpf: "",
       rg: "",
@@ -101,7 +132,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.tipo.startsWith('image/')) {
+      if (!file.type.startsWith('image/')) {
         toast({
           title: "Erro",
           description: "Por favor, selecione um arquivo de imagem.",
@@ -129,7 +160,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   const uploadAvatar = async (uniqueId: string): Promise<string | null> => {
     if (!avatarFile) return null;
 
-    const fileExt = avatarFile.nome.split('.').pop();
+    const fileExt = avatarFile.name.split('.').pop();
     const filePath = `${uniqueId}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -268,6 +299,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
       setAvatarFile(null);
       setAvatarPreview("");
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["all-users-combined"] });
     } catch (error: any) {
       console.error("Error creating user:", error);
@@ -377,6 +409,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
 
       clienteForm.reset();
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["all-users-combined"] });
     } catch (error: any) {
       console.error("Error creating user:", error);
@@ -539,7 +572,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Telefone</FormLabel>
                             <FormControl>
-                              <Input placeholder="(11) 99999-9999" {...field} />
+                              <Input
+                                inputMode="tel"
+                                placeholder="(11) 99999-9999"
+                                value={field.value}
+                                onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -553,7 +591,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Data de Nascimento</FormLabel>
                             <FormControl>
-                              <Input type="data" {...field} />
+                              <Input type="date" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -567,7 +605,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>CPF</FormLabel>
                             <FormControl>
-                              <Input placeholder="000.000.000-00" {...field} />
+                              <Input
+                                inputMode="numeric"
+                                placeholder="000.000.000-00"
+                                value={field.value}
+                                onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -581,7 +624,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>RG</FormLabel>
                             <FormControl>
-                              <Input placeholder="00.000.000-0" {...field} />
+                              <Input
+                                inputMode="numeric"
+                                placeholder="00.000.000-0"
+                                value={field.value}
+                                onChange={(e) => field.onChange(formatRG(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -595,7 +643,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>CANAC</FormLabel>
                             <FormControl>
-                              <Input placeholder="000000" {...field} />
+                              <Input
+                                inputMode="numeric"
+                                placeholder="000000"
+                                value={field.value}
+                                onChange={(e) => field.onChange(onlyDigits(e.target.value, 6))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -635,14 +688,14 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="financeiro">Setor Financeiro</SelectItem>
-                                <SelectItem value="financeiro_master">Setor Financeiro Master</SelectItem>
-                                <SelectItem value="rh">Setor RH</SelectItem>
-                                <SelectItem value="ctm">Setor CTM</SelectItem>
-                                <SelectItem value="tripulacao">Setor Tripulação</SelectItem>
-                                <SelectItem value="piloto_chefe">Setor Piloto Chefe</SelectItem>
-                                <SelectItem value="administrativo">Setor Administrativo</SelectItem>
-                                <SelectItem value="coordenacao_voo">Setor Coordenação de Voo</SelectItem>
+                                <SelectItem value="financeiro">FINANCEIRO</SelectItem>
+                                <SelectItem value="financeiro_master">FINANCEIRO MASTER</SelectItem>
+                                <SelectItem value="rh">RH</SelectItem>
+                                <SelectItem value="ctm">OPERAÇÕES-CTM</SelectItem>
+                                <SelectItem value="tripulacao">TRIPULAÇÃO</SelectItem>
+                                <SelectItem value="piloto_chefe">PILOTO CHEFE</SelectItem>
+                                <SelectItem value="administrativo">ADMINISTRATIVO</SelectItem>
+                                <SelectItem value="coordenacao_voo">OPERAÇÕES - COORDENADOR DE VOO</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -657,7 +710,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Data de Admissão</FormLabel>
                             <FormControl>
-                              <Input type="data" {...field} />
+                              <Input type="date" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -691,7 +744,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Agência</FormLabel>
                             <FormControl>
-                              <Input placeholder="0001" {...field} />
+                              <Input
+                                inputMode="numeric"
+                                placeholder="0001"
+                                value={field.value}
+                                onChange={(e) => field.onChange(onlyDigits(e.target.value, 4))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -705,7 +763,12 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Conta</FormLabel>
                             <FormControl>
-                              <Input placeholder="12345-6" {...field} />
+                              <Input
+                                inputMode="numeric"
+                                placeholder="12345-6"
+                                value={field.value}
+                                onChange={(e) => field.onChange(formatAccount(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

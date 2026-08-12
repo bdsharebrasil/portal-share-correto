@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+<<<<<<< HEAD
+import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
+=======
 import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
+>>>>>>> refs/remotes/origin/main
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
@@ -878,11 +882,12 @@ export function FuelRecordsByAircraft({
             data_vencimento: dataVencimento,
             data_pagamento: pago ? formData.data_pagamento : null,
             fornecedor_nome: fornecedorNome,
-            clientes_id: clienteIdParaRateio,
+            cliente_id: clienteIdParaRateio,
             socio_id: socio.id,
             aeronave_id: aircraft.id,
+            aeronave_registro: aircraft.matricula,
             descricao_despesa: descricao,
-            valor_total_despesa: valorTotal,
+            valor_total: valorTotal,
             valor_rateado: valorPorSocio,
             pago_por: "CLIENTE",
             status: "pendente",
@@ -900,6 +905,114 @@ export function FuelRecordsByAircraft({
       toast.error("Abastecimento salvo, mas houve erro ao gerar o rateio entre os sócios");
     }
   };
+
+  /**
+   * Propaga a edição do abastecimento (valores, datas, status e anexos)
+   * para o rateio de despesas, as movimentações e o contas a pagar ligados a ele.
+   */
+  const atualizarLancamentosRateio = async (
+    abastecimentoId: string,
+    valorTotal: number,
+    notaUrl: string,
+    boletoUrl: string,
+    comprovanteUrl: string
+  ) => {
+    try {
+      const { data: rateios, error: rateioFetchError } = await (supabase as any)
+        .from("rateio_despesas")
+        .select("id, despesa_id")
+        .eq("abastecimento_id", abastecimentoId);
+
+      if (rateioFetchError) {
+        console.error("Erro ao buscar rateios do abastecimento:", rateioFetchError);
+        return;
+      }
+      if (!rateios || rateios.length === 0) return;
+
+      const descricao = `Abastecimento ${formData.trecho || ""}`.trim();
+      const fornecedorNome = formData.abastecedor_id
+        ? suppliers.find(s => s.id === formData.abastecedor_id)?.nome_fornecedor || null
+        : null;
+      const pago = formData.status === "pago";
+      const dataVencimento = formData.status === "pendente"
+        ? (formData.data_vencimento_boleto || formData.data)
+        : formData.data;
+      const dataPagamento = pago ? formData.data_pagamento : null;
+      const valorPorSocio = valorTotal / rateios.length;
+
+      const comuns = {
+        data_vencimento: dataVencimento,
+        data_pagamento: dataPagamento,
+        fornecedor_nome: fornecedorNome,
+        descricao_despesa: descricao,
+        valor_total: valorTotal,
+        valor_rateado: valorPorSocio,
+        status: pago ? "pago" : "pendente",
+        numero_nf: formData.nf || null,
+        nf_url: notaUrl || null,
+        boleto_url: boletoUrl || null,
+        comprovante_url: comprovanteUrl || null,
+      };
+
+      const { error: ratUpdError } = await (supabase as any)
+        .from("rateio_despesas")
+        .update(comuns)
+        .eq("abastecimento_id", abastecimentoId);
+      if (ratUpdError) console.error("Erro ao atualizar rateio:", ratUpdError);
+
+      const movIds = rateios.map((r: any) => r.despesa_id).filter(Boolean);
+      if (movIds.length) {
+        const { data: movs, error: movUpdError } = await (supabase as any)
+          .from("movimentacoes")
+          .update({
+            descricao,
+            valor_rateado: valorPorSocio,
+            data_emissao: formData.data,
+            data_vencimento: dataVencimento,
+            data_pagamento: dataPagamento,
+            status: pago ? "pago" : "pendente",
+            forma_pagamento: formData.tipo_faturamento || null,
+            fornecedor_nome: fornecedorNome,
+            numero_nf: formData.nf || null,
+            nf_url: notaUrl || null,
+            boleto_url: boletoUrl || null,
+            comprovante_url: comprovanteUrl || null,
+          })
+          .in("id", movIds)
+          .select("contas_apagar_id");
+        if (movUpdError) console.error("Erro ao atualizar movimentações:", movUpdError);
+
+        const capIds = Array.from(
+          new Set((movs || []).map((m: any) => m.contas_apagar_id).filter(Boolean))
+        );
+        if (capIds.length) {
+          const { error: capUpdError } = await (supabase as any)
+            .from("contas_apagar")
+            .update({
+              descricao,
+              valor: valorTotal,
+              status: pago ? "pago" : "pendente",
+              data_vencimento: dataVencimento,
+              data_pagamento: dataPagamento,
+              fornecedor_nome: fornecedorNome,
+              nf_numero: formData.nf || null,
+              possui_nf: !!formData.nf,
+              nf_url: notaUrl || null,
+              possui_boleto: !!boletoUrl,
+              boleto_url: boletoUrl || null,
+              comprovante_pagamento_url: comprovanteUrl || null,
+            })
+            .in("id", capIds);
+          if (capUpdError) console.error("Erro ao atualizar contas a pagar:", capUpdError);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao sincronizar rateio do abastecimento:", err);
+      toast.error("Abastecimento atualizado, mas houve erro ao sincronizar o rateio");
+    }
+  };
+
+
 
   async function saveRecord() {
     setIsUploading(true);
@@ -1037,6 +1150,7 @@ export function FuelRecordsByAircraft({
           toast.error(`Erro ao atualizar: ${getErrorMessage(error)}`);
           return;
         }
+        await atualizarLancamentosRateio(editingRecord.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
         toast.success("Registro atualizado com sucesso");
       } else {
         const { data: inserted, error } = await supabase
@@ -1356,7 +1470,10 @@ export function FuelRecordsByAircraft({
         </Button>
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
+<<<<<<< HEAD
+=======
             <Plane className="h-5 w-5 text-primary" />
+>>>>>>> refs/remotes/origin/main
             Registros de Abastecimento
           </h2>
           <p className="mt-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
@@ -1366,7 +1483,11 @@ export function FuelRecordsByAircraft({
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Exibir data</span>
           <Select value={dateColumnType} onValueChange={(value) => setDateColumnType(value as 'data' | 'data_pagamento')}>
+<<<<<<< HEAD
+            <SelectTrigger className="h-9 w-48">
+=======
             <SelectTrigger className="h-9 w-48 text-sm">
+>>>>>>> refs/remotes/origin/main
               <SelectValue placeholder="Data" />
             </SelectTrigger>
             <SelectContent>
@@ -1951,7 +2072,11 @@ export function FuelRecordsByAircraft({
       <Card className="overflow-hidden border-border/60 bg-slate-950/30 shadow-none">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
+<<<<<<< HEAD
+            <Table className="min-w-[1120px] overflow-hidden rounded-lg">
+=======
             <Table className="min-w-[1120px]">
+>>>>>>> refs/remotes/origin/main
               <TableHeader className="bg-slate-950/75">
                 <TableRow className="border-b border-border/60 hover:bg-transparent">
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

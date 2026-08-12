@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, lazy, Suspense, useEffect } from 'react';
-import { Menu, LogOut, User, Users, Clock } from 'lucide-react';
+import { Menu, LogOut, User, Users, Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,13 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import WeatherWidget from '@/components/weather/WeatherWidget';
 import { ViewModeToggle } from '@/components/dashboard/ViewModeToggle';
 import { BirthdayAlert } from '@/components/notificacoes/BirthdayAlert';
+
 const NotificationBell = lazy(() => import("@/components/notificacoes/NotificationBell"));
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
+
 const getInitials = (input: string | null | undefined) => {
   if (!input) {
     return "";
@@ -29,27 +32,16 @@ const getInitials = (input: string | null | undefined) => {
   }
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 };
-export const Header: React.FC<HeaderProps> = ({
-  onMenuClick
-}) => {
+
+export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    user,
-    roles,
-    signOut
-  } = useAuth();
-  const {
-    isAdmin,
-    isGestorMaster
-  } = useUserRole();
-  const {
-    profile
-  } = useUserProfile(user, {
+  const { toast } = useToast();
+  const { user, roles, signOut } = useAuth();
+  const { isAdmin, isGestorMaster } = useUserRole();
+  const { profile } = useUserProfile(user, {
     skipCreation: Boolean(isAdmin || isGestorMaster)
   });
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -77,11 +69,11 @@ export const Header: React.FC<HeaderProps> = ({
     });
   };
 
-  // Regras de acesso refinadas
   const canManageUsersGlobal = useMemo(() => roles.includes("admin") || roles.includes("gestor_master"), [roles]);
   const displayName = useMemo(() => profile?.display_name ?? profile?.full_name ?? user?.email ?? "Usuário", [profile?.display_name, profile?.full_name, user?.email]);
   const email = profile?.email ?? user?.email ?? "";
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
+
   const handleLogout = useCallback(async () => {
     try {
       await signOut();
@@ -100,114 +92,134 @@ export const Header: React.FC<HeaderProps> = ({
       });
     }
   }, [navigate, toast, signOut]);
-  return <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-primary/5 to-secondary/5 border z-50 shadow-lg" style={{ borderColor: 'rgba(45, 52, 67, 0.09)' }}>
-    <div className="flex items-center justify-between h-full px-2 sm:px-4 lg:px-6 shadow-card bg-[#0f121a]/[0.86]">
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="md:hidden h-10 w-10 p-0"
-        onClick={onMenuClick}
-        title="Abrir menu">
-        <Menu className="h-5 w-5" />
-      </Button>
 
-      <div className="md:hidden flex-1 min-w-0 mx-1 overflow-x-auto">
-        <ViewModeToggle />
-      </div>
+  return (
+    <header className="fixed top-0 left-0 right-0 h-16 z-50 border-b border-border/40 bg-background/70 backdrop-blur-md shadow-sm transition-all">
+      <div className="flex items-center justify-between h-full px-3 sm:px-6 max-w-[100vw] overflow-visible">
+        
+        {/* Mobile menu button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="md:hidden h-10 w-10 p-0 hover:bg-secondary/50 rounded-full transition-colors"
+          onClick={onMenuClick}
+          title="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
 
-      {/* Seção Esquerda - vazia */}
-      <div className="hidden md:flex items-center gap-4">
-      </div>
+        <div className="md:hidden flex-1 min-w-0 mx-2 overflow-x-auto">
+          <ViewModeToggle />
+        </div>
 
-      {/* View Mode Toggle & Search - Center (hidden on mobile) */}
-      <div className="hidden lg:flex items-center gap-4">
-        <ViewModeToggle />
-        <div className="relative w-64">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <Input placeholder="Buscar..." className="pl-10 bg-background/50 border-border text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+        {/* View Mode & Search - Desktop */}
+        <div className="hidden lg:flex items-center gap-4 flex-1">
+          <ViewModeToggle />
+          
+          {/* Modern Search Bar */}
+          <div className="relative group w-64 transition-all duration-300 focus-within:w-72">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input 
+              placeholder="Buscar..." 
+              className="pl-9 h-9 bg-secondary/30 border-transparent focus:border-primary/50 focus:bg-background rounded-full transition-all text-sm shadow-none" 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+            />
+          </div>
+        </div>
+
+        {/* View Mode Toggle (Tablet) */}
+        <div className="hidden md:flex lg:hidden items-center gap-2">
+          <ViewModeToggle />
+        </div>
+
+        {/* Right Section: Widgets & Profile */}
+        <div className="flex items-center justify-end gap-2 sm:gap-3 ml-auto shrink-0 relative z-[60]">
+          
+          {/* Combined Clock Widget */}
+          <div className="hidden xl:flex items-center bg-secondary/30 rounded-full border border-border/50 p-1 shadow-inner backdrop-blur-sm shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background shadow-sm border border-border/40">
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <p className="text-sm font-semibold text-foreground font-mono tracking-tight">
+                {formatTime(currentTime)}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1">
+              <span className="text-[10px] font-bold tracking-widest text-primary/80">UTC</span>
+              <p className="text-sm font-medium text-muted-foreground font-mono">
+                {formatUtcTime(currentTime)}
+              </p>
+            </div>
+          </div>
+
+          {/* METAR / Weather Widget Wrapper */}
+          <div className="hidden md:flex items-center justify-center bg-secondary/20 border border-border/40 rounded-full px-3 py-1 hover:bg-secondary/40 transition-colors shadow-sm h-9 shrink-0 relative z-[70] overflow-visible">
+            <WeatherWidget />
+          </div>
+
+          <BirthdayAlert />
+
+          <Suspense fallback={<div className="w-8 h-8 rounded-full bg-secondary/50 animate-pulse" />}>
+            <div className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-secondary/40 transition-colors cursor-pointer">
+              <NotificationBell />
+            </div>
+          </Suspense>
+
+          {/* User Profile Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                <Avatar className="h-9 w-9 border border-border/50 shadow-sm">
+                  <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="object-cover" />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-semibold text-xs">
+                    {avatarInitials || <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl rounded-xl p-1 mt-2" align="end">
+              <DropdownMenuLabel className="space-y-1.5 p-3">
+                <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
+                {email && <p className="text-xs text-muted-foreground truncate">{email}</p>}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-border/50 mx-2" />
+
+              <div className="p-1 space-y-0.5">
+                <DropdownMenuItem className="text-foreground rounded-lg hover:bg-secondary/60 cursor-pointer py-2.5 transition-colors" onSelect={(event) => {
+                  event.preventDefault();
+                  navigate("/perfil");
+                }}>
+                  <User className="mr-2.5 h-4 w-4 text-primary/70" />
+                  Meu Perfil
+                </DropdownMenuItem>
+
+                {canManageUsersGlobal && (
+                  <DropdownMenuItem className="text-foreground rounded-lg hover:bg-secondary/60 cursor-pointer py-2.5 transition-colors" onSelect={(event) => {
+                    event.preventDefault();
+                    navigate("/gerenciar-usuarios");
+                  }}>
+                    <Users className="mr-2.5 h-4 w-4 text-primary/70" />
+                    Gestão de Usuário
+                  </DropdownMenuItem>
+                )}
+              </div>
+
+              <DropdownMenuSeparator className="bg-border/50 mx-2" />
+
+              <div className="p-1">
+                <DropdownMenuItem className="text-destructive rounded-lg hover:bg-destructive/15 cursor-pointer py-2.5 transition-colors focus:bg-destructive/15" onSelect={(event) => {
+                  event.preventDefault();
+                  void handleLogout();
+                }}>
+                  <LogOut className="mr-2.5 h-4 w-4" />
+                  Sair da Conta
+                </DropdownMenuItem>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
       </div>
-
-      {/* View Mode Toggle only - visible on md+ but not lg */}
-      <div className="hidden md:flex lg:hidden items-center gap-2">
-        <ViewModeToggle />
-      </div>
-
-      {/* Clock - hidden on mobile, visible on sm+ */}
-      <div className="hidden sm:flex items-center gap-2 px-2 sm:px-3 py-1 rounded-lg bg-background/40 border border-border/50 backdrop-blur-sm">
-        <Clock className="h-4 w-4 text-primary" />
-        <p className="text-xs sm:text-sm font-semibold text-foreground font-mono">
-          {formatTime(currentTime)}
-        </p>
-      </div>
-
-      {/* UTC Clock */}
-      <div className="hidden sm:flex items-center gap-2 px-2 sm:px-3 py-1 ml-1 sm:ml-2 rounded-lg bg-background/40 border border-border/50 backdrop-blur-sm">
-        <span className="text-[10px] font-bold tracking-wider text-primary">UTC</span>
-        <p className="text-xs sm:text-sm font-semibold text-foreground font-mono">
-          {formatUtcTime(currentTime)}
-        </p>
-      </div>
-
-      {/* Seção Direita */}
-      <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
-        <BirthdayAlert />
-
-<WeatherWidget />
-        <Suspense fallback={null}>
-          <NotificationBell />
-        </Suspense>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 sm:h-10 w-8 sm:w-10 rounded-full p-0 border-2 border-primary hover:bg-accent">
-              <Avatar className="h-8 sm:h-10 w-8 sm:w-10">
-                <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
-                  {avatarInitials || <User className="h-3 sm:h-4 w-3 sm:w-4" />}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 sm:w-64 bg-card border-border shadow-elevated" align="end">
-            <DropdownMenuLabel className="space-y-1">
-              <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{displayName}</p>
-              {email && <p className="text-xs text-muted-foreground truncate">{email}</p>}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-border" />
-
-            <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              navigate("/perfil");
-            }}>
-              <User className="mr-2 h-4 w-4" />
-              Meu Perfil
-            </DropdownMenuItem>
-
-            {canManageUsersGlobal && <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              navigate("/gerenciar-usuarios");
-            }}>
-              <Users className="mr-2 h-4 w-4" />
-              Gestão de Usuário
-            </DropdownMenuItem>}
-
-            <DropdownMenuSeparator className="bg-border" />
-
-            <DropdownMenuItem className="text-destructive hover:bg-destructive/10 cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              void handleLogout();
-            }}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-      </div>
-    </div>
-  </header>;
+    </header>
+  );
 };

@@ -6707,6 +6707,7 @@ export type Database = {
           criado_por: string | null
           data_emissao: string | null
           data_pagamento: string | null
+          data_vencimento: string | null
           descricao: string
           despesa_cliente_direto_id: string | null
           enviado_por_email: boolean
@@ -6739,9 +6740,13 @@ export type Database = {
           status: string
           tipo_caixa: string | null
           tipo_rateio: string | null
+<<<<<<< HEAD
+=======
           valor_original: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real: number | null
           valor_rateado: number
+          valor_total: number | null
         }
         Insert: {
           aeronave_id?: string | null
@@ -6758,6 +6763,7 @@ export type Database = {
           criado_por?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_vencimento?: string | null
           descricao: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
@@ -6790,9 +6796,13 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
+<<<<<<< HEAD
+=======
           valor_original?: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real?: number | null
           valor_rateado: number
+          valor_total?: number | null
         }
         Update: {
           aeronave_id?: string | null
@@ -6809,6 +6819,7 @@ export type Database = {
           criado_por?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_vencimento?: string | null
           descricao?: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
@@ -6841,9 +6852,13 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
+<<<<<<< HEAD
+=======
           valor_original?: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real?: number | null
           valor_rateado?: number
+          valor_total?: number | null
         }
         Relationships: [
           {
@@ -8063,7 +8078,7 @@ export type Database = {
           tipo_rateio: string | null
           valor_pago_real: number | null
           valor_rateado: number | null
-          valor_total_despesa: number | null
+          valor_total: number | null
         }
         Insert: {
           abastecimento_id?: string | null
@@ -8116,7 +8131,7 @@ export type Database = {
           tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado?: number | null
-          valor_total_despesa?: number | null
+          valor_total?: number | null
         }
         Update: {
           abastecimento_id?: string | null
@@ -8169,7 +8184,7 @@ export type Database = {
           tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado?: number | null
-          valor_total_despesa?: number | null
+          valor_total?: number | null
         }
         Relationships: [
           {
@@ -8283,7 +8298,7 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           cidade_pagador: string | null
-          cliente_id: string | null
+          clientes_id: string | null
           compartilhado: boolean | null
           competencia_decea: string | null
           competencia_infraero: string | null
@@ -8323,7 +8338,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8363,7 +8378,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8421,8 +8436,8 @@ export type Database = {
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "receipts_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "recibos_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
