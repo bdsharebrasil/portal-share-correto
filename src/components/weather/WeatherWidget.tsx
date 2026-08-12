@@ -321,23 +321,12 @@ const CSS = `
   .wc-front {
     display: flex;
     align-items: center;
-<<<<<<< HEAD
     gap: 8px;
     height: 100%; /* Ajusta à altura do container pai no Header */
     min-height: 36px;
     padding: 0 12px 0 10px;
     background: var(--wc-bg);
     border-radius: 99px; /* Formato Pílula */
-=======
-    gap: -8px;
-    height: 38px;
-    margin-left: -48px;
-    margin-right: -48px;
-    padding: 0;
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.10);
->>>>>>> refs/remotes/origin/main
     cursor: default;
     transition: background 0.3s ease;
     white-space: nowrap;
@@ -490,23 +479,13 @@ const CSS = `
     box-shadow: 0 6px 16px -4px rgba(59, 130, 246, 0.2);
   }
 
-<<<<<<< HEAD
   .wc-airport-icao { font-weight: 800; font-size: 0.8rem; color: #3b82f6; font-family: ui-monospace, monospace; }
   .wc-airport-name { font-size: 0.65rem; color: #64748b; text-align: center; line-height: 1.3; }
 
   /* Modal Escuro */
-  .wc-overlay.wc-night-modal .wc-modal { background: #5b6c92ff; border: 1px solid rgba(255,255,255,0.1); }
+  .wc-overlay.wc-night-modal .wc-modal { background: #5b6c92ff; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,.6); }
   .wc-overlay.wc-night-modal .wc-modal-title { color: #f8fafc; }
   .wc-overlay.wc-night-modal .wc-airport-btn { background: #1e293b; border-color: #334155; }
   .wc-overlay.wc-night-modal .wc-airport-btn:hover { border-color: #3b82f6; background: #0f172a; }
   .wc-overlay.wc-night-modal .wc-airport-name { color: #94a3b8; }
 `;
-=======
-  /* Dark mode para o modal */
-  .wc-overlay.wc-night-modal .wc-modal { background: #1e1e24; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
-  .wc-overlay.wc-night-modal .wc-modal-title { color: #f5f5f5; }
-  .wc-overlay.wc-night-modal .wc-airport-btn { background: #2a2a35; border-color: #3f3f4e; }
-  .wc-overlay.wc-night-modal .wc-airport-btn:hover { border-color: #667eea; background: #323242; }
-  .wc-overlay.wc-night-modal .wc-airport-name { color: #a0a0a0; }
-`;
->>>>>>> refs/remotes/origin/main

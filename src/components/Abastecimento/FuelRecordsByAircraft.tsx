@@ -9,11 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-<<<<<<< HEAD
-import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
-=======
 import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
->>>>>>> refs/remotes/origin/main
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
@@ -1470,10 +1466,7 @@ export function FuelRecordsByAircraft({
         </Button>
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
-<<<<<<< HEAD
-=======
             <Plane className="h-5 w-5 text-primary" />
->>>>>>> refs/remotes/origin/main
             Registros de Abastecimento
           </h2>
           <p className="mt-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">
@@ -1483,11 +1476,7 @@ export function FuelRecordsByAircraft({
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Exibir data</span>
           <Select value={dateColumnType} onValueChange={(value) => setDateColumnType(value as 'data' | 'data_pagamento')}>
-<<<<<<< HEAD
-            <SelectTrigger className="h-9 w-48">
-=======
             <SelectTrigger className="h-9 w-48 text-sm">
->>>>>>> refs/remotes/origin/main
               <SelectValue placeholder="Data" />
             </SelectTrigger>
             <SelectContent>
@@ -2072,11 +2061,7 @@ export function FuelRecordsByAircraft({
       <Card className="overflow-hidden border-border/60 bg-slate-950/30 shadow-none">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-<<<<<<< HEAD
             <Table className="min-w-[1120px] overflow-hidden rounded-lg">
-=======
-            <Table className="min-w-[1120px]">
->>>>>>> refs/remotes/origin/main
               <TableHeader className="bg-slate-950/75">
                 <TableRow className="border-b border-border/60 hover:bg-transparent">
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
