@@ -329,18 +329,37 @@ export default function FinanceiroCotistaDetalhe() {
           </div>
         </div>
 
-        {aeronaveInfo?.id ? (
-          <BalancoCotista
-            aeronaveId={aeronaveInfo.id}
-            clienteId={clienteId!}
-            matricula={aeronaveInfo.matricula}
-            modelo={aeronaveInfo.modelo}
-          />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-            Esta conta não possui uma aeronave vinculada.
-          </div>
-        )}
+        <Tabs defaultValue="financeiro" className="space-y-6">
+          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-muted/50 p-1">
+            <TabsTrigger value="financeiro" className="gap-2 px-4 py-2.5">
+              <Wallet className="h-4 w-4" />
+              Financeiro
+            </TabsTrigger>
+            <TabsTrigger value="acesso-portal" className="gap-2 px-4 py-2.5">
+              <KeyRound className="h-4 w-4" />
+              Acesso ao Portal
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="financeiro" className="mt-0">
+            {aeronaveInfo?.id ? (
+              <BalancoCotista
+                aeronaveId={aeronaveInfo.id}
+                clienteId={clienteId!}
+                matricula={aeronaveInfo.matricula}
+                modelo={aeronaveInfo.modelo}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+                Esta conta não possui uma aeronave vinculada.
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="acesso-portal" className="mt-0">
+            <GerenciarAcessoPortal clienteId={clienteId!} />
+          </TabsContent>
+        </Tabs>
 
         {/* Drill-down dos cards do topo */}
         <DrillDownModal

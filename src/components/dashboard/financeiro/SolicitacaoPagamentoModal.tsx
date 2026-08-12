@@ -1,6 +1,7 @@
 // @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
 import { SetStateAction, useEffect, useMemo, useState } from "react";
-import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -292,6 +293,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     assunto: string;
     mensagem: string;
     anexos: AnexoEmail[];
+    referenceIds: string[];
   } | null>(null);
 
   const [fuelComanda, setFuelComanda] = useState("");
@@ -299,6 +301,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [fuelLookupLoading, setFuelLookupLoading] = useState(false);
   const [fuelLookupResult, setFuelLookupResult] = useState<AbastecimentoLookup | null>(null);
   const [fuelLookupSearched, setFuelLookupSearched] = useState(false);
+
+  const navigate = useNavigate();
 
   const [novoAbastOpen, setNovoAbastOpen] = useState(false);
   const [novoAbastSaving, setNovoAbastSaving] = useState(false);
@@ -1353,6 +1357,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id ?? null;
+      const movimentacaoIdsCriadas: string[] = [];
 
       const dataVenc = format(dataVencimento!, "yyyy-MM-dd");
       const dataComp = format(dataEmissao || new Date(), "yyyy-MM-dd");
@@ -1390,8 +1395,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             numero_nf: pickNumero(anexosShare, "nf"), numero_recibo: pickNumero(anexosShare, "recibo"),
             numero_boleto: pickNumero(anexosShare, "boleto"), numero_doc: pickNumero(anexosShare, "doc"),
             nf_url: nfUrlShare, recibo_url: reciboUrlShare, boleto_url: boletoUrlShare, comprovante_url: docUrlShare,
-            observacoes: observacoes || null, contas_apagar_id: capIdShare, criado_por: userId,
+            observacoes: observacoes || null, contas_apagar_id: capIdShare,
+            reference_type: "solicitacao_pagamento", criado_por: userId,
           });
+          movimentacaoIdsCriadas.push(movIdShare);
         } catch (movErr) {
           await supabase.from("contas_apagar").delete().eq("id", capIdShare);
           throw movErr;
@@ -1517,6 +1524,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               ...(index === 0 ? { reference_type: "travel_expense_report", reference_id: travelReportSel.id } : {}),
               criado_por: userId,
             });
+            movimentacaoIdsCriadas.push(movId);
           } catch (movErr) {
             await supabase.from("contas_apagar").delete().eq("id", capId);
             throw movErr;
@@ -1641,6 +1649,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 reference_id: referenciaTipo && referenciaId ? referenciaId : null,
                 criado_por: userId,
               });
+              movimentacaoIdsCriadas.push(movId);
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
             }
           } catch (movErr) {
@@ -1743,6 +1752,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
                 observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
               });
+              movimentacaoIdsCriadas.push(movId);
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
             }
           } catch (movErr) {
@@ -1918,6 +1928,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         setEmailPayload({
           clienteId: clienteEmailId,
           assunto: `Solicitação de pagamento — ${descricao || "Despesa"}${aeronaveSel?.matricula ? ` (${aeronaveSel.matricula})` : ""}`,
+          referenceIds: movimentacaoIdsCriadas,
           mensagem:
             `Olá${clienteNome ? ` ${clienteNome}` : ""},\n\n` +
             `Segue a solicitação de pagamento referente a: ${descricao || "despesa"}.\n` +
@@ -1992,7 +2003,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 })}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 pt-2">
+              <div className="grid gap-3 sm:grid-cols-3 pt-2">
                 <Button
                   disabled={!modo}
                   className="h-auto min-h-16 flex-col items-center justify-center gap-2"
@@ -2011,6 +2022,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 >
                   <FileText className="h-5 w-5 text-blue-400" />
                   <span className="text-sm">Abrir Relatórios de Viagem em fluxo</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto min-h-16 flex-col items-center justify-center gap-2 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/60"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate("/financeiro/historico-programacao-pagamentos");
+                  }}
+                >
+                  <History className="h-5 w-5 text-emerald-400" />
+                  <span className="text-sm">Histórico de programação</span>
                 </Button>
               </div>
             </section>
@@ -3168,7 +3190,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         mensagemSugerida={emailPayload?.mensagem || ""}
         anexos={emailPayload?.anexos || []}
         tipo="solicitacao_pagamento"
-        referenceType="contas_apagar"
+        referenceType="movimentacoes"
+        referenceIds={emailPayload?.referenceIds || []}
       />
     </Dialog>
   );
