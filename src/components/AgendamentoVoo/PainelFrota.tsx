@@ -1,6 +1,10 @@
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Plane, Wrench, CheckCircle2, CalendarClock, CalendarCheck, CalendarX } from "lucide-react";
+import { Plane, Wrench, CheckCircle2, CalendarClock, CalendarCheck, CalendarX, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { cn } from "@/lib/utils";
 import {
   Aeronave,
@@ -39,25 +43,78 @@ interface Props {
 
 export function PainelFrota({ aeronaves, bloqueios, statusFrota, disponibilidade = [], configs = [], dia }: Props) {
   const { definirStatusAeronave, definirAgendamentoHabilitado } = useAgendamentoMutations();
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<string>("todos");
+  const [recolhidos, setRecolhidos] = useState<Record<string, boolean>>({});
 
+  const lista = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return aeronaves.filter((a) => {
+      const alvo = `${a.matricula} ${a.modelo ?? ""} ${a.fabricante ?? ""}`.toLowerCase();
+      const okBusca = !termo || alvo.includes(termo);
+      const { situacao } = calcularSituacaoAeronave(a, dia, bloqueios, statusFrota);
+      const okFiltro = filtro === "todos" || situacao === filtro;
+      return okBusca && okFiltro;
+    });
+  }, [aeronaves, busca, filtro, dia, bloqueios, statusFrota]);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Painel da Frota</h2>
-        <span className="text-xs text-muted-foreground">
-          {aeronaves.length} aeronave(s) · {format(dia, "dd/MM/yyyy")}
-        </span>
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Painel da Frota</h2>
+          <span className="text-xs text-muted-foreground">
+            {lista.length} de {aeronaves.length} aeronave(s) · {format(dia, "dd/MM/yyyy")}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar aeronave"
+              className="h-8 w-44 pl-8 text-xs"
+            />
+          </div>
+          <Select value={filtro} onValueChange={setFiltro}>
+            <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas situações</SelectItem>
+              {Object.entries(SITUACAO_META).map(([k, v]) => (
+                <SelectItem key={k} value={k}>
+                  {v.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {aeronaves.map((a) => {
+        {lista.map((a) => {
           const { situacao, detalhe } = calcularSituacaoAeronave(a, dia, bloqueios, statusFrota);
           const meta = SITUACAO_META[situacao];
           const disp = disponibilidade.find((d) => d.id === a.id || d.registro === a.matricula);
           const agendavel = isAgendamentoHabilitado(a.id, configs);
+          const recolhido = recolhidos[a.id] ?? false;
           return (
             <article key={a.id} className="overflow-hidden rounded-xl border border-border/60 bg-background/40">
+              <button
+                type="button"
+                onClick={() => setRecolhidos((p) => ({ ...p, [a.id]: !recolhido }))}
+                className="flex w-full items-center justify-between gap-2 border-b border-border/50 px-3 py-2 text-left transition-colors hover:bg-accent/30"
+              >
+                <span className="truncate text-xs font-semibold text-foreground">{a.matricula}</span>
+                <span className="flex items-center gap-2">
+                  <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", meta.className)}>{meta.label}</span>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", recolhido && "-rotate-90")} />
+                </span>
+              </button>
+
+              <div className={cn(recolhido && "hidden")}>
               <div className="relative h-28 w-full bg-muted">
                 {a.url_imagem ? (
                   <img
@@ -71,16 +128,9 @@ export function PainelFrota({ aeronaves, bloqueios, statusFrota, disponibilidade
                     <Plane className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
-                <span
-                  className={cn(
-                    "absolute right-2 top-2 rounded-md px-2 py-0.5 text-[11px] font-medium backdrop-blur",
-                    meta.className,
-                  )}
-                >
-                  {meta.label}
-                </span>
               </div>
               <div className="p-3">
+
                 <p className="truncate text-sm font-semibold text-foreground">{a.modelo ?? a.fabricante ?? "—"}</p>
                 <p className="text-xs text-muted-foreground">Matrícula {a.matricula}</p>
                 {detalhe && <p className="mt-1 truncate text-[11px] text-muted-foreground">{detalhe}</p>}
@@ -149,7 +199,9 @@ export function PainelFrota({ aeronaves, bloqueios, statusFrota, disponibilidade
                 </DropdownMenu>
 
               </div>
+              </div>
             </article>
+
           );
         })}
       </div>

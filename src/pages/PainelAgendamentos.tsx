@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { CronogramaVoos } from "@/components/AgendamentoVoo/CronogramaVoos";
 import { CalendarioEscala } from "@/components/AgendamentoVoo/CalendarioEscala";
 import { SolicitacoesReserva } from "@/components/AgendamentoVoo/SolicitacoesReserva";
@@ -99,26 +101,42 @@ export default function PainelAgendamentos() {
           </div>
         </header>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <CronogramaVoos solicitacoes={solicitacoes} onSelect={(voo) => {
-              setSelectedBooking(voo);
-              setDetalhesAberto(true);
-            }} />
-          </div>
-          <CalendarioEscala
-            mes={mes}
-            onMesChange={setMes}
-            diaSelecionado={diaSelecionado}
-            onDiaSelecionado={setDiaSelecionado}
-            solicitacoes={solicitacoes}
-            bloqueios={bloqueios}
-          />
-        </div>
+        <Tabs defaultValue="painel" className="space-y-5">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="painel" className="flex-1 sm:flex-none">Painel de voos</TabsTrigger>
+            <TabsTrigger value="escala" className="flex-1 sm:flex-none">Escala & Frota</TabsTrigger>
+          </TabsList>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          <SolicitacoesReserva solicitacoes={solicitacoes} disponibilidade={disponibilidade} />
-          <div className="lg:col-span-2">
+          <TabsContent value="painel" className="space-y-5">
+            <div className="grid gap-5 lg:grid-cols-3">
+              <div className="space-y-5 lg:col-span-2">
+                <CronogramaVoos
+                  solicitacoes={solicitacoes}
+                  onSelect={(voo) => {
+                    setSelectedBooking(voo);
+                    setDetalhesAberto(true);
+                  }}
+                />
+                <SolicitacoesReserva solicitacoes={solicitacoes} disponibilidade={disponibilidade} />
+              </div>
+              <CalendarioEscala
+                mes={mes}
+                onMesChange={setMes}
+                diaSelecionado={diaSelecionado}
+                onDiaSelecionado={setDiaSelecionado}
+                solicitacoes={solicitacoes}
+                bloqueios={bloqueios}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="escala" className="space-y-5">
+            <EscalaTripulacao
+              disponibilidade={disponibilidade}
+              escala={escala}
+              aeronaves={aeronaves}
+              diaSelecionado={diaSelecionado}
+            />
             <PainelFrota
               aeronaves={aeronaves}
               bloqueios={bloqueios}
@@ -127,15 +145,9 @@ export default function PainelAgendamentos() {
               configs={configsAgendamento}
               dia={diaSelecionado}
             />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
-        <EscalaTripulacao
-          disponibilidade={disponibilidade}
-          escala={escala}
-          aeronaves={aeronaves}
-          diaSelecionado={diaSelecionado}
-        />
       </div>
 
       <DetalhesVooDialog

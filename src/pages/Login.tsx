@@ -99,17 +99,18 @@ const Login = () => {
   const isValid = hasInput && isUsernameValid();
   const showSuccessIcon = isValid && !isUsernameFocused;
 
-  // UX: Rotas intercontinentais (Ponto A -> Ponto B)
-  // Cada avião possui origem (sx, sy), destino (ex, ey), ângulo direcional e opacidade
+  // O icone Plane do lucide aponta para cima (vertical).
+  // Para voar horizontalmente precisamos de +90deg no rotate.
+  // Cada rota: origem (sx,sy) -> destino (ex,ey), angulo calculado para apontar a proa para o destino.
   const routes = [
-    { sx: "-40vw", sy: "-20vh", ex: "10vw", ey: "30vh", angle: "135deg", size: 24, op: 0.25, dur: "18s", delay: "0s" },
-    { sx: "30vw", sy: "40vh", ex: "-30vw", ey: "-10vh", angle: "-45deg", size: 16, op: 0.15, dur: "25s", delay: "3s" },
-    { sx: "-20vw", sy: "40vh", ex: "40vw", ey: "-20vh", angle: "-45deg", size: 20, op: 0.2, dur: "22s", delay: "7s" },
-    { sx: "40vw", sy: "-30vh", ex: "-10vw", ey: "40vh", angle: "140deg", size: 18, op: 0.2, dur: "20s", delay: "12s" },
-    { sx: "-35vw", sy: "10vh", ex: "35vw", ey: "15vh", angle: "90deg", size: 28, op: 0.3, dur: "28s", delay: "2s" },
-    { sx: "25vw", sy: "-40vh", ex: "-25vw", ey: "-35vh", angle: "-90deg", size: 14, op: 0.15, dur: "35s", delay: "9s" },
-    { sx: "10vw", sy: "40vh", ex: "-40vw", ey: "-30vh", angle: "-50deg", size: 22, op: 0.25, dur: "24s", delay: "15s" },
-    { sx: "-40vw", sy: "-30vh", ex: "40vw", ey: "30vh", angle: "125deg", size: 16, op: 0.15, dur: "30s", delay: "5s" },
+    { sx: "-50vw", sy: "-15vh", ex: "50vw", ey: "-10vh", angle: "90deg", size: 24, op: 0.25, dur: "18s", delay: "0s" },
+    { sx: "50vw", sy: "10vh", ex: "-50vw", ey: "15vh", angle: "-90deg", size: 16, op: 0.15, dur: "25s", delay: "3s" },
+    { sx: "-50vw", sy: "20vh", ex: "50vw", ey: "25vh", angle: "90deg", size: 20, op: 0.2, dur: "22s", delay: "7s" },
+    { sx: "50vw", sy: "-25vh", ex: "-50vw", ey: "-20vh", angle: "-90deg", size: 18, op: 0.2, dur: "20s", delay: "12s" },
+    { sx: "-50vw", sy: "5vh", ex: "50vw", ey: "0vh", angle: "90deg", size: 28, op: 0.3, dur: "28s", delay: "2s" },
+    { sx: "50vw", sy: "-35vh", ex: "-50vw", ey: "-30vh", angle: "-90deg", size: 14, op: 0.15, dur: "35s", delay: "9s" },
+    { sx: "-50vw", sy: "30vh", ex: "50vw", ey: "35vh", angle: "90deg", size: 22, op: 0.25, dur: "24s", delay: "15s" },
+    { sx: "50vw", sy: "-5vh", ex: "-50vw", ey: "5vh", angle: "-90deg", size: 16, op: 0.15, dur: "30s", delay: "5s" },
   ];
 
   return (
@@ -142,18 +143,18 @@ const Login = () => {
         }
       `}</style>
 
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#030814] text-white">
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-8 text-white sm:justify-center">
         
         {/* Camada 1: Gradientes de Profundidade */}
         <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,_rgba(20,67,122,0.45),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(17,94,133,0.35),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(24,73,109,0.35),_transparent_45%)]" />
         <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/85 to-[#081b31]/95" />
 
-        {/* Camada 2: Mapa Múndi Holográfico (Vetor simples processado por CSS) */}
+        {/* Camada 2: Mapa Múndi Holográfico */}
         <div 
           className="pointer-events-none absolute inset-0 z-0 opacity-20 mix-blend-screen bg-no-repeat bg-center"
           style={{
             backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')",
-            backgroundSize: "80% auto",
+            backgroundSize: "90% auto",
             filter: "invert(70%) sepia(100%) saturate(300%) hue-rotate(150deg) brightness(120%) drop-shadow(0 0 10px rgba(57,208,255,0.2))",
             maskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
             WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)"
@@ -186,7 +187,7 @@ const Login = () => {
         </div>
         
         {/* Camada 4: Card Principal do Login */}
-        <div className="relative z-20 w-full max-w-md rounded-[32px] border border-white/10 bg-[#061223]/75 p-10 shadow-[0_40px_80px_-20px_rgba(0,10,20,0.85)] backdrop-blur-xl">
+        <div className="relative z-20 w-full max-w-md rounded-[28px] border border-white/10 bg-[#061223]/55 p-6 shadow-[0_40px_80px_-20px_rgba(0,10,20,0.85)] backdrop-blur-md sm:rounded-[32px] sm:bg-[#061223]/70 sm:p-10 sm:backdrop-blur-xl">
           
           <div className="flex flex-col items-center text-center">
             <img 
@@ -198,7 +199,7 @@ const Login = () => {
             <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
           </div>
 
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4 sm:mt-8 sm:space-y-5" onSubmit={handleSubmit}>
             
             {/* Campo Credencial */}
             <div className="space-y-2">
@@ -217,7 +218,7 @@ const Login = () => {
                   placeholder="seu.nome" 
                   autoComplete="username" 
                   disabled={isSubmitting} 
-                  className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-40 text-base text-white placeholder:text-white/20 transition-all focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-1 focus-visible:ring-[#38d7ff]/50" 
+                  className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-36 text-sm text-white placeholder:text-white/20 transition-all focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-1 focus-visible:ring-[#38d7ff]/50 sm:h-14 sm:pr-40 sm:text-base" 
                 />
                 <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                   <span className={`text-sm font-medium transition-colors duration-300 ${isUsernameFocused || isValid ? 'text-white/60' : 'text-white/30'}`}>
@@ -243,7 +244,7 @@ const Login = () => {
                   placeholder="••••••••" 
                   autoComplete="current-password" 
                   disabled={isSubmitting} 
-                  className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base text-white placeholder:text-white/20 transition-all focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-1 focus-visible:ring-[#38d7ff]/50 tracking-widest placeholder:tracking-normal" 
+                  className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-sm text-white placeholder:text-white/20 transition-all focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-1 focus-visible:ring-[#38d7ff]/50 tracking-widest placeholder:tracking-normal sm:h-14 sm:text-base" 
                 />
                 <button 
                   type="button" 
@@ -275,7 +276,7 @@ const Login = () => {
             <Button 
               type="submit" 
               disabled={isSubmitting || !isValid || !password} 
-              className="mt-2 h-14 w-full rounded-2xl bg-[#38d7ff] text-base font-semibold text-[#02111f] shadow-[0_8px_16px_-10px_rgba(56,215,255,0.4)] transition-all duration-300 hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,0.6)] focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+              className="mt-2 h-12 w-full rounded-2xl bg-[#38d7ff] text-sm font-semibold text-[#02111f] shadow-[0_8px_16px_-10px_rgba(56,215,255,0.4)] transition-all duration-300 hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,0.6)] focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none sm:h-14 sm:text-base"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-3">
@@ -288,7 +289,7 @@ const Login = () => {
             </Button>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center sm:mt-8">
             <p className="text-xs font-medium text-[#64748b]">
             </p>
           </div>

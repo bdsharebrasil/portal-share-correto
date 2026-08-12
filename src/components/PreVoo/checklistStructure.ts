@@ -38,6 +38,7 @@ export const PRE_VOO_SECTIONS: ChecklistSection[] = [
       { id: "coord_ipads", label: "iPad's bateria / atualização" },
       { id: "coord_cartoes", label: "Atualizações dos cartões da aeronave" },
       { id: "coord_notam", label: "NOTAM" },
+      { id: "coord_reservas_hotel", label: "Reservas de Hotel trip" },
     ],
   },
   {

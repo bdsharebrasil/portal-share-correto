@@ -6697,15 +6697,14 @@ export type Database = {
           categoria_nome: string | null
           clientes_id: string | null
           comprovante_url: string | null
-          conciliacao_id: string | null
           conta_bancaria: string | null
           contas_apagar_id: string | null
           contas_areceber_id: string | null
           criado_em: string
           criado_por: string | null
           data_competencia: string
+          data_emissao: string | null
           data_pagamento: string | null
-          data_vencimento: string | null
           descricao: string
           despesa_cliente_direto_id: string | null
           enviado_por_email: boolean
@@ -6726,6 +6725,7 @@ export type Database = {
           pago_diretamente: boolean
           pago_por: string | null
           percentual_uso: number | null
+          periodicidade: string | null
           quantidade_parcelas: number
           recibo_url: string | null
           reembolsavel: boolean
@@ -6733,6 +6733,7 @@ export type Database = {
           reference_id: string | null
           reference_type: string | null
           socio_id: string | null
+          socios_nome: string | null
           status: string
           tipo: string | null
           tipo_caixa: string | null
@@ -6748,15 +6749,14 @@ export type Database = {
           categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
-          conciliacao_id?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia: string
+          data_emissao?: string | null
           data_pagamento?: string | null
-          data_vencimento?: string | null
           descricao: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
@@ -6777,6 +6777,7 @@ export type Database = {
           pago_diretamente?: boolean
           pago_por?: string | null
           percentual_uso?: number | null
+          periodicidade?: string | null
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -6784,6 +6785,7 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
+          socios_nome?: string | null
           status?: string
           tipo?: string | null
           tipo_caixa?: string | null
@@ -6799,15 +6801,14 @@ export type Database = {
           categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
-          conciliacao_id?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia?: string
+          data_emissao?: string | null
           data_pagamento?: string | null
-          data_vencimento?: string | null
           descricao?: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
@@ -6828,6 +6829,7 @@ export type Database = {
           pago_diretamente?: boolean
           pago_por?: string | null
           percentual_uso?: number | null
+          periodicidade?: string | null
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -6835,6 +6837,7 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
+          socios_nome?: string | null
           status?: string
           tipo?: string | null
           tipo_caixa?: string | null
@@ -6905,6 +6908,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "socios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_socios_nome_fkey"
+            columns: ["socios_nome"]
+            isOneToOne: false
+            referencedRelation: "socios"
+            referencedColumns: ["nome"]
           },
         ]
       }
@@ -10558,6 +10568,10 @@ export type Database = {
         Args: { p_diario_mes: string }
         Returns: undefined
       }
+      formatar_trecho_nomes: {
+        Args: { p_destino: string; p_origem: string }
+        Returns: string
+      }
       generate_report_number:
         | { Args: { client_id_param: string }; Returns: string }
         | {
@@ -10624,6 +10638,7 @@ export type Database = {
       next_receipt_number:
         | { Args: never; Returns: number }
         | { Args: { p_year: number }; Returns: string }
+      nome_aerodromo: { Args: { p_token: string }; Returns: string }
       obter_historico_cliente: {
         Args: {
           p_cliente_id: string

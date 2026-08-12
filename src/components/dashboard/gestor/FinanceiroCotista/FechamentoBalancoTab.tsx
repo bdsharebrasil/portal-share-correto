@@ -66,7 +66,18 @@ export function FechamentoBalancoTab({
   type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
   const [sortBy, setSortBy] = useState<SortBy>("vencimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const qc = useQueryClient();
+
+  const setFilter = (key: string, value: string) =>
+    setColumnFilters((current) => ({ ...current, [key]: value }));
+
+  const norm = (v: unknown) =>
+    String(v ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
 
   const toggleColumn = (column: string) => {
     setHiddenColumns((current) => {
@@ -153,8 +164,49 @@ export function FechamentoBalancoTab({
     }));
   }, [despesas]);
 
+  // Aplica os filtros digitados no cabeçalho de cada coluna
+  const filteredDespesasAgrupadas = useMemo(() => {
+    const active = Object.entries(columnFilters).filter(([, v]) => norm(v) !== "");
+    if (active.length === 0) return despesasAgrupadas;
+
+    return despesasAgrupadas.filter((grupo) => {
+      const r = grupo.representante;
+      const cliente = !!r.clientes_nome && !!r.socios_nome ? r.clientes_nome : (r.pago_por || "");
+      return active.every(([key, raw]) => {
+        const q = norm(raw);
+        switch (key) {
+          case "fluxo": return norm(r.fluxo).includes(q);
+          case "vencimento": return norm(formatDate(r.data_vencimento)).includes(q) || norm(r.data_vencimento).includes(q);
+          case "pagamento": return norm(r.data_pagamento ? formatDate(r.data_pagamento) : "").includes(q) || norm(r.data_pagamento).includes(q);
+          case "documento": return norm(r.numero_nf || r.numero_doc || r.numero_recibo).includes(q);
+          case "fornecedor": return norm(r.fornecedor_nome).includes(q);
+          case "cliente": return norm(grupo.numCotistas > 1 ? `${grupo.numCotistas} socios` : cliente).includes(q);
+          case "descricao": return norm(r.descricao_despesa).includes(q);
+          case "uso": return norm(r.percentual_uso).includes(q);
+          case "total": return norm(grupo.valorTotal).includes(q) || norm(formatBRL(grupo.valorTotal)).includes(q);
+          case "rateado": return norm(grupo.valorRateado).includes(q) || norm(formatBRL(grupo.valorRateado)).includes(q);
+          default: return true;
+        }
+      });
+    });
+  }, [despesasAgrupadas, columnFilters]);
+
+  const hasActiveFilters = useMemo(
+    () => Object.values(columnFilters).some((v) => norm(v) !== ""),
+    [columnFilters]
+  );
+
+  const totalFiltradoRateado = useMemo(
+    () => filteredDespesasAgrupadas.reduce((s, g) => s + g.valorRateado, 0),
+    [filteredDespesasAgrupadas]
+  );
+  const totalFiltradoTotal = useMemo(
+    () => filteredDespesasAgrupadas.reduce((s, g) => s + g.valorTotal, 0),
+    [filteredDespesasAgrupadas]
+  );
+
   const sortedDespesasAgrupadas = useMemo(() => {
-    const rows = despesasAgrupadas.map((grupo) => {
+    const rows = filteredDespesasAgrupadas.map((grupo) => {
       const r = grupo.representante;
       const cliente = !!r.clientes_nome && !!r.socios_nome ? r.clientes_nome : (r.pago_por || "");
       const sortValue: string | number = (() => {
@@ -185,7 +237,7 @@ export function FechamentoBalancoTab({
     });
 
     return rows.map((row) => row.grupo);
-  }, [despesasAgrupadas, sortBy, sortDir]);
+  }, [filteredDespesasAgrupadas, sortBy, sortDir]);
 
   const totalConferido = useMemo(
     () => despesasAgrupadas.filter((g) => g.todosConferidos).length,
@@ -304,6 +356,12 @@ export function FechamentoBalancoTab({
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
+            {hasActiveFilters && (
+              <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-right">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-teal-300/80">Total filtrado</p>
+                <p className="text-xs font-black tabular-nums text-teal-300">{formatBRL(totalFiltradoRateado)}</p>
+              </div>
+            )}
             <div className="relative h-10 w-10">
               <svg className="h-10 w-10 -rotate-90 drop-shadow-md" viewBox="0 0 48 48">
                 <circle cx="24" cy="24" r="20" fill="none" stroke="#0f172a" strokeWidth="5" />
@@ -327,6 +385,7 @@ export function FechamentoBalancoTab({
           <div className="relative overflow-visible">
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
+              type="button"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
               aria-expanded={showColumnMenu}
               aria-label="Mostrar ou ocultar colunas"
@@ -467,12 +526,43 @@ export function FechamentoBalancoTab({
 
                 <th className={`${thBase} text-center text-slate-400`}>Ações</th>
               </tr>
+
+              {/* Linha de filtros por coluna */}
+              <tr className="border-b border-slate-800/70 bg-[#0b1524]">
+                <th className="px-2 py-1.5">
+                  {hasActiveFilters && (
+                    <button
+                      onClick={() => setColumnFilters({})}
+                      title="Limpar filtros"
+                      className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/60 text-[10px] font-bold text-slate-400 hover:border-teal-500/50 hover:text-teal-300"
+                    >
+                      ×
+                    </button>
+                  )}
+                </th>
+                {HIDEABLE_COLUMNS.map(([id, label]) => (
+                  <th key={id} className={`px-2 py-1.5 ${columnVisible(id) ? "" : "hidden"}`}>
+                    <input
+                      value={columnFilters[id] ?? ""}
+                      onChange={(e) => setFilter(id, e.target.value)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      placeholder={label}
+                      className={`w-full min-w-[70px] rounded border border-slate-700/70 bg-slate-900/70 px-2 py-1 text-[10px] font-medium text-slate-200 placeholder:text-slate-600 outline-none transition-colors focus:border-teal-500/60 ${
+                        id === "total" || id === "rateado" || id === "uso" ? "text-right" : ""
+                      }`}
+                    />
+                  </th>
+                ))}
+                <th className="px-2 py-1.5" />
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {despesasAgrupadas.length === 0 ? (
+              {sortedDespesasAgrupadas.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
-                    Nenhum lançamento encontrado no período selecionado.
+                    {hasActiveFilters
+                      ? "Nenhum lançamento corresponde aos filtros aplicados."
+                      : "Nenhum lançamento encontrado no período selecionado."}
                   </td>
                 </tr>
               ) : (
@@ -780,20 +870,20 @@ export function FechamentoBalancoTab({
                 })
               )}
             </tbody>
-            {despesasAgrupadas.length > 0 && (
+            {sortedDespesasAgrupadas.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-teal-500/30 bg-[#0f1b2d] shadow-inner">
                   <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("rateado") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
-                    TOTAL DO MÊS:
+                    {hasActiveFilters ? `TOTAL FILTRADO (${sortedDespesasAgrupadas.length}):` : "TOTAL DO MÊS:"}
                   </td>
                   {columnVisible("total") && (
                     <td className="px-3 py-3 text-right tabular-nums font-black text-slate-100 text-xs">
-                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorTotal, 0))}
+                      {formatBRL(totalFiltradoTotal)}
                     </td>
                   )}
                   {columnVisible("rateado") && (
                     <td className="px-3 py-3 text-right tabular-nums font-black text-teal-400 text-xs">
-                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorRateado, 0))}
+                      {formatBRL(totalFiltradoRateado)}
                     </td>
                   )}
                   <td />

@@ -47,4 +47,4 @@ export function useNivelVooSugerido(
   }, [aeronaveId, origem?.lat, origem?.lng, destino?.lat, destino?.lng]);
 
   return { nivelSugeridoFt, rumo, carregando, erro };
-}pnpm dev
+}

@@ -50,14 +50,13 @@ export function FleetStatusCards() {
   const hoje = format(new Date(), "yyyy-MM-dd");
 
   const { data: bookings = [] } = useQuery<Booking[]>({
-    queryKey: ["frota-tempo-real-bookings", hoje],
+    queryKey: ["frota-tempo-real-bookings"],
     queryFn: async () => {
       const { data, error } = await db
         .from("solicitacoes_reserva_voo")
         .select(
           "id, aeronave_id, origem, destino, status, data_agendada, horario_previsto_agendamento, qtd_passageiros, cliente_id, clientes:cliente_id(razao_social), aeronave:aeronave_id(id, matricula, modelo, status)",
         )
-        .gte("data_agendada", hoje)
         .not("status", "in", '("rejeitado","cancelado","concluido")')
         .order("data_agendada")
         .order("horario_previsto_agendamento");
@@ -65,6 +64,20 @@ export function FleetStatusCards() {
       return (data ?? []) as Booking[];
     },
     refetchInterval: 15000,
+  });
+
+  const { data: todasAeronaves = [] } = useQuery({
+    queryKey: ["frota-tempo-real-aeronaves"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("aeronave")
+        .select("id, matricula, modelo, status")
+        .eq("status", "ativa")
+        .order("matricula");
+      if (error) throw error;
+      return (data ?? []) as { id: string; matricula: string; modelo: string | null; status: string | null }[];
+    },
+    refetchInterval: 30000,
   });
 
   const { data: statusFrota = [] } = useQuery({
@@ -96,29 +109,44 @@ export function FleetStatusCards() {
     [statusFrota],
   );
 
-  /** Uma linha por aeronave que tenha voo em andamento ou agendado */
+  /** Uma linha por aeronave, incluindo aeronaves sem voo agendado. */
   const aeronaves = useMemo(() => {
-    const map = new Map<string, { aeronave: NonNullable<Booking["aeronave"]>; voos: Booking[] }>();
-    bookings.forEach((b) => {
-      if (!b.aeronave_id || !b.aeronave) return;
-      const atual = map.get(b.aeronave_id) ?? { aeronave: b.aeronave, voos: [] };
-      atual.voos.push(b);
-      map.set(b.aeronave_id, atual);
+    const bookingMap = new Map<string, Booking[]>();
+    bookings.forEach((booking) => {
+      if (!booking.aeronave_id) return;
+      const voos = bookingMap.get(booking.aeronave_id) ?? [];
+      voos.push(booking);
+      bookingMap.set(booking.aeronave_id, voos);
     });
-    return Array.from(map.values()).map((entry) => {
-      const emVoo = entry.voos.find((v) => EM_VOO.includes(v.status));
-      const proximo = emVoo ?? entry.voos[0];
-      const liveStatus = statusMap[entry.aeronave.id];
+
+    const aircraftList = todasAeronaves.length > 0
+      ? todasAeronaves
+      : Array.from(bookingMap.entries()).map(([id, voos]) => ({
+          id,
+          matricula: voos[0]?.aeronave?.matricula ?? "—",
+          modelo: voos[0]?.aeronave?.modelo ?? null,
+          status: voos[0]?.aeronave?.status ?? null,
+        }));
+
+    return aircraftList.map((aircraft) => {
+      const voos = bookingMap.get(aircraft.id) ?? [];
+      const emVoo = voos.find((v) => EM_VOO.includes(v.status));
+      const proximo = emVoo ?? voos[0];
+      const liveStatus = statusMap[aircraft.id];
       const estado = emVoo
         ? "em_voo"
         : liveStatus === "manutencao"
           ? "manutencao"
-          : proximo
-            ? proximo.status
-            : "disponivel";
-      return { ...entry, proximo, estado };
+          : proximo?.status ?? "disponivel";
+      return {
+        aeronave: aircraft,
+        voos,
+        emVoo,
+        proximo,
+        estado,
+      };
     });
-  }, [bookings, statusMap]);
+  }, [bookings, statusMap, todasAeronaves]);
 
   const filtradas = useMemo(() => {
     if (filtro === "todas") return aeronaves;

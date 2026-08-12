@@ -200,8 +200,22 @@ export function FuelRecordsByAircraft({
     id: a.designativo as string,
     label: `${a.designativo}${a.nome ? ` — ${a.nome}` : ""}`,
   }));
-  const nomeAerodromo = (designativo: string) =>
-    (aerodromes || []).find((a: any) => a.designativo === designativo)?.nome || "";
+
+  // Regra: o trecho é sempre "Nome do aeródromo x Nome do aeródromo"
+  const nomeAerodromo = (token?: string | null) => {
+    const t = (token || "").trim();
+    if (!t) return "";
+    const found = (aerodromes || []).find(
+      (a: any) => String(a.designativo || "").toUpperCase() === t.toUpperCase(),
+    ) as any;
+    return found?.nome || t;
+  };
+  const trechoComNomes = (origem?: string | null, destino?: string | null) => {
+    const o = nomeAerodromo(origem);
+    const d = nomeAerodromo(destino);
+    if (!o && !d) return "";
+    return `${o} x ${d}`;
+  };
   const [bankInstitutions, setBankInstitutions] = useState<BankInstitution[]>([]);
 
   const [selectedFlightInfo, setSelectedFlightInfo] = useState<any>(null);
@@ -350,7 +364,7 @@ export function FuelRecordsByAircraft({
     setSelectedFlightId(flightId);
     const flight = logbookFlights.find(f => f.id === flightId);
     if (flight) {
-      const trecho = flight.trecho || `${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`;
+      const trecho = trechoComNomes(flight.departure_aerodrome, flight.arrival_aerodrome) || flight.trecho || "";
       setSelectedFlightInfo(flight);
 
       setFormData(prev => ({
@@ -387,10 +401,10 @@ export function FuelRecordsByAircraft({
     if (!linkToLogbook && formData.origem_aerodromo && formData.destino_aerodromo) {
       setFormData(prev => ({
         ...prev,
-        trecho: `${formData.origem_aerodromo} X ${formData.destino_aerodromo}`,
+        trecho: trechoComNomes(formData.origem_aerodromo, formData.destino_aerodromo),
       }));
     }
-  }, [linkToLogbook, formData.origem_aerodromo, formData.destino_aerodromo]);
+  }, [linkToLogbook, formData.origem_aerodromo, formData.destino_aerodromo, aerodromes]);
 
   useEffect(() => {
     const itens = formData.litros && formData.valor_unitario ? parseFloat(formData.litros) * parseFloat(formData.valor_unitario) : 0;
@@ -1893,7 +1907,7 @@ export function FuelRecordsByAircraft({
 
         {/* Visualizador de anexos em tela cheia (fora do dialog de edição) */}
         <Dialog open={!!viewingAttachment} onOpenChange={(open) => !open && setViewingAttachment(null)}>
-          <DialogContent className="max-w-[96vw] w-[96vw] h-[94vh] p-0 flex flex-col overflow-hidden">
+          <DialogContent className="z-[200] max-w-[96vw] w-[96vw] h-[94vh] p-0 flex flex-col overflow-hidden">
             <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between gap-3 space-y-0">
               <DialogTitle className="truncate text-base">{viewingAttachment?.name || "Anexo"}</DialogTitle>
               <div className="flex items-center gap-2 pr-8">

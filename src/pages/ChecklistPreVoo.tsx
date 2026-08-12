@@ -26,8 +26,9 @@ import {
 } from "@/hooks/usePreVooChecklist";
 import {
   ArrowLeft, CheckCircle2, ClipboardCheck, Fuel, Lock, Plane, Save, Circle,
-  Droplets, ListChecks, ShieldCheck, Loader2, Eye, ChevronDown,
+  Droplets, ListChecks, ShieldCheck, Loader2, Eye, ChevronDown, AlertTriangle, XCircle,
 } from "lucide-react";
+
 
 const db = supabase as any;
 
@@ -84,25 +85,35 @@ export default function ChecklistPreVoo() {
     },
   });
 
+  type ItemStatus = "feito" | "nao_feito" | "reporte";
+
+  const statusOf = (item: ChecklistItem): ItemStatus | null => {
+    const r = respostas.itens?.[item.id];
+    if (r?.status) return r.status;
+    return r?.ok ? "feito" : null;
+  };
+
   const itemOk = (item: ChecklistItem) => {
     if (item.kind === "abastecimento") {
       if (precisaAbastecer === false) return true;
       return precisaAbastecer === true && !!abastecimentoId;
     }
     if (item.kind === "documentos") return docsCompletos(respostas.docs || {});
-    if (item.kind === "oleo") {
-      const r = respostas.itens?.[item.id];
-      return !!r?.ok && !!r?.oleo_lh?.trim() && !!r?.oleo_rh?.trim();
-    }
-    return !!respostas.itens?.[item.id]?.ok;
+    const r = respostas.itens?.[item.id];
+    const st = statusOf(item);
+    if (!st) return false;
+    if (st === "nao_feito") return !!r?.motivo?.trim();
+    if (st === "reporte") return !!r?.obs?.trim();
+    if (item.kind === "oleo") return !!r?.oleo_lh?.trim() && !!r?.oleo_rh?.trim();
+    return true;
   };
 
-  const toggleItem = (item: ChecklistItem) => {
+  const setStatus = (item: ChecklistItem, status: ItemStatus | null) => {
     if (readOnly) return;
     if (item.kind === "abastecimento" || item.kind === "documentos") return;
-    if (item.kind === "oleo") {
+    if (status === "feito" && item.kind === "oleo") {
       const r = respostas.itens?.[item.id];
-      if (!r?.ok && (!r?.oleo_lh?.trim() || !r?.oleo_rh?.trim())) {
+      if (!r?.oleo_lh?.trim() || !r?.oleo_rh?.trim()) {
         toast.error("Informe os níveis de óleo LH e RH antes de marcar como concluído");
         return;
       }
@@ -111,7 +122,21 @@ export default function ChecklistPreVoo() {
       ...prev,
       itens: {
         ...prev.itens,
-        [item.id]: { ...(prev.itens?.[item.id] || {}), ok: !prev.itens?.[item.id]?.ok },
+        [item.id]: {
+          ...(prev.itens?.[item.id] || {}),
+          ok: status === "feito" || status === "reporte",
+          status: status ?? undefined,
+        },
+      },
+    }));
+  };
+
+  const setCampo = (item: ChecklistItem, field: "motivo" | "obs", value: string) => {
+    setRespostas((prev) => ({
+      ...prev,
+      itens: {
+        ...prev.itens,
+        [item.id]: { ...(prev.itens?.[item.id] || { ok: false }), [field]: value },
       },
     }));
   };
@@ -140,6 +165,26 @@ export default function ChecklistPreVoo() {
   );
   const progresso = Math.round((concluidos / TOTAL_ITENS) * 100);
   const tudoConcluido = concluidos === TOTAL_ITENS;
+
+  const alertas = useMemo(
+    () =>
+      PRE_VOO_SECTIONS.flatMap((s) =>
+        s.items
+          .filter((i) => respostas.itens?.[i.id]?.status === "reporte")
+          .map((i) => ({ label: i.label, obs: respostas.itens?.[i.id]?.obs || "" })),
+      ),
+    [respostas],
+  );
+  const naoFeitos = useMemo(
+    () =>
+      PRE_VOO_SECTIONS.flatMap((s) =>
+        s.items
+          .filter((i) => respostas.itens?.[i.id]?.status === "nao_feito")
+          .map((i) => ({ label: i.label, motivo: respostas.itens?.[i.id]?.motivo || "" })),
+      ),
+    [respostas],
+  );
+
 
   const handleSalvar = async (concluir: boolean) => {
     if (!solicitacaoId) return;
@@ -258,6 +303,43 @@ export default function ChecklistPreVoo() {
           </div>
         </div>
 
+        {(alertas.length > 0 || naoFeitos.length > 0) && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {alertas.length > 0 && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-amber-400">
+                  <AlertTriangle className="h-4 w-4" /> {alertas.length} item(ns) com reporte — verificar depois
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-amber-200/90">
+                  {alertas.map((a) => (
+                    <li key={a.label}>
+                      <span className="font-medium">{a.label}</span>
+                      {a.obs ? ` — ${a.obs}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {naoFeitos.length > 0 && (
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-rose-400">
+                  <XCircle className="h-4 w-4" /> {naoFeitos.length} item(ns) não realizados
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-rose-200/90">
+                  {naoFeitos.map((a) => (
+                    <li key={a.label}>
+                      <span className="font-medium">{a.label}</span>
+                      {a.motivo ? ` — ${a.motivo}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+
+
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card p-10 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando checklist...
@@ -345,25 +427,74 @@ export default function ChecklistPreVoo() {
                   >
                     {section.items.map((item) => {
                       const ok = itemOk(item);
+                      const st = statusOf(item);
+                      const auto = item.kind === "abastecimento" || item.kind === "documentos";
+                      const r = respostas.itens?.[item.id];
                       return (
-                        <li key={item.id} className="px-4 py-3 sm:px-5">
+                        <li
+                          key={item.id}
+                          className={cn(
+                            "px-4 py-3 transition-colors sm:px-5",
+                            st === "reporte" && "bg-amber-500/[0.06]",
+                            st === "nao_feito" && "bg-rose-500/[0.06]",
+                          )}
+                        >
                           <div className="flex flex-wrap items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => toggleItem(item)}
-                              disabled={readOnly || item.kind === "abastecimento" || item.kind === "documentos"}
+                            <span
                               className={cn(
-                                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all",
-                                ok
-                                  ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
-                                  : "border-border/60 text-muted-foreground hover:border-primary/50",
+                                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border",
+                                st === "reporte"
+                                  ? "border-amber-500/50 bg-amber-500/20 text-amber-400"
+                                  : ok
+                                    ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+                                    : st === "nao_feito"
+                                      ? "border-rose-500/50 bg-rose-500/15 text-rose-400"
+                                      : "border-border/60 text-muted-foreground",
                               )}
                             >
-                              {ok ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-3.5 w-3.5" />}
-                            </button>
+                              {st === "reporte" ? (
+                                <AlertTriangle className="h-4 w-4" />
+                              ) : ok ? (
+                                <CheckCircle2 className="h-4 w-4" />
+                              ) : st === "nao_feito" ? (
+                                <XCircle className="h-4 w-4" />
+                              ) : (
+                                <Circle className="h-3.5 w-3.5" />
+                              )}
+                            </span>
                             <span className={cn("min-w-0 flex-1 text-sm", ok ? "text-foreground" : "text-muted-foreground")}>
                               {item.label}
+                              {st === "reporte" && (
+                                <span className="ml-2 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400">
+                                  verificar depois
+                                </span>
+                              )}
                             </span>
+
+                            {!auto && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {([
+                                  { key: "feito", label: "Feito", cls: "border-emerald-500/50 bg-emerald-500/15 text-emerald-400" },
+                                  { key: "nao_feito", label: "Não feito", cls: "border-rose-500/50 bg-rose-500/15 text-rose-400" },
+                                  { key: "reporte", label: "Reporte", cls: "border-amber-500/50 bg-amber-500/15 text-amber-400" },
+                                ] as const).map((opt) => (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    disabled={readOnly}
+                                    onClick={() => setStatus(item, st === opt.key ? null : opt.key)}
+                                    className={cn(
+                                      "rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                                      st === opt.key
+                                        ? opt.cls
+                                        : "border-border/60 text-muted-foreground hover:bg-accent/40",
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
 
                             {item.kind === "abastecimento" && (
                               <div className="flex flex-wrap items-center gap-2">
@@ -423,8 +554,38 @@ export default function ChecklistPreVoo() {
                             )}
                           </div>
 
+                          {st === "nao_feito" && (
+                            <div className="mt-3 pl-10">
+                              <Label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-rose-400">
+                                Por que não foi feito?
+                              </Label>
+                              <Textarea
+                                value={r?.motivo || ""}
+                                onChange={(e) => setCampo(item, "motivo", e.target.value)}
+                                disabled={readOnly}
+                                placeholder="Descreva o motivo"
+                                className="min-h-[64px] rounded-xl border-rose-500/30 text-sm"
+                              />
+                            </div>
+                          )}
+
+                          {st === "reporte" && (
+                            <div className="mt-3 pl-10">
+                              <Label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-amber-400">
+                                Reporte — item concluído, precisa ser verificado depois
+                              </Label>
+                              <Textarea
+                                value={r?.obs || ""}
+                                onChange={(e) => setCampo(item, "obs", e.target.value)}
+                                disabled={readOnly}
+                                placeholder="Descreva o que precisa ser verificado"
+                                className="min-h-[64px] rounded-xl border-amber-500/30 text-sm"
+                              />
+                            </div>
+                          )}
+
                           {item.kind === "oleo" && (
-                            <div className="mt-3 grid grid-cols-1 gap-3 pl-10 sm:grid-cols-2 sm:max-w-md">
+                            <div className="mt-3 grid grid-cols-1 gap-3 pl-10 sm:max-w-md sm:grid-cols-2">
                               <div className="space-y-1.5">
                                 <Label className="flex items-center gap-1 text-xs">
                                   <Droplets className="h-3.5 w-3.5" /> Nível LH
@@ -471,6 +632,7 @@ export default function ChecklistPreVoo() {
                         </li>
                       );
                     })}
+
                   </ul>
                 </section>
               );

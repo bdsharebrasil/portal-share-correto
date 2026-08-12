@@ -75,8 +75,8 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       const { data: movimentacoes, error: movimentacoesError } = await movimentacoesQuery;
       if (movimentacoesError) throw movimentacoesError;
 
-      return (movimentacoes || [])
-        .filter((movimentacao) => {
+      return ((movimentacoes || []) as any[])
+        .filter((movimentacao: any) => {
           if (movimentacao.tipo_caixa === "cliente") return true;
           return ["entrada", "receita", "aguardando_reembolso", "reembolsado"].includes(movimentacao.tipo);
         })

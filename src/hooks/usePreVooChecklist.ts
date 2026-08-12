@@ -6,6 +6,9 @@ const db = supabase as any;
 
 export interface RespostaItem {
   ok: boolean;
+  /** feito | nao_feito | reporte (concluído com alerta) */
+  status?: "feito" | "nao_feito" | "reporte";
+  motivo?: string;
   obs?: string;
   oleo_lh?: string;
   oleo_rh?: string;

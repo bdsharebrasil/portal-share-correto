@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { addDays, format, isSameDay } from "date-fns";
+import { addDays, format, getDaysInMonth, isSameDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,9 @@ interface Props {
 export function EscalaTripulacao({ disponibilidade, escala, aeronaves, diaSelecionado }: Props) {
   const { criarEscala, removerEscala } = useAgendamentoMutations();
   const [aberto, setAberto] = useState(false);
+  const [modo, setModo] = useState<"semanal" | "mensal">("semanal");
+  const [busca, setBusca] = useState("");
+  const [filtroSituacao, setFiltroSituacao] = useState<string>("todos");
   const [form, setForm] = useState({
     membro_id: "",
     aeronave_id: "",
@@ -48,33 +52,86 @@ export function EscalaTripulacao({ disponibilidade, escala, aeronaves, diaSeleci
     data_fim: format(diaSelecionado, "yyyy-MM-dd"),
   });
 
-  const dias = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(diaSelecionado, i)),
-    [diaSelecionado],
-  );
+  const dias = useMemo(() => {
+    if (modo === "mensal") {
+      const inicio = startOfMonth(diaSelecionado);
+      const total = getDaysInMonth(diaSelecionado);
+      return Array.from({ length: total }, (_, i) => addDays(inicio, i));
+    }
+    return Array.from({ length: 7 }, (_, i) => addDays(diaSelecionado, i));
+  }, [diaSelecionado, modo]);
+
+  const listaFiltrada = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return disponibilidade.filter((d) => {
+      const okBusca = !termo || d.tripulante.nome_completo.toLowerCase().includes(termo);
+      const okSituacao = filtroSituacao === "todos" || d.situacao === filtroSituacao;
+      return okBusca && okSituacao;
+    });
+  }, [disponibilidade, busca, filtroSituacao]);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <header className="mb-4 flex items-center justify-between gap-2">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Escala de Tripulação</h2>
           <p className="text-xs text-muted-foreground">
-            Semana de {format(dias[0], "dd/MM", { locale: ptBR })} a {format(dias[6], "dd/MM", { locale: ptBR })}
+            {modo === "mensal"
+              ? format(diaSelecionado, "MMMM 'de' yyyy", { locale: ptBR })
+              : `Semana de ${format(dias[0], "dd/MM", { locale: ptBR })} a ${format(dias[dias.length - 1], "dd/MM", { locale: ptBR })}`}
           </p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setForm((f) => ({
-              ...f,
-              data_inicio: format(diaSelecionado, "yyyy-MM-dd"),
-              data_fim: format(diaSelecionado, "yyyy-MM-dd"),
-            }));
-            setAberto(true);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" /> Escalar
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-border/60 p-0.5">
+            {(["semanal", "mensal"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setModo(m)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-semibold capitalize transition-colors",
+                  modo === m ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-accent/40",
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar tripulante"
+              className="h-8 w-44 pl-8 text-xs"
+            />
+          </div>
+          <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+            <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas situações</SelectItem>
+              {Object.entries(SITUACAO_META).map(([k, v]) => (
+                <SelectItem key={k} value={k}>
+                  {v.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            onClick={() => {
+              setForm((f) => ({
+                ...f,
+                data_inicio: format(diaSelecionado, "yyyy-MM-dd"),
+                data_fim: format(diaSelecionado, "yyyy-MM-dd"),
+              }));
+              setAberto(true);
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Escalar
+          </Button>
+        </div>
       </header>
 
       <div className="overflow-x-auto">
@@ -84,14 +141,15 @@ export function EscalaTripulacao({ disponibilidade, escala, aeronaves, diaSeleci
               <th className="w-56 px-2 text-left font-medium">Tripulante</th>
               {dias.map((d) => (
                 <th key={d.toISOString()} className="px-1 text-center font-medium">
-                  {format(d, "EEEEEE dd", { locale: ptBR })}
+                  {format(d, modo === "mensal" ? "dd" : "EEEEEE dd", { locale: ptBR })}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {disponibilidade.map(({ tripulante, situacao, detalhe }) => {
+            {listaFiltrada.map(({ tripulante, situacao, detalhe }) => {
               const meta = SITUACAO_META[situacao];
+
               return (
                 <tr key={tripulante.id} className="bg-background/40">
                   <td className="rounded-l-lg px-2 py-2">
