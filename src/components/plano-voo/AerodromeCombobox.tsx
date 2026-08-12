@@ -67,12 +67,12 @@ export function AerodromeCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command>
+      <PopoverContent className="max-h-[calc(100vh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0" align="start">
+        <Command className="max-h-[calc(100vh-1rem)]">
           <CommandInput placeholder="Buscar por ICAO ou nome..." />
-          <CommandList>
+          <CommandList className="max-h-[min(280px,calc(100vh-8rem))]">
             <CommandEmpty>Nenhum aeródromo encontrado.</CommandEmpty>
-            <CommandGroup className="max-h-[280px] overflow-y-auto">
+            <CommandGroup>
               {aerodromes.map((ad) => (
                 <CommandItem
                   key={ad.id}

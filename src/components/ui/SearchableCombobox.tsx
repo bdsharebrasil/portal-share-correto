@@ -79,8 +79,8 @@ export function SearchableCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl shadow-lg border-border/50 z-[10000]" align="start" side="bottom">
-        <Command className="overflow-hidden rounded-xl" shouldFilter={false}>
+      <PopoverContent className="z-[10000] max-h-[calc(100vh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 p-0 shadow-lg" align="start" side="bottom">
+        <Command className="max-h-[calc(100vh-1rem)] overflow-hidden rounded-xl" shouldFilter={false}>
           <div className="flex items-center border-b border-border/50 px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <CommandInput
@@ -90,7 +90,7 @@ export function SearchableCombobox({
               className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0"
             />
           </div>
-          <CommandList className="max-h-[220px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+          <CommandList className="max-h-[min(220px,calc(100vh-9rem))] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20">
             {filteredItems.length === 0 && !allowFreeText && (
               <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
