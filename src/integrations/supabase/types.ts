@@ -6740,6 +6740,10 @@ export type Database = {
           status: string
           tipo_caixa: string | null
           tipo_rateio: string | null
+<<<<<<< HEAD
+=======
+          valor_original: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real: number | null
           valor_rateado: number
           valor_total: number | null
@@ -6792,6 +6796,10 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
+<<<<<<< HEAD
+=======
+          valor_original?: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real?: number | null
           valor_rateado: number
           valor_total?: number | null
@@ -6844,6 +6852,10 @@ export type Database = {
           status?: string
           tipo_caixa?: string | null
           tipo_rateio?: string | null
+<<<<<<< HEAD
+=======
+          valor_original?: number | null
+>>>>>>> refs/remotes/origin/main
           valor_pago_real?: number | null
           valor_rateado?: number
           valor_total?: number | null

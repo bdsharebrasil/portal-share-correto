@@ -75,7 +75,10 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     fluxo: "despesa",
     categoria_id: categoriaId,
     valor_rateado: input.valor,
+<<<<<<< HEAD
     valor_total: input.valor,
+=======
+>>>>>>> refs/remotes/origin/main
     data_emissao: input.data_emissao,
     data_vencimento: input.data_vencimento,
     data_pagamento: status === "pago" ? input.data_emissao : null,

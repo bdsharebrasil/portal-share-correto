@@ -115,7 +115,10 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
     fluxo: input.tipo,
     categoria_id: categoriaId,
     valor_rateado: input.valor,
+<<<<<<< HEAD
     valor_total: input.valor,
+=======
+>>>>>>> refs/remotes/origin/main
     data_emissao: input.data_emissao,
     data_vencimento: input.data_vencimento || input.data_emissao,
     data_pagamento: input.data_pagamento || (status === "pago" ? input.data_emissao : null),
