@@ -104,11 +104,8 @@ export default function Perfil() {
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPosition, setAvatarPosition] = useState<number>(50);
 
-  // Password change state
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -274,17 +271,30 @@ export default function Perfil() {
       toast({ title: "Senhas não conferem", description: "A nova senha e a confirmação devem ser iguais.", variant: "destructive" });
       return;
     }
-    if (newPassword.length < 6) {
-      toast({ title: "Senha muito curta", description: "A senha deve ter pelo menos 6 caracteres.", variant: "destructive" });
+    const meetsPasswordRequirements =
+      newPassword.length >= 8 &&
+      /[A-Z]/.test(newPassword) &&
+      /[a-z]/.test(newPassword) &&
+      /[0-9]/.test(newPassword) &&
+      /[^A-Za-z0-9]/.test(newPassword);
+    if (!meetsPasswordRequirements) {
+      toast({
+        title: "Senha não atende aos requisitos",
+        description: "Use ao menos 8 caracteres, incluindo letras maiúsculas, minúsculas, números e símbolos.",
+        variant: "destructive"
+      });
       return;
     }
-    
+
     setIsChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast({ title: "Senha alterada", description: "Sua senha foi alterada com sucesso." });
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
     } catch (error) {
       toast({ title: "Erro ao alterar senha", description: error instanceof Error ? error.message : "Erro ao alterar a senha.", variant: "destructive" });
     } finally {
@@ -705,23 +715,58 @@ export default function Perfil() {
           <TabsContent value="senha" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Alterar Senha</CardTitle>
-                <CardDescription>Mantenha sua conta segura atualizando sua senha regularmente.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5" /> Alterar senha</CardTitle>
+                <CardDescription>Defina uma nova senha diretamente na sua conta autenticada.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Nova Senha</Label>
-                  <Input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                  <Label htmlFor="new-password">Nova senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      autoComplete="new-password"
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((visible) => !visible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showNewPassword ? "Ocultar nova senha" : "Mostrar nova senha"}
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Use ao menos 8 caracteres, com maiúsculas, minúsculas, números e símbolos.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Confirmar Nova Senha</Label>
-                  <Input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                  <Label htmlFor="confirm-new-password">Confirmar nova senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-new-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      autoComplete="new-password"
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((visible) => !visible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword}>
+                <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword || !confirmPassword}>
                   {isChangingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Atualizar Senha
+                  Atualizar senha
                 </Button>
               </CardFooter>
             </Card>
