@@ -2,26 +2,19 @@
 import { useState, useCallback, useRef } from 'react'
 import { apiClient } from '../lib/api-client'
 import { generateFlightBriefing, generateBriefingSummary, type FlightPlanResponse } from '../services/flightBriefing'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { calculateDistance } from '@/lib/geo'
+import { isAerodromeOperational } from '@/lib/aviation'
+import type { NOTAMData, RouteValidation } from '@/types/aisweb'
 
 interface FlightPoint { lat: number; lng: number }
 
-interface AirspaceRestriction { name: string; type: string; active: boolean }
-
-interface ValidationResult {
-  valid:               boolean
-  warnings:            string[]
-  notams:              Record<string, any>
-  originStatus:        any
-  destinationStatus:   any
-  restrictions:        AirspaceRestriction[]
-  distanceNm:          number
-  fuelRequired:        number
-  totalFuel:           number
-  reserveMinutes:      number
-  alternates:          { icao: string; name: string; lat: number; lon: number; distNm: number }[]
-  alternate?:          string
+type ValidationResult = RouteValidation & {
+  distanceNm: number
+  fuelRequired: number
+  totalFuel: number
+  reserveMinutes: number
+  alternates: { icao: string; name: string; lat: number; lon: number; distNm: number }[]
+  alternate?: string
 }
 
 // Resposta enriquecida do getFlightPlan — inclui briefing gerado localmente
@@ -135,7 +128,6 @@ export function useAISWeb() {
     withCache(CACHE_KEYS.ROUTES(adep, ades), () => apiClient.getPreferentialRoutes(adep, ades)),
   [withCache])
 
-  const fetchROTAER = fetchPreferentialRoutes // alias legado
 
   // ── Weather ─────────────────────────────────────────────────────────────────
 
@@ -201,15 +193,6 @@ export function useAISWeb() {
 
   // ── Helpers locais ────────────────────────────────────────────────────────────
 
-  const haversineNm = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371, toRad = (d: number) => (d * Math.PI) / 180
-    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 0.539957
-  }, [])
-
   const calculateFuel = useCallback((distanceNm: number, burnPerHour: number, reserveMin: number) => {
     const timeH        = distanceNm / 120
     const fuelRequired = timeH * burnPerHour
@@ -228,14 +211,14 @@ export function useAISWeb() {
           name:   a.nome ?? a.icao,
           lat:    a.lat,
           lon:    a.lon,
-          distNm: haversineNm(destLat, destLon, a.lat, a.lon),
+          distNm: calculateDistance(destLat, destLon, a.lat, a.lon),
         }))
         .sort((a: any, b: any) => a.distNm - b.distNm)
         .slice(0, maxAlternates)
     } catch {
       return []
     }
-  }, [haversineNm])
+  }, [])
 
   // ── Validação de plano de voo ─────────────────────────────────────────────────
 
@@ -262,25 +245,35 @@ export function useAISWeb() {
 
       const originLat  = routePoints[0]?.lat ?? 0
       const originLon  = routePoints[0]?.lng ?? 0
-      const distanceNm = haversineNm(originLat, originLon, destLat, destLon)
+      const distanceNm = calculateDistance(originLat, originLon, destLat, destLon)
       const { fuelRequired, totalFuel } = calculateFuel(distanceNm, burnPerHour, reserveMinutes)
-
-      const originStatus      = { operational: true, warnings: [] as string[] }
-      const destinationStatus = { operational: true, warnings: [] as string[] }
+      const originStatus = isAerodromeOperational(originNotam as NOTAMData[])
+      const destinationStatus = isAerodromeOperational(destNotam as NOTAMData[])
+      const allNotams = [...originNotam, ...destNotam] as NOTAMData[]
+      const highPriorityCount = allNotams.filter((notam) => notam.priority === 'high').length
+      const routeStatus = !originStatus.operational || !destinationStatus.operational || originStatus.criticalNOTAMs.length + destinationStatus.criticalNOTAMs.length > 0
+        ? 'danger'
+        : highPriorityCount > 0
+          ? 'warning'
+          : allNotams.length > 0
+            ? 'caution'
+            : 'clear'
+      const warnings = [originStatus.reason, destinationStatus.reason].filter((warning): warning is string => Boolean(warning))
 
       return {
-        valid:              originStatus.operational && destinationStatus.operational,
-        warnings:           [...originStatus.warnings, ...destinationStatus.warnings],
-        notams:             { [origin]: originNotam, [destination]: destNotam },
+        valid: originStatus.operational && destinationStatus.operational,
+        warnings,
+        notams: { [origin]: originNotam, [destination]: destNotam },
         originStatus,
         destinationStatus,
-        restrictions:       [],
+        restrictions: [],
+        routeStatus,
         distanceNm,
         fuelRequired,
         totalFuel,
         reserveMinutes,
         alternates,
-        alternate:          alternates[0]?.icao,
+        alternate: alternates[0]?.icao,
       }
     } catch (err: any) {
       setError(err.message ?? 'Erro ao validar voo')
@@ -288,10 +281,11 @@ export function useAISWeb() {
         valid:              false,
         warnings:           [err.message ?? 'Erro desconhecido'],
         notams:             {},
-        originStatus:       { operational: false, warnings: [] },
-        destinationStatus:  { operational: false, warnings: [] },
-        restrictions:       [],
-        distanceNm:         0,
+        originStatus: { operational: false, reason: null, criticalNOTAMs: [] },
+        destinationStatus: { operational: false, reason: null, criticalNOTAMs: [] },
+        restrictions: [],
+        routeStatus: 'danger',
+        distanceNm: 0,
         fuelRequired:       0,
         totalFuel:          0,
         reserveMinutes,
@@ -300,7 +294,7 @@ export function useAISWeb() {
     } finally {
       setLoading(false)
     }
-  }, [getNOTAMs, fetchPreferentialRoutes, fetchAlternates, haversineNm, calculateFuel])
+  }, [getNOTAMs, fetchPreferentialRoutes, fetchAlternates, calculateFuel])
 
   // ── Cache utils ───────────────────────────────────────────────────────────────
 
@@ -333,7 +327,6 @@ export function useAISWeb() {
     // Aeródromo
     getROTAER,
     // Rotas preferenciais
-    fetchROTAER,            // legado
     fetchPreferentialRoutes,
     // Weather
     getWeather,

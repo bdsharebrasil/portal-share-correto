@@ -58,4 +58,13 @@ export function formatarFL(altitudeFt: number): string {
   return flLabel(altitudeFt);
 }
 
-export { calcularRumo } from '@/lib/geo';
+export {
+  calculateDistance,
+  calculateDistanceNM,
+  calculateMagneticHeading,
+  calcularRumo,
+  parseAerodromeCoordLatLng,
+  parseAerodromeCoordString,
+  parseDMSCoordinate,
+  type LatLon,
+} from '@/lib/geo';

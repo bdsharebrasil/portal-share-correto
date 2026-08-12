@@ -52,7 +52,7 @@ export function useSolarData(icao: string | null) {
         setSolarData(data);
       } catch (fetchError) {
         clearTimeout(timeout);
-        if (fetchError instanceof Error && fetchError.nome === 'AbortError') {
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
           console.warn(`[useSolarData] Timeout fetching solar data for ${code}`);
         } else {
           console.warn(`[useSolarData] Failed to fetch solar data for ${code}:`, fetchError);

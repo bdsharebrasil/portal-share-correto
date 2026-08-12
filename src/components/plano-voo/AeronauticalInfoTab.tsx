@@ -20,28 +20,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useAISWeb } from '@/hooks/useAISWeb';
-import { type NOTAMData, type ROTAERData } from '@/lib/aviation';
-
-// Local RouteValidation type compatible with useAISWeb
-interface RouteValidation {
-  valid: boolean;
-  notams: Record<string, NOTAMData[]>;
-  originStatus: {
-    operational: boolean;
-    reason: string | null;
-    criticalNOTAMs: NOTAMData[];
-    warnings?: string[];
-  };
-  destinationStatus: {
-    operational: boolean;
-    reason: string | null;
-    criticalNOTAMs: NOTAMData[];
-    warnings?: string[];
-  };
-  restrictions: any[];
-  warnings: string[];
-  routeStatus: 'clear' | 'caution' | 'warning' | 'danger';
-}
+import type { NOTAMData, ROTAERData, RouteValidation } from '@/types/aisweb';
 import { toast } from 'sonner';
 
 interface AeronauticalInfoTabProps {
@@ -100,14 +79,8 @@ export function AeronauticalInfoTab({
       // Validate flight plan - usando array vazio pois coordenadas não disponíveis aqui
       const validationResult = await validateFlightPlan(origin, destination, [], 5000);
       
-      // Add routeStatus if missing
-      const fullValidation: RouteValidation = {
-        ...validationResult,
-        routeStatus: validationResult.valid ? 'clear' : 'danger',
-      };
-      
-      setValidation(fullValidation);
-      onValidationComplete?.(fullValidation);
+      setValidation(validationResult);
+      onValidationComplete?.(validationResult);
 
       setHasLoaded(true);
       toast.success('Dados aeronáuticos carregados');
