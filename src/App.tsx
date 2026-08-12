@@ -32,6 +32,7 @@ import SolicitacaoCompras from "./pages/financeiro/SolicitacaoCompras";
 import AgendamentoPagamentos from "./components/dashboard/gestor/financeiro-share/agendamento-pagamentos/AgendamentoPagamentos";
 import Invoices from "./pages/financeiro/Invoices";
 import EmailsPage from "./pages/financeiro/Emails";
+import HistoricoProgramacaoPagamentos from "./pages/financeiro/HistoricoProgramacaoPagamentos";
 import ControleVencimentos from "./pages/ControleVencimentos";
 import DiarioBordoDetalhes from "./components/diario/DiarioBordoDetalhes";
 import DiarioBordo from "./pages/DiarioBordo";
@@ -280,6 +281,7 @@ const App = () => {
                           <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />
                           <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
                           <Route path="/financeiro/emails" element={renderProtected(<EmailsPage />)} />
+                          <Route path="/financeiro/historico-programacao-pagamentos" element={renderProtected(<HistoricoProgramacaoPagamentos />)} />
                           <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
                           <Route path="/financeiro/relatorio-viagem" element={renderProtected(<RelatorioViagem />)} />
                           <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
