@@ -449,17 +449,20 @@ const CSS = `
     background: rgba(0,0,0,0.4);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    display: flex; align-items: center; justify-content: center;
+    display: grid; place-items: center;
+    padding: 16px;
+    box-sizing: border-box;
     z-index: 99999;
     animation: wc-fade-in 0.3s ease;
   }
 
   .wc-modal {
-    background: #b5bef3ff; 
+    background: #b5bef3ff;
     border-radius: 24px;
     padding: 32px 24px;
-    max-width: 420px; width: 90%;
-    max-height: 85vh; overflow-y: auto;
+    width: min(420px, 100%);
+    max-height: calc(100vh - 32px); overflow-y: auto;
+    box-sizing: border-box;
     box-shadow: 0 24px 64px rgba(0,0,0,0.3);
     animation: wc-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
