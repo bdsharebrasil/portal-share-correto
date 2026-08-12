@@ -54,10 +54,27 @@ const STATUS_META: Record<
 const TRACKED_STATUSES = Object.keys(STATUS_META);
 const SOURCE_STATUSES = [...TRACKED_STATUSES, "Finalizado", "Enviado"];
 
-const isAwaitingCrewApproval = (report: Report) =>
-  (report.status === "Finalizado" || report.status === "Enviado") &&
-  report.crew_approval_status === "pending" &&
-  Boolean(report.approval_token);
+const norm = (v: any) => String(v ?? "").trim().toLowerCase();
+
+const isPendingCrew = (v: any) => ["pending", "pendente"].includes(norm(v));
+const isApprovedCrew = (v: any) => ["approved", "aprovado"].includes(norm(v));
+const isRejectedCrew = (v: any) =>
+  ["rejected", "rejeitado", "recusado", "em_revisao", "revisao"].includes(norm(v));
+
+/**
+ * O status do fluxo pode ficar defasado na coluna `status` (relatórios seguem
+ * como "Finalizado"/"Enviado" mesmo depois da aprovação do tripulante).
+ * Aqui derivamos o status real a partir do `crew_approval_status`.
+ */
+const resolveStatus = (report: Report): string | null => {
+  if (TRACKED_STATUSES.includes(report.status)) return report.status;
+  if (report.status !== "Finalizado" && report.status !== "Enviado") return null;
+  if (isApprovedCrew(report.crew_approval_status)) return "aprovado_tripulante";
+  if (isRejectedCrew(report.crew_approval_status)) return "em_revisao";
+  if (isPendingCrew(report.crew_approval_status) && report.approval_token)
+    return "aguardando_aprovacao_tripulante";
+  return null;
+};
 
 export default function TravelReportsTracking() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -78,16 +95,11 @@ export default function TravelReportsTracking() {
       if (error) throw error;
       setReports(
         (data || [])
-          .filter(
-            (report) =>
-              TRACKED_STATUSES.includes(report.status) ||
-              isAwaitingCrewApproval(report)
-          )
-          .map((report) =>
-            isAwaitingCrewApproval(report)
-              ? { ...report, status: "aguardando_aprovacao_tripulante" }
-              : report
-          )
+          .map((report) => {
+            const status = resolveStatus(report);
+            return status ? { ...report, status } : null;
+          })
+          .filter(Boolean) as Report[]
       );
     } catch (e: any) {
       toast.error(e.message || "Erro ao carregar relatórios");
@@ -255,7 +267,7 @@ export default function TravelReportsTracking() {
                             {r.numero_relatorio}
                           </h3>
                           <Badge className={meta.color}>{meta.label}</Badge>
-                          {r.crew_approval_status === "approved" && (
+                          {isApprovedCrew(r.crew_approval_status) && (
                             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1">
                               <CheckCircle2 className="w-3 h-3" /> Trip confirmou
                             </Badge>

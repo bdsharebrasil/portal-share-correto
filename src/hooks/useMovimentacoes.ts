@@ -57,7 +57,7 @@ export function useMovimentacoes() {
           tipo,
           tipo_caixa,
           valor,
-          data_competencia,
+          data_emissao,
           data_vencimento,
           data_pagamento,
           status,
@@ -78,7 +78,7 @@ export function useMovimentacoes() {
           categoria_id
         `
         )
-        .order("data_competencia", { ascending: false });
+        .order("data_emissao", { ascending: false });
 
       if (error) throw error;
 
@@ -157,7 +157,7 @@ export function useMovimentacoes() {
         const clienteId = row.clientes_id || clientePorAeronave.get(row.aeronave_id) || null;
         return {
           id: row.id,
-          data: row.data_pagamento || row.data_vencimento || row.data_competencia,
+          data: row.data_pagamento || row.data_vencimento || row.data_emissao,
           tipo_movimento: normalizeTipoMovimento(row.tipo),
           descricao: row.descricao,
           categoria_nome: categoriasById.get(row.categoria_id) ?? null,

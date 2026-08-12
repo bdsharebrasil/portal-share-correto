@@ -579,7 +579,7 @@ export default function EmissaoRecibo() {
               valor_rateado: isDECEAorINFRAERO
                 ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo))
                 : valorRecibo,
-              data_competencia: dataEmissaoStr,
+              data_emissao: dataEmissaoStr,
               data_vencimento: dataVencimento,
               aeronave_id: selectedAircraftId || null,
               clientes_id: normalizeId(originalForm.clienteId),
@@ -647,7 +647,7 @@ export default function EmissaoRecibo() {
                 tipo: "receita",
                 categoria_id: originalForm.reembolsoCategoriaId || null,
                 valor_rateado: valorRecibo,
-                data_competencia: dataEmissaoStr,
+                data_emissao: dataEmissaoStr,
                 data_vencimento: dataVencimento,
                 aeronave_id: selectedAircraftId || null,
                 clientes_id: normalizedClienteId,
@@ -680,7 +680,7 @@ export default function EmissaoRecibo() {
                     cliente_id: normalizedClienteId,
                     aeronave_id: selectedAircraftId,
                     valor: valorRecibo,
-                    data_competencia: dataEmissaoStr,
+                    data_emissao: dataEmissaoStr,
                     data_vencimento: dataVencimento,
                     numero_doc: receiptData.numero_recibo,
                     descricao_origem: brDescription,
@@ -704,14 +704,44 @@ export default function EmissaoRecibo() {
               .select("id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social)") // corrigido: id_cliente → id_clientes
               .eq("id_aeronave", selectedAircraftId);
 
+            // Apenas os cotistas selecionados no formulário entram no rateio.
+            // Antes o rateio era gerado para TODOS os cotistas da aeronave,
+            // mesmo quando o usuário marcava só alguns.
+            const linhasPagadores: any[] = Array.isArray(originalForm.pagadores)
+              ? originalForm.pagadores.filter((p: any) => normalizeId(p?.clienteId))
+              : [];
+            const selecionados = new Map<string, any>();
+            linhasPagadores.forEach((p: any) => {
+              selecionados.set(String(normalizeId(p.clienteId)), p);
+            });
+
             if (acError) {
               console.error("❌ Erro ao buscar cotistas da aeronave:", acError);
             } else if (aircraftClients && aircraftClients.length > 0) {
-              for (const ac of aircraftClients) {
-                const clientData = ac.clientes as any;
-                const sharePercentage = parseFloat(String(ac.percentual_sociedade || 0)); // corrigido: era percentual_participacao
+              const cotistasParaRateio = selecionados.size
+                ? aircraftClients.filter((ac: any) => selecionados.has(String(ac.id_clientes)))
+                : aircraftClients;
 
-                const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;
+              if (selecionados.size && cotistasParaRateio.length === 0) {
+                console.warn("⚠️ Nenhum cotista selecionado corresponde aos cotistas da aeronave — rateio não gerado.");
+              }
+
+              for (const ac of cotistasParaRateio) {
+                const clientData = ac.clientes as any;
+                const linha = selecionados.get(String(ac.id_clientes));
+                const percentualLinha = linha?.percentual
+                  ? parseFloat(String(linha.percentual).replace(",", "."))
+                  : NaN;
+                const sharePercentage = !isNaN(percentualLinha) && percentualLinha > 0
+                  ? percentualLinha
+                  : parseFloat(String(ac.percentual_sociedade || 0));
+
+                const valorLinha = linha?.valor
+                  ? parseFloat(String(linha.valor).replace(/\./g, "").replace(",", "."))
+                  : NaN;
+                const valorPorPropriedade = !isNaN(valorLinha) && valorLinha > 0
+                  ? valorLinha
+                  : (valorTotalDespesa * sharePercentage) / 100;
                 const valorPorUso = (valorTotalDespesa * parseFloat(percentual)) / 100;
 
                 const rateioPayload = {

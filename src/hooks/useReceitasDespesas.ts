@@ -13,10 +13,10 @@ export function useReceitasDespesas() {
     queryFn: async (): Promise<MonthlyData[]> => {
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("data_competencia, tipo, valor, status, data_pagamento, tipo_caixa")
+        .select("data_emissao, tipo, valor, status, data_pagamento, tipo_caixa")
         .eq("tipo_caixa", "share")
         .neq("status", "cancelado")
-        .order("data_competencia", { ascending: false })
+        .order("data_emissao", { ascending: false })
         .limit(100);
 
       if (error) throw error;
@@ -36,7 +36,7 @@ export function useReceitasDespesas() {
       // Processar dados
       if (data) {
         data.forEach((item: any) => {
-          const date = new Date(item.data_competencia);
+          const date = new Date(item.data_emissao);
           const monthKey = date.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 
           if (monthlyData[monthKey]) {

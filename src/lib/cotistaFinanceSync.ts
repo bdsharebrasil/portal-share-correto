@@ -73,10 +73,11 @@ if (input.pagador !== FinancePayorType.COMPANY) {
 
   const payload: any = {
     descricao: `Reembolso rateio: ${input.descricao}`,
-    tipo: "receita",
+    fluxo: "receita",
     categoria_id: categoriaId,
     valor_rateado: input.valorTotal,
-    data_competencia: input.data,
+    valor_total: input.valorTotal,
+    data_emissao: input.data,
     data_vencimento: input.data,
     data_pagamento: null,
     status: "pendente",

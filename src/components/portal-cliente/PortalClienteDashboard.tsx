@@ -98,7 +98,7 @@ interface Movimentacao {
   valor_rateado: string | number | null;
   valor_original: string | number | null;
   valor_pago_real: string | number | null;
-  data_competencia: string | null;
+  data_emissao: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
   aeronave_id: string | null;
@@ -306,7 +306,7 @@ function PortalClienteDashboard() {
           .eq("aeronave_id", activeAircraftId)
           .order("data_pagamento", { ascending: false, nullsFirst: false });
         if (err) throw err;
-        setRateios((data ?? []) as Rateio[]);
+        setRateios(((data ?? []) as any[]).map((r) => ({ ...r, valor_total_despesa: r.valor_total_despesa ?? r.valor_total ?? null })) as Rateio[]);
       } catch (e: any) {
         setError(e.message);
       } finally {

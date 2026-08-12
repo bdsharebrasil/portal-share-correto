@@ -29,10 +29,10 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento")
-        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
-        .lte("data_competencia", format(endDate, "yyyy-MM-dd"))
-        .order("data_competencia", { ascending: true });
+        .select("id, tipo, valor_rateado, valor_original, data_emissao, data_vencimento, data_pagamento")
+        .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
+        .lte("data_emissao", format(endDate, "yyyy-MM-dd"))
+        .order("data_emissao", { ascending: true });
 
       if (error) throw error;
       return data || [];
@@ -66,7 +66,7 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
     
     days.forEach((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
-      const transacoesDia = transacoes.filter((t) => (t.data_competencia || t.data_pagamento || t.data_vencimento || "") === dayStr);
+      const transacoesDia = transacoes.filter((t) => (t.data_emissao || t.data_pagamento || t.data_vencimento || "") === dayStr);
       
       const entradas = transacoesDia
         .filter((t) => t.tipo === "receita" || t.tipo === "entrada")

@@ -59,7 +59,7 @@ export interface PartnerSyncInput {
   tipo: "receita" | "despesa";
   descricao: string;
   valor: number;
-  data_competencia: string; // YYYY-MM-DD
+  data_emissao: string; // YYYY-MM-DD
   data_vencimento?: string | null;
   data_pagamento?: string | null;
   status?: "pendente" | "pago" | "cancelado";
@@ -112,12 +112,13 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
 
   const payload: any = {
     descricao: input.descricao,
-    tipo: input.tipo,
+    fluxo: input.tipo,
     categoria_id: categoriaId,
     valor_rateado: input.valor,
-    data_competencia: input.data_competencia,
-    data_vencimento: input.data_vencimento || input.data_competencia,
-    data_pagamento: input.data_pagamento || (status === "pago" ? input.data_competencia : null),
+    valor_total: input.valor,
+    data_emissao: input.data_emissao,
+    data_vencimento: input.data_vencimento || input.data_emissao,
+    data_pagamento: input.data_pagamento || (status === "pago" ? input.data_emissao : null),
     status,
     clientes_id: input.clientes_id || null,
     socio_id: input.socio_id || null,

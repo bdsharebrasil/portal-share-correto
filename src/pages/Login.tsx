@@ -143,7 +143,7 @@ const Login = () => {
         }
       `}</style>
 
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-8 text-white sm:justify-center">
+      <div className="relative ml-[-4px] mr-[-4px] flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-[18px] py-8 text-white sm:justify-center">
         
         {/* Camada 1: Gradientes de Profundidade */}
         <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,_rgba(20,67,122,0.45),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(17,94,133,0.35),_transparent_40%),radial-gradient(circle_at_bottom_left,_rgba(24,73,109,0.35),_transparent_45%)]" />
@@ -187,13 +187,13 @@ const Login = () => {
         </div>
         
         {/* Camada 4: Card Principal do Login */}
-        <div className="relative z-20 w-full max-w-md rounded-[28px] border border-white/10 bg-[#061223]/55 p-6 shadow-[0_40px_80px_-20px_rgba(0,10,20,0.85)] backdrop-blur-md sm:rounded-[32px] sm:bg-[#061223]/70 sm:p-10 sm:backdrop-blur-xl">
+        <div className="relative z-20 ml-[-18px] mr-[-18px] mt-[-21px] mb-[-21px] flex w-full max-w-[446px] flex-col gap-[-2px] rounded-[28px] border border-white/10 bg-[#061223]/55 px-8 py-0 shadow-[0_40px_80px_-20px_rgba(0,10,20,0.85)] backdrop-blur-md sm:rounded-[32px] sm:bg-[#061223]/70 sm:backdrop-blur-xl">
           
           <div className="flex flex-col items-center text-center">
             <img 
               src="https://cdn.builder.io/api/v1/image/assets%2Faf5a83f35004455bbe0a6d0781c48fda%2F51b9a2880aa1414ab466f8d29b17f07e?format=webp&width=800" 
               alt="Logo Share Brasil" 
-              className="h-20 w-auto object-contain transition-transform duration-500 hover:scale-105" 
+              className="mx-auto mt-0 mb-[-7px] h-20 min-h-[118px] w-auto max-w-[113%] object-contain px-[2px] py-0 transition-transform duration-500 hover:scale-105" 
             />
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-[#f8fafc]">Share Brasil</h1>
             <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>

@@ -217,12 +217,14 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                         <XCircle className="mr-2 h-4 w-4" /> Cancelar voo
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setDeleteTarget(voo)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Excluir voo
-                      </DropdownMenuItem>
+                      {(voo.status === "cancelado" || voo.status === "rejeitado") && (
+                        <DropdownMenuItem
+                          onClick={() => setDeleteTarget(voo)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Excluir solicitação
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

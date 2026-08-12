@@ -67,7 +67,7 @@ export interface SaidaLegInput {
   // Dados financeiros
   valor: number;                 // valor total desta iteração (proporcional)
   valor_total_despesa?: number | null;
-  data_competencia: string;      // YYYY-MM-DD
+  data_emissao: string;      // YYYY-MM-DD
   data_vencimento: string;       // YYYY-MM-DD
   status?: string | null;        // 'pendente' | 'recebido' | 'pago' | 'cancelado'
 
@@ -403,7 +403,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const {
     origem, origem_id,
     cliente_id, socio_id,
-    valor, data_competencia, data_vencimento,
+    valor, data_emissao, data_vencimento,
     numero_doc, numero_nf, numero_recibo,
   } = input;
 
@@ -435,8 +435,8 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const movComum = {
     descricao: descricaoBase,
     valor_rateado: valor,
-    valor_original: input.valor_total_despesa ?? valor,
-    data_competencia,
+    valor_total: input.valor_total_despesa ?? valor,
+    data_emissao,
     data_vencimento,
     status,
     aeronave_id: input.aeronave_id || null,
@@ -463,7 +463,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     origem_id,
     {
       ...movComum,
-      tipo: tipoShare,          // 'receita' ou 'entrada' (subcat C.M.A)
+      fluxo: tipoShare,        // 'receita' ou 'entrada' (subcat C.M.A)
       tipo_caixa: "share",
       categoria_id: categoriaMovimentacaoId,
     }
@@ -476,7 +476,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     cliente_cnpj: input.cliente_cnpj || null,
     cliente_id: cliente_id || null,
     socio_id: socio_id || null,
-    data_criacao: data_competencia,
+    data_criacao: data_emissao,
     data_vencimento,
     valor,
     categoria: input.categoria_origem_label || null,
@@ -507,7 +507,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     origem_id,
     {
       ...movComum,
-      tipo: "despesa",
+      fluxo: "despesa",
       tipo_caixa: "cliente",
       categoria_id: categoriaExpenseId,
       contas_areceber_id: contasAreceberId,
@@ -530,7 +530,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     fonte_despesa: origem,
     tipo_rateio: "FIXO",
     fluxo: "SAÍDA",
-    data_emissao: data_competencia,
+    data_emissao: data_emissao,
     data_vencimento,
     numero_boleto: input.numero_boleto || null,
     numero_nf: numero_nf || null,
@@ -548,7 +548,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     percentual_uso: input.percentual_uso ?? 100,
     descricao_despesa: descricaoBase,
     periodicidade: "MENSAL",
-    valor_total_despesa: input.valor_total_despesa ?? valor,
+    valor_total: input.valor_total_despesa ?? valor,
     valor_rateado: valor,
     status: "pendente",
     observacoes: input.observacoes || null,

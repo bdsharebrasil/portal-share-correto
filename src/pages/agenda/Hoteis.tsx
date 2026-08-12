@@ -272,7 +272,10 @@ export default function Hoteis() {
         </Card>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((hotel) => (
+          {filtered.map((hotel) => {
+            const hasReservaEmail = Boolean(hotel.email_reservas || hotel.email);
+
+            return (
             <Card key={hotel.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -333,8 +336,10 @@ export default function Hoteis() {
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     size="sm"
-                    className="flex-1 gap-1.5 bg-cyan-600 hover:bg-cyan-500"
-                    onClick={() => setReservaHotel(hotel)}
+                    className="flex-1 gap-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => hasReservaEmail && setReservaHotel(hotel)}
+                    disabled={!hasReservaEmail}
+                    title={hasReservaEmail ? "Solicitar reserva" : "Este hotel não possui e-mail para reservas"}
                   >
                     <Mail className="h-3.5 w-3.5" /> Reservar
                   </Button>
@@ -342,11 +347,15 @@ export default function Hoteis() {
 
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((hotel) => (
+          {filtered.map((hotel) => {
+            const hasReservaEmail = Boolean(hotel.email_reservas || hotel.email);
+
+            return (
             <Card key={hotel.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
               <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">
@@ -392,7 +401,13 @@ export default function Hoteis() {
                     </div>
                   </div>
 
-                  <Button size="sm" className="gap-1.5 bg-cyan-600 hover:bg-cyan-500" onClick={() => setReservaHotel(hotel)}>
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => hasReservaEmail && setReservaHotel(hotel)}
+                    disabled={!hasReservaEmail}
+                    title={hasReservaEmail ? "Solicitar reserva" : "Este hotel não possui e-mail para reservas"}
+                  >
                     <Mail className="h-3.5 w-3.5" /> Reservar
                   </Button>
 
@@ -408,7 +423,8 @@ export default function Hoteis() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

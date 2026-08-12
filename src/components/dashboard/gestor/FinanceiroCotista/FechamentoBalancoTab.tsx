@@ -8,6 +8,9 @@ import {
   ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import AttachmentViewerModal from "../financeiro-share/AttachmentViewerModal";
+import AnexosDinamicosField, { type AnexoLinha, type AnexoTipoId } from "./AnexosDinamicosField";
+
 import {
   type RateioRow,
   type Cotista,
@@ -63,6 +66,8 @@ export function FechamentoBalancoTab({
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [viewerAnexo, setViewerAnexo] = useState<{ url: string; title: string } | null>(null);
+
   type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
   const [sortBy, setSortBy] = useState<SortBy>("vencimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -171,8 +176,7 @@ export function FechamentoBalancoTab({
 
     return despesasAgrupadas.filter((grupo) => {
       const r = grupo.representante;
-      const cliente = !!r.clientes_nome && !!r.socios_nome ? r.clientes_nome : (r.pago_por || "");
-      return active.every(([key, raw]) => {
+const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      return active.every(([key, raw]) => {
         const q = norm(raw);
         switch (key) {
           case "fluxo": return norm(r.fluxo).includes(q);
@@ -208,7 +212,7 @@ export function FechamentoBalancoTab({
   const sortedDespesasAgrupadas = useMemo(() => {
     const rows = filteredDespesasAgrupadas.map((grupo) => {
       const r = grupo.representante;
-      const cliente = !!r.clientes_nome && !!r.socios_nome ? r.clientes_nome : (r.pago_por || "");
+      const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";
       const sortValue: string | number = (() => {
         switch (sortBy) {
           case "vencimento": return r.data_vencimento || "";
@@ -382,7 +386,7 @@ export function FechamentoBalancoTab({
             </div>
           </div>
 
-          <div className="relative overflow-visible">
+          <div className="relative z-[500] overflow-visible">
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
               type="button"
@@ -394,20 +398,24 @@ export function FechamentoBalancoTab({
               COLUNAS
             </button>
             {showColumnMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
-                {HIDEABLE_COLUMNS.map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => toggleColumn(id)}
-                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-teal-300"
-                  >
-                    {label}
-                    {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="fixed inset-0 z-[9998]" onClick={() => setShowColumnMenu(false)} />
+                <div className="absolute right-0 top-full z-[9999] mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-2xl">
+                  {HIDEABLE_COLUMNS.map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => toggleColumn(id)}
+                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-teal-300"
+                    >
+                      {label}
+                      {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
+
 
           <div className="flex items-center gap-2">
             {onVerNaTela && (
@@ -579,8 +587,7 @@ export function FechamentoBalancoTab({
                   ].filter((a) => a.url);
 
                   const st = statusOf(r);
-                  const hasClienteAndSocio = !!r.clientes_nome && !!r.socios_nome;
-                  const clienteDisplay = hasClienteAndSocio ? r.clientes_nome : (r.pago_por || "—");
+                  const clienteDisplay = r.socios_nome || r.clientes_nome || r.pago_por || "—";
                   const docDisplay = r.numero_nf || r.numero_doc || r.numero_recibo || "—";
                   const temMultiplosCotistas = grupo.numCotistas > 1;
 
@@ -679,20 +686,20 @@ export function FechamentoBalancoTab({
                                   <div className="flex flex-col gap-1.5">
                                     {anexos.length > 0 ? (
                                       anexos.map((a) => (
-                                        <a
+                                        <button
                                           key={a.label}
-                                          href={a.url!}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex items-center justify-between rounded-md border border-slate-700/50 bg-slate-800/50 px-2.5 py-1.5 text-[10px] font-medium text-slate-300 transition-colors hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-400"
+                                          type="button"
+                                          onClick={() => setViewerAnexo({ url: a.url!, title: a.label })}
+                                          className="flex w-full items-center justify-between rounded-md border border-slate-700/50 bg-slate-800/50 px-2.5 py-1.5 text-[10px] font-medium text-slate-300 transition-colors hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-400"
                                         >
                                           <div className="flex items-center gap-1.5">
                                             <FileText className="h-3 w-3 text-red-400" />
                                             {a.label}
                                           </div>
                                           <ExternalLink className="h-3 w-3 opacity-50" />
-                                        </a>
+                                        </button>
                                       ))
+
                                     ) : (
                                       <p className="text-[10px] italic text-slate-600">Nenhum documento anexado.</p>
                                     )}
@@ -894,8 +901,16 @@ export function FechamentoBalancoTab({
         </div>
       </div>
 
+      {viewerAnexo && (
+        <AttachmentViewerModal
+          url={viewerAnexo.url}
+          title={viewerAnexo.title}
+          onClose={() => setViewerAnexo(null)}
+        />
+      )}
     </div>
   );
+
 }
 
 // ============== Edit Panel ==============
@@ -922,25 +937,96 @@ function EditRateioPanel({
   });
   const [saving, setSaving] = useState(false);
 
+  // Anexos existentes no rateio -> linhas editáveis
+  const [anexos, setAnexos] = useState<AnexoLinha[]>(() =>
+    (
+      [
+        ["comprovante", (rateio as any).comprovante_url],
+        ["recibo", (rateio as any).recibo_url],
+        ["nf", (rateio as any).nf_url],
+        ["boleto", (rateio as any).boleto_url],
+        ["demonstrativo", (rateio as any).demonstrativo_url],
+        ["outro", (rateio as any).relatorio_url],
+      ] as [AnexoTipoId, string | null][]
+    )
+      .filter(([, url]) => !!url)
+      .map(([tipo, url]) => ({
+        id: crypto.randomUUID(),
+        tipo,
+        numero: "",
+        url: url as string,
+        file: null,
+      })),
+  );
+
   const setF = (k: string, v: any) => setForm((s: any) => ({ ...s, [k]: v }));
+
+  const anexosPatch = () => {
+    const cols: Record<AnexoTipoId, string> = {
+      comprovante: "comprovante_url",
+      recibo: "recibo_url",
+      nf: "nf_url",
+      boleto: "boleto_url",
+      demonstrativo: "demonstrativo_url",
+      comanda: "relatorio_url",
+      outro: "relatorio_url",
+    };
+    const patch: Record<string, string | null> = {
+      comprovante_url: null,
+      recibo_url: null,
+      nf_url: null,
+      boleto_url: null,
+      demonstrativo_url: null,
+      relatorio_url: null,
+    };
+    anexos.forEach((a) => {
+      if (a.url) patch[cols[a.tipo]] = a.url;
+    });
+    return patch;
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const patch: any = {
+      // Campos que pertencem à despesa inteira (replicados em todos os rateios)
+      const patchDespesa: any = {
         data_vencimento: form.data_vencimento || null,
         data_pagamento: form.data_pagamento || null,
         numero_doc: form.numero_doc || null,
         fornecedor_nome: form.fornecedor_nome || null,
         valor_total_despesa: form.valor_total_despesa === "" ? null : Number(form.valor_total_despesa),
+        descricao_despesa: form.descricao_despesa || null,
+        ...anexosPatch(),
+      };
+      // Campos do rateio individual
+      const patchLinha: any = {
+        ...patchDespesa,
         valor_rateado: form.valor_rateado === "" ? null : Number(form.valor_rateado),
         valor_pago_real: form.valor_pago_real === "" ? null : Number(form.valor_pago_real),
         status: form.status || null,
-        descricao_despesa: form.descricao_despesa || null,
         observacoes: form.observacoes || null,
       };
-      const { error } = await supabase.from("rateio_despesas").update(patch).eq("id", rateio.id);
+
+      const { data, error } = await supabase
+        .from("rateio_despesas")
+        .update(patchLinha)
+        .eq("id", rateio.id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Nenhum registro atualizado (verifique as permissões).");
+      }
+
+      // Replica os dados da despesa nos demais rateios do mesmo documento
+      if (rateio.despesa_id) {
+        const { error: errSiblings } = await supabase
+          .from("rateio_despesas")
+          .update(patchDespesa)
+          .eq("despesa_id", rateio.despesa_id)
+          .neq("id", rateio.id);
+        if (errSiblings) throw errSiblings;
+      }
+
       toast.success("Lançamento atualizado");
       onSaved();
     } catch (e: any) {
@@ -948,6 +1034,7 @@ function EditRateioPanel({
     } finally {
       setSaving(false);
     }
+
   };
 
   const inputCls = "w-full rounded-xl bg-slate-950/80 border border-slate-700/60 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-slate-600 shadow-inner";
@@ -1030,7 +1117,16 @@ function EditRateioPanel({
               <label className={labelCls}>Observações Internas (Notas)</label>
               <textarea className={inputCls} rows={3} placeholder="Insira o contexto ou histórico para conciliação..." value={form.observacoes} onChange={(e) => setF("observacoes", e.target.value)} />
             </div>
+            <div className="md:col-span-2">
+              <label className={labelCls}>Anexos do Lançamento</label>
+              <AnexosDinamicosField
+                anexos={anexos}
+                onChange={setAnexos}
+                storagePrefix={`balanco-anexos/${rateio.despesa_id || rateio.id}`}
+              />
+            </div>
           </div>
+
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-800 bg-slate-900/80 px-6 py-4">

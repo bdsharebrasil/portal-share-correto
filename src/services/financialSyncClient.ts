@@ -72,7 +72,7 @@ export async function syncSalaryPaymentToFinancial(
         grupo_custo: "FOLHA DE PAGAMENTO",
         valor_rateado: valor,
         valor_original: valor,
-        data_competencia: dataPagamento,
+        data_emissao: dataPagamento,
         data_pagamento: dataPagamento,
         status: "pago",
         conta_bancaria: components.banco ?? null,

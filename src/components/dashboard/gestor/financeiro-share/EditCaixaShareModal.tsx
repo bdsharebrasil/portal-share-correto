@@ -165,7 +165,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
         categoria_id: mov.categoria_id || null,
-        data_competencia: mov.data_competencia || null,
+        data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
         valor_rateado: numOrNull(mov.valor_rateado),
         status: mov.status,
@@ -263,7 +263,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
 
           <Section icon={<CalendarRange className="h-4 w-4" />} title="Datas" accent="#38bdf8">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div><label className={labelCls}>Competência</label><input type="date" className={inputCls} value={mov.data_competencia || ""} onChange={(e) => setM("data_competencia", e.target.value)} /></div>
+              <div><label className={labelCls}>Emissão</label><input type="date" className={inputCls} value={mov.data_emissao || ""} onChange={(e) => setM("data_emissao", e.target.value)} /></div>
               <div><label className={labelCls}>Vencimento</label><input type="date" className={inputCls} value={mov.data_vencimento || ""} onChange={(e) => setM("data_vencimento", e.target.value)} /></div>
               <div><label className={labelCls}>Pagamento</label><input type="date" className={inputCls} value={mov.data_pagamento || ""} onChange={(e) => setM("data_pagamento", e.target.value)} /></div>
             </div>

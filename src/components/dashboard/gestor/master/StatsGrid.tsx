@@ -37,10 +37,10 @@ export function StatsGrid() {
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_emissao, tipo_caixa")
         .eq("tipo_caixa", "share")
-        .gte("data_competencia", firstDay)
-        .lte("data_competencia", lastDay)
+        .gte("data_emissao", firstDay)
+        .lte("data_emissao", lastDay)
         .neq("status", "cancelado");
       
       if (error) throw error;
@@ -58,10 +58,10 @@ export function StatsGrid() {
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_emissao, tipo_caixa")
         .eq("tipo_caixa", "share")
-        .gte("data_competencia", firstDay)
-        .lte("data_competencia", lastDay)
+        .gte("data_emissao", firstDay)
+        .lte("data_emissao", lastDay)
         .neq("status", "cancelado");
       
       if (error) throw error;

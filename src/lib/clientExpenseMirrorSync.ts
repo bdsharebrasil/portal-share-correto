@@ -18,7 +18,7 @@ export interface ClientExpenseMirrorInput {
   cliente_id: string;
   aeronave_id: string;
   valor: number;
-  data_competencia: string;
+  data_emissao: string;
   data_vencimento: string;
   numero_doc?: string | null;
   descricao_origem?: string | null;
@@ -72,12 +72,13 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     descricao: `[ADM SHARE] ${descricaoBase.trim()}${
       input.descricao_origem ? ` - ${input.descricao_origem}` : ""
     }`,
-    tipo: "despesa",
+    fluxo: "despesa",
     categoria_id: categoriaId,
     valor_rateado: input.valor,
-    data_competencia: input.data_competencia,
+    valor_total: input.valor,
+    data_emissao: input.data_emissao,
     data_vencimento: input.data_vencimento,
-    data_pagamento: status === "pago" ? input.data_competencia : null,
+    data_pagamento: status === "pago" ? input.data_emissao : null,
     status,
     aeronave_id: input.aeronave_id,
     clientes_id: input.cliente_id,

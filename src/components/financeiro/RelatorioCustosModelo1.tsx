@@ -119,7 +119,7 @@ export const RelatorioCustosModelo1: React.FC<RelatorioCustosModelo1Props> = ({
             <TableBody>
               {data.despesas_detalhadas.map((mov) => (
                 <TableRow key={mov.id}>
-                  <TableCell>{new Date(mov.data_competencia).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{new Date(mov.data_emissao).toLocaleDateString("pt-BR")}</TableCell>
                   <TableCell>{mov.descricao}</TableCell>
                   <TableCell>{mov.categorias_movimentacao?.nome || "Geral"}</TableCell>
                   <TableCell className="text-right">{formatBRL(mov.valor)}</TableCell>

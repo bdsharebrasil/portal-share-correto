@@ -31,6 +31,7 @@ export type Database = {
           data: string
           data_pagamento: string | null
           data_vencimento_boleto: string | null
+          desconto: number | null
           descricao: string | null
           forma_pagamento: string | null
           id: string
@@ -70,6 +71,7 @@ export type Database = {
           data: string
           data_pagamento?: string | null
           data_vencimento_boleto?: string | null
+          desconto?: number | null
           descricao?: string | null
           forma_pagamento?: string | null
           id?: string
@@ -109,6 +111,7 @@ export type Database = {
           data?: string
           data_pagamento?: string | null
           data_vencimento_boleto?: string | null
+          desconto?: number | null
           descricao?: string | null
           forma_pagamento?: string | null
           id?: string
@@ -6702,16 +6705,16 @@ export type Database = {
           contas_areceber_id: string | null
           criado_em: string
           criado_por: string | null
-          data_competencia: string
           data_emissao: string | null
           data_pagamento: string | null
+          data_vencimento: string | null
           descricao: string
           despesa_cliente_direto_id: string | null
           enviado_por_email: boolean
           enviado_por_email_em: string | null
+          fluxo: string | null
           forma_pagamento: string | null
           fornecedor_nome: string | null
-          grupo_custo: string | null
           id: string
           movimentacao_origem_id: string | null
           movimentacao_pai_id: string | null
@@ -6735,11 +6738,11 @@ export type Database = {
           socio_id: string | null
           socios_nome: string | null
           status: string
-          tipo: string | null
           tipo_caixa: string | null
-          valor_original: number | null
+          tipo_rateio: string | null
           valor_pago_real: number | null
           valor_rateado: number
+          valor_total: number | null
         }
         Insert: {
           aeronave_id?: string | null
@@ -6754,16 +6757,16 @@ export type Database = {
           contas_areceber_id?: string | null
           criado_em?: string
           criado_por?: string | null
-          data_competencia: string
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_vencimento?: string | null
           descricao: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
           enviado_por_email_em?: string | null
+          fluxo?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
-          grupo_custo?: string | null
           id?: string
           movimentacao_origem_id?: string | null
           movimentacao_pai_id?: string | null
@@ -6787,11 +6790,11 @@ export type Database = {
           socio_id?: string | null
           socios_nome?: string | null
           status?: string
-          tipo?: string | null
           tipo_caixa?: string | null
-          valor_original?: number | null
+          tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado: number
+          valor_total?: number | null
         }
         Update: {
           aeronave_id?: string | null
@@ -6806,16 +6809,16 @@ export type Database = {
           contas_areceber_id?: string | null
           criado_em?: string
           criado_por?: string | null
-          data_competencia?: string
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_vencimento?: string | null
           descricao?: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
           enviado_por_email_em?: string | null
+          fluxo?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
-          grupo_custo?: string | null
           id?: string
           movimentacao_origem_id?: string | null
           movimentacao_pai_id?: string | null
@@ -6839,11 +6842,11 @@ export type Database = {
           socio_id?: string | null
           socios_nome?: string | null
           status?: string
-          tipo?: string | null
           tipo_caixa?: string | null
-          valor_original?: number | null
+          tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado?: number
+          valor_total?: number | null
         }
         Relationships: [
           {
@@ -8026,6 +8029,7 @@ export type Database = {
           conferido: boolean
           conferido_em: string | null
           conferido_por: string | null
+          conta_bancaria: string | null
           criado_em: string | null
           data_emissao: string | null
           data_pagamento: string | null
@@ -8062,7 +8066,7 @@ export type Database = {
           tipo_rateio: string | null
           valor_pago_real: number | null
           valor_rateado: number | null
-          valor_total_despesa: number | null
+          valor_total: number | null
         }
         Insert: {
           abastecimento_id?: string | null
@@ -8078,6 +8082,7 @@ export type Database = {
           conferido?: boolean
           conferido_em?: string | null
           conferido_por?: string | null
+          conta_bancaria?: string | null
           criado_em?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
@@ -8114,7 +8119,7 @@ export type Database = {
           tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado?: number | null
-          valor_total_despesa?: number | null
+          valor_total?: number | null
         }
         Update: {
           abastecimento_id?: string | null
@@ -8130,6 +8135,7 @@ export type Database = {
           conferido?: boolean
           conferido_em?: string | null
           conferido_por?: string | null
+          conta_bancaria?: string | null
           criado_em?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
@@ -8166,7 +8172,7 @@ export type Database = {
           tipo_rateio?: string | null
           valor_pago_real?: number | null
           valor_rateado?: number | null
-          valor_total_despesa?: number | null
+          valor_total?: number | null
         }
         Relationships: [
           {
@@ -8280,7 +8286,7 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           cidade_pagador: string | null
-          cliente_id: string | null
+          clientes_id: string | null
           compartilhado: boolean | null
           competencia_decea: string | null
           competencia_infraero: string | null
@@ -8320,7 +8326,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8360,7 +8366,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8418,8 +8424,8 @@ export type Database = {
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "receipts_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "recibos_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
@@ -10494,6 +10500,10 @@ export type Database = {
     Functions: {
       authenticate_client_portal: {
         Args: { p_email: string; p_password: string }
+        Returns: Json
+      }
+      authenticate_cotista: {
+        Args: { p_login: string; p_senha: string }
         Returns: Json
       }
       calcular_consumo_combustivel: {

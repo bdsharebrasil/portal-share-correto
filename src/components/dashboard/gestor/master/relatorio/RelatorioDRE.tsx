@@ -37,8 +37,8 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
       const { data, error } = await supabase
         .from("movimentacoes")
         .select("id, tipo, valor_rateado, valor_original, categoria_id")
-        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
-        .lte("data_competencia", format(endDate, "yyyy-MM-dd"));
+        .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
+        .lte("data_emissao", format(endDate, "yyyy-MM-dd"));
 
       if (error) throw error;
       return data || [];
