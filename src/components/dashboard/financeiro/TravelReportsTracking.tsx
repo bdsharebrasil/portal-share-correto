@@ -409,7 +409,7 @@ export default function TravelReportsTracking() {
   const hasFilters = filter !== 'todos' || search.trim().length > 0;
 
   return (
-    <div className="space-y-5 bg-[#0b1120] text-[#c4d2e8] min-h-screen p-6 font-sans">
+    <div className="min-h-screen space-y-5 overflow-hidden rounded-[37px] bg-[#0b1120] p-6 font-sans text-[#c4d2e8]">
       <StatusFilterCards
         counts={counts}
         totals={totals}
@@ -418,7 +418,7 @@ export default function TravelReportsTracking() {
         onSelect={(status: ReportStatus) => setFilter((prev) => (prev === status ? 'todos' : status))}
       />
 
-      <section className="relative rounded-[14px] border border-slate-400/10 bg-[#0d1426]/90 backdrop-blur-md shadow-2xl" aria-labelledby="reports-heading">
+      <section className="relative -mx-4 rounded-[14px] border border-slate-400/10 bg-black/[0.46] px-0.5 backdrop-blur-md" aria-labelledby="reports-heading">
         <header className="px-5 py-3.5 border-b border-slate-400/10 flex flex-wrap items-center justify-between gap-3">
           <div className="relative pl-3.5 before:content-[''] before:absolute before:left-0 before:top-0.5 before:bottom-0.5 before:w-[3px] before:rounded-full before:bg-gradient-to-b before:from-teal-300 before:to-teal-500">
             <h2 id="reports-heading" className="flex items-center gap-2 text-[15px] font-semibold text-white">

@@ -462,11 +462,15 @@ export function FinanceiroDashboard() {
         </div>
       )}
       {travelReportsOpen ? (
-        <section className="fixed inset-0 z-40 overflow-auto bg-background p-4 md:p-6 lg:p-8">
+        <section className="fixed inset-0 z-40 -mt-1 overflow-auto bg-[#090e1d] p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl space-y-6">
             <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
               <h2 className="text-xl font-semibold text-foreground uppercase tracking-wide">Relatórios de Viagem em Fluxo</h2>
-              <Button variant="outline" onClick={() => setTravelReportsOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setTravelReportsOpen(false)}
+                className="border-[#cde3eb] bg-[#cde3eb] text-slate-900 hover:border-[#cde3eb] hover:bg-[#cde3eb]/90 hover:text-slate-900"
+              >
                 Voltar ao Dashboard
               </Button>
             </div>
