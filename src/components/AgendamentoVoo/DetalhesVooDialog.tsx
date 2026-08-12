@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardCheck, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Pencil, Plus, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -281,6 +281,22 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
             {podeEditar && (
               <Button variant="secondary" onClick={() => setEditarAberto(true)}>
                 <Pencil className="mr-1 h-4 w-4" /> Editar agendamento
+              </Button>
+            )}
+
+            {voo.status === "pendente" && (
+              <Button onClick={() => setEditarAberto(true)}>
+                <CheckCircle2 className="mr-1 h-4 w-4" /> Confirmar voo
+              </Button>
+            )}
+
+            {podeEditar && (
+              <Button
+                variant="destructive"
+                onClick={() => handleStatusUpdate("cancelado")}
+                disabled={alterarStatusVoo.isPending}
+              >
+                <XCircle className="mr-1 h-4 w-4" /> Cancelar voo
               </Button>
             )}
 

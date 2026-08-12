@@ -53,7 +53,7 @@ export function GestorDashboard() {
         .from("ctm_orcamentos")
         .select('*, aircraft:aeronave(matricula)')
         .eq("status", "submitted")
-        .order("submitted_at", { ascending: false });
+        .order("submetido_em", { ascending: false });
 
       // Buscar solicitações de compra enviadas para aprovação
       const { data: purchaseData } = await (supabase as any)
@@ -73,7 +73,7 @@ export function GestorDashboard() {
         ...b,
         type: 'budget',
         title: `Orçamento: ${b.descricao?.substring(0, 40) || ''} (${b.aircraft?.matricula || 'N/A'})`,
-        date: b.submitted_at || b.criado_em,
+        date: b.submetido_em || b.criado_em,
         total: b.valor_total,
       }));
 

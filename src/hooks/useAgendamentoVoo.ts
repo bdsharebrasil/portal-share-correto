@@ -497,8 +497,16 @@ export function useAgendamentoMutations() {
       solicitacao: Solicitacao;
       pilotoId?: string | null;
       copilotoId?: string | null;
+      dados?: Partial<Solicitacao>;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
+      const dadosAtualizados = sanitizeSolicitacaoPayload(dados as Record<string, any> ?? {});
+      const vooConfirmado = {
+        ...solicitacao,
+        ...dadosAtualizados,
+        piloto_id: pilotoId || null,
+        copiloto_id: copilotoId || null,
+      } as Solicitacao;
       const userId = userData?.user?.id ?? null;
 
       // Generate unique flight number from client code + sequence + year
@@ -513,6 +521,7 @@ export function useAgendamentoMutations() {
       const { error } = await sb
         .from("solicitacoes_reserva_voo")
         .update({
+          ...dadosAtualizados,
           status: "confirmado",
           piloto_id: pilotoId || null,
           copiloto_id: copilotoId || null,
@@ -523,16 +532,17 @@ export function useAgendamentoMutations() {
         .eq("id", solicitacao.id);
       if (error) throw error;
 
-      await bloquearDiasDoVoo(solicitacao, userId);
+      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "confirmado", userId);
+      await bloquearDiasDoVoo(vooConfirmado, userId);
 
-      if (solicitacao.aeronave_id) {
-        await upsertStatusAeronave(solicitacao.aeronave_id, "reservado", solicitacao.id, {
-          localizacao_atual: solicitacao.origem ?? null,
+      if (vooConfirmado.aeronave_id) {
+        await upsertStatusAeronave(vooConfirmado.aeronave_id, "reservado", solicitacao.id, {
+          localizacao_atual: vooConfirmado.origem ?? null,
         });
       }
 
-      const dias = Math.max(1, solicitacao.dias_duracao ?? 1);
-      const dataFim = iso(addDays(parseISO(solicitacao.data_agendada), dias - 1));
+      const dias = Math.max(1, vooConfirmado.dias_duracao ?? 1);
+      const dataFim = iso(addDays(parseISO(vooConfirmado.data_agendada), dias - 1));
       const escalas = [
         pilotoId ? { membro_id: pilotoId, funcao: "pic" } : null,
         copilotoId ? { membro_id: copilotoId, funcao: "sic" } : null,
@@ -542,9 +552,9 @@ export function useAgendamentoMutations() {
         await sb.from("escala_tripulacao").insert(
           escalas.map((e) => ({
             ...e,
-            aeronave_id: solicitacao.aeronave_id,
+            aeronave_id: vooConfirmado.aeronave_id,
             solicitacao_id: solicitacao.id,
-            data_inicio: solicitacao.data_agendada,
+            data_inicio: vooConfirmado.data_agendada,
             data_fim: dataFim,
             status: "escalado",
             criado_por: userId,
@@ -625,13 +635,16 @@ export function useAgendamentoMutations() {
           .eq("data_voo", solicitacao.data_agendada)
           .in("status", ["planejado", "em_andamento"]);
       }
-      if (status === "cancelado" && solicitacao.aeronave_id) {
-        await sb
-          .from("datas_bloqueadas_voo")
-          .delete()
-          .eq("aeronave_id", solicitacao.aeronave_id)
-          .gte("data_bloqueio", solicitacao.data_agendada)
-          .like("motivo", "Voo confirmado%");
+      if (status === "cancelado") {
+        if (solicitacao.aeronave_id) {
+          await sb
+            .from("datas_bloqueadas_voo")
+            .delete()
+            .eq("aeronave_id", solicitacao.aeronave_id)
+            .gte("data_bloqueio", solicitacao.data_agendada)
+            .like("motivo", "Voo confirmado%");
+        }
+        await sb.from("escala_tripulacao").delete().eq("solicitacao_id", solicitacao.id);
       }
     },
     onSuccess: () => {

@@ -35,7 +35,7 @@ export default function AprovacoesOrcamentos() {
         .from("ctm_orcamentos")
         .select("*, aircraft:aeronave(matricula)")
         .eq("status", "submitted")
-        .order("submitted_at", { ascending: false });
+        .order("submetido_em", { ascending: false });
       return (data || []) as any[];
     },
   });
@@ -58,7 +58,7 @@ export default function AprovacoesOrcamentos() {
       type: "budget",
       title: x.descricao || "Orçamento sem descrição",
       subtitle: x.aircraft?.matricula ? `Aeronave ${x.aircraft.matricula}` : undefined,
-      date: x.submitted_at || x.criado_em,
+      date: x.submetido_em || x.criado_em,
       total: Number(x.valor_total) || 0,
       status: x.status,
     }));
