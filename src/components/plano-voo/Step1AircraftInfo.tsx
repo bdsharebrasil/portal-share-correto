@@ -19,12 +19,9 @@ import {
   Gauge,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { calculateDistance, calculateMagneticHeading } from '@/lib/aviation';
-import {
-  formatSpeedCode,
-  getSuggestedAltitudeFallback,
-  calculateMinimumEndurance,
-} from '@/lib/aircraft-speeds';
+import { calculateDistance, calculateMagneticHeading, parseAerodromeCoordString } from '@/lib/geo';
+import { suggestFlightLevel } from '@/lib/flightLevel';
+import { formatSpeedCode, calculateMinimumEndurance } from '@/lib/aircraft-speeds';
 
 interface Step1Props {
   formData: any;
@@ -109,36 +106,6 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
     }
   };
 
-  const parseCoordinates = (
-    coordStr: string | null
-  ): { lat: number; lon: number } | null => {
-    if (!coordStr) return null;
-    const match = coordStr.match(
-      /([NS])(\d+)°(\d+)'(\d+)"?\s*([EW])(\d+)°(\d+)'(\d+)"?/i
-    );
-    if (match) {
-      const lat =
-        (parseInt(match[2]) +
-          parseInt(match[3]) / 60 +
-          parseInt(match[4]) / 3600) *
-        (match[1].toUpperCase() === 'S' ? -1 : 1);
-      const lon =
-        (parseInt(match[6]) +
-          parseInt(match[7]) / 60 +
-          parseInt(match[8]) / 3600) *
-        (match[5].toUpperCase() === 'W' ? -1 : 1);
-      return { lat, lon };
-    }
-    const decimalMatch = coordStr.match(/([-\d.]+),?\s*([-\d.]+)/);
-    if (decimalMatch) {
-      return {
-        lat: parseFloat(decimalMatch[1]),
-        lon: parseFloat(decimalMatch[2]),
-      };
-    }
-    return null;
-  };
-
   const calculateRoute = useCallback(() => {
     if (
       !formData.departureAirport ||
@@ -161,8 +128,8 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
       return;
     }
 
-    const depCoords = parseCoordinates(depAerodrome.coordenadas);
-    const arrCoords = parseCoordinates(arrAerodrome.coordenadas);
+    const depCoords = parseAerodromeCoordString(depAerodrome.coordenadas);
+    const arrCoords = parseAerodromeCoordString(arrAerodrome.coordenadas);
 
     if (!depCoords || !arrCoords) {
       setCalculatedData(null);
@@ -191,16 +158,9 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
 
     const estimatedTimeMinutes = (distanceNM / cruiseSpeed) * 60;
 
-    const isIFR = formData.flightRules === 'I' || formData.flightRules === 'Y';
-    const suggestedAltitude = getSuggestedAltitudeFallback(
-      distanceNM,
-      magneticHeading,
-      isIFR
-    );
-    const suggestedEndurance = calculateMinimumEndurance(
-      estimatedTimeMinutes,
-      isIFR
-    );
+    const isIFR = formData.flightRules === 'I' || formData.flightRules === 'Y' || formData.flightRules === 'Z';
+    const suggestedAltitude = suggestFlightLevel(magneticHeading, formData.flightRules ?? 'V').label;
+    const suggestedEndurance = calculateMinimumEndurance(estimatedTimeMinutes, isIFR);
 
     setCalculatedData({
       distanceNM: Math.round(distanceNM),
