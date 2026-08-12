@@ -435,11 +435,8 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const movComum = {
     descricao: descricaoBase,
     valor_rateado: valor,
-<<<<<<< HEAD
     valor_total: input.valor_total_despesa ?? valor,
-=======
     valor_original: input.valor_total_despesa ?? valor,
->>>>>>> refs/remotes/origin/main
     data_emissao,
     data_vencimento,
     status,
