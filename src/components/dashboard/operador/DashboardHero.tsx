@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import aviationHero from "@/assets/aviation-hero.jpg";
+import aviationHero from "@/assets/aviation-hero1.jpg";
 
 export function DashboardHero() {
   const { user } = useAuth();
