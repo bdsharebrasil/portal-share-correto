@@ -493,6 +493,8 @@ export function useAgendamentoMutations() {
       solicitacao,
       pilotoId,
       copilotoId,
+      dados,
+
     }: {
       solicitacao: Solicitacao;
       pilotoId?: string | null;
@@ -568,6 +570,105 @@ export function useAgendamentoMutations() {
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao confirmar voo"),
   });
+
+  /** Confirma o agendamento gerando o número do voo (sem exigir tripulação) */
+  const confirmarVoo = useMutation({
+    mutationFn: async (solicitacao: Solicitacao) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+
+      let numeroVoo: string | null = solicitacao.numero_voo ?? null;
+      if (!numeroVoo && solicitacao.cliente_id) {
+        const { data: gerado, error: rpcError } = await sb.rpc("gerar_numero_voo", {
+          p_cliente_id: solicitacao.cliente_id,
+        });
+        if (rpcError) throw rpcError;
+        numeroVoo = gerado as string;
+      }
+
+      const { error } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: "confirmado",
+          numero_voo: numeroVoo,
+          aprovado_por: userId,
+          aprovado_em: new Date().toISOString(),
+        })
+        .eq("id", solicitacao.id);
+      if (error) throw error;
+
+      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "confirmado", userId);
+      await bloquearDiasDoVoo({ ...solicitacao, status: "confirmado" } as Solicitacao, userId);
+
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(solicitacao.aeronave_id, "reservado", solicitacao.id, {
+          localizacao_atual: solicitacao.origem ?? null,
+        });
+      }
+
+      return numeroVoo;
+    },
+    onSuccess: (numeroVoo) => {
+      toast.success(numeroVoo ? `Voo ${numeroVoo} confirmado` : "Voo confirmado");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao confirmar voo"),
+  });
+
+  /** Escala (ou reescala) a tripulação de um voo já confirmado */
+  const escalarTripulacao = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      pilotoId,
+      copilotoId,
+      observacoes,
+    }: {
+      solicitacao: Solicitacao;
+      pilotoId: string;
+      copilotoId?: string | null;
+      observacoes?: string | null;
+    }) => {
+      if (!pilotoId) throw new Error("Selecione o piloto em comando (PIC)");
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+
+      const { error: updErr } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({ piloto_id: pilotoId, copiloto_id: copilotoId || null })
+        .eq("id", solicitacao.id);
+      if (updErr) throw updErr;
+
+      await sb.from("escala_tripulacao").delete().eq("solicitacao_id", solicitacao.id);
+
+      const dias = Math.max(1, solicitacao.dias_duracao ?? 1);
+      const dataFim = iso(addDays(parseISO(solicitacao.data_agendada), dias - 1));
+      const escalas = [
+        { membro_id: pilotoId, funcao: "pic" },
+        ...(copilotoId ? [{ membro_id: copilotoId, funcao: "sic" }] : []),
+      ].map((e) => ({
+        ...e,
+        aeronave_id: solicitacao.aeronave_id,
+        solicitacao_id: solicitacao.id,
+        data_inicio: solicitacao.data_agendada,
+        data_fim: dataFim,
+        status: "escalado",
+        observacoes:
+          observacoes ||
+          `Voo ${solicitacao.numero_voo ?? ""} • ${solicitacao.origem ?? "—"} → ${solicitacao.destino ?? "—"}`,
+        criado_por: userId,
+      }));
+
+      const { error } = await sb.from("escala_tripulacao").insert(escalas);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tripulação escalada");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["escala-tripulacao"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao escalar tripulação"),
+  });
+
 
   const rejeitar = useMutation({
     mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
@@ -1016,7 +1117,7 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar perna de voo"),
   });
 
-  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, confirmarVoo, escalarTripulacao, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(

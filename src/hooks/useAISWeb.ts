@@ -264,8 +264,9 @@ export function useAISWeb() {
         valid: originStatus.operational && destinationStatus.operational,
         warnings,
         notams: { [origin]: originNotam, [destination]: destNotam },
-        originStatus,
-        destinationStatus,
+        originStatus: originStatus as unknown as { operational: boolean; reason: string; criticalNOTAMs: NOTAMData[]; warnings?: string[] },
+        destinationStatus: destinationStatus as unknown as { operational: boolean; reason: string; criticalNOTAMs: NOTAMData[]; warnings?: string[] },
+
         restrictions: [],
         routeStatus,
         distanceNm,

@@ -156,3 +156,19 @@ export function useChecklistsPreVooPorVoos(ids: string[]) {
     },
   });
 }
+/** Status do checklist pré-voo de várias solicitações (para habilitar/bloquear ações nos cards) */
+export function usePreVooChecklistsStatus(solicitacaoIds: string[]) {
+  const ids = [...new Set(solicitacaoIds.filter(Boolean))].sort();
+  return useQuery({
+    queryKey: ["checklists-pre-voo-status", ids.join(",")],
+    enabled: ids.length > 0,
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await db
+        .from("checklists_pre_voo")
+        .select("solicitacao_id, status")
+        .in("solicitacao_id", ids);
+      if (error) throw error;
+      return Object.fromEntries((data ?? []).map((c: any) => [c.solicitacao_id, c.status]));
+    },
+  });
+}

@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle, ClipboardCheck } from "lucide-react";
+import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle, ClipboardCheck, UserCheck, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, vooCobreDia } from "@/hooks/useAgendamentoVoo";
+import { usePreVooChecklistsStatus } from "@/hooks/usePreVooChecklist";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
+import { EscalarTripulacaoDialog } from "./EscalarTripulacaoDialog";
 import { utcToBrasilia } from "@/lib/timezone-utils";
+
 
 // Mapeamento dos status permitidos na CHECK constraint do PostgreSQL.
 const STATUS_META: Record<string, { label: string; badge: string; dot: string }> = {
@@ -43,11 +47,12 @@ interface Props {
 
 export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const navigate = useNavigate();
-  const { alterarStatusVoo, excluirSolicitacao } = useAgendamentoMutations();
+  const { alterarStatusVoo, excluirSolicitacao, confirmarVoo } = useAgendamentoMutations();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
   const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
   const [concluirTarget, setConcluirTarget] = useState<Solicitacao | null>(null);
+  const [escalarTarget, setEscalarTarget] = useState<Solicitacao | null>(null);
 
   const hoje = format(new Date(), "yyyy-MM-dd");
   const voos = useMemo(
@@ -58,6 +63,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
         .slice(0, 6),
     [solicitacoes, hoje],
   );
+  const { data: checklistStatus = {} } = usePreVooChecklistsStatus(voos.map((v) => v.id));
   const historico = useMemo(
     () =>
       solicitacoes
@@ -69,6 +75,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const handleStatusChange = (voo: Solicitacao, newStatus: SolicitacaoStatus) => {
     alterarStatusVoo.mutate({ solicitacao: voo, status: newStatus });
   };
+
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
@@ -86,6 +93,9 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
             const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
             const emRota = voo.status === "em_rota";
             const temPouso = Boolean(voo.horario_pouso);
+            const preVooOk = checklistStatus[voo.id] === "concluido";
+            const confirmado = voo.status === "confirmado";
+
             
             const Icon = temPouso ? CheckCircle2 : emRota ? Plane : CircleDot;
             const expanded = expandedId === voo.id;
@@ -127,8 +137,40 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                     {temPouso ? "Pousado" : meta.label}
                   </span>
 
+                  {voo.status === "pendente" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmarVoo.mutate(voo);
+                      }}
+                      disabled={confirmarVoo.isPending}
+                      className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Confirmar voo
+                    </button>
+                  )}
+
                   {["confirmado", "em_rota"].includes(voo.status) && (
                     <div className="flex flex-wrap items-center gap-2">
+                      {confirmado && voo.numero_voo && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEscalarTarget(voo);
+                          }}
+                          className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                        >
+                          <UserCheck className="h-3.5 w-3.5" /> Escalar Trip
+                        </button>
+                      )}
+                      {voo.numero_voo && (
+                        <span className="flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                          <Hash className="h-3 w-3" />
+                          {voo.numero_voo}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -137,7 +179,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                         }}
                         className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 transition-colors hover:bg-sky-500/20"
                       >
-                        <ClipboardCheck className="h-3.5 w-3.5" /> Iniciar Pré-Voo
+                        <ClipboardCheck className="h-3.5 w-3.5" /> {preVooOk ? "Pré-Voo Concluído" : "Iniciar Pré-Voo"}
                       </button>
                       <button
                         type="button"
@@ -145,13 +187,15 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                           e.stopPropagation();
                           setIniciarTarget(voo);
                         }}
-                        disabled={emRota || temPouso}
+                        disabled={emRota || temPouso || !preVooOk}
+                        title={!preVooOk ? "Conclua o checklist pré-voo para iniciar o voo" : undefined}
                         className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
                       >
                         <PlayCircle className="h-3.5 w-3.5" /> Iniciar Voo
                       </button>
                     </div>
                   )}
+
                   
                   {voo.data_partida && voo.data_partida !== voo.data_agendada && (
                     <span className="text-xs text-muted-foreground block mb-1">
@@ -286,6 +330,12 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
         open={!!concluirTarget}
         onOpenChange={(open) => !open && setConcluirTarget(null)}
       />
+      <EscalarTripulacaoDialog
+        voo={escalarTarget}
+        open={!!escalarTarget}
+        onOpenChange={(open) => !open && setEscalarTarget(null)}
+      />
+
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

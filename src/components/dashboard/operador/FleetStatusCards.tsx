@@ -128,7 +128,7 @@ export function FleetStatusCards() {
           status: voos[0]?.aeronave?.status ?? null,
         }));
 
-    return aircraftList.map((aircraft) => {
+    const linhas = aircraftList.map((aircraft) => {
       const voos = bookingMap.get(aircraft.id) ?? [];
       const emVoo = voos.find((v) => EM_VOO.includes(v.status));
       const proximo = emVoo ?? voos[0];
@@ -146,7 +146,21 @@ export function FleetStatusCards() {
         estado,
       };
     });
+
+    // Prioriza aeronaves com voos agendados/em rota; depois pela data do próximo voo.
+    const prioridade = (estado: string) =>
+      estado === "em_voo" ? 0 : AGENDADO.includes(estado) ? 1 : estado === "manutencao" ? 3 : 2;
+
+    return linhas.sort((a, b) => {
+      const diff = prioridade(a.estado) - prioridade(b.estado);
+      if (diff !== 0) return diff;
+      const dataA = a.proximo?.data_agendada ?? "9999-12-31";
+      const dataB = b.proximo?.data_agendada ?? "9999-12-31";
+      if (dataA !== dataB) return dataA.localeCompare(dataB);
+      return (a.aeronave.matricula ?? "").localeCompare(b.aeronave.matricula ?? "");
+    });
   }, [bookings, statusMap, todasAeronaves]);
+
 
   const filtradas = useMemo(() => {
     if (filtro === "todas") return aeronaves;
