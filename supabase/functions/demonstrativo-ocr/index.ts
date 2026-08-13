@@ -37,14 +37,10 @@ Regras:
 
 function normalizeBase64(input: string): string {
   let b64 = (input || "").trim();
-  // remove data URL prefix se vier junto
   const m = b64.match(/^data:[^;]+;base64,(.*)$/s);
   if (m) b64 = m[1];
-  // remove quebras de linha / espaços que quebram o decode do gateway
   b64 = b64.replace(/\s/g, "");
-  // normaliza base64url
   b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
-  // corrige padding
   const pad = b64.length % 4;
   if (pad === 2) b64 += "==";
   else if (pad === 3) b64 += "=";
@@ -77,15 +73,17 @@ Deno.serve(async (req) => {
     }
     const imageBase64 = normalizeBase64(rawBase64);
 
-    // CÓDIGO NOVO (Direto na API Nativa do Google Gemini)
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) return json({ error: "GEMINI_API_KEY não configurada" }, 500);
 
-    // URL corrigida (sem os colchetes e parênteses de markdown)
-    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // URL atualizada com o modelo ativo listado no seu terminal
+    const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+
+    const aiRes = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY, 
       },
       body: JSON.stringify({
         system_instruction: {
@@ -121,19 +119,16 @@ Deno.serve(async (req) => {
 
     const aiJson = await aiRes.json();
     
-    // Captura a resposta no formato nativo do Gemini
     const content: string = aiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
 
     let parsed: Record<string, unknown>;
     try {
-      // Como pedimos response_mime_type: "application/json", o parse é direto e seguro
       parsed = JSON.parse(content);
     } catch (e) {
       console.error("JSON inválido da IA:", content.slice(0, 500));
       return json({ error: "Resposta da IA em formato inválido" }, 422);
     }
 
-    // Retorno final restaurado!
     const itens = Array.isArray(parsed.itens) ? parsed.itens : [];
 
     return json({
