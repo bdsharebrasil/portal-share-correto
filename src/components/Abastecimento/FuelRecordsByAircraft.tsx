@@ -773,7 +773,7 @@ export function FuelRecordsByAircraft({
     await saveRecord();
   };
 
-  const criarLancamentosRateio = async (
+  const criarLancamentosMovimentacao = async (
     abastecimentoId: string,
     valorTotal: number,
     notaUrl: string,
@@ -792,7 +792,7 @@ export function FuelRecordsByAircraft({
         : [selectedPartner];
 
       if (sociosParaRateio.length === 0) {
-        toast.warning("Cliente sem sócios cadastrados — nenhum rateio foi gerado, apenas o abastecimento.");
+        toast.warning("Cliente sem sócios cadastrados — as movimentações não foram geradas.");
         return;
       }
 
@@ -824,6 +824,8 @@ export function FuelRecordsByAircraft({
           boleto_url: boletoUrl || null,
           comprovante_pagamento_url: comprovanteUrl || null,
           criado_por: user?.id || null,
+          reference_type: "abastecimento",
+          reference_id: abastecimentoId,
         })
         .select("id")
         .single();
@@ -836,14 +838,8 @@ export function FuelRecordsByAircraft({
 
       const valorPorSocio = valorTotal / sociosParaRateio.length;
       const percentualUso = 100 / sociosParaRateio.length;
-      const { data: rateioAutomatico } = await (supabase as any)
-        .from("rateio_despesas")
-        .select("id")
-        .eq("abastecimento_id", abastecimentoId)
-        .eq("fonte_despesa", "abastecimento")
-        .maybeSingle();
 
-      for (const [index, socio] of sociosParaRateio.entries()) {
+      for (const socio of sociosParaRateio) {
         const { data: movimentacao, error: movError } = await (supabase as any)
           .from("movimentacoes")
           .insert({
@@ -878,41 +874,10 @@ export function FuelRecordsByAircraft({
           continue;
         }
 
-        const rateioPayload = {
-          despesa_id: movimentacao.id,
-          fonte_despesa: "abastecimento",
-          tipo_rateio: "VARIAVEL_POR_HORA",
-          fluxo: "SAIDA",
-          data_emissao: formData.data,
-          data_vencimento: dataVencimento,
-          data_pagamento: pago ? formData.data_pagamento : null,
-          fornecedor_nome: fornecedorNome,
-          cliente_id: clienteIdParaRateio,
-          socio_id: socio.id,
-          aeronave_id: aircraft.id,
-          aeronave_registro: aircraft.matricula,
-          percentual_uso: percentualUso,
-          periodicidade: "EVENTUAL",
-          descricao_despesa: descricao,
-          valor_total: valorTotal,
-          valor_rateado: valorPorSocio,
-          pago_por: "CLIENTE",
-          status: "PENDENTE",
-          numero_nf: formData.nf || null,
-          nf_url: notaUrl || null,
-          boleto_url: boletoUrl || null,
-          comprovante_url: comprovanteUrl || null,
-          abastecimento_id: abastecimentoId,
-        };
-        const { error: ratError } = index === 0 && rateioAutomatico?.id
-          ? await (supabase as any).from("rateio_despesas").update(rateioPayload).eq("id", rateioAutomatico.id)
-          : await (supabase as any).from("rateio_despesas").insert(rateioPayload);
-
-        if (ratError) console.error("Erro ao salvar rateio:", ratError);
       }
     } catch (err) {
-      console.error("Erro ao gerar rateio do abastecimento:", err);
-      toast.error("Abastecimento salvo, mas houve erro ao gerar o rateio entre os sócios");
+      console.error("Erro ao gerar movimentações do abastecimento:", err);
+      toast.error("Abastecimento salvo, mas houve erro ao gerar as movimentações entre os sócios");
     }
   };
 
@@ -970,7 +935,23 @@ export function FuelRecordsByAircraft({
         .eq("abastecimento_id", abastecimentoId);
       if (ratUpdError) console.error("Erro ao atualizar rateio:", ratUpdError);
 
-      const movIds = rateios.map((r: any) => r.despesa_id).filter(Boolean);
+      const { data: contasApagar } = await (supabase as any)
+        .from("contas_apagar")
+        .select("id")
+        .eq("reference_type", "abastecimento")
+        .eq("reference_id", abastecimentoId);
+      const contasApagarIds = (contasApagar || []).map((conta: any) => conta.id);
+      const { data: movimentacoesPorConta } = contasApagarIds.length
+        ? await (supabase as any)
+            .from("movimentacoes")
+            .select("id")
+            .in("contas_apagar_id", contasApagarIds)
+        : { data: [] };
+      const movIds = Array.from(new Set([
+        ...rateios.map((r: any) => r.despesa_id).filter((id: string | null) => id && id !== abastecimentoId),
+        ...(movimentacoesPorConta || []).map((movimentacao: any) => movimentacao.id),
+      ]));
+
       if (movIds.length) {
         const { data: movs, error: movUpdError } = await (supabase as any)
           .from("movimentacoes")
@@ -1174,7 +1155,7 @@ export function FuelRecordsByAircraft({
         }
         toast.success("Registro criado com sucesso");
         if (inserted?.id) {
-          await criarLancamentosRateio(inserted.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
+          await criarLancamentosMovimentacao(inserted.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
         }
       }
       resetForm();
