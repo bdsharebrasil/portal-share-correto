@@ -292,8 +292,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
         tipo_caixa: "cliente",
         categoria_id: form.categoria_id || null,
         categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
-        grupo_custo: categoriaNome,
         periodicidade: form.periodicidade || null,
+        tipo_rateio: form.tipo_rateio || null,
         aeronave_id: form.aeronave_id,
         clientes_id: clienteMov,
         socio_id: socioMov,
@@ -334,9 +334,12 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
         data_emissao: form.data_emissao,
         data_vencimento: form.data_vencimento || null,
         data_pagamento: form.data_pagamento || null,
+        percentual_uso: linhasValidas.length === 1 && linhasValidas[0].percentual_uso !== ""
+          ? Number(linhasValidas[0].percentual_uso)
+          : null,
         aeronave_id: form.aeronave_id,
         aeronave_registro: aeronaveRegistro,
-        valor_total_despesa: valorTotal,
+        valor_total: valorTotal,
         categoria_custo: form.categoria_id || null,
         categoria_nome: categoriaNome,
         conta_bancaria: form.conta_bancaria || null,
