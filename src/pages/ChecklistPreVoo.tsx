@@ -1677,6 +1677,7 @@ export default function ChecklistPreVoo() {
           voo?.data_partida ||
           voo?.data_agendada
         }
+        abastecimentoId={abastecimentoId}
         onSaved={(id) => {
           setAbastecimentoId(id);
           setPrecisaAbastecer(true);
