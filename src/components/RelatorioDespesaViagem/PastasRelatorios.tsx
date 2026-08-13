@@ -41,7 +41,19 @@ export interface PastaReportItem {
   created_at?: string | null;
   updated_at?: string | null;
   crew_approval_status?: 'pending' | 'approved' | 'rejected' | 'nao_requerida' | null;
+  crew2_approval_status?: 'pending' | 'approved' | 'rejected' | 'nao_requerida' | null;
+  nome_tripulante_2?: string | null;
+  tripulante_id2?: string | null;
 }
+
+
+const hasCrew2 = (report: PastaReportItem) =>
+  Boolean(report.tripulante_id2 || (report.nome_tripulante_2 || '').trim());
+
+/** Com 2 tripulantes, o relatório só está aprovado quando AMBOS aprovarem. */
+const crewFullyApproved = (report: PastaReportItem) =>
+  report.crew_approval_status === 'approved' &&
+  (!hasCrew2(report) || report.crew2_approval_status === 'approved');
 
 interface PastasRelatoriosProps {
   reports: PastaReportItem[];
@@ -436,7 +448,7 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumb
       {/* Botões ação (Enviar ao Cliente e Enviar para Tripulante) */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
         {/* Enviar para Tripulante - Finalizado → Ag. Conferência (Laranja) */}
-        {report.status === 'Finalizado' && report.crew_approval_status !== 'approved' && (
+        {report.status === 'Finalizado' && !crewFullyApproved(report) && (
           <ActionButton
             onClick={() => onSend(report, 'conferencia')}
             gradient="linear-gradient(135deg, #ff9a56 0%, #ff7f2f 100%)"
@@ -448,7 +460,7 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumb
         )}
 
         {/* Aprovado pelo Trip - badge estático (sem ação) */}
-        {report.status === 'Finalizado' && report.crew_approval_status === 'approved' && (
+        {report.status === 'Finalizado' && crewFullyApproved(report) && (
           <div
             title="Tripulante já aprovou este relatório"
             style={{

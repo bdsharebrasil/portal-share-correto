@@ -115,17 +115,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         {/* View Mode & Search - Desktop */}
         <div className="hidden lg:flex items-center gap-4 flex-1">
           <ViewModeToggle />
-          
-          {/* Modern Search Bar */}
-          <div className="relative group w-64 transition-all duration-300 focus-within:w-72">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <Input 
-              placeholder="Buscar..." 
-              className="pl-9 h-9 bg-secondary/30 border-transparent focus:border-primary/50 focus:bg-background rounded-full transition-all text-sm shadow-none" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-            />
-          </div>
         </div>
 
         {/* View Mode Toggle (Tablet) */}
@@ -153,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </div>
 
           {/* METAR / Weather Widget Wrapper */}
-          <div className="hidden md:flex items-center justify-center bg-secondary/20 border border-border/40 rounded-full px-3 py-1 hover:bg-secondary/40 transition-colors shadow-sm h-9 shrink-0 relative z-[70] overflow-visible">
+<div className="hidden md:flex items-center justify-center shrink-0 relative z-[70] overflow-visible">
             <WeatherWidget />
           </div>
 

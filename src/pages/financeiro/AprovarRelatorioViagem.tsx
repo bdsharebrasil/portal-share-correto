@@ -20,6 +20,7 @@ export default function AprovarRelatorioViagem() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<'crew' | 'client' | null>(null);
+  const [crewSlot, setCrewSlot] = useState<1 | 2>(1);
   const [clientLogin, setClientLogin] = useState('');
   const [clientPassword, setClientPassword] = useState('');
   const [showClientLogin, setShowClientLogin] = useState(false);
@@ -45,8 +46,21 @@ export default function AprovarRelatorioViagem() {
 
         setReport(data);
 
-        // Detectar papel: tripulante (auth.users) ou cliente (portal)
-        const isCrew = authUser?.id === data.tripulacao_id || authUser?.id === data.tripulante_id2;
+        // Detectar papel: tripulante (auth.users ou membros_tripulacao) ou cliente (portal)
+        let crewMemberId: string | null = null;
+        if (authUser?.id) {
+          const { data: cm } = await supabase
+            .from('membros_tripulacao')
+            .select('id')
+            .eq('user_id', authUser.id)
+            .maybeSingle();
+          crewMemberId = cm?.id || null;
+        }
+        const ids = [authUser?.id, crewMemberId].filter(Boolean);
+        const isCrew1 = ids.includes(data.tripulacao_id);
+        const isCrew2 = ids.includes(data.tripulante_id2);
+        const isCrew = isCrew1 || isCrew2;
+        if (isCrew) setCrewSlot(isCrew2 && !isCrew1 ? 2 : 1);
 
         if (isCrew) {
           setRole('crew');
@@ -154,8 +168,13 @@ export default function AprovarRelatorioViagem() {
     setSubmitting(true);
     try {
       const isCrew = role === 'crew';
+      const isCrew2 = isCrew && crewSlot === 2;
       const updates: any = {};
-      if (isCrew) {
+      if (isCrew2) {
+        updates.crew2_approval_status = decision;
+        updates.crew2_approved_at = new Date().toISOString();
+        updates.crew2_approval_notes = notes || null;
+      } else if (isCrew) {
         updates.crew_approval_status = decision;
         updates.crew_approved_at = new Date().toISOString();
         updates.crew_approval_notes = notes || null;
@@ -302,7 +321,12 @@ export default function AprovarRelatorioViagem() {
     );
   }
 
-  const myStatus = role === 'crew' ? report.crew_approval_status : report.client_approval_status;
+  const myStatus =
+    role === 'crew'
+      ? crewSlot === 2
+        ? report.crew2_approval_status
+        : report.crew_approval_status
+      : report.client_approval_status;
   const alreadyDecided = myStatus === 'approved' || myStatus === 'rejected';
 
   return (
@@ -515,9 +539,18 @@ export default function AprovarRelatorioViagem() {
             {alreadyDecided && (
               <div className="p-4 rounded-lg bg-muted text-sm">
                 <strong>Sua decisão já foi registrada:</strong> {myStatus === 'approved' ? 'aprovado' : 'devolvido para revisão'}
-                {(role === 'crew' ? report.crew_approval_notes : report.client_approval_notes) && (
+                {(role === 'crew'
+                  ? crewSlot === 2
+                    ? report.crew2_approval_notes
+                    : report.crew_approval_notes
+                  : report.client_approval_notes) && (
                   <p className="mt-2 text-muted-foreground">
-                    Observações: {role === 'crew' ? report.crew_approval_notes : report.client_approval_notes}
+                    Observações:{' '}
+                    {role === 'crew'
+                      ? crewSlot === 2
+                        ? report.crew2_approval_notes
+                        : report.crew_approval_notes
+                      : report.client_approval_notes}
                   </p>
                 )}
               </div>

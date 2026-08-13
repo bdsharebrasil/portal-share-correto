@@ -674,6 +674,10 @@ export default function RelatorioViagem() {
       // Ao finalizar/enviar: marcar aprovação pendente do tripulante e (opcional) cliente
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         payload.crew_approval_status = 'pending';
+        // Com 2 tripulantes, cada um tem sua própria aprovação
+        if (reportData.tripulante_id2 || (reportData.nome_tripulante_2 || '').trim()) {
+          payload.crew2_approval_status = 'pending';
+        }
         payload.requires_client_approval = !!requireClientApproval;
         if (requireClientApproval) payload.client_approval_status = 'pending';
         if (user?.id) payload.generated_by_user_id = user.id;
@@ -1327,6 +1331,9 @@ export default function RelatorioViagem() {
                           numero_relatorio_modificado_por: r.criado_por,
                           numero_relatorio_modificado_em: r.updated_at,
                           crew_approval_status: (r as any).crew_approval_status ?? null,
+                          crew2_approval_status: (r as any).crew2_approval_status ?? null,
+                          nome_tripulante_2: (r as any).nome_tripulante_2 ?? null,
+                          tripulante_id2: (r as any).tripulante_id2 ?? null,
                         }))}
                         onView={handleViewPDF}
                         onEdit={editReport}

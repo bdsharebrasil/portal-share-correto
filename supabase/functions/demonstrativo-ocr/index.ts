@@ -77,28 +77,37 @@ Deno.serve(async (req) => {
     }
     const imageBase64 = normalizeBase64(rawBase64);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return json({ error: "LOVABLE_API_KEY não configurada" }, 500);
+    // CÓDIGO NOVO (Direto na API Nativa do Google Gemini)
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) return json({ error: "GEMINI_API_KEY não configurada" }, 500);
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // URL corrigida (sem os colchetes e parênteses de markdown)
+    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-
-        messages: [
-          { role: "system", content: PROMPT },
+        system_instruction: {
+          parts: [{ text: PROMPT }]
+        },
+        contents: [
           {
             role: "user",
-            content: [
-              { type: "text", text: `Tipo do demonstrativo: ${tipo}. Extraia os dados.` },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
-            ],
-          },
+            parts: [
+              { text: `Tipo do demonstrativo: ${tipo}. Extraia os dados.` },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: imageBase64
+                }
+              }
+            ]
+          }
         ],
+        generationConfig: {
+          response_mime_type: "application/json",
+        }
       }),
     });
 
@@ -111,23 +120,20 @@ Deno.serve(async (req) => {
     }
 
     const aiJson = await aiRes.json();
-    const content: string = aiJson?.choices?.[0]?.message?.content ?? "";
-    const cleaned = content.replace(/```json/gi, "").replace(/```/g, "").trim();
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-    if (start === -1 || end === -1) {
-      console.error("Resposta da IA sem JSON:", cleaned.slice(0, 500));
-      return json({ error: "Não foi possível interpretar o demonstrativo" }, 422);
-    }
+    
+    // Captura a resposta no formato nativo do Gemini
+    const content: string = aiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
 
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(cleaned.slice(start, end + 1));
+      // Como pedimos response_mime_type: "application/json", o parse é direto e seguro
+      parsed = JSON.parse(content);
     } catch (e) {
-      console.error("JSON inválido da IA:", cleaned.slice(0, 500));
+      console.error("JSON inválido da IA:", content.slice(0, 500));
       return json({ error: "Resposta da IA em formato inválido" }, 422);
     }
 
+    // Retorno final restaurado!
     const itens = Array.isArray(parsed.itens) ? parsed.itens : [];
 
     return json({
@@ -146,6 +152,7 @@ Deno.serve(async (req) => {
         valor: Number(i?.valor ?? 0) || 0,
       })),
     });
+
   } catch (e) {
     console.error("Erro inesperado:", e);
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

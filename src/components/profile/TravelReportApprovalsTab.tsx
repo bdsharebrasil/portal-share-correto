@@ -24,10 +24,22 @@ interface TravelReport {
   crew_approval_status: string | null;
   crew_approved_at: string | null;
   crew_approval_notes: string | null;
+  crew2_approval_status?: string | null;
+  crew2_approved_at?: string | null;
+  crew2_approval_notes?: string | null;
+  total_trip?: number | null;
+  total_trip2?: number | null;
+  tripulacao_id?: string | null;
+  tripulante_id2?: string | null;
   nome_tripulante: string | null;
   nome_tripulante_2: string | null;
   rota: string | null;
   cliente?: { razao_social: string } | null;
+  /** Slot do tripulante logado neste relatório */
+  slot?: 1 | 2;
+  myStatus?: string | null;
+  myNotes?: string | null;
+  myValue?: number | null;
 }
 
 export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabProps) {
@@ -62,17 +74,29 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
       const { data, error } = await supabase
         .from("travel_expense_reports")
         .select(
-          "id, numero_relatorio, data_inicio, data_fim, total_valor, crew_approval_status, crew_approved_at, crew_approval_notes, nome_tripulante, nome_tripulante_2, rota, cliente:clientes_id(razao_social)"
+          "id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, tripulacao_id, tripulante_id2, crew_approval_status, crew_approved_at, crew_approval_notes, crew2_approval_status, crew2_approved_at, crew2_approval_notes, nome_tripulante, nome_tripulante_2, rota, cliente:clientes_id(razao_social)"
         )
-        .eq("tripulacao_id", crewMember.id)
-        .in("crew_approval_status", ["pending", "rejected"])
+        .or(`tripulacao_id.eq.${crewMember.id},tripulante_id2.eq.${crewMember.id}`)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Erro ao buscar relatórios:", error);
         return [];
       }
-      return (data as any[]) as TravelReport[];
+
+      // Cada tripulante aprova SOMENTE o seu próprio slot/valor
+      return ((data as any[]) || [])
+        .map((r) => {
+          const slot: 1 | 2 = r.tripulante_id2 === crewMember.id && r.tripulacao_id !== crewMember.id ? 2 : 1;
+          return {
+            ...r,
+            slot,
+            myStatus: slot === 2 ? r.crew2_approval_status : r.crew_approval_status,
+            myNotes: slot === 2 ? r.crew2_approval_notes : r.crew_approval_notes,
+            myValue: slot === 2 ? r.total_trip2 : r.total_trip,
+          } as TravelReport;
+        })
+        .filter((r) => r.myStatus === "pending" || r.myStatus === "rejected");
     },
   });
 
@@ -81,13 +105,22 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
 
     setSubmitting(true);
     try {
+      const isSlot2 = selectedReport.slot === 2;
       const { error } = await supabase
         .from("travel_expense_reports")
-        .update({
-          crew_approval_status: "approved",
-          crew_approved_at: new Date().toISOString(),
-          crew_approval_notes: approvalNotes || null,
-        })
+        .update(
+          isSlot2
+            ? {
+                crew2_approval_status: "approved",
+                crew2_approved_at: new Date().toISOString(),
+                crew2_approval_notes: approvalNotes || null,
+              }
+            : {
+                crew_approval_status: "approved",
+                crew_approved_at: new Date().toISOString(),
+                crew_approval_notes: approvalNotes || null,
+              },
+        )
         .eq("id", selectedReport.id);
 
       if (error) throw error;
@@ -118,12 +151,20 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
 
     setSubmitting(true);
     try {
+      const isSlot2 = selectedReport.slot === 2;
       const { error } = await supabase
         .from("travel_expense_reports")
-        .update({
-          crew_approval_status: "rejected",
-          crew_approval_notes: approvalNotes || null,
-        })
+        .update(
+          isSlot2
+            ? {
+                crew2_approval_status: "rejected",
+                crew2_approval_notes: approvalNotes || null,
+              }
+            : {
+                crew_approval_status: "rejected",
+                crew_approval_notes: approvalNotes || null,
+              },
+        )
         .eq("id", selectedReport.id);
 
       if (error) throw error;
@@ -236,7 +277,12 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
                       </p>
                     )}
                   </div>
-                  <div>{getStatusBadge(report.crew_approval_status)}</div>
+                  <div className="flex flex-col items-end gap-1">
+                    {getStatusBadge(report.myStatus ?? null)}
+                    <Badge variant="outline" className="text-[10px]">
+                      Tripulante {report.slot ?? 1}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
 
@@ -261,6 +307,14 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
                     </div>
                   </div>
 
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Seu reembolso</p>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-semibold text-primary">{formatCurrency(report.myValue ?? null)}</p>
+                    </div>
+                  </div>
+
                   {report.rota && (
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground">Rota</p>
@@ -278,18 +332,18 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
                 </div>
 
                 {/* Notas anteriores de aprovação */}
-                {report.crew_approval_notes && report.crew_approval_status !== "pending" && (
+                {report.myNotes && report.myStatus !== "pending" && (
                   <Alert className="border-blue-500/50 bg-blue-500/5">
                     <AlertCircle className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800 dark:text-blue-200">
                       <p className="font-semibold text-sm mb-1">Observação anterior:</p>
-                      <p className="text-sm">{report.crew_approval_notes}</p>
+                      <p className="text-sm">{report.myNotes}</p>
                     </AlertDescription>
                   </Alert>
                 )}
 
                 {/* Botões de ação */}
-                {report.crew_approval_status === "pending" && (
+                {report.myStatus === "pending" && (
                   <div className="flex gap-3 justify-end pt-2 border-t">
                     <Button
                       variant="outline"
@@ -349,7 +403,8 @@ export function TravelReportApprovalsTab({ userId }: TravelReportApprovalsTabPro
                     {formatDate(selectedReport.data_fim)}
                   </p>
                   <p>
-                    <span className="font-medium">Valor:</span> {formatCurrency(selectedReport.total_valor)}
+                    <span className="font-medium">Seu valor:</span>{" "}
+                    {formatCurrency(selectedReport.myValue ?? selectedReport.total_valor)}
                   </p>
                 </div>
               )}

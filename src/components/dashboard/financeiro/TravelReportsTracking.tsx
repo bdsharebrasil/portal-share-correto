@@ -77,13 +77,27 @@ const isPendingCrew = (v: any) => ["pending", "pendente"].includes(norm(v));
 const isApprovedCrew = (v: any) => ["approved", "aprovado"].includes(norm(v));
 const isRejectedCrew = (v: any) => ["rejected", "rejeitado", "recusado", "em_revisao", "revisao"].includes(norm(v));
 
+const hasSecondCrew = (report: any) =>
+  Boolean(report?.tripulante_id2 || (report?.nome_tripulante_2 && String(report.nome_tripulante_2).trim()));
+
+/** Aprovação da tripulação: com 2 tripulantes, cada um aprova o seu próprio valor. */
+const crewApprovalState = (report: any): 'approved' | 'rejected' | 'pending' | null => {
+  const s1 = report.crew_approval_status;
+  const s2 = report.crew2_approval_status;
+  const two = hasSecondCrew(report);
+  if (isRejectedCrew(s1) || (two && isRejectedCrew(s2))) return 'rejected';
+  if (isApprovedCrew(s1) && (!two || isApprovedCrew(s2))) return 'approved';
+  if (isPendingCrew(s1) || (two && isPendingCrew(s2))) return 'pending';
+  return null;
+};
+
 const resolveStatus = (report: any): ReportStatus | null => {
   if (TRACKED_STATUSES.includes(report.status)) return report.status;
   if (report.status !== "Finalizado" && report.status !== "Enviado") return null;
-  if (isApprovedCrew(report.crew_approval_status)) return "aprovado_tripulante";
-  if (isRejectedCrew(report.crew_approval_status)) return "em_revisao";
-  if (isPendingCrew(report.crew_approval_status) && report.approval_token)
-    return "aguardando_aprovacao_tripulante";
+  const state = crewApprovalState(report);
+  if (state === 'approved') return "aprovado_tripulante";
+  if (state === 'rejected') return "em_revisao";
+  if (state === 'pending' && report.approval_token) return "aguardando_aprovacao_tripulante";
   return null;
 };
 
@@ -177,10 +191,18 @@ function ReportListItem({ report, link, busyAction, onCopyLink, onResend, onSend
               {meta.label}
             </span>
 
-            {isApprovedCrew(report.crew_approval_status) && report.status !== 'enviado_cliente' && (
+            {crewApprovalState(report) === 'approved' && report.status !== 'enviado_cliente' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold tracking-wide whitespace-nowrap border border-emerald-500/25 bg-emerald-500/10 text-emerald-300">
                 <BadgeCheckIcon className="h-3 w-3" strokeWidth={2.5} />
-                Trip confirmou
+                {hasSecondCrew(report) ? 'Trips confirmaram' : 'Trip confirmou'}
+              </span>
+            )}
+
+            {hasSecondCrew(report) && crewApprovalState(report) !== 'approved' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold tracking-wide whitespace-nowrap border border-slate-400/20 bg-slate-500/10 text-slate-300">
+                Trip 1: {isApprovedCrew(report.crew_approval_status) ? 'aprovado' : isRejectedCrew(report.crew_approval_status) ? 'em revisão' : 'pendente'}
+                {' · '}
+                Trip 2: {isApprovedCrew(report.crew2_approval_status) ? 'aprovado' : isRejectedCrew(report.crew2_approval_status) ? 'em revisão' : 'pendente'}
               </span>
             )}
             
@@ -215,11 +237,11 @@ function ReportListItem({ report, link, busyAction, onCopyLink, onResend, onSend
             {report.enviado_cliente_em ? ` · Enviado ao cliente em ${formatDateTime(report.enviado_cliente_em)}` : ''}
           </p>
 
-          {report.status === 'em_revisao' && report.crew_approval_notes && (
+          {report.status === 'em_revisao' && (report.crew_approval_notes || report.crew2_approval_notes) && (
             <div className="mt-3 rounded-lg border border-rose-500/20 bg-rose-500/[0.07] p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-300/80">Justificativa do tripulante</p>
               <p className="mt-1 text-[12.5px] leading-relaxed text-rose-100/85">
-                {report.crew_approval_notes}
+                {[report.crew_approval_notes, report.crew2_approval_notes].filter(Boolean).join(' · ')}
               </p>
             </div>
           )}
@@ -310,7 +332,7 @@ export default function TravelReportsTracking() {
     try {
       const { data, error } = await supabase
         .from("travel_expense_reports")
-        .select("id, numero_relatorio, nome_tripulante, nome_tripulante_2, matricula_aeronave, total_valor, total_trip, total_trip2, status, crew_approval_status, crew_approval_notes, crew_approved_at, enviado_tripulante_em, enviado_cliente_em, approval_token, clientes_id, clientes_id_rel:clientes_id(razao_social), created_at")
+        .select("id, numero_relatorio, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, total_valor, total_trip, total_trip2, status, crew_approval_status, crew_approval_notes, crew_approved_at, crew2_approval_status, crew2_approval_notes, crew2_approved_at, enviado_tripulante_em, enviado_cliente_em, approval_token, clientes_id, clientes_id_rel:clientes_id(razao_social), created_at")
         .in("status", SOURCE_STATUSES)
         .order("created_at", { ascending: false });
 
@@ -377,6 +399,7 @@ export default function TravelReportsTracking() {
       const { error } = await supabase.from("travel_expense_reports").update({
         status: 'aguardando_aprovacao_tripulante',
         crew_approval_status: 'pending',
+        ...(hasSecondCrew(report) ? { crew2_approval_status: 'pending' } : {}),
         enviado_tripulante_em: new Date().toISOString(),
       }).eq("id", report.id);
       if (error) throw error;

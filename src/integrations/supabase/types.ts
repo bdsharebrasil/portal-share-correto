@@ -9322,6 +9322,9 @@ export type Database = {
           crew_approval_notes: string | null
           crew_approval_status: string | null
           crew_approved_at: string | null
+          crew2_approval_notes: string | null
+          crew2_approval_status: string | null
+          crew2_approved_at: string | null
           criado_por: string | null
           data_fim: string
           data_inicio: string
@@ -9373,6 +9376,9 @@ export type Database = {
           crew_approval_notes?: string | null
           crew_approval_status?: string | null
           crew_approved_at?: string | null
+          crew2_approval_notes?: string | null
+          crew2_approval_status?: string | null
+          crew2_approved_at?: string | null
           criado_por?: string | null
           data_fim: string
           data_inicio: string
@@ -9424,6 +9430,9 @@ export type Database = {
           crew_approval_notes?: string | null
           crew_approval_status?: string | null
           crew_approved_at?: string | null
+          crew2_approval_notes?: string | null
+          crew2_approval_status?: string | null
+          crew2_approved_at?: string | null
           criado_por?: string | null
           data_fim?: string
           data_inicio?: string
