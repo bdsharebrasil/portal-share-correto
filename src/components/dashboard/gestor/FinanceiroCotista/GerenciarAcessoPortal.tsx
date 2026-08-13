@@ -81,7 +81,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       const { data, error } = await supabase
         .from('socios')
         .select('id, nome')
-        .eq('cliente_id', clienteId)
+        .eq('clientes_id', clienteId)
         .order('nome');
       if (error) throw error;
       return data || [];
