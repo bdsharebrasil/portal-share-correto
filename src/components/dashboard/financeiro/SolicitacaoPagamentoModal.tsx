@@ -1033,12 +1033,24 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const valorNumerico = Number(String(valorTotal).replace(",", ".")) || 0;
   const percNumerico = Number(String(percentualUso).replace(",", ".")) || 0;
 
+  const isRateioIgualContext = useMemo(() => {
+    const indicador = `${tipoDespesaLabel || ""} ${descricao || ""}`.toUpperCase();
+    const match =
+      indicador.includes("VOO TESTE") ||
+      indicador.includes("VOO DE CHECK") ||
+      indicador.includes("VOO TRANSLADO") ||
+      Boolean(initialData?.divisao_igual) ||
+      Boolean(initialData?.equal_split);
+    return match;
+  }, [tipoDespesaLabel, descricao, initialData]);
+
   const linhasRateioPreview = useMemo(() => montarLinhasRateio({
     valorTotal: valorNumerico,
     percentualUso: percNumerico,
     socios: sociosParaRateio,
     socioSelecionadoId: socioId || null,
-  }), [valorNumerico, percNumerico, sociosParaRateio, socioId]);
+    equalSplit: isRateioIgualContext,
+  }), [valorNumerico, percNumerico, sociosParaRateio, socioId, isRateioIgualContext]);
 
   const linhasRateioMultiCliente = useMemo(() => {
     if (isViagemMode) return [];
@@ -1068,8 +1080,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           valorOverridesSocio: valorOverrides,
         };
       });
-    return montarLinhasRateioMultiCliente({ valorTotal: valorNumerico, linhas: linhasInput });
-  }, [clienteLinhas, clientesDaAeronave, valorNumerico, isViagemMode, socioId]);
+    return montarLinhasRateioMultiCliente({ valorTotal: valorNumerico, linhas: linhasInput, equalSplit: isRateioIgualContext });
+  }, [clienteLinhas, clientesDaAeronave, valorNumerico, isViagemMode, socioId, isRateioIgualContext]);
 
   const socioIdDaMovimentacaoCliente = (idCliente: string) => {
     if (socioId) return socioId;

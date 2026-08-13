@@ -10,6 +10,7 @@ import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import { expandSpecialRateioLine } from "@/components/dashboard/financeiro/recibos/demonstrativoUtils";
 import {
   type Aeronave, type Cotista,
   norm, num,
@@ -70,6 +71,7 @@ interface DiarioRow {
   socios_nome: string | null;
   socios_id: string | null;
   clientes_id: string | null;
+  divisao_igual: boolean | null;
   emprestimo: boolean | null;
   cliente_tomador_emprestimo_id: string | null;
   socio_tomador_emprestimo_id: string | null;
@@ -239,7 +241,7 @@ export default function ImportarDemonstrativoTab() {
       if (datasIso.length > 0) {
         const { data: diarioData } = await supabase
           .from("lancamentos_diario_bordo")
-          .select("data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id")
+          .select("data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, divisao_igual, emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id")
           .eq("aeronave_id", aircraftId)
           .in("data_registro", datasIso);
         diarioRows = (diarioData || []) as DiarioRow[];
@@ -272,6 +274,10 @@ export default function ImportarDemonstrativoTab() {
         }
         if (!match) return { nome: null, isEmprestimo: false };
 
+        if (match.divisao_igual) {
+          return { nome: "VOO TESTE", isEmprestimo: false };
+        }
+
         // Empréstimo: priorizar sócio tomador, depois cliente tomador
         if (match.emprestimo) {
           if (match.socio_tomador_emprestimo_id) {
@@ -303,9 +309,11 @@ export default function ImportarDemonstrativoTab() {
         return { ...it, cotistaNome: sugestao.nome || "", sugeridoDoDiario: !!sugestao.nome, naoIdentificado: !sugestao.nome, isEmprestimo: sugestao.isEmprestimo };
       });
 
+      const linhasExpandidas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, opcoesAtribuicao));
+
       setResult(res);
-      setLinhas(novasLinhas);
-      const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
+      setLinhas(linhasExpandidas);
+      const naoIdent = linhasExpandidas.filter((l) => l.naoIdentificado).length;
       const emprestimos = novasLinhas.filter((l) => l.isEmprestimo).length;
       showToast("ok", `${res.itens.length} operações detectadas${naoIdent > 0 ? ` — ${naoIdent} sem correspondência no diário` : " — todos identificados"}${emprestimos > 0 ? ` — ${emprestimos} em empréstimo` : ""}`);
     } catch (err: any) {

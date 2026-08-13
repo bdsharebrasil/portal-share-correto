@@ -13,29 +13,47 @@ export interface CotistaOption {
 export const SPECIAL_RATEIO_OPTIONS = [
   { id: "VOO TRANSLADO", label: "VOO TRANSLADO" },
   { id: "VOO DE CHECK", label: "VOO DE CHECK" },
+  { id: "VOO TESTE", label: "VOO TESTE" },
 ] as const;
 
 export const isSpecialRateio = (value: string | null | undefined) =>
   SPECIAL_RATEIO_OPTIONS.some((option) => option.id === (value || "").toUpperCase());
+
+const getEqualSplitNames = (participants: CotistaOption[]) => {
+  const byClient = new Map<string, CotistaOption>();
+
+  for (const participant of participants) {
+    const key = participant.cliente_id || participant.id;
+    if (!key || !participant.nome) continue;
+
+    const existing = byClient.get(key);
+    if (!existing || (existing.socio_id && !participant.socio_id)) {
+      byClient.set(key, participant);
+    } else if (!existing) {
+      byClient.set(key, participant);
+    }
+  }
+
+  return Array.from(byClient.values())
+    .map((participant) => participant.nome)
+    .filter(Boolean) as string[];
+};
 
 export function expandSpecialRateioLine<T extends { cotistaNome: string; valor: number }>(
   line: T,
   socios: CotistaOption[]
 ): T[] {
   if (!isSpecialRateio(line.cotistaNome)) return [line];
-  const socioNames = socios
-    .filter((c) => c.socio_id)
-    .map((c) => c.nome)
-    .filter(Boolean);
 
-  if (socioNames.length === 0) return [line];
+  const candidateNames = getEqualSplitNames(socios);
+  if (candidateNames.length === 0) return [line];
 
-  const count = socioNames.length;
+  const count = candidateNames.length;
   const totalCents = Math.round((line.valor || 0) * 100);
   const baseCents = Math.floor(totalCents / count);
   const remainderCents = totalCents - baseCents * (count - 1);
 
-  return socioNames.map((nome, index) => ({
+  return candidateNames.map((nome, index) => ({
     ...line,
     cotistaNome: nome,
     valor: index === count - 1 ? remainderCents / 100 : baseCents / 100,

@@ -207,6 +207,7 @@ export function montarLinhasRateio(params: {
   percentualUso: number | string;
   socios: SocioRateioInput[];
   socioSelecionadoId: string | null;
+  equalSplit?: boolean;
 }): LinhRateioMontada[] {
   const valor = Number(params.valorTotal ?? 0) || 0;
   const percentualUso = Number(String(params.percentualUso ?? "100").replace(",", ".")) || 0;
@@ -221,6 +222,18 @@ export function montarLinhasRateio(params: {
 
   const usarTodos = !params.socioSelecionadoId || params.socioSelecionadoId.trim() === "";
   const baseValor = valor * (percentualUso > 0 ? percentualUso / 100 : 1);
+
+  if (params.equalSplit) {
+    const count = linhasBase.length || 1;
+    const valorPorSocio = +(baseValor / count).toFixed(2);
+    const percentualPorSocio = +(100 / count).toFixed(2);
+    return linhasBase.map((socio) => ({
+      socio_id: socio.id || null,
+      socio_nome: socio.nome || null,
+      percentual_uso: percentualPorSocio,
+      valor_rateado: valorPorSocio,
+    }));
+  }
 
   if (usarTodos && linhasBase.length > 1) {
     const totalPct = linhasBase.reduce((sum, socio) => sum + (Number(socio.percentual_participacao ?? 0) || 0), 0);
@@ -281,11 +294,55 @@ export interface LinhaRateioClienteMontada extends LinhRateioMontada {
 export function montarLinhasRateioMultiCliente(params: {
   valorTotal: number;
   linhas: ClienteLinhaRateioInput[];
+  equalSplit?: boolean;
 }): LinhaRateioClienteMontada[] {
   const valorTotal = Number(params.valorTotal ?? 0) || 0;
   const resultado: LinhaRateioClienteMontada[] = [];
+  const linhasAtivas = (params.linhas || []).filter((linha) => !!linha?.clienteId);
 
-  for (const linha of params.linhas || []) {
+  if (params.equalSplit && linhasAtivas.length > 0) {
+    const totalParticipantes = linhasAtivas.reduce((sum, linha) => sum + ((linha.socios || []).filter((s) => Boolean(s?.id)).length || 1), 0);
+    const valorPorParticipante = +(valorTotal / totalParticipantes).toFixed(2);
+    const percentualPorParticipante = +(100 / totalParticipantes).toFixed(2);
+
+    for (const linha of linhasAtivas) {
+      const socios = (linha.socios || []).filter((s) => Boolean(s?.id));
+
+      if (socios.length === 0) {
+        resultado.push({
+          cliente_id: linha.clienteId,
+          cliente_nome: linha.clienteNome,
+          percentual_uso_cliente: percentualPorParticipante,
+          valor_cliente: valorPorParticipante,
+          socio_id: null,
+          socio_nome: null,
+          percentual_uso: percentualPorParticipante,
+          valor_rateado: valorPorParticipante,
+          percentual_sociedade_original: 0,
+        });
+        continue;
+      }
+
+      for (const socio of socios) {
+        const percentualOriginal = Number(socio.percentual_participacao ?? 0) || 0;
+        resultado.push({
+          cliente_id: linha.clienteId,
+          cliente_nome: linha.clienteNome,
+          percentual_uso_cliente: percentualPorParticipante,
+          valor_cliente: valorPorParticipante,
+          socio_id: socio.id,
+          socio_nome: socio.nome,
+          percentual_uso: percentualPorParticipante,
+          valor_rateado: valorPorParticipante,
+          percentual_sociedade_original: percentualOriginal,
+        });
+      }
+    }
+
+    return resultado;
+  }
+
+  for (const linha of linhasAtivas) {
     if (!linha.clienteId) continue;
 
     const pctCliente = Number(linha.percentualUsoCliente ?? 0) || 0;
