@@ -776,6 +776,9 @@ export function FuelRecordsByAircraft({
   const criarLancamentosMovimentacao = async (
     abastecimentoId: string,
     valorTotal: number,
+    comandaNumero: string,
+    comandaUrl: string,
+    nfNumero: string,
     notaUrl: string,
     boletoUrl: string,
     comprovanteUrl: string
@@ -817,8 +820,8 @@ export function FuelRecordsByAircraft({
           data_vencimento: dataVencimento,
           data_pagamento: pago ? formData.data_pagamento : null,
           fornecedor_nome: fornecedorNome,
-          nf_numero: formData.nf || null,
-          possui_nf: !!formData.nf,
+          nf_numero: nfNumero || null,
+          possui_nf: !!nfNumero,
           nf_url: notaUrl || null,
           possui_boleto: !!boletoUrl,
           boleto_url: boletoUrl || null,
@@ -860,10 +863,13 @@ export function FuelRecordsByAircraft({
             status: pago ? "pago" : "pendente",
             forma_pagamento: formData.tipo_faturamento || null,
             fornecedor_nome: fornecedorNome,
-            numero_nf: formData.nf || null,
+            numero_nf: nfNumero || null,
+            numero_doc: comandaNumero || null,
             nf_url: notaUrl || null,
+            comanda_url: comandaUrl || null,
             boleto_url: boletoUrl || null,
             comprovante_url: comprovanteUrl || null,
+            pago_diretamente: false,
             criado_por: user?.id || null,
           })
           .select("id")
@@ -874,6 +880,41 @@ export function FuelRecordsByAircraft({
           continue;
         }
 
+        const { error: rateioError } = await (supabase as any)
+          .from("rateio_despesas")
+          .insert({
+            despesa_id: movimentacao.id,
+            fonte_despesa: "abastecimento",
+            tipo_rateio: "VARIAVEL_POR_HORA",
+            fluxo: "SAÍDA",
+            data_emissao: formData.data,
+            data_vencimento: dataVencimento,
+            data_pagamento: pago ? formData.data_pagamento : null,
+            numero_nf: nfNumero || null,
+            numero_doc: comandaNumero || null,
+            fornecedor_nome: fornecedorNome,
+            cliente_id: clienteIdParaRateio,
+            clientes_nome: client.razao_social,
+            socio_id: socio.id,
+            socios_nome: socio.nome,
+            pago_diretamente: false,
+            aeronave_id: aircraft.id,
+            percentual_sociedade: socio.percentual_sociedade ?? socio.percentual_participacao ?? null,
+            percentual_uso: percentualUso,
+            descricao_despesa: descricao,
+            periodicidade: "EVENTUAL",
+            valor_total: valorTotal,
+            valor_rateado: valorPorSocio,
+            status: pago ? "pago" : "pendente",
+            forma_pagamento: formData.tipo_faturamento || null,
+            nf_url: notaUrl || null,
+            comanda_url: comandaUrl || null,
+            boleto_url: boletoUrl || null,
+            comprovante_url: comprovanteUrl || null,
+            abastecimento_id: abastecimentoId,
+          });
+
+        if (rateioError) throw rateioError;
       }
     } catch (err) {
       console.error("Erro ao gerar movimentações do abastecimento:", err);
@@ -888,6 +929,9 @@ export function FuelRecordsByAircraft({
   const atualizarLancamentosRateio = async (
     abastecimentoId: string,
     valorTotal: number,
+    comandaNumero: string,
+    comandaUrl: string,
+    nfNumero: string,
     notaUrl: string,
     boletoUrl: string,
     comprovanteUrl: string
@@ -923,10 +967,13 @@ export function FuelRecordsByAircraft({
         valor_total: valorTotal,
         valor_rateado: valorPorSocio,
         status: pago ? "pago" : "pendente",
-        numero_nf: formData.nf || null,
+        numero_nf: nfNumero || null,
+        numero_doc: comandaNumero || null,
         nf_url: notaUrl || null,
+        comanda_url: comandaUrl || null,
         boleto_url: boletoUrl || null,
         comprovante_url: comprovanteUrl || null,
+        abastecimento_id: abastecimentoId,
       };
 
       const { error: ratUpdError } = await (supabase as any)
@@ -964,8 +1011,10 @@ export function FuelRecordsByAircraft({
             status: pago ? "pago" : "pendente",
             forma_pagamento: formData.tipo_faturamento || null,
             fornecedor_nome: fornecedorNome,
-            numero_nf: formData.nf || null,
+            numero_nf: nfNumero || null,
+            numero_doc: comandaNumero || null,
             nf_url: notaUrl || null,
+            comanda_url: comandaUrl || null,
             boleto_url: boletoUrl || null,
             comprovante_url: comprovanteUrl || null,
           })
@@ -986,8 +1035,8 @@ export function FuelRecordsByAircraft({
               data_vencimento: dataVencimento,
               data_pagamento: dataPagamento,
               fornecedor_nome: fornecedorNome,
-              nf_numero: formData.nf || null,
-              possui_nf: !!formData.nf,
+              nf_numero: nfNumero || null,
+              possui_nf: !!nfNumero,
               nf_url: notaUrl || null,
               possui_boleto: !!boletoUrl,
               boleto_url: boletoUrl || null,
@@ -1141,7 +1190,7 @@ export function FuelRecordsByAircraft({
           toast.error(`Erro ao atualizar: ${getErrorMessage(error)}`);
           return;
         }
-        await atualizarLancamentosRateio(editingRecord.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
+        await atualizarLancamentosRateio(editingRecord.id, valorTotal, comandaNumero, comandaUrl, nfNumero, notaUrl, boletoUrl, comprovanteUrl);
         toast.success("Registro atualizado com sucesso");
       } else {
         const { data: inserted, error } = await supabase
@@ -1155,7 +1204,7 @@ export function FuelRecordsByAircraft({
         }
         toast.success("Registro criado com sucesso");
         if (inserted?.id) {
-          await criarLancamentosMovimentacao(inserted.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
+          await criarLancamentosMovimentacao(inserted.id, valorTotal, comandaNumero, comandaUrl, nfNumero, notaUrl, boletoUrl, comprovanteUrl);
         }
       }
       resetForm();
