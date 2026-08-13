@@ -26,7 +26,7 @@ export interface RateioDespesaRow {
   aeronave_registro: string | null;
   percentual_sociedade: number | null;
   percentual_uso: number | null;
-  valor_total_despesa: number | null;
+  valor_total: number | null;
   valor_rateado: number | null;
   valor_pago_real: number | null;
   status: string | null;
@@ -63,7 +63,7 @@ export function useRateioDespesas() {
         aeronave_registro: row.aeronave_registro,
         percentual_sociedade: row.percentual_sociedade,
         percentual_uso: row.percentual_uso,
-        valor_total_despesa: row.valor_total_despesa,
+        valor_total: row.valor_total,
         valor_rateado: row.valor_rateado,
         valor_pago_real: row.valor_pago_real,
         status: row.status,

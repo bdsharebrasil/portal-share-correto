@@ -39,9 +39,8 @@ export interface MovimentacaoRow {
   enviado_por_email_em: string | null;
 }
 
-// movimentacoes.tipo pode ser: 'receita' | 'entrada' | 'saida' | 'despesa'
-function normalizeTipoMovimento(tipo: string): "entrada" | "saida" {
-  return tipo === "receita" || tipo === "entrada" ? "entrada" : "saida";
+function normalizeTipoMovimento(fluxo: string | null): "entrada" | "saida" {
+  return fluxo === "receita" || fluxo === "entrada" ? "entrada" : "saida";
 }
 
 export function useMovimentacoes() {
@@ -54,9 +53,10 @@ export function useMovimentacoes() {
           `
           id,
           descricao,
-          tipo,
+          fluxo,
           tipo_caixa,
-          valor,
+          valor_rateado,
+          valor_total,
           data_emissao,
           data_vencimento,
           data_pagamento,
@@ -158,14 +158,14 @@ export function useMovimentacoes() {
         return {
           id: row.id,
           data: row.data_pagamento || row.data_vencimento || row.data_emissao,
-          tipo_movimento: normalizeTipoMovimento(row.tipo),
+          tipo_movimento: normalizeTipoMovimento(row.fluxo),
           descricao: row.descricao,
           categoria_nome: categoriasById.get(row.categoria_id) ?? null,
           tipo_caixa: (row.tipo_caixa || "share") as "share" | "cliente",
           cliente_id: clienteId,
           cliente_nome: (clienteId && clientesById.get(clienteId)) || null,
-          valor: Number(row.valor),
-          conta_banco: row.conta_bancaria || row.conta_bancaria || null,
+          valor: Number(row.valor_rateado ?? row.valor_total ?? 0),
+          conta_banco: row.conta_bancaria || null,
           aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
           numero_documento:
             row.numero_doc || row.numero_nf || row.numero_boleto || row.numero_recibo || null,

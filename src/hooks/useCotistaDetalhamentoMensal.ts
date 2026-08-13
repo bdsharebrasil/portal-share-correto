@@ -69,7 +69,7 @@ export function useCotistaDetalhamentoMensal(
       const { data: despesas } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, cliente_id, clientes_nome, descricao_despesa, categoria_custo, tipo_rateio, valor_total_despesa, valor_rateado, data_vencimento, fornecedor_nome, status"
+          "id, cliente_id, clientes_nome, descricao_despesa, categoria_custo, tipo_rateio, valor_total, valor_rateado, data_vencimento, fornecedor_nome, status"
         )
         .eq("cliente_id", clienteId)
         .eq("aeronave_id", aeronaveId)
@@ -99,7 +99,7 @@ export function useCotistaDetalhamentoMensal(
           id: d.id,
           descricao: d.descricao_despesa || d.fornecedor_nome || "—",
           tipo: (d.tipo_rateio || "VARIAVEL") as "FIXO" | "VARIAVEL" | "EXTRA",
-          valor_total: Number(d.valor_total_despesa) || 0,
+          valor_total: Number(d.valor_total) || 0,
           valor_rateado: Number(d.valor_rateado) || 0,
           data_vencimento: d.data_vencimento,
           fornecedor: d.fornecedor_nome,

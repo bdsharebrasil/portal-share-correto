@@ -436,7 +436,6 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     descricao: descricaoBase,
     valor_rateado: valor,
     valor_total: input.valor_total_despesa ?? valor,
-    valor_original: input.valor_total_despesa ?? valor,
     data_emissao,
     data_vencimento,
     status,
