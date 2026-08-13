@@ -1434,7 +1434,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const anexosProc = await uploadAnexos();
       let anexosOrigem: Record<string, string | null> = {};
       if (referenciaTipo === "abastecimento" && referenciaId) {
-        const { data } = await (supabase as any).from("abastecimentos").select("comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda_url, nf").eq("id", referenciaId).single();
+        const { data } = await (supabase as any).from("abastecimentos").select("comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda, comanda_url, nf").eq("id", referenciaId).single();
         anexosOrigem = data || {};
       }
       if (referenciaTipo === "travel_expense_report" && referenciaId) {
@@ -1442,11 +1442,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         anexosOrigem = data || {};
       }
 
-      const nfUrl = pickUrl(anexosProc, "nf") || anexosOrigem.nota_url || null;
+      const isAbastecimentoVinculado = referenciaTipo === "abastecimento";
+      const nfUrl = isAbastecimentoVinculado
+        ? anexosOrigem.nota_url || pickUrl(anexosProc, "nf") || null
+        : pickUrl(anexosProc, "nf") || null;
       const taxaReciboSelecionado = isTaxasMode && !isAllClients ? taxaRecibos.find((r) => r.id === taxaReciboId) || null : null;
       const reciboUrl = pickUrl(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.url : null) || (isTaxasMode ? taxaReciboSelecionado?.pdf_url : null) || reciboUrlSelecionado;
       const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
-      const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.pdf_url || null;
+      const docUrl = isAbastecimentoVinculado
+        ? anexosOrigem.comanda_url || pickUrl(anexosProc, "doc") || null
+        : pickUrl(anexosProc, "doc") || anexosOrigem.pdf_url || null;
+      const comandaUrl = isAbastecimentoVinculado ? anexosOrigem.comanda_url || null : docUrl;
       const arquivoPdfUrl = isRelatorioViagemMode
         ? travelReportSel?.pdf_url || docUrl || null
         : isReciboViagemMode
@@ -1455,10 +1461,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const demonstrativoUrl = pickUrl(anexosProc, "demonstrativo") || null;
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       
-      const nfNum = pickNumero(anexosProc, "nf");
+      const nfNum = isAbastecimentoVinculado
+        ? anexosOrigem.nf || pickNumero(anexosProc, "nf") || null
+        : pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
-      const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
+      const docNum = isAbastecimentoVinculado
+        ? anexosOrigem.comanda || pickNumero(anexosProc, "doc") || null
+        : pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
       
       const subcategoria1Val = isSubcat1Sel ? subcategoriaSel : null;
       const subcategoria2Val = isSubcat2Sel ? subcategoriaSel : null;
@@ -1629,12 +1639,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const anexoNfLinha = pickAnexoParaRateio(anexosProc, "nf", linha.clienteId, null);
               const anexoBoletoLinha = pickAnexoParaRateio(anexosProc, "boleto", linha.clienteId, null);
               const anexoDocLinha = pickAnexoParaRateio(anexosProc, "doc", linha.clienteId, null);
-              const nfNumLinha = anexoNfLinha?.numero || nfNum;
-              const nfUrlLinhaMov = anexoNfLinha?.url || nfUrl;
+              const nfNumLinha = isAbastecimentoVinculado ? nfNum : anexoNfLinha?.numero || nfNum;
+              const nfUrlLinhaMov = isAbastecimentoVinculado ? nfUrl : anexoNfLinha?.url || nfUrl;
               const boletoNumLinha = anexoBoletoLinha?.numero || boletoNum;
               const boletoUrlLinha = anexoBoletoLinha?.url || boletoUrl;
-              const docNumLinha = anexoDocLinha?.numero || docNum;
-              const comprovanteUrlLinhaMov = anexoDocLinha?.url || comprovanteUrl;
+              const docNumLinha = isAbastecimentoVinculado ? docNum : anexoDocLinha?.numero || docNum;
+              const comprovanteUrlLinhaMov = isAbastecimentoVinculado ? comprovanteUrl : anexoDocLinha?.url || comprovanteUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
@@ -1645,9 +1655,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha,
-                nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
+                nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, comanda_url: comandaUrl,
                 observacoes: obsFinal || null,
-                reembolsavel: false, pago_diretamente: true,
+                reembolsavel: false, pago_diretamente: false,
                 reference_type: referenciaTipo || "solicitacao_pagamento",
                 reference_id: referenciaTipo && referenciaId ? referenciaId : null,
                 criado_por: userId,
@@ -1664,20 +1674,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
             const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
             const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
-            const numeroNfLinha = anexoNf?.numero || nfNum;
-            const numeroDocLinha = anexoDoc?.numero || docNum;
-            const nfUrlLinha = anexoNf?.url || nfUrl;
-            const comprovanteUrlLinha = anexoDoc?.url || comprovanteUrl;
+            const numeroNfLinha = isAbastecimentoVinculado ? nfNum : anexoNf?.numero || nfNum;
+            const numeroDocLinha = isAbastecimentoVinculado ? docNum : anexoDoc?.numero || docNum;
+            const nfUrlLinha = isAbastecimentoVinculado ? nfUrl : anexoNf?.url || nfUrl;
+            const comprovanteUrlLinha = isAbastecimentoVinculado ? comprovanteUrl : anexoDoc?.url || comprovanteUrl;
             const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id) || reciboNum;
             const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
             
             return {
               despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
-              cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: true,
+              cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
               descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total: valorNumericoFinal, valor_rateado: linha.valor_rateado,
-              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl,
+              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, comanda_url: comandaUrl, demonstrativo_url: demonstrativoUrl,
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
@@ -1709,8 +1719,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               periodicidade, tipo_rateio: tipoRateioFinal,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
-              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
-              observacoes: obsFinal || null, contas_apagar_id: capId,
+              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl, comanda_url: comandaUrl,
+              observacoes: obsFinal || null, pago_diretamente: false, contas_apagar_id: capId,
               reference_type: referenciaTipo || "solicitacao_pagamento",
               reference_id: referenciaTipo && referenciaId ? referenciaId : null,
               criado_por: userId,
@@ -1741,12 +1751,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const anexoNfLinha = pickAnexoParaRateio(anexosProc, "nf", linha.clienteId, null);
               const anexoBoletoLinha = pickAnexoParaRateio(anexosProc, "boleto", linha.clienteId, null);
               const anexoDocLinha = pickAnexoParaRateio(anexosProc, "doc", linha.clienteId, null);
-              const nfNumLinha = anexoNfLinha?.numero || nfNum;
-              const nfUrlLinhaMov = anexoNfLinha?.url || nfUrl;
+              const nfNumLinha = isAbastecimentoVinculado ? nfNum : anexoNfLinha?.numero || nfNum;
+              const nfUrlLinhaMov = isAbastecimentoVinculado ? nfUrl : anexoNfLinha?.url || nfUrl;
               const boletoNumLinha = anexoBoletoLinha?.numero || boletoNum;
               const boletoUrlLinha = anexoBoletoLinha?.url || boletoUrl;
-              const docNumLinha = anexoDocLinha?.numero || docNum;
-              const comprovanteUrlLinhaMov = anexoDocLinha?.url || comprovanteUrl;
+              const docNumLinha = isAbastecimentoVinculado ? docNum : anexoDocLinha?.numero || docNum;
+              const comprovanteUrlLinhaMov = isAbastecimentoVinculado ? comprovanteUrl : anexoDocLinha?.url || comprovanteUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
@@ -1754,8 +1764,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
-                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
-                observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
+                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, comanda_url: comandaUrl,
+                observacoes: obsFinal || null, pago_diretamente: false, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
               });
               movimentacaoIdsCriadas.push(movId);
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
@@ -1772,10 +1782,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
             const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
             const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
-            const numeroNfLinha = anexoNf?.numero || nfNum;
-            const numeroDocLinha = anexoDoc?.numero || docNum;
-            const nfUrlLinha = anexoNf?.url || nfUrl;
-            const comprovanteUrlLinha = anexoDoc?.url || comprovanteUrl;
+            const numeroNfLinha = isAbastecimentoVinculado ? nfNum : anexoNf?.numero || nfNum;
+            const numeroDocLinha = isAbastecimentoVinculado ? docNum : anexoDoc?.numero || docNum;
+            const nfUrlLinha = isAbastecimentoVinculado ? nfUrl : anexoNf?.url || nfUrl;
+            const comprovanteUrlLinha = isAbastecimentoVinculado ? comprovanteUrl : anexoDoc?.url || comprovanteUrl;
             const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id) || reciboNum;
             const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
             
@@ -1785,7 +1795,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
               descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total: valorNumericoFinal, valor_rateado: linha.valor_rateado,
-              status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+              status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, comanda_url: comandaUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
             };
@@ -1881,6 +1891,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 clientes_id: linha.clienteId,
                 reembolsavel: true,
                 reembolso_quitado: false,
+                pago_diretamente: false,
                 numero_recibo: reciboNum,
                 numero_nf: nfNum,
                 numero_boleto: boletoNum,
@@ -1888,6 +1899,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 recibo_url: reciboUrl,
                 nf_url: nfUrl,
                 boleto_url: boletoUrl,
+                comanda_url: comandaUrl,
+                pago_diretamente: false,
                 contas_areceber_id: (carRow as any)?.id || null,
                 contas_apagar_id: capId || null,
                 observacoes: obsFinal || null,
