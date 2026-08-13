@@ -235,7 +235,6 @@ export function AbastecimentoPreVooDialog({
         abastecedor: abastecedor || null,
         litros: litrosNum,
         valor_unitario: unitNum,
-        valor_total: valorTotal,
         comanda: comanda || null,
         comanda_url: comandaUrl || urlPorTipo("comanda"),
         tipo_faturamento: tipoFaturamento,
