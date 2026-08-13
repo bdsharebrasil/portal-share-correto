@@ -398,7 +398,6 @@ export default function EmissaoRecibo() {
         percentual: originalForm.reembolsoPorcentagem                                      // percentage
           ? parseFloat(originalForm.reembolsoPorcentagem)
           : null,
-        valor_total: parseCurrencyInput(originalForm.reembolsoValorTotal),                  // total_amount
         socios_cliente: formData.socioNome || null,
       };
 
@@ -433,7 +432,6 @@ export default function EmissaoRecibo() {
                 uf_pagador: isClienteSelecionado ? receiptPayload.uf_pagador : cliente?.uf || null,
                 valor: Number(((valorTotalDespesa! * percentual) / 100).toFixed(2)),
                 percentual,
-                valor_total: valorTotalDespesa,
                 socios_cliente: isClienteSelecionado ? receiptPayload.socios_cliente : null,
               };
             })

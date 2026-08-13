@@ -383,7 +383,6 @@ export default function ImportarDemonstrativoTab() {
         aeronave_id: aircraftId || null,
         compartilhado: true,
         percentual: Number(row.percentual.toFixed(2)),
-        valor_total: Number(consolidado.total.toFixed(2)),
         numero_documento: result.numero_documento || null,
         competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
         competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
