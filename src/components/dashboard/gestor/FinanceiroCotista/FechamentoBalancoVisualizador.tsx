@@ -39,6 +39,7 @@ import {
   Timer,
   Calculator,
   ArrowRight,
+  ArrowLeftRight,
   CheckCircle2,
   Wallet,
   Clock,
@@ -129,6 +130,7 @@ interface RateioRow {
   socios_nome: string | null;
   cliente_id: string | null;
   clientes_nome: string | null;
+  abastecimento_id?: string | null;
 }
 
 interface VooRow {
@@ -145,6 +147,21 @@ interface VooRow {
   socios_id: string | null;
   socios_nome: string | null;
   clientes_id?: string | null;
+  emprestimo?: boolean | null;
+  cliente_tomador_emprestimo_id?: string | null;
+  socio_tomador_emprestimo_id?: string | null;
+}
+
+interface AbastecimentoEmprestimoRow {
+  id: string;
+  data: string | null;
+  trecho: string | null;
+  litros: number | null;
+  valor_unitario: number | null;
+  valor_total: number | null;
+  voo_emprestado: boolean | null;
+  logbook_entry_id: string | null;
+  id_clientes: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +179,7 @@ function useDadosRelatorio(
     enabled: !!aeronaveId,
     staleTime: 120_000,
     queryFn: async () => {
-      const [ratRes, vooRes, aerRes, catRes, cotRes] = await Promise.all([
+      const [ratRes, vooRes, aerRes, catRes, cotRes, abastEmpRes] = await Promise.all([
         (supabase as any)
           .from("rateio_despesas")
           .select([
@@ -172,6 +189,7 @@ function useDadosRelatorio(
             "valor_total_despesa", "valor_rateado",
             "percentual_uso", "percentual_sociedade",
             "socio_id", "socios_nome", "cliente_id", "clientes_nome",
+            "abastecimento_id",
           ].join(", "))
           .eq("aeronave_id", aeronaveId)
           .eq("conferido", true)
@@ -186,7 +204,8 @@ function useDadosRelatorio(
           .select(
             "id, data_registro, aerodromo_partida, aerodromo_chegada, trecho, " +
             "tempo_voo, tempo_total, pousos_total, combustivel_adicionado, " +
-            "natureza_voo, socios_id, socios_nome, clientes_id"
+            "natureza_voo, socios_id, socios_nome, clientes_id, " +
+            "emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id"
           )
           .eq("aeronave_id", aeronaveId)
           .gte("data_registro", inicio)
@@ -205,6 +224,16 @@ function useDadosRelatorio(
           .from("cotistas_aeronave")
           .select("id, cliente_id, socio_id, percentual")
           .eq("aeronave_id", aeronaveId),
+
+        // Abastecimentos de voos emprestados (não entram na conta do cliente/cotista,
+        // só ficam registrados como desgaste da aeronave)
+        (supabase as any)
+          .from("abastecimentos")
+          .select("id, data, trecho, litros, valor_unitario, valor_total, voo_emprestado, logbook_entry_id, id_clientes")
+          .eq("aeronave_id", aeronaveId)
+          .eq("voo_emprestado", true)
+          .gte("data", inicio)
+          .lte("data", fim),
       ]);
 
       const catMap = new Map<string, string>();
@@ -225,14 +254,53 @@ function useDadosRelatorio(
         return m != null && mesesSet.has(m);
       };
 
+      const voos = ((vooRes.data ?? []) as VooRow[]).filter((v) => dentro(v.data_registro));
+      const abastecimentosEmprestados = (((abastEmpRes as any)?.data ?? []) as AbastecimentoEmprestimoRow[]).filter(
+        (a) => dentro(a.data)
+      );
+
+      // Resolve nomes de clientes envolvidos em empréstimo: o cotista "dono" (registrado
+      // como cliente em voos.clientes_id) e o cliente/tomador que efetivamente usou o voo.
+      const idsClientesEmprestimo = new Set<string>();
+      voos.forEach((v) => {
+        if (v.emprestimo) {
+          if (v.clientes_id) idsClientesEmprestimo.add(v.clientes_id);
+          if (v.cliente_tomador_emprestimo_id) idsClientesEmprestimo.add(v.cliente_tomador_emprestimo_id);
+        }
+      });
+      const nomesClientesEmprestimo = new Map<string, string>();
+      if (idsClientesEmprestimo.size > 0) {
+        const { data: clientesData } = await (supabase as any)
+          .from("clientes")
+          .select("id, razao_social")
+          .in("id", Array.from(idsClientesEmprestimo));
+        (clientesData ?? []).forEach((c: any) => nomesClientesEmprestimo.set(c.id, c.razao_social));
+      }
+
+      const idsSociosEmprestimo = new Set<string>();
+      voos.forEach((v) => {
+        if (v.emprestimo && v.socio_tomador_emprestimo_id) idsSociosEmprestimo.add(v.socio_tomador_emprestimo_id);
+      });
+      const nomesSociosEmprestimo = new Map<string, string>();
+      if (idsSociosEmprestimo.size > 0) {
+        const { data: sociosData } = await (supabase as any)
+          .from("socios")
+          .select("id, nome")
+          .in("id", Array.from(idsSociosEmprestimo));
+        (sociosData ?? []).forEach((s: any) => nomesSociosEmprestimo.set(s.id, s.nome));
+      }
+
       return {
         rateios: ((ratRes.data ?? []) as RateioRow[]).filter((r) =>
           dentro(r.data_pagamento || r.data_vencimento)
         ),
-        voos: ((vooRes.data ?? []) as VooRow[]).filter((v) => dentro(v.data_registro)),
+        voos,
         aeronave: aerRes.data,
         catMap,
         pctMap,
+        abastecimentosEmprestados,
+        nomesClientesEmprestimo,
+        nomesSociosEmprestimo,
       };
     },
   });
@@ -261,7 +329,7 @@ interface Props {
   onClose?: () => void;
 }
 
-type TabKey = "visao" | "acerto" | "lancamentos" | "graficos" | "diario" | "metodologia";
+type TabKey = "visao" | "acerto" | "lancamentos" | "graficos" | "diario" | "emprestimos" | "metodologia";
 
 export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("visao");
@@ -296,11 +364,25 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     [data]
   );
 
+  // IDs de abastecimentos ligados a voos emprestados — o combustível deles é excluído
+  // das contas do cliente/cotista e só entra na aba "Voos Emprestados".
+  const abastecimentosEmprestadosIds = useMemo(
+    () => new Set(((data as any)?.abastecimentosEmprestados ?? []).map((a: any) => a.id)),
+    [data]
+  );
+
+  // Rateios que de fato entram nas contas (visão geral, acerto, lançamentos).
+  const rateiosValidos = useMemo(() => {
+    const rows = data?.rateios ?? [];
+    if (abastecimentosEmprestadosIds.size === 0) return rows;
+    return rows.filter((r) => !(r.abastecimento_id && abastecimentosEmprestadosIds.has(r.abastecimento_id)));
+  }, [data, abastecimentosEmprestadosIds]);
+
   // ── Cotistas ───────────────────────────────────────────────────────────────
   const cotistas = useMemo<CotistaInfo[]>(() => {
     if (!data) return [];
     const map = new Map<string, string>();
-    data.rateios.forEach((r) => {
+    rateiosValidos.forEach((r) => {
       const id = r.socio_id || r.cliente_id;
       const nome = r.socios_nome || r.clientes_nome;
       if (id && nome && !map.has(id)) map.set(id, nome);
@@ -311,7 +393,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     });
     return Array.from(map.entries()).map(([id, nome], i) => {
       const pctBanco = data.pctMap?.get(id);
-      const pctRateio = data.rateios.find(
+      const pctRateio = rateiosValidos.find(
         (r) => (r.socio_id === id || r.cliente_id === id) && Number(r.percentual_sociedade ?? 0) > 0
       )?.percentual_sociedade;
       return {
@@ -321,7 +403,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
         corHex: CORES_COTISTA[i % CORES_COTISTA.length],
       };
     });
-  }, [data]);
+  }, [data, rateiosValidos]);
 
   const cotistaPorId = React.useCallback(
     (id: string) =>
@@ -332,7 +414,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
   const despesasAgrupadas = useMemo(() => {
     if (!data) return [];
     const map = new Map<string, { ref: RateioRow; rateios: RateioRow[] }>();
-    data.rateios.forEach((r) => {
+    rateiosValidos.forEach((r) => {
       const key = r.despesa_id || r.id;
       if (!map.has(key)) map.set(key, { ref: r, rateios: [] });
       map.get(key)!.rateios.push(r);
@@ -342,7 +424,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       const db = b.ref.data_pagamento || b.ref.data_vencimento || "";
       return da.localeCompare(db);
     });
-  }, [data]);
+  }, [data, rateiosValidos]);
 
   const pivot = useMemo(() => {
     const cats = new Map<string, Map<string, number>>();
@@ -386,7 +468,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     const totalCusto = pivot.grand;
     return cotistas
       .map((c) => {
-        const rows = data.rateios.filter((r) => r.socio_id === c.id || r.cliente_id === c.id);
+        const rows = rateiosValidos.filter((r) => r.socio_id === c.id || r.cliente_id === c.id);
         const fixo = rows.filter(ehFixo).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
         const variavel = rows.filter((r) => !ehFixo(r)).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
         const voosCot = data.voos.filter((v) => v.socios_id === c.id || v.clientes_id === c.id);
@@ -409,7 +491,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [data, cotistas, pivot.grand, totalHorasAeronave]);
+  }, [data, cotistas, rateiosValidos, pivot.grand, totalHorasAeronave]);
 
   const saldos = useMemo(() => {
     const pagou = new Map<string, number>();
@@ -468,7 +550,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
   }, [saldos]);
 
   const baseCustos = useMemo(() => {
-    const rows = data?.rateios ?? [];
+    const rows = rateiosValidos;
     const fixo = rows.filter(ehFixo).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
     const variavel = rows.filter((r) => !ehFixo(r)).reduce((s, r) => s + Number(r.valor_rateado ?? 0), 0);
     const combustivel = rows
@@ -484,7 +566,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       variavelHora: totalHorasAeronave > 0 ? variavel / totalHorasAeronave : 0,
       combustivelHora: totalHorasAeronave > 0 ? combustivel / totalHorasAeronave : 0,
     };
-  }, [data, qtdMeses, totalHorasAeronave, catNome]);
+  }, [rateiosValidos, qtdMeses, totalHorasAeronave, catNome]);
 
   const medias = useMemo(() => {
     const h = totalHorasAeronave;
@@ -503,6 +585,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       fixoMes: baseCustos.fixoMes,
       variavelHora: baseCustos.variavelHora,
       combustivelHora: baseCustos.combustivelHora,
+      // taxa de desgaste (peças/manutenção) por hora, sem o combustível
+      manutencaoHora: Math.max(0, baseCustos.variavelHora - baseCustos.combustivelHora),
     };
   }, [baseCustos, data, qtdMeses, totalHorasAeronave, totalPousos, totalLitros]);
 
@@ -513,7 +597,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       if (!map.has(k)) map.set(k, { mes: k, fixo: 0, variavel: 0, horas: 0 });
       return map.get(k)!;
     };
-    (data?.rateios ?? []).forEach((r) => {
+    rateiosValidos.forEach((r) => {
       const k = mesKey(r.data_pagamento || r.data_vencimento);
       if (!k) return;
       const row = get(k);
@@ -532,12 +616,12 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
         const total = m.fixo + m.variavel;
         return { ...m, label: labelMes(m.mes), total, custoHora: m.horas > 0 ? total / m.horas : 0 };
       });
-  }, [data]);
+  }, [data, rateiosValidos]);
 
   /** Categorias com tipo e distribuição por cotista */
   const categorias = useMemo(() => {
     const map = new Map<string, { total: number; fixo: number; porCotista: Map<string, number> }>();
-    (data?.rateios ?? []).forEach((r) => {
+    rateiosValidos.forEach((r) => {
       const cat = catNome(r.categoria_custo);
       const v = Number(r.valor_rateado ?? 0);
       if (!map.has(cat)) map.set(cat, { total: 0, fixo: 0, porCotista: new Map() });
@@ -557,7 +641,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
         porCotista: r.porCotista,
       }))
       .sort((a, b) => b.total - a.total);
-  }, [data, catNome]);
+  }, [rateiosValidos, catNome]);
 
   const projecao = useMemo(() => {
     const fixoMes = baseCustos.fixoMes;
@@ -630,6 +714,68 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     cor: CORES_CATEGORIA[i % CORES_CATEGORIA.length],
   }));
 
+  // ── Voos emprestados (não entram na conta do cliente, só registro de desgaste) ──
+  const voosEmprestados = useMemo(() => {
+    if (!data) return [];
+    const abastPorLogbook = new Map<string, AbastecimentoEmprestimoRow>();
+    ((data as any).abastecimentosEmprestados ?? []).forEach((a: AbastecimentoEmprestimoRow) => {
+      if (a.logbook_entry_id) abastPorLogbook.set(a.logbook_entry_id, a);
+    });
+    return (data.voos as VooRow[])
+      .filter((v) => !!v.emprestimo)
+      .map((v) => {
+        const abast = abastPorLogbook.get(v.id);
+        const cotistaDonoId = v.clientes_id || null;
+        const cotistaDonoNome =
+          (cotistaDonoId && (data as any).nomesClientesEmprestimo?.get(cotistaDonoId)) ||
+          cotistas.find((c) => c.id === cotistaDonoId)?.nome ||
+          "—";
+        const tomadorClienteNome =
+          (v.cliente_tomador_emprestimo_id &&
+            (data as any).nomesClientesEmprestimo?.get(v.cliente_tomador_emprestimo_id)) ||
+          null;
+        const tomadorSocioNome =
+          (v.socio_tomador_emprestimo_id && (data as any).nomesSociosEmprestimo?.get(v.socio_tomador_emprestimo_id)) ||
+          null;
+        const horas = Number(v.tempo_voo ?? v.tempo_total ?? 0);
+        const combustivelValor = abast ? Number(abast.valor_total ?? 0) : 0;
+        return {
+          id: v.id,
+          data: v.data_registro,
+          trecho: v.trecho || `${v.aerodromo_partida ?? "—"} → ${v.aerodromo_chegada ?? "—"}`,
+          cotistaDonoNome,
+          tomadorNome: tomadorClienteNome || tomadorSocioNome || "—",
+          horas,
+          combustivelValor,
+          custoDesgaste: horas * medias.manutencaoHora,
+        };
+      })
+      .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  }, [data, cotistas, medias]);
+
+  const resumoEmprestimos = useMemo(() => {
+    const map = new Map<string, { nome: string; horas: number; combustivel: number; desgaste: number; voos: number }>();
+    voosEmprestados.forEach((v) => {
+      const key = v.cotistaDonoNome;
+      if (!map.has(key)) map.set(key, { nome: key, horas: 0, combustivel: 0, desgaste: 0, voos: 0 });
+      const row = map.get(key)!;
+      row.horas += v.horas;
+      row.combustivel += v.combustivelValor;
+      row.desgaste += v.custoDesgaste;
+      row.voos += 1;
+    });
+    return Array.from(map.values()).sort((a, b) => b.desgaste - a.desgaste);
+  }, [voosEmprestados]);
+
+  const totaisEmprestimos = useMemo(
+    () => ({
+      horas: voosEmprestados.reduce((s, v) => s + v.horas, 0),
+      combustivel: voosEmprestados.reduce((s, v) => s + v.combustivelValor, 0),
+      desgaste: voosEmprestados.reduce((s, v) => s + v.custoDesgaste, 0),
+    }),
+    [voosEmprestados]
+  );
+
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
@@ -689,6 +835,14 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               <TabButton active={activeTab === "lancamentos"} onClick={() => setActiveTab("lancamentos")} icon={ClipboardList} label="Lançamentos" />
               <TabButton active={activeTab === "graficos"} onClick={() => setActiveTab("graficos")} icon={BarChart3} label="Gráficos e Análises" />
               <TabButton active={activeTab === "diario"} onClick={() => setActiveTab("diario")} icon={BookOpen} label="Diário de Bordo" />
+              {voosEmprestados.length > 0 && (
+                <TabButton
+                  active={activeTab === "emprestimos"}
+                  onClick={() => setActiveTab("emprestimos")}
+                  icon={ArrowLeftRight}
+                  label="Voos Emprestados"
+                />
+              )}
               <TabButton active={activeTab === "metodologia"} onClick={() => setActiveTab("metodologia")} icon={Scale} label="Explicando o Balanço" />
             </nav>
           </div>
@@ -736,6 +890,16 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 icone={<Fuel className="h-4 w-4" />}
               />
             </div>
+
+            {voosEmprestados.length > 0 && (
+              <Nota titulo="Voos emprestados no período" tom="atencao">
+                <p>
+                  {voosEmprestados.length} voo(s) marcado(s) como empréstimo neste período ({hhMM(totaisEmprestimos.horas)}
+                  ). O combustível deles ({BRL(totaisEmprestimos.combustivel)}) não entra nas contas acima — veja a aba{" "}
+                  <strong>Voos Emprestados</strong> para o detalhamento e o desgaste atribuído ao cotista dono.
+                </p>
+              </Nota>
+            )}
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Painel
@@ -1486,6 +1650,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                           <Td dim>{labelMes(mesKey(v.data_registro))}</Td>
                           <Td mono fontSemibold>
                             {(v.aerodromo_partida || "—")} → {(v.aerodromo_chegada || "—")}
+                            {v.emprestimo && (
+                              <span className="ml-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/20">
+                                Emprestado
+                              </span>
+                            )}
                           </Td>
                           <Td dim upper>{v.natureza_voo || "—"}</Td>
                           <Td className="font-bold text-slate-100" mono right>
@@ -1519,7 +1688,111 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             </Painel>
           </div>
 
-          {/* ══════════════ ABA 6 — EXPLICANDO O BALANÇO ══════════════ */}
+          {/* ══════════════ ABA 6 — VOOS EMPRESTADOS ══════════════ */}
+          <div className={`space-y-6 animate-fade-in print:block ${activeTab === "emprestimos" ? "block" : "hidden"}`}>
+            <Nota titulo="O que é esta aba" tom="atencao">
+              <p>
+                Voos marcados como <strong>empréstimo</strong> no diário de bordo não geram cobrança para o cliente que
+                usou a aeronave, nem entram nas contas normais do cotista. O combustível desses voos fica registrado
+                aqui apenas como histórico de uso — não é somado ao total pago por ninguém. Já o desgaste de peças e
+                manutenção referente a essas horas continua sendo atribuído ao <strong>cotista dono</strong> da
+                aeronave, já que ela rodou de qualquer forma.
+              </p>
+            </Nota>
+
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <KpiCard
+                label="Voos emprestados"
+                valor={String(voosEmprestados.length)}
+                detalhe={`${qtdMeses} ${qtdMeses > 1 ? "meses" : "mês"}`}
+                icone={<ArrowLeftRight className="h-4 w-4" />}
+                destaque
+              />
+              <KpiCard label="Horas emprestadas" valor={hhMM(totaisEmprestimos.horas)} icone={<Clock className="h-4 w-4" />} />
+              <KpiCard
+                label="Combustível não cobrado"
+                valor={BRL(totaisEmprestimos.combustivel)}
+                detalhe="registrado, não faturado"
+                icone={<Fuel className="h-4 w-4" />}
+              />
+              <KpiCard
+                label="Desgaste atribuído aos cotistas"
+                valor={BRL(totaisEmprestimos.desgaste)}
+                detalhe="peças e manutenção"
+                icone={<PlaneTakeoff className="h-4 w-4" />}
+              />
+            </div>
+
+            <Painel
+              titulo="Resumo por cotista dono"
+              descricao="Quanto de desgaste cada cotista absorveu por ter cedido horas em empréstimo."
+              semPadding
+            >
+              {resumoEmprestimos.length === 0 ? (
+                <Vazio texto="Nenhum voo emprestado no período." />
+              ) : (
+                <ul className="divide-y divide-slate-800">
+                  {resumoEmprestimos.map((r) => (
+                    <li key={r.nome} className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4 sm:items-center">
+                      <p className="col-span-2 truncate text-sm font-semibold text-slate-100 sm:col-span-1">{r.nome}</p>
+                      <Metrica titulo="Voos" valor={String(r.voos)} />
+                      <Metrica titulo="Horas" valor={hhMM(r.horas)} />
+                      <Metrica titulo="Desgaste atribuído" valor={BRL(r.desgaste)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Painel>
+
+            <Painel
+              titulo="Voos emprestados no período"
+              descricao="Combustível é apenas informativo. O custo de desgaste (peças/manutenção) é atribuído ao cotista dono."
+              semPadding
+            >
+              {voosEmprestados.length === 0 ? (
+                <Vazio texto="Nenhum voo emprestado no período." />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-900/80 text-[10px] uppercase tracking-widest text-slate-500">
+                        <Th className="py-3 px-4">Data</Th>
+                        <Th>Trecho</Th>
+                        <Th>Cotista dono</Th>
+                        <Th>Cliente / tomador do empréstimo</Th>
+                        <Th right>Horas</Th>
+                        <Th right>Combustível (não cobrado)</Th>
+                        <Th right className="px-4">Desgaste atribuído</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {voosEmprestados.map((v) => (
+                        <tr key={v.id} className="hover:bg-slate-800/50">
+                          <Td className="py-3 px-4" mono>{fmtDate(v.data)}</Td>
+                          <Td mono fontSemibold>{v.trecho}</Td>
+                          <Td>{v.cotistaDonoNome}</Td>
+                          <Td dim>{v.tomadorNome}</Td>
+                          <Td mono right>{hhMM(v.horas)}</Td>
+                          <Td mono right className="text-amber-300/80">{v.combustivelValor > 0 ? BRL(v.combustivelValor) : "—"}</Td>
+                          <Td className="px-4 font-semibold text-slate-100" mono right>{BRL(v.custoDesgaste)}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-800 text-xs font-bold text-slate-100">
+                        <td colSpan={4} className="px-4 py-3 text-right uppercase tracking-widest text-slate-400">Total</td>
+                        <td className="px-3 py-3 text-right font-mono">{hhMM(totaisEmprestimos.horas)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-amber-300">{BRL(totaisEmprestimos.combustivel)}</td>
+                        <td className="px-4 py-3 text-right font-mono">{BRL(totaisEmprestimos.desgaste)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </Painel>
+          </div>
+
+          {/* ══════════════ ABA 7 — EXPLICANDO O BALANÇO ══════════════ */}
           <div className={`space-y-6 animate-fade-in print:block ${activeTab === "metodologia" ? "block" : "hidden"}`}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <article className="rounded-2xl border border-sky-500/30 bg-sky-500/[0.07] p-5">
@@ -1603,6 +1876,13 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 <p>
                   A soma dos rateios sempre precisa ser igual ao total pago aos fornecedores — a diferença exibida na tela de
                   acerto deve ser zero.
+                </p>
+              </Nota>
+              <Nota titulo="Voos emprestados">
+                <p>
+                  Combustível de voos marcados como empréstimo no diário de bordo é excluído das contas do cliente e do
+                  cotista — ele só aparece na aba <strong>Voos Emprestados</strong>. As horas continuam contando para o
+                  cotista dono no rateio de manutenção, já que a aeronave rodou de qualquer forma.
                 </p>
               </Nota>
               <Nota titulo="Quando não há horas no mês">
