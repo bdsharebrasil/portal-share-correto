@@ -11,11 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useClientesCombo } from "@/hooks/useClientesCombo";
 import { useAerodromes } from "@/hooks/useAerodromes";
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers";
+import { useVooPorNumero } from "@/hooks/useVooPorNumero";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Fuel, Loader2, Users, Plane, CalendarDays, MapPin, Upload, X, Info,
-  CheckCircle2, CreditCard, Building2, FileText,
+  CheckCircle2, CreditCard, Building2, FileText, Hash,
 } from "lucide-react";
 
 const db = supabase as any;
@@ -47,6 +48,7 @@ interface Props {
   defaultClienteId?: string | null;
   defaultAeronaveId?: string | null;
   defaultData?: string;
+  defaultNumeroVoo?: string | null;
   onSaved: (abastecimentoId: string) => void;
 }
 
@@ -56,11 +58,13 @@ export function AbastecimentoPreVooDialog({
   defaultClienteId,
   defaultAeronaveId,
   defaultData,
+  defaultNumeroVoo,
   onSaved,
 }: Props) {
   const { clientes } = useClientesCombo();
   const { aerodromes } = useAerodromes();
   const { data: fornecedores = [] } = useFuelSuppliers();
+  const { data: vooInfo } = useVooPorNumero(defaultNumeroVoo);
 
   const [clienteId, setClienteId] = useState(defaultClienteId || "");
   const [socioNome, setSocioNome] = useState("");
@@ -86,13 +90,19 @@ export function AbastecimentoPreVooDialog({
   const [avisoFechado, setAvisoFechado] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
+  // Ao abrir, cliente/aeronave/trecho vêm do voo (fonte única de verdade) quando
+  // há um numero_voo em contexto (vindo do checklist); os defaults soltos
+  // continuam funcionando como fallback caso o voo ainda não tenha sido
+  // encontrado ou o dialog seja aberto sem numero_voo.
   useEffect(() => {
     if (!open) return;
-    setClienteId(defaultClienteId || "");
-    setAeronaveId(defaultAeronaveId || "");
-    setData(defaultData || new Date().toISOString().split("T")[0]);
+    setClienteId(vooInfo?.cliente_id || defaultClienteId || "");
+    setAeronaveId(vooInfo?.aeronave_id || defaultAeronaveId || "");
+    if (vooInfo?.origem) setTrechoOrigem(vooInfo.origem);
+    if (vooInfo?.destino) setTrechoDestino(vooInfo.destino);
+    setData(vooInfo?.data_agendada || defaultData || new Date().toISOString().split("T")[0]);
     setAvisoFechado(false);
-  }, [open, defaultClienteId, defaultAeronaveId, defaultData]);
+  }, [open, defaultClienteId, defaultAeronaveId, defaultData, vooInfo]);
 
   const { data: aeronaves = [] } = useQuery({
     queryKey: ["abast-aeronaves"],
@@ -226,6 +236,7 @@ export function AbastecimentoPreVooDialog({
         id_clientes: clienteId,
         socio_nome: socioNome || null,
         aeronave_id: aeronaveId,
+        numero_voo: defaultNumeroVoo || null,
         voo_emprestado: vooEmprestado,
         data,
         trecho: `${trechoOrigem} x ${trechoDestino}`,
@@ -303,6 +314,14 @@ export function AbastecimentoPreVooDialog({
             </div>
           </div>
         </DialogHeader>
+
+        {defaultNumeroVoo && (
+          <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 sm:mx-6">
+            <Hash className="h-3.5 w-3.5 text-primary" />
+            <span className="text-xs text-muted-foreground">Abastecimento vinculado ao voo</span>
+            <span className="font-mono text-sm font-semibold text-primary">{defaultNumeroVoo}</span>
+          </div>
+        )}
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           <Section icon={Users} title="Cliente e aeronave">

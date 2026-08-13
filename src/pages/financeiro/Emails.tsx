@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Mail, Send, History, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  History,
+  Loader2,
+  Mail,
+  Paperclip,
+  Search,
+  Send,
+  X,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +29,18 @@ interface Contato {
   origem: "cliente" | "socio";
 }
 
+interface AnexoEmail {
+  id: string;
+  origem: "Recibo" | "Nota fiscal de saída" | "Recibo de saída" | "Arquivo PDF";
+  label: string;
+  filename: string;
+  url: string;
+}
+
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+const filenameFromUrl = (url: string, fallback: string) =>
+  url.split("?")[0].split("/").pop() || fallback;
 
 export default function EmailsPage() {
   const navigate = useNavigate();
@@ -34,8 +55,142 @@ export default function EmailsPage() {
   const [enviando, setEnviando] = useState(false);
   const [historicoKey, setHistoricoKey] = useState(0);
   const [view, setView] = useState<"envio" | "historico">("envio");
+  const [anexosDisponiveis, setAnexosDisponiveis] = useState<AnexoEmail[]>([]);
+  const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
+  const [buscaAnexos, setBuscaAnexos] = useState("");
+  const [loadingAnexos, setLoadingAnexos] = useState(false);
 
   const referenceIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    (async () => {
+      setLoadingAnexos(true);
+      try {
+        const db = supabase as any;
+        const [recibosRes, notasRes, recibosSaidaRes, contasApagarRes, contasReceberRes] =
+          await Promise.all([
+            db
+              .from("recibos")
+              .select("id, numero_recibo, descricao_servico, pdf_url, data_emissao")
+              .not("pdf_url", "is", null)
+              .order("data_emissao", { ascending: false })
+              .limit(100),
+            db
+              .from("notas_fiscais_saida")
+              .select("id, numero, cliente_nome, arquivo_pdf_url, data_criacao")
+              .not("arquivo_pdf_url", "is", null)
+              .order("data_criacao", { ascending: false })
+              .limit(100),
+            db
+              .from("recibos_saida")
+              .select("id, numero_recibo, nome_pagador, pdf_url, data_emissao")
+              .not("pdf_url", "is", null)
+              .order("data_emissao", { ascending: false })
+              .limit(100),
+            db
+              .from("contas_apagar")
+              .select("id, descricao, fornecedor_nome, arquivo_pdf_url, data_vencimento")
+              .not("arquivo_pdf_url", "is", null)
+              .order("data_vencimento", { ascending: false })
+              .limit(100),
+            db
+              .from("contas_areceber")
+              .select("id, descricao, cliente_nome, arquivo_pdf_url, data_criacao")
+              .not("arquivo_pdf_url", "is", null)
+              .order("data_criacao", { ascending: false })
+              .limit(100),
+          ]);
+
+        const lista: AnexoEmail[] = [];
+        const urls = new Set<string>();
+        const adicionar = (
+          id: string,
+          origem: AnexoEmail["origem"],
+          label: string,
+          url: string | null | undefined,
+          fallback: string,
+        ) => {
+          if (!url || urls.has(url)) return;
+          urls.add(url);
+          lista.push({
+            id: `${origem}-${id}-${url}`,
+            origem,
+            label,
+            filename: filenameFromUrl(url, fallback),
+            url,
+          });
+        };
+
+        for (const recibo of recibosRes.data || []) {
+          adicionar(
+            recibo.id,
+            "Recibo",
+            `Recibo ${recibo.numero_recibo || recibo.id}`,
+            recibo.pdf_url,
+            "recibo.pdf",
+          );
+        }
+        for (const nota of notasRes.data || []) {
+          adicionar(
+            nota.id,
+            "Nota fiscal de saída",
+            `NF ${nota.numero || nota.id}${nota.cliente_nome ? ` — ${nota.cliente_nome}` : ""}`,
+            nota.arquivo_pdf_url,
+            "nota-fiscal.pdf",
+          );
+        }
+        for (const recibo of recibosSaidaRes.data || []) {
+          adicionar(
+            recibo.id,
+            "Recibo de saída",
+            `Recibo de saída ${recibo.numero_recibo || recibo.id}${recibo.nome_pagador ? ` — ${recibo.nome_pagador}` : ""}`,
+            recibo.pdf_url,
+            "recibo-saida.pdf",
+          );
+        }
+        for (const conta of [...(contasApagarRes.data || []), ...(contasReceberRes.data || [])]) {
+          adicionar(
+            conta.id,
+            "Arquivo PDF",
+            conta.descricao || conta.fornecedor_nome || conta.cliente_nome || `Arquivo PDF ${conta.id}`,
+            conta.arquivo_pdf_url,
+            "documento.pdf",
+          );
+        }
+
+        if (ativo) setAnexosDisponiveis(lista);
+      } catch (e) {
+        if (ativo) toast.error(`Não foi possível carregar os anexos: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        if (ativo) setLoadingAnexos(false);
+      }
+    })();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const anexosFiltrados = useMemo(() => {
+    const termo = buscaAnexos.trim().toLocaleLowerCase();
+    if (!termo) return anexosDisponiveis;
+    return anexosDisponiveis.filter((anexo) =>
+      `${anexo.origem} ${anexo.label} ${anexo.filename}`.toLocaleLowerCase().includes(termo),
+    );
+  }, [anexosDisponiveis, buscaAnexos]);
+
+  const anexosParaEnvio = useMemo(
+    () => anexosDisponiveis.filter((anexo) => anexosSelecionados.includes(anexo.id)),
+    [anexosDisponiveis, anexosSelecionados],
+  );
+
+  const alternarAnexo = (id: string) => {
+    setAnexosSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
 
   useEffect(() => {
     let ativo = true;
@@ -137,7 +292,7 @@ export default function EmailsPage() {
           cc_list: ccFinal,
           assunto: assunto.trim(),
           mensagem: mensagem.trim(),
-          anexos: [],
+          anexos: anexosParaEnvio.map(({ filename, label, url }) => ({ filename, label, url })),
           tipo: "dashboard_financeiro",
           reference_type: "dashboard_financeiro",
           reference_ids: referenceIds,
@@ -258,6 +413,81 @@ export default function EmailsPage() {
               <div className="grid gap-2">
                 <Label>Mensagem *</Label>
                 <Textarea rows={8} value={mensagem} onChange={(e) => setMensagem(e.target.value)} />
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-sky-500" />
+                  Anexos (opcional)
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={buscaAnexos}
+                    onChange={(e) => setBuscaAnexos(e.target.value)}
+                    placeholder="Buscar recibo, nota fiscal ou arquivo PDF..."
+                    className="pl-9"
+                  />
+                </div>
+
+                {anexosParaEnvio.length > 0 && (
+                  <div className="flex flex-wrap gap-2 rounded-md border border-sky-500/20 bg-sky-500/[0.04] p-3">
+                    {anexosParaEnvio.map((anexo) => (
+                      <Badge key={anexo.id} variant="secondary" className="gap-1 pr-1">
+                        {anexo.label}
+                        <button
+                          type="button"
+                          onClick={() => alternarAnexo(anexo.id)}
+                          className="rounded-full p-0.5 hover:bg-background/60"
+                          aria-label={`Remover ${anexo.label}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="max-h-56 overflow-y-auto rounded-md border border-border/60">
+                  {loadingAnexos ? (
+                    <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Carregando anexos...
+                    </div>
+                  ) : anexosFiltrados.length === 0 ? (
+                    <p className="p-4 text-sm text-muted-foreground">
+                      {anexosDisponiveis.length === 0
+                        ? "Nenhum anexo disponível."
+                        : "Nenhum anexo encontrado para esta busca."}
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-border/60">
+                      {anexosFiltrados.map((anexo) => (
+                        <label
+                          key={anexo.id}
+                          className="flex cursor-pointer items-center gap-3 p-3 text-sm transition hover:bg-muted/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={anexosSelecionados.includes(anexo.id)}
+                            onChange={() => alternarAnexo(anexo.id)}
+                            className="h-4 w-4 rounded border-input accent-sky-600"
+                          />
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{anexo.label}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {anexo.origem} · {anexo.filename}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selecione um ou mais documentos já cadastrados. Eles serão enviados como links no e-mail.
+                </p>
               </div>
 
               <Button onClick={() => enviar()} disabled={enviando} className="w-full bg-sky-600 hover:bg-sky-500 text-white">
