@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, parseISO } from "date-fns";
@@ -56,12 +57,12 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
         .select(`
           id,
           descricao,
-          grupo_custo,
+          categoria_nome,
           valor_rateado,
-          valor_original,
+          valor_total,
           data_vencimento,
           status,
-          tipo,
+          fluxo,
           tipo_caixa,
           clientes_id,
           clientes:clientes_id ( razao_social )
@@ -78,7 +79,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       return ((movimentacoes || []) as any[])
         .filter((movimentacao: any) => {
           if (movimentacao.tipo_caixa === "cliente") return true;
-          return ["entrada", "receita", "aguardando_reembolso", "reembolsado"].includes(movimentacao.tipo);
+          return ["entrada", "receita"].includes(movimentacao.fluxo);
         })
         .map((movimentacao: any): InadimplenciaItem => ({
           id: movimentacao.id,
@@ -86,8 +87,8 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
           cliente_id: movimentacao.clientes_id,
           cliente_nome: movimentacao.clientes?.razao_social || "Cliente desconhecido",
           descricao: movimentacao.descricao,
-          categoria: movimentacao.grupo_custo || null,
-          valor: Number(movimentacao.valor_rateado ?? movimentacao.valor_original ?? 0),
+          categoria: movimentacao.categoria_nome || null,
+          valor: Number(movimentacao.valor_rateado ?? movimentacao.valor_total ?? 0),
           data_vencimento: movimentacao.data_vencimento,
           dias_atraso: differenceInDays(new Date(), parseISO(movimentacao.data_vencimento)),
         }))

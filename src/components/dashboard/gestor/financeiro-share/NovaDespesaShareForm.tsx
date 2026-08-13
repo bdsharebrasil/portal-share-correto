@@ -177,13 +177,12 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
         const payload: any = {
           descricao: form.descricao.trim() + sufixo,
-          tipo: form.tipo,
+          fluxo: form.tipo,
           tipo_caixa: "share",
           categoria_id: form.categoria_id || null,
           categoria_nome: categoriaNome,
-          grupo_custo: grupoCategoria,
           valor_rateado: valorParcela,
-          valor_original: valorParcela,
+          valor_total: valorParcela,
           data_emissao: competencia,
           data_vencimento: vencimento,
           data_pagamento: i === 0 ? form.data_pagamento || null : null,

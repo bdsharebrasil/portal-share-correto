@@ -285,10 +285,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       const pagoDiretamente =
         !entrada && !form.pago_pela_share && !String(form.conta_bancaria || "").trim();
 
-      // `movimentacoes` NÃO possui data_vencimento — o vencimento fica no rateio.
       const payload: any = {
         descricao: form.descricao.trim(),
-        tipo: form.tipo,
+        fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
         tipo_caixa: "cliente",
         categoria_id: form.categoria_id || null,
         categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
@@ -298,9 +297,10 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
         clientes_id: clienteMov,
         socio_id: socioMov,
         socios_nome: socioMov ? socioNomeMov : null,
-        valor_original: valorTotal,
+        valor_total: valorTotal,
         valor_rateado: totalRateado || valorTotal,
         data_emissao: form.data_emissao,
+        data_vencimento: form.data_vencimento || null,
         data_pagamento: form.data_pagamento || null,
         status: statusMov,
         forma_pagamento: form.forma_pagamento || null,

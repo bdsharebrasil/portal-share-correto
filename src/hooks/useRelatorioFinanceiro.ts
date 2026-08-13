@@ -72,7 +72,7 @@ export function useRelatorioFinanceiro() {
       const endDate = endOfMonth(new Date(parseInt(yF), parseInt(mF) - 1));
 
       const { data, error } = await (supabase as any).from("movimentacoes")
-        .select("id, descricao, tipo, valor_rateado, valor_original, categoria_id, grupo_custo, clientes_id, aeronave_id, status, data_emissao, data_vencimento, data_pagamento")
+        .select("id, descricao, fluxo, valor_rateado, valor_total, categoria_id, categoria_nome, clientes_id, aeronave_id, status, data_emissao, data_vencimento, data_pagamento")
         .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
         .lte("data_emissao", format(endDate, "yyyy-MM-dd"))
         .order("data_emissao", { ascending: false });
@@ -81,11 +81,11 @@ export function useRelatorioFinanceiro() {
       return ((data || []) as any[]).map((row) => ({
         id: row.id,
         data: row.data_pagamento || row.data_vencimento || row.data_emissao,
-        tipo_movimento: row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
-        valor: Number(row.valor_rateado ?? row.valor_original ?? 0),
+        tipo_movimento: row.fluxo === "receita" || row.fluxo === "entrada" ? "entrada" : "saida",
+        valor: Number(row.valor_rateado ?? row.valor_total ?? 0),
         descricao: row.descricao,
         categoria_id: row.categoria_id,
-        grupo_categoria: row.grupo_custo ?? null,
+        grupo_categoria: row.categoria_nome ?? null,
         client_id: row.clientes_id ?? null,
         client_name: null,
         aeronave_id: row.aeronave_id ?? null,

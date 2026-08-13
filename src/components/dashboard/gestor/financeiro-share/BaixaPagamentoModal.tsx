@@ -586,11 +586,7 @@ export default function BaixaPagamentoModal({
                 valor_rateado: r.valor_rateado,
                 valor_pago_real: r.valor_pago_real,
                 pago_por: r.pago_por,
-                status: comReembolso
-                  ? "parcial"
-                  : r.pago_por_outro
-                  ? "pago_por_outro"
-                  : "pago",
+                status: comReembolso ? "parcial" : "pago",
                 data_pagamento: dataPagamento,
                 pago_diretamente: !comReembolso,
                 observacoes: r.pago_por_outro
