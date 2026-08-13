@@ -694,7 +694,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const found = (data && data[0]) as AbastecimentoLookup | undefined;
       if (found) {
         setFuelLookupResult(found);
-        if (found.valor_total) setValorTotal(String(Number(found.valor_total / 100).toFixed(2)));
+        if (found.valor_total) setValorTotal(String(Number(found.valor_total).toFixed(2)));
         setReferenciaDuplicada({
           tipo: "abastecimento",
           id: found.id,
@@ -2771,7 +2771,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   )}
                   {fuelLookupResult && (
                     <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
-                      ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {(Number(fuelLookupResult.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   )}
                 </section>
