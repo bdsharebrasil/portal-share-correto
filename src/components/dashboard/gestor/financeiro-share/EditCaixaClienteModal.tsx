@@ -310,6 +310,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         valor_rateado: numOrNull(mov.valor_rateado),
         observacoes: mov.observacoes || null,
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
+        tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
+        periodicidade: periodicidade || rateio?.periodicidade || null,
         ...anexosToPatch(anexos),
       };
       const { error: e1 } = await supabase.from("movimentacoes").update(patch as any).eq("id", movId);
@@ -323,6 +325,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         abastecimento_id: abastecimentoId || null,
         forma_pagamento: mov.forma_pagamento,
         fornecedor_nome: mov.fornecedor_nome,
+        data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
         data_pagamento: mov.data_pagamento || null,
         aeronave_id: mov.aeronave_id ?? null,

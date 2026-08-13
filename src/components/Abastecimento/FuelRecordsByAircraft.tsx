@@ -835,8 +835,15 @@ export function FuelRecordsByAircraft({
       }
 
       const valorPorSocio = valorTotal / sociosParaRateio.length;
+      const percentualUso = 100 / sociosParaRateio.length;
+      const { data: rateioAutomatico } = await (supabase as any)
+        .from("rateio_despesas")
+        .select("id")
+        .eq("abastecimento_id", abastecimentoId)
+        .eq("fonte_despesa", "abastecimento")
+        .maybeSingle();
 
-      for (const socio of sociosParaRateio) {
+      for (const [index, socio] of sociosParaRateio.entries()) {
         const { data: movimentacao, error: movError } = await (supabase as any)
           .from("movimentacoes")
           .insert({
@@ -846,6 +853,9 @@ export function FuelRecordsByAircraft({
             valor_rateado: valorPorSocio,
             data_emissao: formData.data,
             data_vencimento: dataVencimento,
+            percentual_uso: percentualUso,
+            periodicidade: "EVENTUAL",
+            tipo_rateio: "VARIAVEL_POR_HORA",
             data_pagamento: pago ? formData.data_pagamento : null,
             aeronave_id: aircraft.id,
             clientes_id: clienteIdParaRateio,
@@ -868,33 +878,37 @@ export function FuelRecordsByAircraft({
           continue;
         }
 
-        const { error: ratError } = await (supabase as any)
-          .from("rateio_despesas")
-          .insert({
-            despesa_id: movimentacao.id,
-            fonte_despesa: "abastecimento",
-            tipo_rateio: "VARIAVEL_POR_HORA",
-            fluxo: "SAIDA",
-            data_vencimento: dataVencimento,
-            data_pagamento: pago ? formData.data_pagamento : null,
-            fornecedor_nome: fornecedorNome,
-            cliente_id: clienteIdParaRateio,
-            socio_id: socio.id,
-            aeronave_id: aircraft.id,
-            aeronave_registro: aircraft.matricula,
-            descricao_despesa: descricao,
-            valor_total: valorTotal,
-            valor_rateado: valorPorSocio,
-            pago_por: "CLIENTE",
-            status: "pendente",
-            numero_nf: formData.nf || null,
-            nf_url: notaUrl || null,
-            boleto_url: boletoUrl || null,
-            comprovante_url: comprovanteUrl || null,
-            abastecimento_id: abastecimentoId,
-          });
+        const rateioPayload = {
+          despesa_id: movimentacao.id,
+          fonte_despesa: "abastecimento",
+          tipo_rateio: "VARIAVEL_POR_HORA",
+          fluxo: "SAIDA",
+          data_emissao: formData.data,
+          data_vencimento: dataVencimento,
+          data_pagamento: pago ? formData.data_pagamento : null,
+          fornecedor_nome: fornecedorNome,
+          cliente_id: clienteIdParaRateio,
+          socio_id: socio.id,
+          aeronave_id: aircraft.id,
+          aeronave_registro: aircraft.matricula,
+          percentual_uso: percentualUso,
+          periodicidade: "EVENTUAL",
+          descricao_despesa: descricao,
+          valor_total: valorTotal,
+          valor_rateado: valorPorSocio,
+          pago_por: "CLIENTE",
+          status: "PENDENTE",
+          numero_nf: formData.nf || null,
+          nf_url: notaUrl || null,
+          boleto_url: boletoUrl || null,
+          comprovante_url: comprovanteUrl || null,
+          abastecimento_id: abastecimentoId,
+        };
+        const { error: ratError } = index === 0 && rateioAutomatico?.id
+          ? await (supabase as any).from("rateio_despesas").update(rateioPayload).eq("id", rateioAutomatico.id)
+          : await (supabase as any).from("rateio_despesas").insert(rateioPayload);
 
-        if (ratError) console.error("Erro ao criar rateio:", ratError);
+        if (ratError) console.error("Erro ao salvar rateio:", ratError);
       }
     } catch (err) {
       console.error("Erro ao gerar rateio do abastecimento:", err);

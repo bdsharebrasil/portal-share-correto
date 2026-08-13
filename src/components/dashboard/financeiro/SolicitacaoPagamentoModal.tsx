@@ -1363,6 +1363,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const dataComp = format(dataEmissao || new Date(), "yyyy-MM-dd");
       const statusMov = rascunho ? "rascunho" : "pendente";
       const statusCP = rascunho ? "rascunho" : "pendente";
+      const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
 
       /* ---- Modo 1: despesa da própria Share (não envolve cliente nem rateio) ---- */
       if (isModoShare) {
@@ -1391,6 +1392,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             descricao: descricao.trim(), tipo: "despesa", tipo_caixa: "share",
             categoria_id: categoriaShareId, categoria_nome: categoriaShareLabel || null, valor_rateado: valorNumerico, valor_total: valorNumerico,
             data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
+            periodicidade, tipo_rateio: tipoRateioFinal,
             fornecedor_nome: (fornecedorNome || "").trim() || null,
             numero_nf: pickNumero(anexosShare, "nf"), numero_recibo: pickNumero(anexosShare, "recibo"),
             numero_boleto: pickNumero(anexosShare, "boleto"), numero_doc: pickNumero(anexosShare, "doc"),
@@ -1478,7 +1480,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const categoriaContaId = modo === "DIRETO"
         ? null
         : await resolveCategoriaConta(tipoDespesaLabel || "Despesa", userId);
-      const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
       const supabaseClient = supabase as unknown as SupabaseClientLike;
 
       if (modo === "DIRETO" && !categoriaCaixaClienteId) throw new Error("Selecione uma categoria do Caixa Cliente.");
@@ -1517,6 +1518,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               fluxo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaCaixaClienteId || categoriaContaId, valor_rateado: entry.valor, valor_total: Number(travelReportSel.total_valor ?? valorNumerico),
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
+              percentual_uso: percNumerico, periodicidade, tipo_rateio: tipoRateioFinal,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
               nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
@@ -1550,8 +1552,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
                   socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                   percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
-                  descricao_despesa: descricaoViagemModo, descricao: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
-                  valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
+                  descricao_despesa: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
+                  valor_total: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
                   boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
                   relatorio_url: travelReportSel.pdf_url || docUrl || null,
                   pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
@@ -1563,8 +1565,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
                 socios_nome: socioSel?.nome || null, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
-                descricao_despesa: descricaoViagemModo, descricao: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
-                valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
+                descricao_despesa: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
+                valor_total: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
                 relatorio_url: travelReportSel.pdf_url || docUrl || null,
                 pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length || (socioId ? 1 : 0) }),
@@ -1639,6 +1641,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 fluxo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaCaixaClienteId, valor_rateado: valorCliente, valor_total: valorNumericoFinal,
                 data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
+                percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha,
@@ -1673,7 +1676,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: true,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-              descricao_despesa: descricao, descricao: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
+              descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total: valorNumericoFinal, valor_rateado: linha.valor_rateado,
               status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl,
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
@@ -1703,6 +1706,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               descricao, fluxo: "despesa", tipo_caixa: "share",
               categoria_id: categoriaContaId, categoria_nome: tipoDespesaLabel || null, valor_rateado: valorNumericoFinal, valor_total: valorNumericoFinal,
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
+              periodicidade, tipo_rateio: tipoRateioFinal,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
               nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
@@ -1747,6 +1751,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_total: valorNumericoFinal, data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
+                percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
@@ -1779,7 +1784,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-              descricao_despesa: descricao, descricao: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
+              descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total: valorNumericoFinal, valor_rateado: linha.valor_rateado,
               status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
@@ -1869,6 +1874,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 valor_total: valorNumericoFinal,
                 data_emissao: dataComp,
                 data_vencimento: dataVenc,
+                percentual_uso: pctCliente,
+                periodicidade,
+                tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null,
                 clientes_id: linha.clienteId,
                 reembolsavel: true,
@@ -2814,8 +2822,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   </div>
                 )}
 
-                {!(isCombustivelMode && fuelLookupResult) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label>Data de emissão (Competência)</Label>
                       <Popover>
@@ -2845,7 +2852,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       </Popover>
                     </div>
                   </div>
-                )}
 
                 <div className="space-y-1.5">
                   <Label>Observações Adicionais</Label>
