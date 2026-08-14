@@ -28,6 +28,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { DetalhesVooDialog } from "@/components/AgendamentoVoo/DetalhesVooDialog";
+import { AtualizarHorariosVooDialog } from "@/components/AgendamentoVoo/AtualizarHorariosVooDialog";
 
 export default function PainelAgendamentos() {
   useAgendamentoRealtime();
@@ -38,6 +39,7 @@ export default function PainelAgendamentos() {
   const [novoAberto, setNovoAberto] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Solicitacao | null>(null);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [horariosAberto, setHorariosAberto] = useState(false);
   const [selectedAeronaveIdForNew, setSelectedAeronaveIdForNew] = useState<string | null>(null);
   const [hasHandledAircraftLink, setHasHandledAircraftLink] = useState(false);
   const [searchParams] = useSearchParams();
@@ -114,7 +116,11 @@ export default function PainelAgendamentos() {
                   solicitacoes={solicitacoes}
                   onSelect={(voo) => {
                     setSelectedBooking(voo);
-                    setDetalhesAberto(true);
+                    if (voo.status === "em_rota" || voo.status === "pousado") {
+                      setHorariosAberto(true);
+                    } else {
+                      setDetalhesAberto(true);
+                    }
                   }}
                 />
                 <SolicitacoesReserva solicitacoes={solicitacoes} disponibilidade={disponibilidade} />
@@ -126,6 +132,14 @@ export default function PainelAgendamentos() {
                 onDiaSelecionado={setDiaSelecionado}
                 solicitacoes={solicitacoes}
                 bloqueios={bloqueios}
+                onSelectVoo={(voo) => {
+                  setSelectedBooking(voo);
+                  if (voo.status === "em_rota" || voo.status === "pousado") {
+                    setHorariosAberto(true);
+                  } else {
+                    setDetalhesAberto(true);
+                  }
+                }}
               />
             </div>
           </TabsContent>
@@ -156,6 +170,15 @@ export default function PainelAgendamentos() {
         onOpenChange={(open) => {
           if (!open) setSelectedBooking(null);
           setDetalhesAberto(open);
+        }}
+      />
+
+      <AtualizarHorariosVooDialog
+        voo={selectedBooking}
+        open={horariosAberto}
+        onOpenChange={(open) => {
+          setHorariosAberto(open);
+          if (!open) setSelectedBooking(null);
         }}
       />
 
