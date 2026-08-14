@@ -177,8 +177,8 @@ importers:
         specifier: ^1.17.1
         version: 1.17.1
       pdfjs-dist:
-        specifier: ^5.4.624
-        version: 5.7.284
+        specifier: 5.4.296
+        version: 5.4.296
       react:
         specifier: ^19.2.3
         version: 19.2.8
@@ -6962,13 +6962,6 @@ packages:
   /pdfjs-dist@5.4.296:
     resolution: {integrity: sha512-DlOzet0HO7OEnmUmB6wWGJrrdvbyJKftI1bhMitK7O2N8W2gc757yyYBbINy9IDafXAV9wmKr9t7xsTaNKRG5Q==}
     engines: {node: '>=20.16.0 || >=22.3.0'}
-    optionalDependencies:
-      '@napi-rs/canvas': 0.1.100
-    dev: false
-
-  /pdfjs-dist@5.7.284:
-    resolution: {integrity: sha512-h4EdYQczmGhbOlqc3PPZwxevn7ApdWPbovAuWXOB/DjIyigSnwfy2oze7c6mRcSr9XgLp3eN3EeL4DyySTPMFw==}
-    engines: {node: '>=22.13.0 || >=24'}
     optionalDependencies:
       '@napi-rs/canvas': 0.1.100
     dev: false
