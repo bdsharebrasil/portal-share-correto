@@ -638,10 +638,15 @@ export default function WeatherWidget() {
         .wx-main {
           display: flex;
           align-items: center;
-          gap: 9px;
-          height: 36px;
-          min-width: 175px;
-          padding: 0 7px 0 9px;
+          gap: 12px;
+          margin-left: 8px;
+          margin-right: auto;
+          height: 40px;
+          min-width: 184px;
+          min-height: 20px;
+          max-width: 236px;
+          width: 603px;
+          padding: 0 9px 0 18px;
 
           background:
             linear-gradient(

@@ -156,7 +156,7 @@ function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative ml-[17px] mr-[17px] gap-0 px-[15px]">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <Badge 

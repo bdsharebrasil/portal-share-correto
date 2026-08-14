@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         {/* Right Section: Widgets & Profile */}
-        <div className="flex items-center justify-end gap-2 sm:gap-3 ml-auto shrink-0 relative z-[60]">
+        <div className="flex items-center justify-end gap-[2px] ml-[-8px] mr-[-8px] px-[1px] shrink-0 relative z-[60]">
           
           {/* Combined Clock Widget */}
           <div className="hidden xl:flex items-center bg-secondary/30 rounded-full border border-border/50 p-1 shadow-inner backdrop-blur-sm shrink-0">
@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <BirthdayAlert />
 
           <Suspense fallback={<div className="w-8 h-8 rounded-full bg-secondary/50 animate-pulse" />}>
-            <div className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-secondary/40 transition-colors cursor-pointer">
+            <div className="flex items-center justify-center h-9 w-9 rounded-full ml-[-7px] mr-[-7px] px-0 hover:bg-secondary/40 transition-colors cursor-pointer">
               <NotificationBell />
             </div>
           </Suspense>
@@ -157,9 +157,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
-                <Avatar className="h-9 w-9 border border-border/50 shadow-sm">
-                  <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="object-cover" />
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full ml-[-5px] mr-[3px] px-[37px] py-0 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                <Avatar className="h-9 w-9 ml-[-3px] mr-[2px] p-0 border border-border/50 shadow-sm">
+                  <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} className="p-0 object-cover" />
                   <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-semibold text-xs">
                     {avatarInitials || <User className="h-4 w-4" />}
                   </AvatarFallback>
