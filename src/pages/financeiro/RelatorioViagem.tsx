@@ -32,6 +32,7 @@ import { SearchInput } from '@/components/RelatorioDespesaViagem/SearchInput';
 type TravelReport = {
   id?: string;
   numero_relatorio: string;
+  numero_voo?: string | null;
 
   // FKs
   clientes_id: string;
@@ -429,6 +430,7 @@ export default function RelatorioViagem() {
   const createNewReport = () => {
     const newReport: TravelReport = {
       numero_relatorio: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
+      numero_voo: null,
       clientes_id: '',
       socios_id: null,
       aeronave_id: '',

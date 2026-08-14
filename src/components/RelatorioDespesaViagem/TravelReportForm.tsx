@@ -62,6 +62,7 @@ export interface TravelReport {
   // PK
   id?: string;
   numero_relatorio: string;
+  numero_voo?: string | null;
 
   // FKs
   clientes_id: string;
@@ -118,6 +119,7 @@ interface TravelReportFormProps {
 // ---------------------------------------------------------------------------
 const emptyReport = (): TravelReport => ({
   numero_relatorio: "R-0001",
+  numero_voo: null,
   clientes_id: "",
   socios_id: null,
   aeronave_id: "",
@@ -193,6 +195,22 @@ export function TravelReportForm({
   const [previewImage, setPreviewImage] = useState<string | undefined>();
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | undefined>();
+  const [voos, setVoos] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("solicitacoes_reserva_voo")
+      .select("numero_voo, cliente_id, aeronave_id, origem, destino, data_agendada, dias_duracao")
+      .not("numero_voo", "is", null)
+      .order("data_agendada", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          toast.error("Não foi possível carregar os números de voo");
+          return;
+        }
+        setVoos(data || []);
+      });
+  }, []);
 
   // -------------------------------------------------------------------------
   // Side-effects
@@ -433,6 +451,43 @@ export function TravelReportForm({
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label className="text-sm font-semibold text-slate-700">Número do voo</Label>
+              <SearchableCombobox
+                items={voos.map((voo) => ({
+                  id: voo.numero_voo,
+                  label: `${voo.numero_voo} · ${voo.origem || "—"}-${voo.destino || "—"} · ${voo.data_agendada ? format(new Date(`${voo.data_agendada}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : "sem data"}`,
+                }))}
+                value={current.numero_voo || ""}
+                onChange={(numeroVoo) => {
+                  const voo = voos.find((item) => item.numero_voo === numeroVoo);
+                  if (!voo) return;
+                  const cliente = clientes.find((item) => item.id === voo.cliente_id);
+                  const aeronave = aeronaves.find((item) => item.id === voo.aeronave_id);
+                  const dataInicio = voo.data_agendada || current.data_inicio;
+                  const dias = Math.max(1, Number(voo.dias_duracao || 1));
+                  const dataFim = format(new Date(new Date(`${dataInicio}T12:00:00`).getTime() + (dias - 1) * 86_400_000), "yyyy-MM-dd");
+                  setCurrent((prev) => ({
+                    ...prev,
+                    numero_voo: numeroVoo,
+                    clientes_id: voo.cliente_id || "",
+                    client: cliente?.razao_social || "",
+                    socios_id: null,
+                    aeronave_id: voo.aeronave_id || "",
+                    matricula_aeronave: aeronave?.matricula || "",
+                    rota: [voo.origem, voo.destino].filter(Boolean).join("-"),
+                    data_inicio: dataInicio,
+                    data_fim: dataFim,
+                  }));
+                  if (voo.cliente_id) fetchPartnersForClient(voo.cliente_id);
+                }}
+                icon={<Plane className="h-4 w-4" />}
+                placeholder="Busque pelo número do voo..."
+                searchPlaceholder="Digite o número do voo..."
+                emptyMessage="Nenhum voo encontrado."
+              />
+              {current.numero_voo && <p className="text-xs text-green-600">✓ Dados do voo aplicados ao relatório</p>}
+            </div>
 
             {/* Cliente */}
             <div className="space-y-2">
