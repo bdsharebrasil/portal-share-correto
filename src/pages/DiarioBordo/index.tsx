@@ -110,7 +110,7 @@ function DiarioBordo() {
             </div>
             <Button
               onClick={() => navigate("/aerodromos")}
-              className="gap-2 whitespace-nowrap"
+              className="gap-2 whitespace-nowrap border border-[rgba(25,32,49,1)] shadow-[4px_3px_10px_0_rgba(7,18,48,0.83)]"
             >
               <PlaneTakeoff className="h-4 w-4" /> Aeródromos
             </Button>
