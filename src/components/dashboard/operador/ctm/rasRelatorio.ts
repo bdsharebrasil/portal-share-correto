@@ -23,9 +23,6 @@ const fmtDate = (d?: string | null) => {
   }
 };
 
-const fmtMoney = (v: unknown) =>
-  `R$ ${Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const TIPO_LABELS: Record<string, string> = {
   corretiva: "CORRETIVA",
   preventiva: "PREVENTIVA",
@@ -102,7 +99,7 @@ export async function gerarRelatorioRAS(
     <div class="faixa">SERVIÇOS EXECUTADOS (MÃO DE OBRA)</div>
     <table class="tabela">
       <thead>
-        <tr><th>Descrição</th><th>Fornecedor</th><th>Período</th><th class="num">Qtd</th><th class="num">Unit.</th><th class="num">Total</th></tr>
+        <tr><th>Descrição</th><th>Fornecedor</th><th>Período</th><th>Motivo / o que aconteceu</th></tr>
       </thead>
       <tbody>
         ${servicos
@@ -111,9 +108,7 @@ export async function gerarRelatorioRAS(
               <td>${esc(s.descricao)}</td>
               <td>${esc(s.fornecedor || "—")}</td>
               <td>${esc(s.periodo || "—")}</td>
-              <td class="num">${esc(s.quantidade || 1)}</td>
-              <td class="num">${fmtMoney(s.valor_unitario)}</td>
-              <td class="num b">${fmtMoney(s.valor_total)}</td>
+              <td>${esc(s.motivo || "—")}</td>
             </tr>`,
           )
           .join("")}
@@ -126,7 +121,7 @@ export async function gerarRelatorioRAS(
     <div class="faixa">PEÇAS APLICADAS</div>
     <table class="tabela">
       <thead>
-        <tr><th>Descrição</th><th>P/N</th><th>S/N</th><th>Fornecedor</th><th>NF</th><th class="num">Qtd</th><th class="num">Total</th></tr>
+        <tr><th>Descrição</th><th>P/N</th><th>S/N</th><th>Fornecedor</th><th>NF</th><th class="num">Qtd</th><th>Motivo da troca</th></tr>
       </thead>
       <tbody>
         ${pecas
@@ -138,7 +133,7 @@ export async function gerarRelatorioRAS(
               <td>${esc(p.fornecedor || "—")}</td>
               <td>${esc(p.numero_fatura || "—")}</td>
               <td class="num">${esc(p.quantidade || 1)}</td>
-              <td class="num b">${fmtMoney(p.valor_total)}</td>
+              <td>${esc(p.motivo || "—")}</td>
             </tr>`,
           )
           .join("")}
@@ -146,14 +141,6 @@ export async function gerarRelatorioRAS(
     </table>`
     : "";
 
-  const totais = `
-    <table class="tabela totais">
-      <tbody>
-        <tr><td>Mão de obra</td><td class="num">${fmtMoney(ras.total_trabalho)}</td></tr>
-        <tr><td>Peças</td><td class="num">${fmtMoney(ras.total_pecas)}</td></tr>
-        <tr class="total-geral"><td>TOTAL GERAL</td><td class="num">${fmtMoney(ras.total_geral)}</td></tr>
-      </tbody>
-    </table>`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -181,9 +168,6 @@ export async function gerarRelatorioRAS(
   table.tabela th { background: #d9dde8; border: 1px solid #7f8ba3; padding: 1.5mm 2mm; text-align: left; }
   table.tabela td { border: 1px solid #9aa4b8; padding: 1.5mm 2mm; }
   table.tabela .num { text-align: right; white-space: nowrap; }
-  table.tabela .b { font-weight: 700; }
-  table.totais { width: 70mm; margin-left: auto; margin-top: 4mm; }
-  table.totais .total-geral td { background: #d9dde8; font-weight: 700; }
   .fotos-linha { display: flex; gap: 8mm; justify-content: center; margin-bottom: 8mm; page-break-inside: avoid; }
   .foto { margin: 0; width: 78mm; }
   .foto img { width: 100%; height: 82mm; object-fit: cover; border: 1px solid #333; display: block; }
@@ -246,7 +230,6 @@ ${
         <div class="faixa" style="margin-top:0">SERVIÇOS E PEÇAS</div>
         ${tabelaServicos}
         ${tabelaPecas}
-        ${totais}
         <div class="assinatura">
           <div>Resp. pelo acompanhamento${ras.mecanico_responsavel ? `<br/>${esc(ras.mecanico_responsavel)}` : ""}</div>
           <div>Centro de Manutenção${ras.oficina_nome ? `<br/>${esc(ras.oficina_nome)}` : ""}</div>
