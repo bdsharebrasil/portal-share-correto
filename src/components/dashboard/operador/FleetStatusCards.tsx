@@ -19,7 +19,9 @@ type Booking = {
   destino: string | null;
   status: string;
   data_agendada: string;
+  data_partida?: string | null;
   horario_previsto_agendamento: string | null;
+  horario_decolagem?: string | null;
   qtd_passageiros: number | null;
   cliente_id: string | null;
   clientes?: { razao_social: string | null } | null;
@@ -55,7 +57,7 @@ export function FleetStatusCards() {
       const { data, error } = await db
         .from("solicitacoes_reserva_voo")
         .select(
-          "id, aeronave_id, origem, destino, status, data_agendada, horario_previsto_agendamento, qtd_passageiros, cliente_id, clientes:cliente_id(razao_social), aeronave:aeronave_id(id, matricula, modelo, status)",
+          "id, aeronave_id, origem, destino, status, data_agendada, data_partida, horario_previsto_agendamento, horario_decolagem, qtd_passageiros, cliente_id, clientes:cliente_id(razao_social), aeronave:aeronave_id(id, matricula, modelo, status)",
         )
         .not("status", "in", '("rejeitado","cancelado","concluido")')
         .order("data_agendada")
@@ -169,7 +171,7 @@ export function FleetStatusCards() {
     return aeronaves.filter((a) => AGENDADO.includes(a.estado));
   }, [aeronaves, filtro]);
 
-  const voosHoje = bookings.filter((b) => b.data_agendada === hoje);
+  const voosHoje = bookings.filter((b) => b.data_agendada === hoje || EM_VOO.includes(b.status));
   const emRota = aeronaves.filter((a) => a.estado === "em_voo").length;
 
   const chips: { id: Filtro; label: string }[] = [
@@ -231,7 +233,7 @@ export function FleetStatusCards() {
                         className="cursor-pointer border-t border-border/40 transition-colors hover:bg-accent/30"
                       >
                         <td className="px-3 py-3 font-mono font-semibold text-foreground">
-                          {v.horario_previsto_agendamento?.slice(0, 5) ?? "--:--"}
+                          {(EM_VOO.includes(v.status) ? v.horario_decolagem : v.horario_previsto_agendamento)?.slice(0, 5) ?? "--:--"}
                         </td>
                         <td className="px-3 py-3 font-mono text-primary">{v.aeronave?.matricula ?? "—"}</td>
                         <td className="px-3 py-3 font-medium text-foreground">
