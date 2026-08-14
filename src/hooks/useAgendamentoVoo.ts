@@ -13,6 +13,7 @@ export type SolicitacaoStatus =
   | "confirmado"
   | "em_voo"
   | "em_rota"
+  | "pousado"
   | "concluido"
   | "rejeitado"
   | "cancelado";
