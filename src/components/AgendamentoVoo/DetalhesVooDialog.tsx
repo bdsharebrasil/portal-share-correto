@@ -237,7 +237,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {p.data_perna ? format(parseISO(p.data_perna), "dd/MM/yyyy", { locale: ptBR }) : "—"} ·{" "}
-                      DEP {p.horario_decolagem?.slice(0, 5) ?? "--:--"} · ARR {p.horario_pouso?.slice(0, 5) ?? "--:--"}
+                      AC {p.horario_acionamento?.slice(0, 5) ?? "--:--"} · DEP {p.horario_decolagem?.slice(0, 5) ?? "--:--"} · ARR {p.horario_pouso?.slice(0, 5) ?? "--:--"} · CORT {p.horario_corte?.slice(11, 16) ?? "--:--"}
                     </span>
                   </div>
                 ))}

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
+import { AtualizarHorariosVooDialog } from "./AtualizarHorariosVooDialog";
 import { EscalarTripulacaoDialog } from "./EscalarTripulacaoDialog";
 import { utcToBrasilia } from "@/lib/timezone-utils";
 
@@ -52,6 +53,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
   const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
   const [concluirTarget, setConcluirTarget] = useState<Solicitacao | null>(null);
+  const [horariosTarget, setHorariosTarget] = useState<Solicitacao | null>(null);
   const [escalarTarget, setEscalarTarget] = useState<Solicitacao | null>(null);
 
   const hoje = format(new Date(), "yyyy-MM-dd");
@@ -247,11 +249,16 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       >
                         <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
                       </DropdownMenuItem>
+                      {emRota && (
+                        <DropdownMenuItem onClick={() => setHorariosTarget(voo)}>
+                          <Clock className="mr-2 h-4 w-4 text-amber-500" /> Atualizar horários
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() => setConcluirTarget(voo)}
                         disabled={!emRota}
                       >
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Registrar Pouso
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Conclusão direta
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleStatusChange(voo, "cancelado")}
@@ -329,6 +336,11 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
         voo={concluirTarget}
         open={!!concluirTarget}
         onOpenChange={(open) => !open && setConcluirTarget(null)}
+      />
+      <AtualizarHorariosVooDialog
+        voo={horariosTarget}
+        open={!!horariosTarget}
+        onOpenChange={(open) => !open && setHorariosTarget(null)}
       />
       <EscalarTripulacaoDialog
         voo={escalarTarget}
