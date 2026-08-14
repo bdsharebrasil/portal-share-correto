@@ -24,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
 import { AtualizarHorariosVooDialog } from "./AtualizarHorariosVooDialog";
 import { EscalarTripulacaoDialog } from "./EscalarTripulacaoDialog";
@@ -53,7 +52,6 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
   const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
-  const [concluirTarget, setConcluirTarget] = useState<Solicitacao | null>(null);
   const [horariosTarget, setHorariosTarget] = useState<Solicitacao | null>(null);
   const [escalarTarget, setEscalarTarget] = useState<Solicitacao | null>(null);
 
@@ -62,7 +60,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
     () =>
       solicitacoes
         .filter((s) => ["confirmado", "em_rota", "pousado", "cancelado", "pendente"].includes(s.status))
-        .filter((s) => vooCobreDia(s, hoje) || s.data_agendada >= hoje)
+        .filter((s) => ["em_rota", "pousado"].includes(s.status) || vooCobreDia(s, hoje) || s.data_agendada >= hoje)
         .slice(0, 6),
     [solicitacoes, hoje],
   );
@@ -191,18 +189,20 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       >
                         <ClipboardCheck className="h-3.5 w-3.5" /> {preVooOk ? "Pré-Voo Concluído" : "Iniciar Pré-Voo"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIniciarTarget(voo);
-                        }}
-                        disabled={emJornada || !preVooOk}
-                        title={!preVooOk ? "Conclua o checklist pré-voo para iniciar o voo" : undefined}
-                        className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
-                      >
-                        <PlayCircle className="h-3.5 w-3.5" /> Iniciar Voo
-                      </button>
+                      {confirmado && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIniciarTarget(voo);
+                          }}
+                          disabled={!preVooOk}
+                          title={!preVooOk ? "Conclua o checklist pré-voo para iniciar o voo" : undefined}
+                          className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" /> Iniciar Voo
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -245,29 +245,21 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem
-                        onClick={() => handleStatusChange(voo, "confirmado")}
-                        disabled={voo.status === "confirmado"}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" /> Confirmar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setIniciarTarget(voo)}
-                        disabled={emJornada}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
-                      </DropdownMenuItem>
+                      {voo.status === "pendente" && (
+                        <DropdownMenuItem onClick={() => handleStatusChange(voo, "confirmado")}>
+                          <CheckCircle2 className="mr-2 h-4 w-4 text-primary" /> Confirmar
+                        </DropdownMenuItem>
+                      )}
+                      {voo.status === "confirmado" && (
+                        <DropdownMenuItem onClick={() => setIniciarTarget(voo)}>
+                          <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
+                        </DropdownMenuItem>
+                      )}
                       {emJornada && (
                         <DropdownMenuItem onClick={() => setHorariosTarget(voo)}>
                           <Clock className="mr-2 h-4 w-4 text-amber-500" /> Atualizar horários / pernas
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        onClick={() => setConcluirTarget(voo)}
-                        disabled={!emJornada}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Conclusão direta
-                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleStatusChange(voo, "cancelado")}
                         disabled={voo.status === "cancelado"}
@@ -339,11 +331,6 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
         voo={iniciarTarget}
         open={!!iniciarTarget}
         onOpenChange={(open) => !open && setIniciarTarget(null)}
-      />
-      <ConcluirVooDialog
-        voo={concluirTarget}
-        open={!!concluirTarget}
-        onOpenChange={(open) => !open && setConcluirTarget(null)}
       />
       <AtualizarHorariosVooDialog
         voo={horariosTarget}
