@@ -1903,7 +1903,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 clientes_id: linha.clienteId,
                 reembolsavel: true,
                 reembolso_quitado: false,
-                pago_diretamente: false,
                 numero_recibo: reciboNum,
                 numero_nf: nfNum,
                 numero_boleto: boletoNum,

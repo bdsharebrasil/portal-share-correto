@@ -401,42 +401,97 @@ export default function EmissaoRecibo() {
         socios_cliente: formData.socioNome || null,
       };
 
-      const receiptsToInsert = isReembolso && isRateado
-        ? await Promise.all(
-            cotistasDaAeronave.map(async (cotista) => {
-              const cliente = cotista.clientes;
-              const percentual = Number(cotista.percentual_sociedade || 0);
-              const isClienteSelecionado = cotista.id_clientes === originalForm.clienteId;
-              const numeroRecibo = isClienteSelecionado
-                ? receiptNumber
-                : await generateSequentialReceiptNumber(
-                    cliente?.razao_social || "CLIENTE",
-                    supabase,
-                    cotista.id_clientes
-                  );
-
-              return {
-                ...receiptPayload,
-                numero_recibo: numeroRecibo,
-                cliente_id: cotista.id_clientes,
-                nome_pagador: isClienteSelecionado ? nomePagador : cliente?.razao_social || "Cliente",
-                documento_pagador: isClienteSelecionado
-                  ? receiptPayload.documento_pagador
-                  : cliente?.cnpj || null,
-                endereco_pagador: isClienteSelecionado
-                  ? receiptPayload.endereco_pagador
-                  : cliente?.endereco || null,
-                cidade_pagador: isClienteSelecionado
-                  ? receiptPayload.cidade_pagador
-                  : cliente?.cidade || null,
-                uf_pagador: isClienteSelecionado ? receiptPayload.uf_pagador : cliente?.uf || null,
-                valor: Number(((valorTotalDespesa! * percentual) / 100).toFixed(2)),
-                percentual,
-                socios_cliente: isClienteSelecionado ? receiptPayload.socios_cliente : null,
-              };
-            })
+      // Linhas de rateio preenchidas no formulário (com a porcentagem informada pelo usuário)
+      const linhasRateio: any[] = Array.isArray(originalForm.pagadores)
+        ? originalForm.pagadores.filter(
+            (p: any) => p?.gerarRecibo !== false && String(p?.pagadorNome || "").trim()
           )
-        : [receiptPayload];
+        : [];
+
+      let receiptsToInsert: any[];
+
+      if (isReembolso && isRateado && linhasRateio.length > 0) {
+        // Gera um recibo por linha respeitando a % informada no formulário
+        receiptsToInsert = [];
+        let principalUsado = false;
+        for (const linha of linhasRateio) {
+          const pct = parseFloat(String(linha.percentual ?? "").replace(",", "."));
+          const valorLinha = parseFloat(String(linha.valor ?? "").replace(",", "."));
+          const valorFinal = !isNaN(valorLinha) && valorLinha > 0
+            ? valorLinha
+            : !isNaN(pct) && valorTotalDespesa
+            ? Number(((valorTotalDespesa * pct) / 100).toFixed(2))
+            : valorNumerico;
+
+          const nomeLinha = String(linha.pagadorNome || "").trim();
+          const isPrincipal = !principalUsado && nomeLinha === nomePagador;
+          if (isPrincipal) principalUsado = true;
+
+          const numeroRecibo = isPrincipal
+            ? receiptNumber
+            : await generateSequentialReceiptNumber(
+                nomeLinha || "CLIENTE",
+                supabase,
+                normalizeId(linha.clienteId)
+              );
+
+          receiptsToInsert.push({
+            ...receiptPayload,
+            numero_recibo: numeroRecibo,
+            cliente_id: normalizeId(linha.clienteId) || receiptPayload.cliente_id,
+            nome_pagador: nomeLinha,
+            documento_pagador: linha.pagadorDocumento?.trim() || "",
+            endereco_pagador: linha.pagadorEndereco?.trim() || null,
+            cidade_pagador: linha.pagadorCidade?.trim() || null,
+            uf_pagador: linha.pagadorUF?.trim() || null,
+            valor: valorFinal,
+            percentual: !isNaN(pct) ? pct : null,
+            socios_cliente: linha.socioNome || null,
+          });
+        }
+        // Garante que o recibo principal (numeroRecibo) exista na lista
+        if (!principalUsado && receiptsToInsert.length > 0) {
+          receiptsToInsert[0].numero_recibo = receiptNumber;
+        }
+      } else if (isReembolso && isRateado) {
+        receiptsToInsert = await Promise.all(
+          cotistasDaAeronave.map(async (cotista) => {
+            const cliente = cotista.clientes;
+            const percentual = Number(cotista.percentual_sociedade || 0);
+            const isClienteSelecionado = cotista.id_clientes === originalForm.clienteId;
+            const numeroRecibo = isClienteSelecionado
+              ? receiptNumber
+              : await generateSequentialReceiptNumber(
+                  cliente?.razao_social || "CLIENTE",
+                  supabase,
+                  cotista.id_clientes
+                );
+
+            return {
+              ...receiptPayload,
+              numero_recibo: numeroRecibo,
+              cliente_id: cotista.id_clientes,
+              nome_pagador: isClienteSelecionado ? nomePagador : cliente?.razao_social || "Cliente",
+              documento_pagador: isClienteSelecionado
+                ? receiptPayload.documento_pagador
+                : cliente?.cnpj || null,
+              endereco_pagador: isClienteSelecionado
+                ? receiptPayload.endereco_pagador
+                : cliente?.endereco || null,
+              cidade_pagador: isClienteSelecionado
+                ? receiptPayload.cidade_pagador
+                : cliente?.cidade || null,
+              uf_pagador: isClienteSelecionado ? receiptPayload.uf_pagador : cliente?.uf || null,
+              valor: Number(((valorTotalDespesa! * percentual) / 100).toFixed(2)),
+              percentual,
+              socios_cliente: isClienteSelecionado ? receiptPayload.socios_cliente : null,
+            };
+          })
+        );
+      } else {
+        receiptsToInsert = [receiptPayload];
+      }
+
 
       // Verificar duplicata pelo numero_recibo + usuario_id
       const { data: existing } = await supabase

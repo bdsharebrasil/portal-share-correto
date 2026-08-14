@@ -844,6 +844,7 @@ export type Database = {
           executado_por: string | null
           executado_por_nome: string | null
           id: string
+          numero_voo: string | null
           observacoes: string | null
           precisa_abastecer: boolean | null
           respostas: Json
@@ -861,6 +862,7 @@ export type Database = {
           executado_por?: string | null
           executado_por_nome?: string | null
           id?: string
+          numero_voo?: string | null
           observacoes?: string | null
           precisa_abastecer?: boolean | null
           respostas?: Json
@@ -878,6 +880,7 @@ export type Database = {
           executado_por?: string | null
           executado_por_nome?: string | null
           id?: string
+          numero_voo?: string | null
           observacoes?: string | null
           precisa_abastecer?: boolean | null
           respostas?: Json
@@ -2215,6 +2218,7 @@ export type Database = {
           finalizado_em: string | null
           fuel_litros: number | null
           id: string
+          momento: string | null
           numero_voo: string | null
           peso_balanceamento_id: string
           peso_total_kg: number | null
@@ -2231,6 +2235,7 @@ export type Database = {
           finalizado_em?: string | null
           fuel_litros?: number | null
           id?: string
+          momento?: string | null
           numero_voo?: string | null
           peso_balanceamento_id: string
           peso_total_kg?: number | null
@@ -2247,6 +2252,7 @@ export type Database = {
           finalizado_em?: string | null
           fuel_litros?: number | null
           id?: string
+          momento?: string | null
           numero_voo?: string | null
           peso_balanceamento_id?: string
           peso_total_kg?: number | null
@@ -3553,6 +3559,7 @@ export type Database = {
           fornecedor: string | null
           id: string
           item_tipo: string
+          motivo: string | null
           numero_fatura: string | null
           numero_peca: string | null
           numero_serie: string | null
@@ -3568,6 +3575,7 @@ export type Database = {
           fornecedor?: string | null
           id?: string
           item_tipo: string
+          motivo?: string | null
           numero_fatura?: string | null
           numero_peca?: string | null
           numero_serie?: string | null
@@ -3583,6 +3591,7 @@ export type Database = {
           fornecedor?: string | null
           id?: string
           item_tipo?: string
+          motivo?: string | null
           numero_fatura?: string | null
           numero_peca?: string | null
           numero_serie?: string | null
@@ -4234,6 +4243,7 @@ export type Database = {
           data_recebida: string | null
           id: string
           nome_despesa: string
+          numero_voo: string | null
           observacoes: string | null
           prazo_dias: number | null
           status: string
@@ -4252,6 +4262,7 @@ export type Database = {
           data_recebida?: string | null
           id?: string
           nome_despesa: string
+          numero_voo?: string | null
           observacoes?: string | null
           prazo_dias?: number | null
           status?: string
@@ -4270,6 +4281,7 @@ export type Database = {
           data_recebida?: string | null
           id?: string
           nome_despesa?: string
+          numero_voo?: string | null
           observacoes?: string | null
           prazo_dias?: number | null
           status?: string
@@ -4689,6 +4701,7 @@ export type Database = {
           lancamento_devolucao_id: string | null
           lancamento_diario_id: string | null
           nome_piloto: string | null
+          numero_voo: string | null
           observacoes: string | null
           trecho: string | null
         }
@@ -4705,6 +4718,7 @@ export type Database = {
           lancamento_devolucao_id?: string | null
           lancamento_diario_id?: string | null
           nome_piloto?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           trecho?: string | null
         }
@@ -4721,6 +4735,7 @@ export type Database = {
           lancamento_devolucao_id?: string | null
           lancamento_diario_id?: string | null
           nome_piloto?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           trecho?: string | null
         }
@@ -5385,6 +5400,7 @@ export type Database = {
           alterado_por: string | null
           atualizado_em: string | null
           id: string
+          numero_voo: string | null
           observacao: string | null
           solicitacao_id: string
           status_anterior: string | null
@@ -5394,6 +5410,7 @@ export type Database = {
           alterado_por?: string | null
           atualizado_em?: string | null
           id?: string
+          numero_voo?: string | null
           observacao?: string | null
           solicitacao_id: string
           status_anterior?: string | null
@@ -5403,6 +5420,7 @@ export type Database = {
           alterado_por?: string | null
           atualizado_em?: string | null
           id?: string
+          numero_voo?: string | null
           observacao?: string | null
           solicitacao_id?: string
           status_anterior?: string | null
@@ -6705,6 +6723,7 @@ export type Database = {
           categoria_id: string | null
           categoria_nome: string | null
           clientes_id: string | null
+          comanda_url: string | null
           comprovante_url: string | null
           conta_bancaria: string | null
           contas_apagar_id: string | null
@@ -6730,6 +6749,7 @@ export type Database = {
           numero_nf: string | null
           numero_parcela: number
           numero_recibo: string | null
+          numero_voo: string | null
           observacoes: string | null
           pago_diretamente: boolean
           pago_por: string | null
@@ -6757,6 +6777,7 @@ export type Database = {
           categoria_id?: string | null
           categoria_nome?: string | null
           clientes_id?: string | null
+          comanda_url?: string | null
           comprovante_url?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
@@ -6782,6 +6803,7 @@ export type Database = {
           numero_nf?: string | null
           numero_parcela?: number
           numero_recibo?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean
           pago_por?: string | null
@@ -6809,6 +6831,7 @@ export type Database = {
           categoria_id?: string | null
           categoria_nome?: string | null
           clientes_id?: string | null
+          comanda_url?: string | null
           comprovante_url?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
@@ -6834,6 +6857,7 @@ export type Database = {
           numero_nf?: string | null
           numero_parcela?: number
           numero_recibo?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean
           pago_por?: string | null
@@ -7434,6 +7458,7 @@ export type Database = {
           horario_pouso: string | null
           id: string
           numero_perna: number
+          numero_voo: string | null
           observacoes: string | null
           origem: string
           qtd_passageiros: number | null
@@ -7450,6 +7475,7 @@ export type Database = {
           horario_pouso?: string | null
           id?: string
           numero_perna?: number
+          numero_voo?: string | null
           observacoes?: string | null
           origem: string
           qtd_passageiros?: number | null
@@ -7466,6 +7492,7 @@ export type Database = {
           horario_pouso?: string | null
           id?: string
           numero_perna?: number
+          numero_voo?: string | null
           observacoes?: string | null
           origem?: string
           qtd_passageiros?: number | null
@@ -7499,6 +7526,7 @@ export type Database = {
           dados_validacao: Json | null
           data_voo: string
           id: string
+          numero_voo: string | null
           observacoes: string | null
           rota: string | null
           status: string | null
@@ -7521,6 +7549,7 @@ export type Database = {
           dados_validacao?: Json | null
           data_voo: string
           id?: string
+          numero_voo?: string | null
           observacoes?: string | null
           rota?: string | null
           status?: string | null
@@ -7543,6 +7572,7 @@ export type Database = {
           dados_validacao?: Json | null
           data_voo?: string
           id?: string
+          numero_voo?: string | null
           observacoes?: string | null
           rota?: string | null
           status?: string | null
@@ -8034,6 +8064,7 @@ export type Database = {
           categoria_nome: string | null
           cliente_id: string | null
           clientes_nome: string | null
+          comanda_url: string | null
           comprovante_url: string | null
           conferido: boolean
           conferido_em: string | null
@@ -8057,6 +8088,7 @@ export type Database = {
           numero_doc: string | null
           numero_nf: string | null
           numero_recibo: string | null
+          numero_voo: string | null
           observacoes: string | null
           pago_diretamente: boolean | null
           pago_por: string | null
@@ -8087,6 +8119,7 @@ export type Database = {
           categoria_nome?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
+          comanda_url?: string | null
           comprovante_url?: string | null
           conferido?: boolean
           conferido_em?: string | null
@@ -8110,6 +8143,7 @@ export type Database = {
           numero_doc?: string | null
           numero_nf?: string | null
           numero_recibo?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
@@ -8140,6 +8174,7 @@ export type Database = {
           categoria_nome?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
+          comanda_url?: string | null
           comprovante_url?: string | null
           conferido?: boolean
           conferido_em?: string | null
@@ -8163,6 +8198,7 @@ export type Database = {
           numero_doc?: string | null
           numero_nf?: string | null
           numero_recibo?: string | null
+          numero_voo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
@@ -8295,7 +8331,7 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           cidade_pagador: string | null
-          clientes_id: string | null
+          cliente_id: string | null
           compartilhado: boolean | null
           competencia_decea: string | null
           competencia_infraero: string | null
@@ -8315,6 +8351,7 @@ export type Database = {
           nome_pagador: string
           numero_documento: string | null
           numero_recibo: string
+          numero_voo: string | null
           pdf_url: string | null
           percentual: number | null
           recibo_origem_id: string | null
@@ -8335,7 +8372,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          clientes_id?: string | null
+          cliente_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8355,6 +8392,7 @@ export type Database = {
           nome_pagador: string
           numero_documento?: string | null
           numero_recibo: string
+          numero_voo?: string | null
           pdf_url?: string | null
           percentual?: number | null
           recibo_origem_id?: string | null
@@ -8375,7 +8413,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          clientes_id?: string | null
+          cliente_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8395,6 +8433,7 @@ export type Database = {
           nome_pagador?: string
           numero_documento?: string | null
           numero_recibo?: string
+          numero_voo?: string | null
           pdf_url?: string | null
           percentual?: number | null
           recibo_origem_id?: string | null
@@ -8433,8 +8472,8 @@ export type Database = {
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "recibos_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "recibos_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
@@ -8974,6 +9013,7 @@ export type Database = {
           chegada_prevista: string | null
           id: string
           localizacao_atual: string | null
+          numero_voo: string | null
           status_atual: string
           ultima_partida: string | null
           voo_atual_id: string | null
@@ -8985,6 +9025,7 @@ export type Database = {
           chegada_prevista?: string | null
           id?: string
           localizacao_atual?: string | null
+          numero_voo?: string | null
           status_atual?: string
           ultima_partida?: string | null
           voo_atual_id?: string | null
@@ -8996,6 +9037,7 @@ export type Database = {
           chegada_prevista?: string | null
           id?: string
           localizacao_atual?: string | null
+          numero_voo?: string | null
           status_atual?: string
           ultima_partida?: string | null
           voo_atual_id?: string | null
@@ -9338,6 +9380,7 @@ export type Database = {
           nome_tripulante: string | null
           nome_tripulante_2: string | null
           numero_relatorio: string
+          numero_voo: string | null
           observacoes: string | null
           pago_em: string | null
           pdf_path: string | null
@@ -9392,6 +9435,7 @@ export type Database = {
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio: string
+          numero_voo?: string | null
           observacoes?: string | null
           pago_em?: string | null
           pdf_path?: string | null
@@ -9446,6 +9490,7 @@ export type Database = {
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio?: string
+          numero_voo?: string | null
           observacoes?: string | null
           pago_em?: string | null
           pdf_path?: string | null

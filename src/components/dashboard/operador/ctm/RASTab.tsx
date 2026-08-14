@@ -153,8 +153,10 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
     oficina_nome: '',
     mecanico_responsavel: '',
   });
-  const [servicos, setServicos] = useState([{ descricao: '', fornecedor: '', periodo: '', valor_unitario: 0, quantidade: 1, valor_total: 0 }]);
-  const [pecas, setPecas] = useState([{ descricao: '', fornecedor: '', periodo: '', valor_unitario: 0, quantidade: 1, valor_total: 0, numero_fatura: '', numero_peca: '', numero_serie: '' }]);
+  const [servicos, setServicos] = useState([{ descricao: '', fornecedor: '', periodo: '', motivo: '' }]);
+  const [pecas, setPecas] = useState([{ descricao: '', fornecedor: '', periodo: '', motivo: '', quantidade: 1, numero_fatura: '', numero_peca: '', numero_serie: '' }]);
+  const [novasFotos, setNovasFotos] = useState<{ file: File; preview: string; legenda: string }[]>([]);
+  const novoFileRef = useRef<HTMLInputElement>(null);
 
   // Busca automática das horas de célula no diário de bordo
   useEffect(() => {
@@ -249,12 +251,16 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
     }
   }
 
+  function addFotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setNovasFotos(prev => [...prev, ...files.map(file => ({ file, preview: URL.createObjectURL(file), legenda: '' }))]);
+    if (novoFileRef.current) novoFileRef.current.value = '';
+  }
+
   async function save() {
     if (!form.numero || !form.data_entrada) { toast.error('Número e data de entrada são obrigatórios'); return; }
     setSaving(true);
-
-    const laborTotal = servicos.reduce((a, s) => a + Number(s.valor_total || s.valor_unitario * s.quantidade), 0);
-    const partsTotal = pecas.reduce((a, p) => a + Number(p.valor_total || p.valor_unitario * p.quantidade), 0);
 
     const { data: rasData, error } = await supabase
       .from('ctm_ras')
@@ -269,9 +275,6 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
         descricao: form.descricao || null,
         horas_celula_entrada: form.horas_celula_entrada ? Number(form.horas_celula_entrada) : null,
         horas_celula_saida: form.horas_celula_saida ? Number(form.horas_celula_saida) : null,
-        total_trabalho: laborTotal,
-        total_pecas: partsTotal,
-        total_geral: laborTotal + partsTotal,
         status: 'em_andamento',
       })
       .select()
@@ -289,9 +292,7 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
         descricao: s.descricao,
         fornecedor: s.fornecedor || null,
         periodo: s.periodo || null,
-        quantidade: Number(s.quantidade) || 1,
-        valor_unitario: Number(s.valor_unitario) || 0,
-        valor_total: Number(s.valor_total) || Number(s.valor_unitario) * Number(s.quantidade),
+        motivo: s.motivo || null,
       })),
       ...validPecas.map(p => ({
         ras_id: rasData.id,
@@ -299,16 +300,24 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
         descricao: p.descricao,
         fornecedor: p.fornecedor || null,
         periodo: p.periodo || null,
+        motivo: p.motivo || null,
         quantidade: Number(p.quantidade) || 1,
-        valor_unitario: Number(p.valor_unitario) || 0,
-        valor_total: Number(p.valor_total) || Number(p.valor_unitario) * Number(p.quantidade),
         numero_fatura: p.numero_fatura || null,
         numero_peca: p.numero_peca || null,
         numero_serie: p.numero_serie || null,
       })),
     ];
     if (allItems.length > 0) {
-      await supabase.from('ctm_ras_itens').insert(allItems);
+      await (supabase as any).from('ctm_ras_itens').insert(allItems);
+    }
+
+    for (const foto of novasFotos) {
+      const ext = foto.file.name.split('.').pop();
+      const path = `ras/${rasData.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('ras-photos').upload(path, foto.file, { upsert: true });
+      if (upErr) { toast.error('Erro no upload da foto: ' + upErr.message); continue; }
+      const { data: { publicUrl } } = supabase.storage.from('ras-photos').getPublicUrl(path);
+      await supabase.from('ctm_ras_fotos').insert({ ras_id: rasData.id, url_foto: publicUrl, legenda: foto.legenda || null });
     }
 
     toast.success('RAS criado com sucesso!');
@@ -434,54 +443,64 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
 
       {/* Serviços */}
       <RASItemsList
-        title="Serviços (Mão de Obra)"
+        title="Serviços Executados"
         items={servicos}
         tipo="trabalho"
-        onAdd={() => setServicos(prev => [...prev, { descricao: '', fornecedor: '', periodo: '', valor_unitario: 0, quantidade: 1, valor_total: 0 }])}
-        onUpdate={(idx, field, val) => setServicos(prev => prev.map((it, i) => {
-          if (i !== idx) return it;
-          const updated = { ...it, [field]: val };
-          if (field === 'valor_unitario' || field === 'quantidade') {
-            updated.valor_total = Number(updated.valor_unitario) * Number(updated.quantidade);
-          }
-          return updated;
-        }))}
+        onAdd={() => setServicos(prev => [...prev, { descricao: '', fornecedor: '', periodo: '', motivo: '' }])}
+        onUpdate={(idx, field, val) => setServicos(prev => prev.map((it, i) => (i === idx ? { ...it, [field]: val } : it)))}
         onRemove={idx => setServicos(prev => prev.filter((_, i) => i !== idx))}
       />
 
       {/* Peças */}
       <RASItemsList
-        title="Peças Aplicadas"
+        title="Peças Trocadas"
         items={pecas}
         tipo="peca"
-        onAdd={() => setPecas(prev => [...prev, { descricao: '', fornecedor: '', periodo: '', valor_unitario: 0, quantidade: 1, valor_total: 0, numero_fatura: '', numero_peca: '', numero_serie: '' }])}
-        onUpdate={(idx, field, val) => setPecas(prev => prev.map((it, i) => {
-          if (i !== idx) return it;
-          const updated = { ...it, [field]: val };
-          if (field === 'valor_unitario' || field === 'quantidade') {
-            updated.valor_total = Number(updated.valor_unitario) * Number(updated.quantidade);
-          }
-          return updated;
-        }))}
+        onAdd={() => setPecas(prev => [...prev, { descricao: '', fornecedor: '', periodo: '', motivo: '', quantidade: 1, numero_fatura: '', numero_peca: '', numero_serie: '' }])}
+        onUpdate={(idx, field, val) => setPecas(prev => prev.map((it, i) => (i === idx ? { ...it, [field]: val } : it)))}
         onRemove={idx => setPecas(prev => prev.filter((_, i) => i !== idx))}
       />
 
-      {/* Totais */}
-      <div className="flex justify-end gap-6 mb-4 text-sm">
-        <span className="text-muted-foreground">
-          Mão de obra: <span className="font-semibold text-foreground">
-            R$ {servicos.reduce((a, s) => a + Number(s.valor_total), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </span>
-        </span>
-        <span className="text-muted-foreground">
-          Peças: <span className="font-semibold text-foreground">
-            R$ {pecas.reduce((a, p) => a + Number(p.valor_total), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </span>
-        </span>
-        <span className="font-bold teal-text">
-          Total: R$ {(servicos.reduce((a, s) => a + Number(s.valor_total), 0) + pecas.reduce((a, p) => a + Number(p.valor_total), 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-        </span>
+      {/* Fotos */}
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fotos do Relatório</label>
+          <button onClick={() => novoFileRef.current?.click()} className="flex items-center gap-1 text-xs teal-text hover:underline">
+            <Upload className="h-3 w-3" /> Adicionar fotos
+          </button>
+          <input ref={novoFileRef} type="file" accept="image/*" multiple className="hidden" onChange={addFotos} />
+        </div>
+        {novasFotos.length === 0 ? (
+          <button
+            onClick={() => novoFileRef.current?.click()}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-secondary/30 py-8 text-muted-foreground hover:border-[hsl(var(--ctm-teal)/0.5)]"
+          >
+            <Image className="h-6 w-6 opacity-60" />
+            <span className="text-xs">Anexe fotos das peças trocadas / serviços executados</span>
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {novasFotos.map((foto, idx) => (
+              <div key={idx} className="relative rounded-xl border border-border/60 bg-secondary/40 p-2">
+                <button
+                  onClick={() => setNovasFotos(prev => prev.filter((_, i) => i !== idx))}
+                  className="absolute right-3 top-3 rounded-md bg-slate-900/80 p-1 text-red-400 hover:text-red-300"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <img src={foto.preview} alt={foto.legenda || `Foto ${idx + 1}`} className="h-28 w-full rounded-lg object-cover" />
+                <input
+                  className="ctm-input mt-2 w-full text-xs"
+                  placeholder="Legenda / descrição"
+                  value={foto.legenda}
+                  onChange={e => setNovasFotos(prev => prev.map((f, i) => (i === idx ? { ...f, legenda: e.target.value } : f)))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
 
       <div className="flex gap-3 justify-end">
         <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">Cancelar</button>
@@ -496,7 +515,6 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
 
 // ── Lista de Itens do RAS ────────────────────────────────────────────────────
 function RASItemsList({ title, items, tipo, onAdd, onUpdate, onRemove }: any) {
-  const total = items.reduce((a: number, i: any) => a + Number(i.valor_total || 0), 0);
   const isPeca = tipo === 'peca';
   return (
     <div className="mb-6">
@@ -517,57 +535,52 @@ function RASItemsList({ title, items, tipo, onAdd, onUpdate, onRemove }: any) {
                 <X className="h-4 w-4" />
               </button>
             )}
-            <div className={cn('grid grid-cols-2 gap-3 pr-8 sm:grid-cols-3', isPeca ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
-            <div className="col-span-2 sm:col-span-3 lg:col-span-2">
-              <label className="text-xs text-muted-foreground">Descrição *</label>
-              <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Descrição do item" value={item.descricao} onChange={e => onUpdate(idx, 'descricao', e.target.value)} />
-            </div>
-            {isPeca && (
-              <>
-                <div>
-                  <label className="text-xs text-muted-foreground">P/N</label>
-                  <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Part Number" value={item.numero_peca || ''} onChange={e => onUpdate(idx, 'numero_peca', e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">S/N</label>
-                  <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Serial Number" value={item.numero_serie || ''} onChange={e => onUpdate(idx, 'numero_serie', e.target.value)} />
-                </div>
-              </>
-            )}
-            <div>
-              <label className="text-xs text-muted-foreground">Fornecedor</label>
-              <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Fornecedor" value={item.fornecedor} onChange={e => onUpdate(idx, 'fornecedor', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Período</label>
-              <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Ex: 50h" value={item.periodo} onChange={e => onUpdate(idx, 'periodo', e.target.value)} />
-            </div>
-            {isPeca && (
+            <div className="grid grid-cols-2 gap-3 pr-8 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+                <label className="text-xs text-muted-foreground">Descrição *</label>
+                <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Descrição do item" value={item.descricao} onChange={e => onUpdate(idx, 'descricao', e.target.value)} />
+              </div>
+              {isPeca && (
+                <>
+                  <div>
+                    <label className="text-xs text-muted-foreground">P/N</label>
+                    <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Part Number" value={item.numero_peca || ''} onChange={e => onUpdate(idx, 'numero_peca', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">S/N</label>
+                    <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Serial Number" value={item.numero_serie || ''} onChange={e => onUpdate(idx, 'numero_serie', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Qtd</label>
+                    <input type="number" min="1" step="0.01" className="ctm-input w-full mt-0.5 text-sm text-center" value={item.quantidade} onChange={e => onUpdate(idx, 'quantidade', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">NF/Fatura</label>
+                    <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Nº fatura" value={item.numero_fatura || ''} onChange={e => onUpdate(idx, 'numero_fatura', e.target.value)} />
+                  </div>
+                </>
+              )}
               <div>
-                <label className="text-xs text-muted-foreground">NF/Fatura</label>
-                <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Nº fatura" value={item.numero_fatura || ''} onChange={e => onUpdate(idx, 'numero_fatura', e.target.value)} />
+                <label className="text-xs text-muted-foreground">Fornecedor / Oficina</label>
+                <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Fornecedor" value={item.fornecedor} onChange={e => onUpdate(idx, 'fornecedor', e.target.value)} />
               </div>
-            )}
-            <div>
-              <label className="text-xs text-muted-foreground">Qtd</label>
-              <input type="number" min="1" step="0.01" className="ctm-input w-full mt-0.5 text-sm text-center" value={item.quantidade} onChange={e => onUpdate(idx, 'quantidade', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Valor Unit. R$</label>
-              <input type="number" min="0" step="0.01" className="ctm-input w-full mt-0.5 text-sm text-right" placeholder="0,00" value={item.valor_unitario} onChange={e => onUpdate(idx, 'valor_unitario', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Total R$</label>
-              <div className="ctm-input mt-0.5 w-full bg-secondary text-right text-sm font-semibold teal-text">
-                {Number(item.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <div>
+                <label className="text-xs text-muted-foreground">Período</label>
+                <input className="ctm-input w-full mt-0.5 text-sm" placeholder="Ex: 50h" value={item.periodo} onChange={e => onUpdate(idx, 'periodo', e.target.value)} />
               </div>
-            </div>
+              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                <label className="text-xs text-muted-foreground">{isPeca ? 'Motivo da troca' : 'Motivo / o que aconteceu'}</label>
+                <textarea
+                  rows={2}
+                  className="ctm-input w-full mt-0.5 text-sm"
+                  placeholder={isPeca ? 'Ex: peça apresentava desgaste excessivo detectado na inspeção...' : 'Descreva o que motivou o serviço'}
+                  value={item.motivo || ''}
+                  onChange={e => onUpdate(idx, 'motivo', e.target.value)}
+                />
+              </div>
             </div>
           </div>
         ))}
-      </div>
-      <div className="flex justify-end mt-2 text-sm text-muted-foreground">
-        Subtotal: <span className="ml-1 font-semibold teal-text">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
       </div>
     </div>
   );

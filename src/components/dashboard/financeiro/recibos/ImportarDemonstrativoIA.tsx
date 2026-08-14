@@ -309,7 +309,7 @@ export default function ImportarDemonstrativoTab() {
         return { ...it, cotistaNome: sugestao.nome || "", sugeridoDoDiario: !!sugestao.nome, naoIdentificado: !sugestao.nome, isEmprestimo: sugestao.isEmprestimo };
       });
 
-      const linhasExpandidas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, opcoesAtribuicao));
+      const linhasExpandidas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, opcoesAtribuicao as any));
 
       setResult(res);
       setLinhas(linhasExpandidas);

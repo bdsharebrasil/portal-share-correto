@@ -25,6 +25,10 @@ import {
 } from "@/components/PreVoo/AbastecimentoPreVooDialog";
 
 import {
+  AbastecimentoViewDialog,
+} from "@/components/PreVoo/AbastecimentoViewDialog";
+
+import {
   DocumentosAeronaveDialog,
   docsCompletos,
 } from "@/components/PreVoo/DocumentosAeronaveDialog";
@@ -114,6 +118,7 @@ export default function ChecklistPreVoo() {
   const [observacoes, setObservacoes] = useState("");
 
   const [abastOpen, setAbastOpen] = useState(false);
+  const [abastViewOpen, setAbastViewOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
   const [colapsadas, setColapsadas] =
@@ -159,8 +164,8 @@ export default function ChecklistPreVoo() {
           const draft = JSON.parse(raw) as DraftData;
 
           if (draft?.savedAt) {
-            const serverTime = checklist.updated_at
-              ? new Date(checklist.updated_at).getTime()
+            const serverTime = checklist.atualizado_em
+              ? new Date(checklist.atualizado_em).getTime()
               : 0;
 
             if (draft.savedAt > serverTime) {
@@ -1429,9 +1434,13 @@ export default function ChecklistPreVoo() {
                                                   : "default"
                                               }
                                               onClick={() =>
-                                                setAbastOpen(
-                                                  true
-                                                )
+                                                abastecimentoId
+                                                  ? setAbastViewOpen(
+                                                      true
+                                                    )
+                                                  : setAbastOpen(
+                                                      true
+                                                    )
                                               }
                                               className="h-10 rounded-xl"
                                             >
@@ -1677,11 +1686,19 @@ export default function ChecklistPreVoo() {
           voo?.data_partida ||
           voo?.data_agendada
         }
-        abastecimentoId={abastecimentoId}
         onSaved={(id) => {
           setAbastecimentoId(id);
           setPrecisaAbastecer(true);
         }}
+      />
+
+      {/* =====================================================
+          DIALOG VISUALIZAR ABASTECIMENTO
+      ===================================================== */}
+      <AbastecimentoViewDialog
+        open={abastViewOpen}
+        onOpenChange={setAbastViewOpen}
+        abastecimentoId={abastecimentoId}
       />
 
       {/* =====================================================

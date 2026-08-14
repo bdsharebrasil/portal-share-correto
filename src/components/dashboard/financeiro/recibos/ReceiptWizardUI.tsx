@@ -451,17 +451,35 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
     );
   }, [formData.valorTotalRecibo, isMulti]);
 
+  // Ao digitar a % de uma linha, o restante para fechar 100% é distribuído
+  // automaticamente entre as demais linhas (continuando editável manualmente).
   const updateRowPercentual = (rowId: string, percentual: string) => {
     const total = parseFloat(String(formData.valorTotalRecibo).replace(",", "."));
     const pct = parseFloat(String(percentual).replace(",", "."));
-    setPagadores((prev) =>
-      prev.map((row) => {
-        if (row.id !== rowId) return row;
-        const valor = !Number.isNaN(total) && !Number.isNaN(pct) ? ((total * pct) / 100).toFixed(2) : row.valor;
-        return { ...row, percentual, valor, valorManual: false };
-      })
-    );
+    const calcValor = (p: number, fallback: string) =>
+      !Number.isNaN(total) && !Number.isNaN(p) ? ((total * p) / 100).toFixed(2) : fallback;
+
+    setPagadores((prev) => {
+      const outras = prev.filter((r) => r.id !== rowId);
+      const restante = !Number.isNaN(pct) ? Math.max(0, 100 - pct) : null;
+
+      // % sugerida para cada uma das demais linhas (divisão igual do restante)
+      const sugerida =
+        restante !== null && outras.length > 0
+          ? Number((restante / outras.length).toFixed(3))
+          : null;
+
+      return prev.map((row) => {
+        if (row.id === rowId) {
+          return { ...row, percentual, valor: calcValor(pct, row.valor), valorManual: false };
+        }
+        if (sugerida === null) return row;
+        const novaPct = String(sugerida);
+        return { ...row, percentual: novaPct, valor: calcValor(sugerida, row.valor), valorManual: false };
+      });
+    });
   };
+
 
   // --- Anexos (lista) ---
   const updateAnexo = (rowId: string, field: string, value: any) => setAnexos((prev) => prev.map((a) => (a.id === rowId ? { ...a, [field]: value } : a)));

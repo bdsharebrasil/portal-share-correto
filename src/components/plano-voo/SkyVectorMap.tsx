@@ -176,6 +176,7 @@ const ChartsList: React.FC<{
 
 
 const MapContainerAny = MapContainer as any;
+const LayersControlAny = LayersControl as any;
 const TileLayerAny = TileLayer as any;
 const MarkerAny = Marker as any;
 const WMSTileLayerAny = WMSTileLayer as any;
@@ -246,7 +247,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   return (
     <div className="relative w-full h-full">
       <MapContainerAny center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
-        <LayersControl position="topright">
+        <LayersControlAny position="topright">
           <LayersControl.BaseLayer checked name="CartoDB Dark">
             <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" />
           </LayersControl.BaseLayer>
@@ -275,7 +276,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
           <LayersControl.Overlay name="Espaço aéreo (CTR/CTA/ATZ/TMA)">
             <WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} />
           </LayersControl.Overlay>
-        </LayersControl>
+        </LayersControlAny>
 
 
         {hasRoute && <FitBounds waypoints={waypoints} />}

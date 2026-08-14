@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAerodromes } from "@/hooks/useAerodromes";
+import { useVoosConfirmados } from "@/hooks/useVoosConfirmados";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, Search, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon, Hash } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
@@ -74,6 +75,7 @@ interface FuelRecord {
   banco?: string | null;
   forma_pagamento?: string | null;
   data_vencimento_boleto?: string | null;
+  numero_voo?: string | null;
 }
 
 interface FuelSupplier {
@@ -197,6 +199,11 @@ export function FuelRecordsByAircraft({
   const [paymentDateCalendarOpen, setPaymentDateCalendarOpen] = useState(false);
   const [dueDateCalendarOpen, setDueDateCalendarOpen] = useState(false);
 
+  // Vínculo com o numero_voo (fonte única de verdade, gerado na confirmação da
+  // solicitação de voo) — separado do vínculo com diário de bordo acima.
+  const [linkToVoo, setLinkToVoo] = useState(false);
+  const { data: voosConfirmados = [] } = useVoosConfirmados(aircraft.id);
+
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const aerodromeItems = (aerodromes || []).map((a: any) => ({
     id: a.designativo as string,
@@ -246,6 +253,7 @@ export function FuelRecordsByAircraft({
     data_vencimento_boleto: "",
     observacao: "",
     nf: "",
+    numero_voo: "",
     comanda_file: null as File | null,
     nota_file: null as File | null,
     boleto_file: null as File | null,
@@ -398,6 +406,21 @@ export function FuelRecordsByAircraft({
         setPreviousDayFlightInfo(null);
       }
     }
+  };
+
+  // Seleção de um voo confirmado (por numero_voo) — preenche trecho, data e
+  // deixa o número salvo em formData.numero_voo para ir no INSERT/UPDATE.
+  const handleVooSelect = (numeroVoo: string) => {
+    const voo = voosConfirmados.find(v => v.numero_voo === numeroVoo);
+    if (!voo) return;
+    setFormData(prev => ({
+      ...prev,
+      numero_voo: numeroVoo,
+      trecho: trechoComNomes(voo.origem, voo.destino) || prev.trecho,
+      origem_aerodromo: voo.origem || prev.origem_aerodromo,
+      destino_aerodromo: voo.destino || prev.destino_aerodromo,
+      data: voo.data_agendada || prev.data,
+    }));
   };
 
   useEffect(() => {
@@ -668,6 +691,7 @@ export function FuelRecordsByAircraft({
           record.comanda?.toLowerCase().includes(lowerSearchText) ||
           record.nf?.toLowerCase().includes(lowerSearchText) ||
           record.observacao?.toLowerCase().includes(lowerSearchText) ||
+          record.numero_voo?.toLowerCase().includes(lowerSearchText) ||
           resolveFuelRecordPartnerName(record).toLowerCase().includes(lowerSearchText) ||
           record.litros?.toString().includes(lowerSearchText) ||
           record.valor_total?.toString().includes(lowerSearchText)
@@ -1154,6 +1178,7 @@ export function FuelRecordsByAircraft({
       const recordData: any = {
         id_clientes: client.id,
         aeronave_id: aircraft.id,
+        numero_voo: formData.numero_voo || null,
         abastecedor_id: formData.abastecedor_id || null,
         data: isoDateString,
         trecho: formData.trecho || "",
@@ -1282,6 +1307,7 @@ export function FuelRecordsByAircraft({
       data_vencimento_boleto: record.data_vencimento_boleto || "",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
       nf: record.nf || "",
+      numero_voo: record.numero_voo || "",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -1309,6 +1335,7 @@ export function FuelRecordsByAircraft({
     push("boleto", record.boleto_url);
     push("comprovante", record.comprovante_pagamento || record.comprovante_url);
     setAnexos(linhas);
+    setLinkToVoo(!!record.numero_voo);
     setIsDialogOpen(true);
   };
 
@@ -1347,6 +1374,7 @@ export function FuelRecordsByAircraft({
       data_vencimento_boleto: "",
       observacao: "",
       nf: "",
+      numero_voo: "",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -1366,6 +1394,7 @@ export function FuelRecordsByAircraft({
     setEditingRecord(null);
     setAnexos([]);
     setLinkToLogbook(false);
+    setLinkToVoo(false);
     setSelectedFlightId("");
     setLogbookFlights([]);
     setSelectedFlightInfo(null);
@@ -1540,7 +1569,7 @@ export function FuelRecordsByAircraft({
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Trecho, local, fornecedor, comanda, NF..."
+                  placeholder="Trecho, local, fornecedor, comanda, NF, número do voo..."
                   value={searchText}
                   onChange={(e) => {
                     setSearchText(e.target.value);
@@ -1634,6 +1663,42 @@ export function FuelRecordsByAircraft({
               <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
+              <div className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="link-voo"
+                    checked={linkToVoo}
+                    onCheckedChange={(checked) => {
+                      setLinkToVoo(!!checked);
+                      if (!checked) setFormData(prev => ({ ...prev, numero_voo: "" }));
+                    }}
+                  />
+                  <Label htmlFor="link-voo" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-primary" />
+                    Vincular a um voo confirmado?
+                  </Label>
+                </div>
+
+                {linkToVoo && (
+                  <div className="pl-7">
+                    {voosConfirmados.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum voo confirmado encontrado para esta aeronave</p>
+                    ) : (
+                      <SearchableCombobox
+                        items={voosConfirmados.map(v => ({
+                          id: v.numero_voo,
+                          label: `${v.numero_voo} — ${v.origem} x ${v.destino} (${formatDateBrazil(v.data_agendada)})`,
+                        }))}
+                        value={formData.numero_voo}
+                        onChange={handleVooSelect}
+                        placeholder="Selecione o número do voo"
+                        searchPlaceholder="Buscar por número..."
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-lg border border-border/50 p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <Checkbox
@@ -2118,6 +2183,7 @@ export function FuelRecordsByAircraft({
                       {dateSortAsc ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </button>
                   </TableHead>
+                  <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Voo</TableHead>
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Trecho</TableHead>
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Local</TableHead>
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Comanda</TableHead>
@@ -2140,6 +2206,16 @@ export function FuelRecordsByAircraft({
                   >
                     <TableCell className="px-4 py-3 text-xs font-medium text-foreground">
                       {formatDateBrazil(getRecordDateValue(record), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs">
+                      {record.numero_voo ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                          <Hash className="h-3 w-3" />
+                          {record.numero_voo}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-xs text-muted-foreground">{record.trecho || "-"}</TableCell>
                     <TableCell className="px-4 py-3 text-xs text-muted-foreground">{record.local || "-"}</TableCell>
