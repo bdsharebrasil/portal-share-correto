@@ -872,6 +872,130 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao iniciar voo"),
   });
 
+  const registrarEtapaVoo = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      perna,
+      fase,
+      dataPerna,
+      horarioAcionamento,
+      horarioDecolagem,
+      horarioPouso,
+      horarioCorte,
+    }: {
+      solicitacao: Solicitacao;
+      perna: PernaVoo | null;
+      fase: "pousar_ida" | "iniciar_volta" | "concluir_volta";
+      dataPerna: string;
+      horarioAcionamento: string;
+      horarioDecolagem: string;
+      horarioPouso: string | null;
+      horarioCorte: string | null;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+      const { data: ultimaPerna, error: ultimaPernaError } = await sb
+        .from("pernas_voo")
+        .select("*")
+        .eq("solicitacao_id", solicitacao.id)
+        .order("numero_perna", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (ultimaPernaError) throw ultimaPernaError;
+      if (!ultimaPerna) throw new Error("Não foi possível localizar a perna em andamento");
+
+      const pernaAtual = perna?.id === ultimaPerna.id ? perna : (ultimaPerna as PernaVoo);
+      const horarios: PernaVooUpdate = {
+        data_perna: dataPerna,
+        horario_acionamento: `${horarioAcionamento}:00`,
+        horario_decolagem: `${horarioDecolagem}:00`,
+      };
+      if (horarioPouso) horarios.horario_pouso = `${horarioPouso}:00`;
+      if (horarioCorte) horarios.horario_corte = new Date(`${dataPerna}T${horarioCorte}:00Z`).toISOString();
+
+      const { error: updatePernaError } = await sb.from("pernas_voo").update(horarios).eq("id", pernaAtual.id);
+      if (updatePernaError) throw updatePernaError;
+
+      if (fase === "pousar_ida") {
+        if (!horarioPouso) throw new Error("Informe o horário de pouso");
+        const proximaPerna: PernaVooInsert = {
+          solicitacao_id: solicitacao.id,
+          numero_perna: pernaAtual.numero_perna + 1,
+          data_perna: dataPerna,
+          origem: pernaAtual.destino,
+          destino: pernaAtual.origem,
+          qtd_passageiros: pernaAtual.qtd_passageiros ?? solicitacao.qtd_passageiros ?? 1,
+          observacoes: "Perna de volta aberta após o pouso da ida",
+        };
+        const { error: criarVoltaError } = await sb.from("pernas_voo").insert(proximaPerna);
+        if (criarVoltaError) throw criarVoltaError;
+
+        const { error: updateVooError } = await sb
+          .from("solicitacoes_reserva_voo")
+          .update({ horario_pouso: `${horarioPouso}:00` })
+          .eq("id", solicitacao.id);
+        if (updateVooError) throw updateVooError;
+        await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "em_rota", userId, "Pousado na ida; perna de volta aberta");
+        return "pousado";
+      }
+
+      if (fase === "iniciar_volta") {
+        const { error: updateVooError } = await sb
+          .from("solicitacoes_reserva_voo")
+          .update({
+            status: "em_rota",
+            data_partida: dataPerna,
+            horario_acionamento: `${horarioAcionamento}:00`,
+            horario_decolagem: `${horarioDecolagem}:00`,
+            horario_pouso: null,
+            horario_corte: null,
+          })
+          .eq("id", solicitacao.id);
+        if (updateVooError) throw updateVooError;
+        await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "em_rota", userId, "Perna de volta em rota");
+        return "em_rota";
+      }
+
+      if (!horarioPouso || !horarioCorte) throw new Error("Informe o pouso e o corte");
+      const horarioCorteIso = new Date(`${dataPerna}T${horarioCorte}:00Z`).toISOString();
+      const { error: concluirErro } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: "concluido",
+          data_partida: dataPerna,
+          horario_acionamento: `${horarioAcionamento}:00`,
+          horario_decolagem: `${horarioDecolagem}:00`,
+          horario_pouso: `${horarioPouso}:00`,
+          horario_corte: horarioCorteIso,
+        })
+        .eq("id", solicitacao.id);
+      if (concluirErro) throw concluirErro;
+
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(solicitacao.aeronave_id, "disponivel", null, {
+          localizacao_atual: pernaAtual.destino,
+        });
+        await sb
+          .from("ciclos_voo")
+          .update({ status: "concluido", concluido_em: new Date().toISOString() })
+          .eq("aeronave_id", solicitacao.aeronave_id)
+          .eq("data_voo", solicitacao.data_agendada)
+          .in("status", ["planejado", "em_andamento", "em_execucao"]);
+      }
+      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "concluido", userId, "Perna de volta concluída com pouso e corte");
+      return "concluido";
+    },
+    onSuccess: (etapa) => {
+      toast.success(etapa === "pousado" ? "Pouso registrado e perna de volta aberta" : etapa === "em_rota" ? "Perna de volta em rota" : "Voo concluído");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["agv", "pernas"] });
+      qc.invalidateQueries({ queryKey: ["ciclos-voo"] });
+      qc.invalidateQueries({ queryKey: ["active-flight-cycles"] });
+      qc.invalidateQueries({ queryKey: ["aircraft-fleet"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar etapa do voo"),
+  });
+
   const concluirVoo = useMutation({
     mutationFn: async ({
       solicitacao,
@@ -1117,7 +1241,7 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar perna de voo"),
   });
 
-  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, confirmarVoo, escalarTripulacao, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, confirmarVoo, escalarTripulacao, rejeitar, alterarStatusVoo, iniciarVoo, registrarEtapaVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(
