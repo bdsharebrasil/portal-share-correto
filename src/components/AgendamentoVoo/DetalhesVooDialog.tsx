@@ -28,6 +28,7 @@ import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, usePernasVoo, 
 import { supabase } from "@/integrations/supabase/client";
 import { EditarAgendamentoDialog } from "./EditarAgendamentoDialog";
 import { NovaPernaDialog } from "./NovaPernaDialog";
+import { IniciarVooDialog } from "./IniciarVooDialog";
 import { usePreVooChecklist } from "@/hooks/usePreVooChecklist";
 
 interface Props {
@@ -83,6 +84,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
   const [editarAberto, setEditarAberto] = useState(false);
   const [exclusaoAberta, setExclusaoAberta] = useState(false);
   const [pernaAberta, setPernaAberta] = useState(false);
+  const [iniciarAberto, setIniciarAberto] = useState(false);
   const { data: pernas = [] } = usePernasVoo(open ? voo?.id : null);
   const { data: checklistPreVoo } = usePreVooChecklist(open ? voo?.id : null);
 
@@ -314,10 +316,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
             )}
 
             {voo.status === "confirmado" && preVooConcluido && (
-              <Button
-                onClick={() => handleStatusUpdate("em_rota")}
-                disabled={alterarStatusVoo.isPending}
-              >
+              <Button onClick={() => setIniciarAberto(true)}>
                 Iniciar Voo (Em Rota)
               </Button>
             )}
@@ -384,6 +383,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
 
     <EditarAgendamentoDialog voo={voo} open={editarAberto} onOpenChange={setEditarAberto} />
     <NovaPernaDialog voo={voo} open={pernaAberta} onOpenChange={setPernaAberta} />
+    <IniciarVooDialog voo={voo} open={iniciarAberto} onOpenChange={setIniciarAberto} />
     </>
   );
 
