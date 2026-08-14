@@ -117,11 +117,6 @@ export function RASTab({ aircraftId }: RASTabProps) {
                       )}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold">
-                      R$ {Number(ras.total_geral || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-ctm-teal transition-colors shrink-0" />
                 </div>
               </div>
@@ -718,26 +713,18 @@ function RASDetail({ ras, aeronave, onBack, onRefresh }: {
                 <thead>
                   <tr className="border-b border-border bg-secondary">
                     <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Descrição</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Fornecedor</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Fornecedor / Oficina</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Período</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground">Qtd</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground">Unit.</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground">Total</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Motivo / O que aconteceu</th>
                   </tr>
                 </thead>
                 <tbody>
                   {servicos.map((s: any) => (
-                    <tr key={s.id} className="border-b border-border/40 hover:bg-secondary/40">
+                    <tr key={s.id} className="border-b border-border/40 hover:bg-secondary/40 align-top">
                       <td className="px-4 py-2.5 font-medium">{s.descricao}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{s.fornecedor || '—'}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{s.periodo || '—'}</td>
-                      <td className="px-4 py-2.5 text-right">{s.quantidade || 1}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">
-                        {s.valor_unitario ? `R$ ${Number(s.valor_unitario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-bold">
-                        R$ {Number(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
+                      <td className="px-4 py-2.5 text-xs whitespace-pre-wrap">{s.motivo || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -749,7 +736,7 @@ function RASDetail({ ras, aeronave, onBack, onRefresh }: {
           {pecas.length > 0 && (
             <div className="ctm-card overflow-hidden">
               <div className="px-5 py-4 border-b border-border">
-                <h3 className="font-semibold teal-text">Peças Aplicadas</h3>
+                <h3 className="font-semibold teal-text">Peças Trocadas</h3>
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -758,23 +745,19 @@ function RASDetail({ ras, aeronave, onBack, onRefresh }: {
                     <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">P/N</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">S/N</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Fornecedor</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">NF</th>
                     <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground">Qtd</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-muted-foreground">Total</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Motivo da troca</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pecas.map((p: any) => (
-                    <tr key={p.id} className="border-b border-border/40 hover:bg-secondary/40">
+                    <tr key={p.id} className="border-b border-border/40 hover:bg-secondary/40 align-top">
                       <td className="px-4 py-2.5 font-medium">{p.descricao}</td>
                       <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{p.numero_peca || '—'}</td>
                       <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{p.numero_serie || '—'}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{p.fornecedor || '—'}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground text-xs">{p.numero_fatura || '—'}</td>
                       <td className="px-4 py-2.5 text-right">{p.quantidade || 1}</td>
-                      <td className="px-4 py-2.5 text-right font-bold">
-                        R$ {Number(p.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
+                      <td className="px-4 py-2.5 text-xs whitespace-pre-wrap">{p.motivo || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -851,25 +834,8 @@ function RASDetail({ ras, aeronave, onBack, onRefresh }: {
           </div>
         </div>
 
-        {/* Sidebar financeiro */}
+        {/* Sidebar */}
         <div className="space-y-4">
-          <div className="ctm-card p-5">
-            <h3 className="font-semibold mb-4 teal-text">Resumo Financeiro</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Mão de obra</span>
-                <span>R$ {Number(ras.total_trabalho || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Peças</span>
-                <span>R$ {Number(ras.total_pecas || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="pt-3 border-t border-border flex justify-between font-bold">
-                <span>Total Geral</span>
-                <span className="teal-text">R$ {Number(ras.total_geral || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-          </div>
 
           {/* Horas célula info */}
           {(ras.horas_celula_entrada || ras.horas_celula_saida) && (

@@ -654,6 +654,7 @@ export default function RelatorioViagem() {
         data_fim: reportData.data_fim,
         dias_count: reportData.dias_count,
         observacoes: reportData.observacoes || null,
+        numero_voo: reportData.numero_voo || null,
         // FIX: salvar como `despesas` (nome real da coluna)
         despesas: JSON.stringify(validExpenses),
         total_valor: totals.total_amount,
