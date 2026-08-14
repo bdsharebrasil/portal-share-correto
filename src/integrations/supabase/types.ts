@@ -3071,15 +3071,22 @@ export type Database = {
           created_at: string
           data_entrada: string | null
           data_saida: string | null
+          dias_efetivos: number | null
+          dias_previstos: number | null
+          horas_celula: number | null
           id: string
           mecanico_responsavel: string | null
           numero: string | null
           objetivo: string | null
           observacoes: string | null
           oficina_nome: string | null
+          os_oficina: string | null
           periodo: string | null
           periodo_fim: string | null
           periodo_inicio: string | null
+          porcentagem_rateio: string | null
+          relatorio_voo_ate: string | null
+          relatorio_voo_de: string | null
           status: string | null
           status_aprovacao: string | null
           tipo_manutencao: string | null
@@ -3088,6 +3095,7 @@ export type Database = {
           total_mao_obra: number | null
           total_pecas: number | null
           total_valor_os: number | null
+          total_voado_porcentagem: string | null
           updated_at: string
         }
         Insert: {
@@ -3095,15 +3103,22 @@ export type Database = {
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
+          dias_efetivos?: number | null
+          dias_previstos?: number | null
+          horas_celula?: number | null
           id?: string
           mecanico_responsavel?: string | null
           numero?: string | null
           objetivo?: string | null
           observacoes?: string | null
           oficina_nome?: string | null
+          os_oficina?: string | null
           periodo?: string | null
           periodo_fim?: string | null
           periodo_inicio?: string | null
+          porcentagem_rateio?: string | null
+          relatorio_voo_ate?: string | null
+          relatorio_voo_de?: string | null
           status?: string | null
           status_aprovacao?: string | null
           tipo_manutencao?: string | null
@@ -3112,6 +3127,7 @@ export type Database = {
           total_mao_obra?: number | null
           total_pecas?: number | null
           total_valor_os?: number | null
+          total_voado_porcentagem?: string | null
           updated_at?: string
         }
         Update: {
@@ -3119,15 +3135,22 @@ export type Database = {
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
+          dias_efetivos?: number | null
+          dias_previstos?: number | null
+          horas_celula?: number | null
           id?: string
           mecanico_responsavel?: string | null
           numero?: string | null
           objetivo?: string | null
           observacoes?: string | null
           oficina_nome?: string | null
+          os_oficina?: string | null
           periodo?: string | null
           periodo_fim?: string | null
           periodo_inicio?: string | null
+          porcentagem_rateio?: string | null
+          relatorio_voo_ate?: string | null
+          relatorio_voo_de?: string | null
           status?: string | null
           status_aprovacao?: string | null
           tipo_manutencao?: string | null
@@ -3136,6 +3159,7 @@ export type Database = {
           total_mao_obra?: number | null
           total_pecas?: number | null
           total_valor_os?: number | null
+          total_voado_porcentagem?: string | null
           updated_at?: string
         }
         Relationships: [

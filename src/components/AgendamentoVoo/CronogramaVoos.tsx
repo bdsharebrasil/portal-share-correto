@@ -36,6 +36,7 @@ const STATUS_META: Record<string, { label: string; badge: string; dot: string }>
   pendente: { label: "Pendente", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
   confirmado: { label: "Agendado", badge: "bg-primary/15 text-primary", dot: "text-primary" },
   em_rota: { label: "Em Rota", badge: "bg-amber-500/20 text-amber-400", dot: "text-amber-400 font-semibold" },
+  pousado: { label: "Pousado", badge: "bg-sky-500/20 text-sky-400", dot: "text-sky-400 font-semibold" },
   concluido: { label: "Concluído", badge: "bg-emerald-500/15 text-emerald-400", dot: "text-emerald-400" },
   rejeitado: { label: "Rejeitado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
   cancelado: { label: "Cancelado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
@@ -60,7 +61,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const voos = useMemo(
     () =>
       solicitacoes
-        .filter((s) => ["confirmado", "em_rota", "cancelado", "pendente"].includes(s.status))
+        .filter((s) => ["confirmado", "em_rota", "pousado", "cancelado", "pendente"].includes(s.status))
         .filter((s) => vooCobreDia(s, hoje) || s.data_agendada >= hoje)
         .slice(0, 6),
     [solicitacoes, hoje],
@@ -69,7 +70,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const historico = useMemo(
     () =>
       solicitacoes
-        .filter((s) => s.status === "concluido" || s.data_agendada < hoje)
+        .filter((s) => s.status === "concluido" || (s.data_agendada < hoje && !["em_rota", "pousado", "pendente", "confirmado"].includes(s.status)))
         .sort((a, b) => (b.data_partida ?? b.data_agendada).localeCompare(a.data_partida ?? a.data_agendada)),
     [solicitacoes, hoje],
   );
@@ -94,7 +95,9 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
           {voos.map((voo) => {
             const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
             const emRota = voo.status === "em_rota";
-            const temPouso = Boolean(voo.horario_pouso);
+            const pousado = voo.status === "pousado";
+            const emJornada = emRota || pousado;
+            const temPouso = pousado || (Boolean(voo.horario_pouso) && voo.status === "concluido");
             const preVooOk = checklistStatus[voo.id] === "concluido";
             const confirmado = voo.status === "confirmado";
 
@@ -112,12 +115,17 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-left transition-colors hover:border-primary/50",
                     emRota && "border-amber-500/40 bg-amber-500/5",
+                    pousado && "border-sky-500/40 bg-sky-500/5",
                     voo.status === "cancelado" && "border-destructive/30 bg-destructive/5",
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => {
+                      if (emJornada) {
+                        setHorariosTarget(voo);
+                        return;
+                      }
                       setExpandedId(expanded ? null : voo.id);
                       onSelect?.(voo);
                     }}
@@ -136,7 +144,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                   </button>
                   
                   <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
-                    {temPouso ? "Pousado" : meta.label}
+                    {meta.label}
                   </span>
 
                   {voo.status === "pendente" && (
@@ -153,7 +161,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                     </button>
                   )}
 
-                  {["confirmado", "em_rota"].includes(voo.status) && (
+                  {["confirmado", "em_rota", "pousado"].includes(voo.status) && (
                     <div className="flex flex-wrap items-center gap-2">
                       {confirmado && voo.numero_voo && (
                         <button
@@ -189,7 +197,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                           e.stopPropagation();
                           setIniciarTarget(voo);
                         }}
-                        disabled={emRota || temPouso || !preVooOk}
+                        disabled={emJornada || !preVooOk}
                         title={!preVooOk ? "Conclua o checklist pré-voo para iniciar o voo" : undefined}
                         className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
                       >
@@ -205,7 +213,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                     </span>
                   )}
 
-                  {emRota ? (
+                  {emJornada ? (
                     <div className="flex flex-col gap-1 text-xs font-semibold tabular-nums text-foreground">
                       <span>AC {voo.horario_acionamento?.slice(0, 5) ?? "--:--"} UTC</span>
                       <span>DEP {voo.horario_decolagem?.slice(0, 5) ?? "--:--"} UTC</span>
@@ -245,18 +253,18 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setIniciarTarget(voo)}
-                        disabled={emRota || temPouso}
+                        disabled={emJornada}
                       >
                         <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
                       </DropdownMenuItem>
-                      {emRota && (
+                      {emJornada && (
                         <DropdownMenuItem onClick={() => setHorariosTarget(voo)}>
-                          <Clock className="mr-2 h-4 w-4 text-amber-500" /> Atualizar horários
+                          <Clock className="mr-2 h-4 w-4 text-amber-500" /> Atualizar horários / pernas
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
                         onClick={() => setConcluirTarget(voo)}
-                        disabled={!emRota}
+                        disabled={!emJornada}
                       >
                         <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Conclusão direta
                       </DropdownMenuItem>

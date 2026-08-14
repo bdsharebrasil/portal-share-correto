@@ -192,6 +192,7 @@ export interface PernaVoo {
   horario_acionamento: string | null;
   horario_decolagem: string | null;
   horario_pouso: string | null;
+  horario_corte: string | null;
   qtd_passageiros: number | null;
   observacoes: string | null;
 }
@@ -996,6 +997,139 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar etapa do voo"),
   });
 
+  /**
+   * Registra os horários de UMA perna específica.
+   * - fase "iniciar": grava AC/DEP e coloca o voo em rota.
+   * - fase "pousar": grava ARR/CORT; se `finalizar` for true encerra a jornada (concluído),
+   *   caso contrário o voo fica como "pousado" aguardando a próxima perna.
+   */
+  const registrarHorariosPerna = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      perna,
+      fase,
+      dataPerna,
+      horarioAcionamento,
+      horarioDecolagem,
+      horarioPouso,
+      horarioCorte,
+      finalizar,
+    }: {
+      solicitacao: Solicitacao;
+      perna: PernaVoo;
+      fase: "iniciar" | "pousar";
+      dataPerna: string;
+      horarioAcionamento: string;
+      horarioDecolagem: string;
+      horarioPouso?: string | null;
+      horarioCorte?: string | null;
+      finalizar?: boolean;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+
+      const pernaUpdate: PernaVooUpdate = {
+        data_perna: dataPerna,
+        horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
+        horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
+      };
+      if (fase === "pousar") {
+        pernaUpdate.horario_pouso = horarioPouso ? `${horarioPouso}:00` : null;
+        pernaUpdate.horario_corte = horarioCorte ? new Date(`${dataPerna}T${horarioCorte}:00Z`).toISOString() : null;
+      }
+
+      const { error: pernaError } = await sb.from("pernas_voo").update(pernaUpdate).eq("id", perna.id);
+      if (pernaError) throw pernaError;
+
+      if (fase === "iniciar") {
+        const { error } = await sb
+          .from("solicitacoes_reserva_voo")
+          .update({
+            status: "em_rota",
+            data_partida: dataPerna,
+            horario_acionamento: `${horarioAcionamento}:00`,
+            horario_decolagem: `${horarioDecolagem}:00`,
+            horario_pouso: null,
+            horario_corte: null,
+          })
+          .eq("id", solicitacao.id);
+        if (error) throw error;
+
+        if (solicitacao.aeronave_id) {
+          await upsertStatusAeronave(solicitacao.aeronave_id, "em_voo", solicitacao.id, {
+            localizacao_atual: perna.origem ?? solicitacao.origem ?? null,
+            ultima_partida: new Date().toISOString(),
+          });
+        }
+        await registrarHistoricoStatus(
+          solicitacao.id,
+          solicitacao.status,
+          "em_rota",
+          userId,
+          `Perna ${perna.numero_perna} em rota`,
+        );
+        return "em_rota" as const;
+      }
+
+      if (!horarioPouso || !horarioCorte) throw new Error("Informe o pouso e o corte");
+      const corteIso = new Date(`${dataPerna}T${horarioCorte}:00Z`).toISOString();
+      const novoStatus = finalizar ? "concluido" : "pousado";
+
+      const { error } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: novoStatus,
+          data_partida: dataPerna,
+          horario_acionamento: `${horarioAcionamento}:00`,
+          horario_decolagem: `${horarioDecolagem}:00`,
+          horario_pouso: `${horarioPouso}:00`,
+          horario_corte: corteIso,
+        })
+        .eq("id", solicitacao.id);
+      if (error) throw error;
+
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(
+          solicitacao.aeronave_id,
+          finalizar ? "disponivel" : "em_solo",
+          finalizar ? null : solicitacao.id,
+          { localizacao_atual: perna.destino ?? solicitacao.destino ?? null },
+        );
+        if (finalizar) {
+          await sb
+            .from("ciclos_voo")
+            .update({ status: "concluido", concluido_em: new Date().toISOString() })
+            .eq("aeronave_id", solicitacao.aeronave_id)
+            .eq("data_voo", solicitacao.data_agendada)
+            .in("status", ["planejado", "em_andamento", "em_execucao"]);
+        }
+      }
+
+      if (finalizar) {
+        await sb.from("escala_tripulacao").update({ status: "concluido" }).eq("solicitacao_id", solicitacao.id);
+      }
+
+      await registrarHistoricoStatus(
+        solicitacao.id,
+        solicitacao.status,
+        novoStatus,
+        userId,
+        finalizar ? "Jornada encerrada" : `Perna ${perna.numero_perna} pousada`,
+      );
+      return novoStatus as "pousado" | "concluido";
+    },
+    onSuccess: (etapa) => {
+      toast.success(
+        etapa === "em_rota" ? "Perna em rota" : etapa === "pousado" ? "Pouso e corte registrados" : "Jornada concluída",
+      );
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["agv", "pernas"] });
+      qc.invalidateQueries({ queryKey: ["ciclos-voo"] });
+      qc.invalidateQueries({ queryKey: ["aircraft-fleet"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao registrar horários da perna"),
+  });
+
   const concluirVoo = useMutation({
     mutationFn: async ({
       solicitacao,
@@ -1241,7 +1375,7 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao registrar perna de voo"),
   });
 
-  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, confirmarVoo, escalarTripulacao, rejeitar, alterarStatusVoo, iniciarVoo, registrarEtapaVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, atualizarSolicitacao, adicionarPerna, aprovar, confirmarVoo, escalarTripulacao, rejeitar, alterarStatusVoo, iniciarVoo, registrarEtapaVoo, registrarHorariosPerna, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(
