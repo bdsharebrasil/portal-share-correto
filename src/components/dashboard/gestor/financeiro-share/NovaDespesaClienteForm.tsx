@@ -93,8 +93,13 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
   const [aeronaves, setAeronaves] = useState<any[]>([]);
   const [cotistas, setCotistas] = useState<any[]>([]);
   const [linhas, setLinhas] = useState<Linha[]>([novaLinha()]);
+  const [voos, setVoos] = useState<any[]>([]);
+  const [clienteVooId, setClienteVooId] = useState<string | null>(null);
+  const [relatorios, setRelatorios] = useState<any[]>([]);
+  const [loadingRelatorios, setLoadingRelatorios] = useState(false);
 
   const [form, setForm] = useState({
+    numero_voo: "",
     descricao: "",
     tipo: "despesa",
     fluxo: "saida",
@@ -116,6 +121,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
+
   useEffect(() => {
     (supabase as any)
       .from("expense_configu")
@@ -136,6 +142,14 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       .select("id,matricula,modelo")
       .order("matricula")
       .then(({ data }) => setAeronaves(data ?? []));
+
+    (supabase as any)
+      .from("solicitacoes_reserva_voo")
+      .select("id,numero_voo,cliente_id,aeronave_id,origem,destino,data_agendada")
+      .not("numero_voo", "is", null)
+      .order("data_agendada", { ascending: false })
+      .limit(400)
+      .then(({ data }: any) => setVoos(data ?? []));
   }, []);
 
   /* Cotistas da aeronave selecionada */
@@ -150,6 +164,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       .eq("id_aeronave", form.aeronave_id)
       .then(({ data }: any) => setCotistas(data ?? []));
   }, [form.aeronave_id]);
+
 
   const entrada = isEntradaTipo(form.tipo);
 
@@ -246,6 +261,115 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     });
   };
 
+  /* ── Número do voo: preenche cliente e aeronave ───────────────── */
+  const vooItems = useMemo(
+    () =>
+      voos.map((v: any) => ({
+        id: v.numero_voo,
+        label: `${v.numero_voo}${v.origem || v.destino ? ` — ${v.origem || "?"} → ${v.destino || "?"}` : ""}${
+          v.data_agendada ? ` (${new Date(v.data_agendada + "T00:00:00").toLocaleDateString("pt-BR")})` : ""
+        }`,
+      })),
+    [voos],
+  );
+
+  const escolherVoo = (numero: string) => {
+    const v = voos.find((x: any) => x.numero_voo === numero);
+    set({ numero_voo: numero, aeronave_id: v?.aeronave_id || form.aeronave_id });
+    setClienteVooId(v?.cliente_id || null);
+  };
+
+  /* Seleciona automaticamente o cotista do cliente do voo */
+  useEffect(() => {
+    if (!clienteVooId || cotistas.length === 0) return;
+    const c = cotistas.find((x: any) => x.id_clientes === clienteVooId);
+    if (!c) return;
+    const pct = c.percentual_sociedade != null ? String(c.percentual_sociedade) : "";
+    setLinhas((ls) => {
+      const primeira = ls[0];
+      if (primeira?.cliente_id === clienteVooId) return ls;
+      const nova: Linha = {
+        ...(primeira ?? novaLinha()),
+        cliente_id: c.id_clientes || null,
+        socio_id: c.socios_id || null,
+        clientes_nome: c.clientes?.razao_social || c.clientes?.proprietario || null,
+        socios_nome: c.socios?.nome || null,
+        percentual_uso: pct,
+        valor_rateado: pct && valorTotal ? ((valorTotal * Number(pct)) / 100).toFixed(2) : "",
+      };
+      return [nova, ...ls.slice(1)];
+    });
+  }, [clienteVooId, cotistas]);
+
+  /* ── Despesas de viagem: busca relatórios em aberto do cliente ── */
+  const isDespesaViagem = (categoriaNome || "").toUpperCase().includes("VIAGEM");
+  const clienteAlvo = clienteVooId || linhas.find((l) => l.cliente_id)?.cliente_id || null;
+
+  useEffect(() => {
+    if (!isDespesaViagem || !clienteAlvo) {
+      setRelatorios([]);
+      return;
+    }
+    let cancel = false;
+    setLoadingRelatorios(true);
+    (async () => {
+      let q = (supabase as any)
+        .from("travel_expense_reports")
+        .select("id,numero_relatorio,numero_voo,total_valor,data_inicio,data_fim,rota,status")
+        .eq("clientes_id", clienteAlvo)
+        .order("data_inicio", { ascending: false });
+      if (form.numero_voo) q = q.eq("numero_voo", form.numero_voo);
+      const { data } = await q;
+      const lista = data ?? [];
+      const ids = lista.map((r: any) => r.id);
+      let pagoPorRelatorio: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: movs } = await (supabase as any)
+          .from("movimentacoes")
+          .select("reference_id,valor_total,valor_rateado")
+          .eq("reference_type", "relatorio_viagem")
+          .in("reference_id", ids);
+        (movs ?? []).forEach((m: any) => {
+          const v = Number(m.valor_total ?? m.valor_rateado ?? 0);
+          pagoPorRelatorio[m.reference_id] = (pagoPorRelatorio[m.reference_id] || 0) + v;
+        });
+      }
+      const comSaldo = lista
+        .map((r: any) => {
+          const total = Number(r.total_valor || 0);
+          const pago = pagoPorRelatorio[r.id] || 0;
+          return { ...r, total, pago, saldo: Number((total - pago).toFixed(2)) };
+        })
+        .filter((r: any) => r.saldo > 0.009);
+      if (!cancel) {
+        setRelatorios(comSaldo);
+        setLoadingRelatorios(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [isDespesaViagem, clienteAlvo, form.numero_voo]);
+
+  /* Abatimento em cascata: consome o valor informado nos relatórios em aberto */
+  const alocacoes = useMemo(() => {
+    if (!isDespesaViagem || relatorios.length === 0 || valorTotal <= 0) return [] as any[];
+    let restante = valorTotal;
+    const res: any[] = [];
+    for (const r of relatorios) {
+      if (restante <= 0.009) break;
+      const usa = Math.min(restante, r.saldo);
+      restante = Number((restante - usa).toFixed(2));
+      res.push({ ...r, alocado: Number(usa.toFixed(2)) });
+    }
+    return res;
+  }, [isDespesaViagem, relatorios, valorTotal]);
+
+  const totalAlocado = alocacoes.reduce((a, r) => a + r.alocado, 0);
+  const sobra = Number((valorTotal - totalAlocado).toFixed(2));
+
+
+
   const salvar = async () => {
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
@@ -285,91 +409,113 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       const pagoDiretamente =
         !entrada && !form.pago_pela_share && !String(form.conta_bancaria || "").trim();
 
-      const payload: any = {
-        descricao: form.descricao.trim(),
-        fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
-        tipo_caixa: "cliente",
-        categoria_id: form.categoria_id || null,
-        categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
-        periodicidade: form.periodicidade || null,
-        tipo_rateio: form.tipo_rateio || null,
-        aeronave_id: form.aeronave_id,
-        clientes_id: clienteMov,
-        socio_id: socioMov,
-        socios_nome: socioMov ? socioNomeMov : null,
-        valor_total: valorTotal,
-        valor_rateado: totalRateado || valorTotal,
-        data_emissao: form.data_emissao,
-        data_vencimento: form.data_vencimento || null,
-        data_pagamento: form.data_pagamento || null,
-        status: statusMov,
-        forma_pagamento: form.forma_pagamento || null,
-        conta_bancaria: form.conta_bancaria || null,
-        pago_por: pagadorMov,
-        pago_diretamente: pagoDiretamente,
-        fornecedor_nome: form.fornecedor_nome || null,
-        observacoes: form.observacoes || null,
-        reembolsavel: form.pago_pela_share && !entrada,
-        reembolso_quitado: false,
-        criado_por: criadoPor,
-      };
+      // Quando é despesa de viagem com relatórios em aberto, o valor informado
+      // é abatido em cascata: 1 movimentação por relatório abatido.
+      const destinos: any[] = alocacoes.length > 0 ? alocacoes : [null];
+      const criados: any[] = [];
 
-      const { data: mov, error } = await supabase
-        .from("movimentacoes")
-        .insert(payload as any)
-        .select("*")
-        .single();
-      if (error) throw error;
+      for (const rel of destinos) {
+        const valorItem = rel ? rel.alocado : valorTotal;
+        const fator = valorTotal > 0 ? valorItem / valorTotal : 1;
+        const descricaoItem = rel
+          ? `${form.descricao.trim()} — Rel. ${rel.numero_relatorio || rel.numero_voo || ""}`.trim()
+          : form.descricao.trim();
 
-      const comuns: any = {
-        despesa_id: (mov as any).id,
-        movimentacao_origem_id: (mov as any).id,
-        fonte_despesa: "movimentacoes",
-        descricao_despesa: payload.descricao,
-        tipo_rateio: form.tipo_rateio || null,
-        fluxo: form.fluxo || (entrada ? "entrada" : "saida"),
-        periodicidade: form.periodicidade || null,
-        forma_pagamento: form.forma_pagamento || null,
-        fornecedor_nome: form.fornecedor_nome || null,
-        data_emissao: form.data_emissao,
-        data_vencimento: form.data_vencimento || null,
-        data_pagamento: form.data_pagamento || null,
-        percentual_uso: linhasValidas.length === 1 && linhasValidas[0].percentual_uso !== ""
-          ? Number(linhasValidas[0].percentual_uso)
-          : null,
-        aeronave_id: form.aeronave_id,
-        aeronave_registro: aeronaveRegistro,
-        valor_total: valorTotal,
-        categoria_custo: form.categoria_id || null,
-        categoria_nome: categoriaNome,
-        conta_bancaria: form.conta_bancaria || null,
-        ...(form.subcategoria_key && subcategoriaNome
-          ? { [form.subcategoria_key]: subcategoriaNome }
-          : {}),
-      };
-
-      for (const l of linhasValidas) {
-        const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({
-          ...comuns,
-          cliente_id: l.cliente_id,
-          clientes_nome: l.clientes_nome,
-          socio_id: l.socio_id,
-          socios_nome: l.socios_nome,
-          percentual_sociedade: l.percentual_uso === "" ? null : Number(l.percentual_uso),
-          percentual_uso: l.percentual_uso === "" ? null : Number(l.percentual_uso),
-          valor_rateado: l.valor_rateado === "" ? null : Number(l.valor_rateado),
-          valor_pago_real: form.pago_pela_share ? null : (l.valor_rateado === "" ? null : Number(l.valor_rateado)),
-          pago_por: form.pago_pela_share ? SHARE_BRASIL : l.socios_nome || l.clientes_nome,
+        const payload: any = {
+          descricao: descricaoItem,
+          fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
+          tipo_caixa: "cliente",
+          numero_voo: rel?.numero_voo || form.numero_voo || null,
+          categoria_id: form.categoria_id || null,
+          categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
+          periodicidade: form.periodicidade || null,
+          tipo_rateio: form.tipo_rateio || null,
+          aeronave_id: form.aeronave_id,
+          clientes_id: clienteMov,
+          socio_id: socioMov,
+          socios_nome: socioMov ? socioNomeMov : null,
+          valor_total: valorItem,
+          valor_rateado: Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          data_emissao: form.data_emissao,
+          data_vencimento: form.data_vencimento || null,
+          data_pagamento: form.data_pagamento || null,
+          status: statusMov,
+          forma_pagamento: form.forma_pagamento || null,
+          conta_bancaria: form.conta_bancaria || null,
+          pago_por: pagadorMov,
           pago_diretamente: pagoDiretamente,
-          status: form.pago_pela_share ? "aguardando_reembolso" : statusMov,
-        });
-        if (rErr) throw rErr;
+          fornecedor_nome: form.fornecedor_nome || null,
+          observacoes: form.observacoes || null,
+          reembolsavel: form.pago_pela_share && !entrada,
+          reembolso_quitado: false,
+          criado_por: criadoPor,
+          ...(rel ? { reference_type: "relatorio_viagem", reference_id: rel.id } : {}),
+        };
+
+        const { data: mov, error } = await supabase
+          .from("movimentacoes")
+          .insert(payload as any)
+          .select("*")
+          .single();
+        if (error) throw error;
+
+        const comuns: any = {
+          despesa_id: (mov as any).id,
+          movimentacao_origem_id: (mov as any).id,
+          fonte_despesa: "movimentacoes",
+          descricao_despesa: payload.descricao,
+          numero_voo: payload.numero_voo,
+          tipo_rateio: form.tipo_rateio || null,
+          fluxo: form.fluxo || (entrada ? "entrada" : "saida"),
+          periodicidade: form.periodicidade || null,
+          forma_pagamento: form.forma_pagamento || null,
+          fornecedor_nome: form.fornecedor_nome || null,
+          data_emissao: form.data_emissao,
+          data_vencimento: form.data_vencimento || null,
+          data_pagamento: form.data_pagamento || null,
+          percentual_uso: linhasValidas.length === 1 && linhasValidas[0].percentual_uso !== ""
+            ? Number(linhasValidas[0].percentual_uso)
+            : null,
+          aeronave_id: form.aeronave_id,
+          aeronave_registro: aeronaveRegistro,
+          valor_total: valorItem,
+          categoria_custo: form.categoria_id || null,
+          categoria_nome: categoriaNome,
+          conta_bancaria: form.conta_bancaria || null,
+          ...(form.subcategoria_key && subcategoriaNome
+            ? { [form.subcategoria_key]: subcategoriaNome }
+            : {}),
+        };
+
+        for (const l of linhasValidas) {
+          const rateado = l.valor_rateado === "" ? null : Number((Number(l.valor_rateado) * fator).toFixed(2));
+          const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({
+            ...comuns,
+            cliente_id: l.cliente_id,
+            clientes_nome: l.clientes_nome,
+            socio_id: l.socio_id,
+            socios_nome: l.socios_nome,
+            percentual_sociedade: l.percentual_uso === "" ? null : Number(l.percentual_uso),
+            percentual_uso: l.percentual_uso === "" ? null : Number(l.percentual_uso),
+            valor_rateado: rateado,
+            valor_pago_real: form.pago_pela_share ? null : rateado,
+            pago_por: form.pago_pela_share ? SHARE_BRASIL : l.socios_nome || l.clientes_nome,
+            pago_diretamente: pagoDiretamente,
+            status: form.pago_pela_share ? "aguardando_reembolso" : statusMov,
+          });
+          if (rErr) throw rErr;
+        }
+
+        criados.push(mov);
       }
 
+      toast.success(
+        alocacoes.length > 0
+          ? `Lançamento abatido em ${alocacoes.length} relatório(s) de despesa de viagem.`
+          : "Lançamento criado no Caixa Cliente.",
+      );
+      onSaved(criados);
 
-
-      toast.success("Lançamento criado no Caixa Cliente.");
-      onSaved([mov]);
     } catch (e: any) {
       toast.error(e.message || "Erro ao salvar lançamento.");
     } finally {
