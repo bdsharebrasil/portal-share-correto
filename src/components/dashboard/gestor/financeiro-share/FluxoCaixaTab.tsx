@@ -26,6 +26,8 @@ import {
   HandCoins,
   CheckCircle2,
   CalendarDays,
+  Building2,
+  PiggyBank,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -90,13 +92,19 @@ function ResizableTh({
 
 /* ─────────────────────────── types ─────────────────────────── */
 
+/** Cliente DGA — movimentações exibidas em roxo no financeiro Share */
+const CLIENTE_DGA_ID = "738850b2-d19c-496b-b2d3-35ecc64bd862";
+
 interface Movimentacao {
   id: string;
   descricao: string | null;
+  /** @deprecated coluna não existe em `movimentacoes` — usar `fluxo` */
   tipo: string | null;
+  fluxo: string | null;
   tipo_caixa: string | null;
   valor?: string | number | null;
   valor_original?: string | number | null;
+  valor_total?: string | number | null;
   aeronave_id?: string | null;
   data_emissao: string | null;
   data_vencimento: string | null;
@@ -128,6 +136,7 @@ interface Movimentacao {
   valor_rateado: string | number | null;
   valor_pago_real: string | number | null;
   pago_por: string | null;
+  socios_nome: string | null;
 }
 
 interface Categoria { id: string; nome: string; grupo_categoria: string | null }
@@ -165,15 +174,18 @@ const isGrupoReembolsavel = (grupo: string | null | undefined) =>
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
 const valorDe = (m: Movimentacao) => num(m.valor_rateado) || num(m.valor) || num(m.valor_original);
-const valorTotalDe = (m: Movimentacao) => num(m.valor_original) || valorDe(m);
+// valor_total é o campo real da tabela (valor_original não existe em `movimentacoes`).
+const valorTotalDe = (m: Movimentacao) => num(m.valor_total) || num(m.valor_original) || valorDe(m);
 
 const aguardandoReembolso = (m: Movimentacao) =>
   !!m.reembolsavel && !m.reembolso_quitado &&
-  (norm(m.tipo) === "aguardando_reembolso" || norm(m.status) === "aguardando_reembolso" || !!m.data_pagamento);
+  (norm(m.fluxo) === "aguardando_reembolso" || norm(m.status) === "aguardando_reembolso" || !!m.data_pagamento);
 
 const isEntrada = (m: Movimentacao) => {
-  const t = norm(m.tipo);
-  return t === "receita" || t === "entrada" || t === "credito" || t === "deposito";
+  // `fluxo` é a coluna real da tabela (valores: entrada | saida | despesa | estorno).
+  // Um estorno devolve dinheiro ao caixa, então também conta como entrada.
+  const f = norm(m.fluxo);
+  return f === "entrada" || f === "estorno" || f === "receita" || f === "credito" || f === "deposito";
 };
 
 const isShare = (m: Movimentacao) => norm(m.tipo_caixa) === "share";
@@ -181,6 +193,14 @@ const isShare = (m: Movimentacao) => norm(m.tipo_caixa) === "share";
 /** Despesa de cliente que saiu do caixa da Share (não foi paga direto pelo cliente). */
 const pagoPelaShare = (m: Movimentacao) =>
   !isShare(m) && !isEntrada(m) && !m.pago_diretamente && aguardandoReembolso(m);
+
+/**
+ * Identifica lançamentos da conta comum da DGA , independentemente de tipo_caixa.
+ * A conta é cadastrada em `contas_bancarias` como "DGA - BRADESCO 1868-6", mas o texto
+ * salvo em `movimentacoes.conta_bancaria` varia (com/sem número, hífen normal ou travessão),
+ * por isso o match é por "contém DGA".
+ */
+const isDGA = (m: Movimentacao) => norm(m.conta_bancaria).includes("dga");
 
 
 const formatDate = (d?: string | null) =>
@@ -251,12 +271,13 @@ function StatusDot({ m }: { m: Movimentacao }) {
 
 /* ─────────────────────────── tabs ─────────────────────────── */
 
-type TabKey = "caixa_share" | "caixa_cliente" | "despesas_reembolsaveis" | "contas_pagar" | "contas_receber";
+type TabKey = "caixa_share" | "caixa_cliente" | "caixa_dga" | "despesas_reembolsaveis" | "contas_pagar" | "contas_receber";
 type FlowFilter = "todos" | "saidas" | "entradas";
 
 const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
   { key: "caixa_share",             label: "Caixa Share",             icon: Layers },
   { key: "caixa_cliente",           label: "Caixa Cliente",           icon: Wallet },
+  { key: "caixa_dga",               label: "DGA",           icon: Building2 },
   { key: "despesas_reembolsaveis",  label: "Despesas Reembolsáveis",  icon: HandCoins },
   { key: "contas_pagar",            label: "Contas a Pagar",          icon: TrendingDown },
   { key: "contas_receber",          label: "Contas a Receber",        icon: TrendingUp },
@@ -296,6 +317,7 @@ export default function FluxoCaixaTab() {
   const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
   // Filtro de mês (estilo apex-grid): null = "Todos os meses".
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedDgaCard, setSelectedDgaCard] = useState<string | null>(null);
   const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa-share", {
     data: 130, descricao: 260, categoria: 150, cliente: 170, valor: 130, status: 130, docs: 90,
   });
@@ -443,6 +465,10 @@ export default function FluxoCaixaTab() {
     return categoriaGrupos[categoriaCusto ?? ""] || null;
   }, [categoriaGrupos, categoriaCustoPorDespesa]);
 
+  const dgaAporteNome = useCallback((m: Movimentacao) => (
+    m.socios_nome || (m.socio_id ? resolveName(m) : null) || "Não identificado"
+  ), [resolveName]);
+
   const subcategoriasOf = useCallback(
     (m: Movimentacao) => subcatsPorDespesa[m.id] ?? [],
     [subcatsPorDespesa],
@@ -469,7 +495,13 @@ export default function FluxoCaixaTab() {
       case "despesas_reembolsaveis": list = list.filter((m) =>
         (isShare(m) || pagoPelaShare(m)) && isGrupoReembolsavel(grupoOf(m))
       ); break;
-      case "caixa_cliente":  list = list.filter((m) => !isShare(m)); break;
+      // Caixa Cliente: tudo que não é caixa share, exceto a conta comum da DGA — que tem
+      // aba própria, pois é um fundo com lógica de aporte de sócios diferente
+      // dos demais clientes.
+      case "caixa_cliente":  list = list.filter((m) => !isShare(m) && !isDGA(m)); break;
+      // DGA : apenas os lançamentos da conta comum, sem filtro de tipo_caixa —
+      // aportes dos cotistas (entradas) e despesas pagas pelo fundo (saídas).
+      case "caixa_dga":      list = list.filter(isDGA); break;
       case "contas_pagar":   list = list.filter((m) => {
         const isPayable = !isEntrada(m);
         const kind = statusOf(m).kind;
@@ -532,11 +564,17 @@ export default function FluxoCaixaTab() {
     }
   }, [availableMonths, selectedMonth]);
 
-  /* ── filter (aplica o filtro de mês + ordenação por cima do filtro-base) ── */
+  /* ── filtro de mês ── */
+  const monthFilteredMovs = useMemo(() => {
+    if (selectedMonth === null) return baseFilteredMovs;
+    return baseFilteredMovs.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+  }, [baseFilteredMovs, selectedMonth, dateOf]);
+
+  /* ── filtro do card DGA + ordenação ── */
   const filteredMovs = useMemo(() => {
-    let list = baseFilteredMovs;
-    if (selectedMonth !== null) {
-      list = list.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+    let list = monthFilteredMovs;
+    if (activeTab === "caixa_dga" && selectedDgaCard) {
+      list = list.filter((m) => isEntrada(m) && dgaAporteNome(m) === selectedDgaCard);
     }
     list = [...list].sort((a, b) => {
       let cmp = 0;
@@ -548,7 +586,7 @@ export default function FluxoCaixaTab() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [baseFilteredMovs, selectedMonth, dateOf, sortBy, sortDir, resolveName]);
+  }, [monthFilteredMovs, activeTab, selectedDgaCard, dateOf, sortBy, sortDir, resolveName, dgaAporteNome]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -570,6 +608,34 @@ export default function FluxoCaixaTab() {
     }
     return { entradas, saidas, saldo: entradas - saidas, pendentes, total: filteredMovs.length };
   }, [filteredMovs]);
+
+  /* ── DGA: saldo em caixa (sempre acumulado, não respeita o filtro de mês — é um saldo,
+     não um total do período) + aportes por cotista (respeita mês/busca/status, igual à tabela) ── */
+  const dgaStats = useMemo(() => {
+    const dgaMovs = movs.filter(isDGA);
+    let saldo = 0;
+    for (const m of dgaMovs) saldo += isEntrada(m) ? valorDe(m) : -valorDe(m);
+
+    const aportesPorSocio = new Map<string, number>();
+    for (const m of monthFilteredMovs) {
+      if (activeTab !== "caixa_dga" || !isEntrada(m)) continue;
+      const nome = dgaAporteNome(m);
+      aportesPorSocio.set(nome, (aportesPorSocio.get(nome) ?? 0) + valorDe(m));
+    }
+    return {
+      saldo,
+      totalMovimentos: dgaMovs.length,
+      aportes: Array.from(aportesPorSocio.entries())
+        .map(([nome, total]) => ({ nome, total }))
+        .sort((a, b) => b.total - a.total),
+    };
+  }, [movs, monthFilteredMovs, activeTab, dgaAporteNome]);
+
+  useEffect(() => {
+    if (selectedDgaCard && !dgaStats.aportes.some((aporte) => aporte.nome === selectedDgaCard)) {
+      setSelectedDgaCard(null);
+    }
+  }, [dgaStats.aportes, selectedDgaCard]);
 
   /* ── actions ── */
   const doAction = useCallback(async (m: Movimentacao, action: "baixa" | "rejeitar") => {
@@ -716,7 +782,7 @@ export default function FluxoCaixaTab() {
 
           return (
             <button key={t.key}
-              onClick={() => { setActiveTab(t.key); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
+              onClick={() => { setActiveTab(t.key); setSelectedDgaCard(null); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                 active ? activeClasses : "bg-card/50 text-muted-foreground border-border hover:text-foreground hover:bg-card/80"
               }`}>
@@ -770,6 +836,60 @@ export default function FluxoCaixaTab() {
               onSaved={onNewMovSaved}
             />
           )}
+        </div>
+      )}
+
+      {/* DGA: saldo do fundo + aportes por cotista */}
+      {activeTab === "caixa_dga" && (
+        <div className="rounded-2xl border border-purple-500/25 bg-purple-500/[0.04] p-4 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-bold text-purple-200">
+              <PiggyBank className="h-4 w-4" />
+              Saldo em Caixa DGA
+              <span className="font-normal text-[11px] text-purple-200/60">(acumulado, conta DGA - BRADESCO 1868-6)</span>
+            </div>
+            <div className={`font-bold text-2xl tracking-tight ${dgaStats.saldo >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+              {formatBRL(dgaStats.saldo)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-purple-200/70 mb-2">
+              Aportes dos cotistas {selectedMonth !== null ? `em ${MESES[selectedMonth]}` : "(todos os meses, conforme filtro)"}
+            </div>
+            {dgaStats.aportes.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">Nenhum aporte encontrado para os filtros selecionados.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {dgaStats.aportes.map((a) => {
+                  const selected = selectedDgaCard === a.nome;
+                  return (
+                    <button
+                      key={a.nome}
+                      type="button"
+                      onClick={() => { setSelectedDgaCard(selected ? null : a.nome); setCurrentPage(1); }}
+                      aria-pressed={selected}
+                      className={`rounded-lg border px-3 py-2 flex items-center justify-between text-left transition-colors ${
+                        selected
+                          ? "border-purple-300/70 bg-purple-400/20 ring-1 ring-purple-300/40"
+                          : "border-purple-500/20 bg-background/40 hover:border-purple-300/50 hover:bg-purple-400/10"
+                      }`}
+                    >
+                      <span className="text-xs font-medium text-foreground">{a.nome}</span>
+                      <span className="text-sm font-bold text-emerald-300">{formatBRL(a.total)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {selectedDgaCard && (
+              <div className="flex items-center justify-between gap-3 border-t border-purple-500/20 pt-3 text-xs">
+                <span className="text-purple-100/80">Exibindo apenas lançamentos de <strong className="text-foreground">{selectedDgaCard}</strong>.</span>
+                <button type="button" onClick={() => { setSelectedDgaCard(null); setCurrentPage(1); }} className="shrink-0 text-purple-200 underline-offset-2 hover:underline">
+                  Limpar seleção
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1049,8 +1169,21 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
   const [rateio, setRateio] = useState<any>(null);
   const [loadingRateio, setLoadingRateio] = useState(false);
 
-  // Paleta de Cores baseadas no tipo de Caixa (Share = Verde, Cliente = Azul)
-  const theme = isShareRow ? {
+  // Paleta de Cores baseadas no tipo de Caixa (Share = Verde, Cliente = Azul, DGA = Roxo)
+  const isDga = (m as any).clientes_id === CLIENTE_DGA_ID;
+  const theme = isDga ? {
+    textMain: "text-purple-50",
+    textMuted: "text-purple-200/60",
+    catBg: "bg-purple-500/10",
+    catText: "text-purple-400",
+    catBorder: "border-purple-500/30",
+    subBg: "bg-purple-500/5",
+    subText: "text-purple-400/80",
+    subBorder: "border-purple-500/20",
+    hoverBg: "hover:bg-purple-900/20",
+    expandedBg: "rgba(76,29,149,0.18)",
+    borderBottom: "rgba(168,85,247,0.25)"
+  } : isShareRow ? {
     textMain: "text-emerald-50",
     textMuted: "text-emerald-200/60",
     catBg: "bg-emerald-500/10",
@@ -1075,6 +1208,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
     expandedBg: "rgba(30,58,138,0.15)",
     borderBottom: "rgba(59,130,246,0.15)"
   };
+
 
   useEffect(() => {
     if (!expanded || rateio) return;
