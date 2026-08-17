@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
-import { X, Save, Users, Plus, Trash2, Plane } from "lucide-react";
+import { FileText, Loader2, Plane, Plus, Save, Trash2, Users, X } from "lucide-react";
 
 interface Props {
   onCancel: () => void;
@@ -556,6 +556,18 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
+            <Label className="flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" /> Número do voo</Label>
+            <SearchableCombobox
+              items={vooItems}
+              value={form.numero_voo}
+              onChange={escolherVoo}
+              placeholder="Selecione o voo"
+              searchPlaceholder="Buscar número do voo..."
+              emptyMessage="Nenhum voo encontrado."
+            />
+          </div>
+
+          <div>
             <Label className="flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" /> Aeronave *</Label>
             <SearchableCombobox
               items={aeronaveItems}
@@ -671,6 +683,61 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             />
           </div>
         </div>
+
+        {isDespesaViagem && clienteAlvo && (
+          <div className="space-y-3 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-400" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Abatimento em relatórios de viagem</p>
+                  <p className="text-xs text-muted-foreground">O valor será distribuído pelos relatórios em aberto.</p>
+                </div>
+              </div>
+              {loadingRelatorios && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
+            </div>
+
+            {loadingRelatorios ? (
+              <p className="text-sm text-muted-foreground">Carregando relatórios em aberto...</p>
+            ) : alocacoes.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {alocacoes.map((relatorio) => {
+                    const saldoAposAbatimento = Number((relatorio.saldo - relatorio.alocado).toFixed(2));
+                    return (
+                      <div key={relatorio.id} className="flex flex-col gap-1 rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <span className="font-medium text-foreground">
+                            Relatório {relatorio.numero_relatorio || relatorio.numero_voo || "sem número"}
+                          </span>
+                          {relatorio.rota && <span className="ml-2 text-xs text-muted-foreground">{relatorio.rota}</span>}
+                        </div>
+                        <div className="flex gap-3 text-xs">
+                          <span className="text-muted-foreground">Abatido: <strong className="text-foreground">R$ {relatorio.alocado.toFixed(2)}</strong></span>
+                          <span className="text-muted-foreground">Saldo: <strong className="text-foreground">R$ {saldoAposAbatimento.toFixed(2)}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total abatido</p>
+                    <p className="font-semibold text-foreground">R$ {totalAlocado.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Saldo restante</p>
+                    <p className={sobra > 0.009 ? "font-semibold text-amber-400" : "font-semibold text-emerald-400"}>R$ {sobra.toFixed(2)}</p>
+                  </div>
+                </div>
+              </>
+            ) : relatorios.length > 0 ? (
+              <p className="text-sm text-muted-foreground">Informe o valor do lançamento para visualizar os abatimentos.</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum relatório de viagem em aberto para este cliente.</p>
+            )}
+          </div>
+        )}
 
         {/* Rateio por cotista */}
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
