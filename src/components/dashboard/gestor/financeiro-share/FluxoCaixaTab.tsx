@@ -30,6 +30,7 @@ import {
   PiggyBank,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { formatBRL } from "@/lib/format";
 import BaixaPagamentoModal from "./BaixaPagamentoModal";
 import ReembolsoModal from "./ReembolsoModal";
@@ -97,6 +98,7 @@ const CLIENTE_DGA_ID = "738850b2-d19c-496b-b2d3-35ecc64bd862";
 
 interface Movimentacao {
   id: string;
+  origem?: "rateio_abastecimento";
   descricao: string | null;
   /** @deprecated coluna não existe em `movimentacoes` — usar `fluxo` */
   tipo: string | null;
@@ -141,6 +143,51 @@ interface Movimentacao {
 
 interface Categoria { id: string; nome: string; grupo_categoria: string | null }
 interface Pessoa { id: string; nome: string | null }
+
+type RateioDespesa = Database["public"]["Tables"]["rateio_despesas"]["Row"];
+
+const movimentacaoDeRateioAbastecimento = (rateio: RateioDespesa): Movimentacao => ({
+  id: rateio.despesa_id,
+  origem: "rateio_abastecimento",
+  descricao: rateio.descricao_despesa,
+  tipo: null,
+  fluxo: rateio.fluxo,
+  tipo_caixa: "cliente",
+  valor: rateio.valor_pago_real ?? rateio.valor_total ?? rateio.valor_rateado,
+  valor_total: rateio.valor_total,
+  aeronave_id: rateio.aeronave_id,
+  data_emissao: rateio.data_emissao,
+  data_vencimento: rateio.data_vencimento,
+  data_pagamento: rateio.data_pagamento,
+  clientes_id: rateio.cliente_id,
+  socio_id: rateio.socio_id,
+  categoria_id: rateio.categoria_custo,
+  categoria_nome: rateio.categoria_nome,
+  status: rateio.status,
+  forma_pagamento: rateio.forma_pagamento,
+  fornecedor_nome: rateio.fornecedor_nome,
+  numero_doc: rateio.numero_doc,
+  numero_nf: rateio.numero_nf,
+  numero_boleto: rateio.numero_boleto,
+  numero_recibo: rateio.numero_recibo,
+  comprovante_url: rateio.comprovante_url,
+  nf_url: rateio.nf_url,
+  boleto_url: rateio.boleto_url,
+  recibo_url: rateio.recibo_url,
+  conta_bancaria: rateio.conta_bancaria,
+  reembolsavel: false,
+  reembolso_quitado: false,
+  observacoes: rateio.observacoes,
+  reference_type: "abastecimento",
+  contas_apagar_id: null,
+  contas_areceber_id: null,
+  pago_diretamente: rateio.pago_diretamente,
+  percentual_uso: rateio.percentual_uso,
+  valor_rateado: rateio.valor_rateado,
+  valor_pago_real: rateio.valor_pago_real,
+  pago_por: rateio.pago_por,
+  socios_nome: rateio.socios_nome,
+});
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -333,13 +380,28 @@ export default function FluxoCaixaTab() {
   const fetchMovs = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error: e } = await supabase
-        .from("movimentacoes")
-        .select("*")
-        .order("data_emissao", { ascending: false })
-        .limit(5000);
-      if (e) throw e;
-      setMovs((data ?? []) as unknown as Movimentacao[]);
+      const [movimentacoes, abastecimentos] = await Promise.all([
+        supabase
+          .from("movimentacoes")
+          .select("*")
+          .order("data_emissao", { ascending: false })
+          .limit(5000),
+        supabase
+          .from("rateio_despesas")
+          .select("*")
+          .eq("fonte_despesa", "abastecimento")
+          .limit(5000),
+      ]);
+      if (movimentacoes.error) throw movimentacoes.error;
+      if (abastecimentos.error) throw abastecimentos.error;
+
+      const registros = (movimentacoes.data ?? []) as unknown as Movimentacao[];
+      const idsDeMovimentacoes = new Set(registros.map((movimentacao) => movimentacao.id));
+      const abastecimentosSemMovimentacao = (abastecimentos.data ?? [])
+        .filter((rateio) => !idsDeMovimentacoes.has(rateio.despesa_id))
+        .map(movimentacaoDeRateioAbastecimento);
+
+      setMovs([...registros, ...abastecimentosSemMovimentacao]);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -1168,6 +1230,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
 }) {
   const [rateio, setRateio] = useState<any>(null);
   const [loadingRateio, setLoadingRateio] = useState(false);
+  const somenteLeitura = m.origem === "rateio_abastecimento";
 
   // Paleta de Cores baseadas no tipo de Caixa (Share = Verde, Cliente = Azul, DGA = Roxo)
   const isDga = (m as any).clientes_id === CLIENTE_DGA_ID;
@@ -1302,10 +1365,12 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                 <HandCoins className="h-3.5 w-3.5" />
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors" title="Deletar">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {!somenteLeitura && (
+              <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors" title="Deletar">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
             <ChevronDown className={`h-4 w-4 ${theme.textMuted} transition-transform ${expanded ? "rotate-180" : ""}`} />
           </div>
         </td>
@@ -1332,18 +1397,24 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
-                  {!isPaid ? (
-                    <button onClick={(e) => { e.stopPropagation(); onApprove(); }} disabled={actionLoading !== null}
-                      className="px-6 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0e7490", minWidth: 100 }}>
-                      {actionLoading === m.id + "baixa" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Dar Baixa"}
-                    </button>
+                  {somenteLeitura ? (
+                    <span className="px-4 py-2 rounded-lg text-xs font-bold bg-muted/60 text-muted-foreground border border-border text-center">Gerenciado em Abastecimentos</span>
                   ) : (
-                    <span className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-400/20 text-center">Quitado</span>
+                    <>
+                      {!isPaid ? (
+                        <button onClick={(e) => { e.stopPropagation(); onApprove(); }} disabled={actionLoading !== null}
+                          className="px-6 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0e7490", minWidth: 100 }}>
+                          {actionLoading === m.id + "baixa" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Dar Baixa"}
+                        </button>
+                      ) : (
+                        <span className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-400/20 text-center">Quitado</span>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                        className="px-6 py-2 rounded-lg text-xs font-bold text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5" style={{ minWidth: 100 }}>
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </button>
+                    </>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                    className="px-6 py-2 rounded-lg text-xs font-bold text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5" style={{ minWidth: 100 }}>
-                    <Pencil className="h-3.5 w-3.5" /> Editar
-                  </button>
                 </div>
               </div>
 
