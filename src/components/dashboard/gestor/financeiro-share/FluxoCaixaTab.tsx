@@ -317,6 +317,7 @@ export default function FluxoCaixaTab() {
   const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
   // Filtro de mês (estilo apex-grid): null = "Todos os meses".
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedDgaCard, setSelectedDgaCard] = useState<string | null>(null);
   const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa-share", {
     data: 130, descricao: 260, categoria: 150, cliente: 170, valor: 130, status: 130, docs: 90,
   });
@@ -464,6 +465,10 @@ export default function FluxoCaixaTab() {
     return categoriaGrupos[categoriaCusto ?? ""] || null;
   }, [categoriaGrupos, categoriaCustoPorDespesa]);
 
+  const dgaAporteNome = useCallback((m: Movimentacao) => (
+    m.socios_nome || (m.socio_id ? resolveName(m) : null) || "Não identificado"
+  ), [resolveName]);
+
   const subcategoriasOf = useCallback(
     (m: Movimentacao) => subcatsPorDespesa[m.id] ?? [],
     [subcatsPorDespesa],
@@ -559,11 +564,17 @@ export default function FluxoCaixaTab() {
     }
   }, [availableMonths, selectedMonth]);
 
-  /* ── filter (aplica o filtro de mês + ordenação por cima do filtro-base) ── */
+  /* ── filtro de mês ── */
+  const monthFilteredMovs = useMemo(() => {
+    if (selectedMonth === null) return baseFilteredMovs;
+    return baseFilteredMovs.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+  }, [baseFilteredMovs, selectedMonth, dateOf]);
+
+  /* ── filtro do card DGA + ordenação ── */
   const filteredMovs = useMemo(() => {
-    let list = baseFilteredMovs;
-    if (selectedMonth !== null) {
-      list = list.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+    let list = monthFilteredMovs;
+    if (activeTab === "caixa_dga" && selectedDgaCard) {
+      list = list.filter((m) => isEntrada(m) && dgaAporteNome(m) === selectedDgaCard);
     }
     list = [...list].sort((a, b) => {
       let cmp = 0;
@@ -575,7 +586,7 @@ export default function FluxoCaixaTab() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [baseFilteredMovs, selectedMonth, dateOf, sortBy, sortDir, resolveName]);
+  }, [monthFilteredMovs, activeTab, selectedDgaCard, dateOf, sortBy, sortDir, resolveName, dgaAporteNome]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -606,9 +617,9 @@ export default function FluxoCaixaTab() {
     for (const m of dgaMovs) saldo += isEntrada(m) ? valorDe(m) : -valorDe(m);
 
     const aportesPorSocio = new Map<string, number>();
-    for (const m of filteredMovs) {
+    for (const m of monthFilteredMovs) {
       if (activeTab !== "caixa_dga" || !isEntrada(m)) continue;
-      const nome = m.socios_nome || (m.socio_id ? resolveName(m) : null) || "Não identificado";
+      const nome = dgaAporteNome(m);
       aportesPorSocio.set(nome, (aportesPorSocio.get(nome) ?? 0) + valorDe(m));
     }
     return {
@@ -618,7 +629,13 @@ export default function FluxoCaixaTab() {
         .map(([nome, total]) => ({ nome, total }))
         .sort((a, b) => b.total - a.total),
     };
-  }, [movs, filteredMovs, activeTab, resolveName]);
+  }, [movs, monthFilteredMovs, activeTab, dgaAporteNome]);
+
+  useEffect(() => {
+    if (selectedDgaCard && !dgaStats.aportes.some((aporte) => aporte.nome === selectedDgaCard)) {
+      setSelectedDgaCard(null);
+    }
+  }, [dgaStats.aportes, selectedDgaCard]);
 
   /* ── actions ── */
   const doAction = useCallback(async (m: Movimentacao, action: "baixa" | "rejeitar") => {
@@ -765,7 +782,7 @@ export default function FluxoCaixaTab() {
 
           return (
             <button key={t.key}
-              onClick={() => { setActiveTab(t.key); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
+              onClick={() => { setActiveTab(t.key); setSelectedDgaCard(null); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                 active ? activeClasses : "bg-card/50 text-muted-foreground border-border hover:text-foreground hover:bg-card/80"
               }`}>
@@ -843,12 +860,33 @@ export default function FluxoCaixaTab() {
               <div className="text-xs text-muted-foreground italic">Nenhum aporte encontrado para os filtros selecionados.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {dgaStats.aportes.map((a) => (
-                  <div key={a.nome} className="rounded-lg border border-purple-500/20 bg-background/40 px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground">{a.nome}</span>
-                    <span className="text-sm font-bold text-emerald-300">{formatBRL(a.total)}</span>
-                  </div>
-                ))}
+                {dgaStats.aportes.map((a) => {
+                  const selected = selectedDgaCard === a.nome;
+                  return (
+                    <button
+                      key={a.nome}
+                      type="button"
+                      onClick={() => { setSelectedDgaCard(selected ? null : a.nome); setCurrentPage(1); }}
+                      aria-pressed={selected}
+                      className={`rounded-lg border px-3 py-2 flex items-center justify-between text-left transition-colors ${
+                        selected
+                          ? "border-purple-300/70 bg-purple-400/20 ring-1 ring-purple-300/40"
+                          : "border-purple-500/20 bg-background/40 hover:border-purple-300/50 hover:bg-purple-400/10"
+                      }`}
+                    >
+                      <span className="text-xs font-medium text-foreground">{a.nome}</span>
+                      <span className="text-sm font-bold text-emerald-300">{formatBRL(a.total)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {selectedDgaCard && (
+              <div className="flex items-center justify-between gap-3 border-t border-purple-500/20 pt-3 text-xs">
+                <span className="text-purple-100/80">Exibindo apenas lançamentos de <strong className="text-foreground">{selectedDgaCard}</strong>.</span>
+                <button type="button" onClick={() => { setSelectedDgaCard(null); setCurrentPage(1); }} className="shrink-0 text-purple-200 underline-offset-2 hover:underline">
+                  Limpar seleção
+                </button>
               </div>
             )}
           </div>
