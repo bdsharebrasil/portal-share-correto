@@ -216,7 +216,7 @@ function PortalClienteDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeMonth, setActiveMonth] = useState<string>("todos");
+  const [activeMonths, setActiveMonths] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [fFluxo, setFFluxo] = useState<"todos" | "entrada" | "saida">("todos");
   const [fCategoria, setFCategoria] = useState("todas");
@@ -362,27 +362,28 @@ function PortalClienteDashboard() {
     return map;
   }, [movimentacoes]);
 
-  /* ── Period filter: month or all ── */
+  /* ── Period filter: selected months or all ── */
   const now = new Date();
   const year = now.getFullYear();
-  const isAllMonths = activeMonth === "todos";
-  const monthIdx = isAllMonths ? -1 : MESES.indexOf(activeMonth);
-  const periodStart = isAllMonths ? "0000-01-01" : new Date(year, monthIdx, 1).toISOString().slice(0, 10);
-  const periodEnd = isAllMonths ? "9999-12-31" : new Date(year, monthIdx + 1, 0).toISOString().slice(0, 10);
+  const isAllMonths = activeMonths.length === 0;
+  const selectedMonthIndexes = activeMonths
+    .map((month) => MESES.indexOf(month))
+    .filter((month) => month >= 0);
+  const latestSelectedMonth = Math.max(...selectedMonthIndexes);
+  const periodEnd = isAllMonths
+    ? "9999-12-31"
+    : new Date(year, latestSelectedMonth + 1, 0).toISOString().slice(0, 10);
 
-  const inRange = useCallback(
-    (r: Rateio, s: string, e: string) => {
-      const d = r.data_pagamento || r.data_vencimento || r.data_emissao;
-      if (!d) return false;
-      const iso = d.slice(0, 10);
-      return iso >= s && iso <= e;
-    },
-    [],
-  );
+  const isInSelectedMonths = useCallback((r: Rateio) => {
+    if (isAllMonths) return true;
+    const d = r.data_pagamento || r.data_vencimento || r.data_emissao;
+    if (!d || d.slice(0, 4) !== String(year)) return false;
+    return activeMonths.includes(MESES[Number(d.slice(5, 7)) - 1]);
+  }, [activeMonths, isAllMonths, year]);
 
   const curPeriodDespesas = useMemo(
-    () => isAllMonths ? uniqueDespesas : uniqueDespesas.filter((r) => inRange(r, periodStart, periodEnd)),
-    [uniqueDespesas, isAllMonths, periodStart, periodEnd, inRange],
+    () => uniqueDespesas.filter(isInSelectedMonths),
+    [uniqueDespesas, isInSelectedMonths],
   );
 
   /* ── Totals ── */
@@ -454,16 +455,22 @@ function PortalClienteDashboard() {
     out.push({
       type: "info",
       title: "Fechamento pendente",
-      desc: `${activeMonth} ${year} · prazo em 3 dias`,
+      desc: `${activeMonths.length ? activeMonths.join(" + ") : "Todos os meses"} ${year} · prazo em 3 dias`,
     });
     return out.slice(0, 4);
-  }, [uniqueDespesas, activeMonth, year, isAllMonths]);
+  }, [uniqueDespesas, activeMonths, year, isAllMonths]);
 
   const clearFilters = () => {
     setSearch("");
     setFFluxo("todos");
     setFCategoria("todas");
     setFStatus("todos");
+  };
+
+  const toggleMonth = (month: string) => {
+    setActiveMonths((months) => months.includes(month)
+      ? months.filter((selected) => selected !== month)
+      : [...months, month]);
   };
 
   /* ── Cotista color helper ── */
@@ -527,7 +534,7 @@ function PortalClienteDashboard() {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] bg-bg-base text-ink">
       <div className="flex-1 flex flex-col">
-        <Topbar activeMonth={activeMonth} onSelectMonth={setActiveMonth} />
+        <Topbar activeMonths={activeMonths} onToggleMonth={toggleMonth} onClearMonths={() => setActiveMonths([])} />
 
         <main className="flex-1 p-5 lg:p-7 overflow-y-auto">
           {error && (
@@ -541,7 +548,6 @@ function PortalClienteDashboard() {
             activeAircraftId={activeAircraftId}
             onSelectAircraft={setActiveAircraftId}
             cotistasCount={cotistas.length}
-            activeMonth={activeMonth}
           />
 
           {/* KPIs */}
@@ -650,7 +656,7 @@ function AircraftSelectScreen({
 
 /* ─────────────────────────── Topbar ─────────────────────────── */
 
-function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectMonth: (m: string) => void }) {
+function Topbar({ activeMonths, onToggleMonth, onClearMonths }: { activeMonths: string[]; onToggleMonth: (month: string) => void; onClearMonths: () => void }) {
   return (
     <header className="sticky top-0 z-40 glass border-b border-border flex items-center justify-between rounded-[8px] overflow-hidden px-5 lg:px-7" style={{ minHeight: 56 }}>
       <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -667,9 +673,9 @@ function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectM
 
       <div className="hidden md:flex items-center gap-1 mx-4">
         <button
-          onClick={() => onSelectMonth("todos")}
+          onClick={onClearMonths}
           className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-            "todos" === activeMonth ? "bg-primary-dim text-white" : "text-ink-muted hover:bg-bg-hover hover:text-ink"
+            activeMonths.length === 0 ? "bg-primary-dim text-white" : "text-ink-muted hover:bg-bg-hover hover:text-ink"
           }`}
         >
           Todos
@@ -677,9 +683,10 @@ function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectM
         {MESES.map((m) => (
           <button
             key={m}
-            onClick={() => onSelectMonth(m)}
+            onClick={() => onToggleMonth(m)}
+            aria-pressed={activeMonths.includes(m)}
             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-              m === activeMonth ? "bg-primary-dim text-white" : "text-ink-muted hover:bg-bg-hover hover:text-ink"
+              activeMonths.includes(m) ? "bg-primary-dim text-white" : "text-ink-muted hover:bg-bg-hover hover:text-ink"
             }`}
           >
             {m}
@@ -700,13 +707,12 @@ function Topbar({ activeMonth, onSelectMonth }: { activeMonth: string; onSelectM
 /* ─────────────────────────── Page Header ─────────────────────────── */
 
 function PageHeader({
-  aeronaves, activeAircraftId, onSelectAircraft, cotistasCount, activeMonth,
+  aeronaves, activeAircraftId, onSelectAircraft, cotistasCount,
 }: {
   aeronaves: Aeronave[];
   activeAircraftId: string | null;
   onSelectAircraft: (id: string) => void;
   cotistasCount: number;
-  activeMonth: string;
 }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">

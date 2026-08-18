@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Download, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { exportElementToPDF, createFilenameWithTimestamp } from "@/utils/exportToPDF";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor_rateado, valor_original, data_emissao, data_vencimento, data_pagamento")
+        .select("id, fluxo, valor_rateado, valor_total, data_emissao, data_vencimento, data_pagamento")
         .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
         .lte("data_emissao", format(endDate, "yyyy-MM-dd"))
         .order("data_emissao", { ascending: true });
@@ -58,6 +58,8 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
     const startDate = startOfMonth(new Date(parseInt(year), parseInt(month) - 1));
     const endDate = endOfMonth(startDate);
 
+    const isEntrada = (fluxo: string | null) => fluxo === "receita" || fluxo === "entrada";
+
     // Fluxo diário
     const fluxoDiario: { data: string; entradas: number; saidas: number; saldo: number }[] = [];
     let saldoAcumulado = 0;
@@ -69,12 +71,12 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
       const transacoesDia = transacoes.filter((t) => (t.data_emissao || t.data_pagamento || t.data_vencimento || "") === dayStr);
       
       const entradas = transacoesDia
-        .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+        .filter((t) => isEntrada(t.fluxo))
+        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
       
       const saidas = transacoesDia
-        .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+        .filter((t) => !isEntrada(t.fluxo))
+        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
 
       saldoAcumulado += entradas - saidas;
 
@@ -89,12 +91,12 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
     });
 
     const totalEntradas = transacoes
-      .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+      .filter((t) => isEntrada(t.fluxo))
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
 
     const totalSaidas = transacoes
-      .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+      .filter((t) => !isEntrada(t.fluxo))
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
 
     return {
       fluxoDiario,

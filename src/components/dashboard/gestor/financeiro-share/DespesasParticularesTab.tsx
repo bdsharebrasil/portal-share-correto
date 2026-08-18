@@ -23,7 +23,7 @@ export default function DespesasParticularesTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, tipo, valor_rateado, valor_original, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
+            "id, descricao, tipo, fluxo, valor_rateado, valor_original, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
           )
           .neq("status", "cancelado")
           .order("criado_em", { ascending: false })
