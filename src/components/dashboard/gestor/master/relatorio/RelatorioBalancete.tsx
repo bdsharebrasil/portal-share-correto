@@ -84,9 +84,9 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
 
       const tipoMovimento = t.fluxo === "receita" || t.fluxo === "entrada" ? "entrada" : "saida";
       if (tipoMovimento === "entrada") {
-        categorias[categoria].credito += Number(t.valor_rateado ?? t.valor_original ?? 0);
+        categorias[categoria].credito += Number(t.valor_rateado ?? t.valor_total ?? 0);
       } else {
-        categorias[categoria].debito += Number(t.valor_rateado ?? t.valor_original ?? 0);
+        categorias[categoria].debito += Number(t.valor_rateado ?? t.valor_total ?? 0);
       }
     });
 
