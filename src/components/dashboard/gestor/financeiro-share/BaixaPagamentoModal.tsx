@@ -38,16 +38,15 @@ interface RateioRow {
   percentual_sociedade?: number | null;
   periodicidade?: string | null;
   valor_total?: number | null;
-  /** UI-only: marcado quando outro cotista pagou 100% da despesa */
   pago_por_outro?: boolean;
 }
 
 interface Movimentacao {
   id: string;
   descricao: string | null;
-  fluxo: string | null; // Corrigido de 'tipo' para 'fluxo'
+  fluxo: string | null;
   tipo_caixa: string | null;
-  valor_total?: string | number | null; // Corrigido de 'valor_original' para 'valor_total'
+  valor_total?: string | number | null;
   valor_rateado?: string | number | null;
   categoria_id?: string | null;
   categoria_nome?: string | null;
@@ -89,7 +88,7 @@ const norm = (s?: string | null) =>
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
 const isEntrada = (m: Movimentacao) => {
-  const t = norm(m.fluxo); // Usando 'fluxo' de acordo com o schema
+  const t = norm(m.fluxo);
   return t === "receita" || t === "entrada" || t === "credito" || t === "deposito";
 };
 
@@ -180,17 +179,16 @@ export default function BaixaPagamentoModal({
     norm(mov.tipo_caixa) === "cliente" &&
     String(mov.reference_type || "").endsWith(":mov_cliente");
     
-  // Ajustado para ler valor_rateado e valor_total do schema
   const valorRateadoBase = num(mov.valor_rateado) || num(mov.valor_total);
   const valorTotal = num(mov.valor_total) || valorRateadoBase;
 
   const [dataPagamento, setDataPagamento] = useState(
     new Date().toISOString().slice(0, 10),
   );
-  // true = "Pago Diretamente" (cliente pagou, sem reembolso da Share)
-  // false = "Com Reembolso" (a Share adiantou/pagou o fornecedor; vira conta a receber)
+  
   const [pagoDiretamente, setPagoDiretamente] = useState<boolean>(mov.pago_diretamente ?? true);
   const comReembolso = !pagoDiretamente;
+  
   const [bancoNome, setBancoNome] = useState<string>("");
   const [bancoSelecionadoId, setBancoSelecionadoId] = useState<string>("");
   const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
@@ -204,7 +202,7 @@ export default function BaixaPagamentoModal({
   const [socios, setSocios] = useState<SocioOption[]>([]);
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
 
-  // Load cotistas: sócios do cliente + cotistas (clientes) da aeronave
+  // Carrega cotistas e clientes
   useEffect(() => {
     (async () => {
       const opts: SocioOption[] = [];
@@ -243,6 +241,7 @@ export default function BaixaPagamentoModal({
     })();
   }, [mov.clientes_id, mov.aeronave_id]);
 
+  // Carrega contas bancárias
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -264,7 +263,7 @@ export default function BaixaPagamentoModal({
     })();
   }, []);
 
-  // Load rateio rows vinculados a essa movimentação
+  // Carrega as linhas de rateio
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -273,23 +272,45 @@ export default function BaixaPagamentoModal({
           "id, socio_id, socios_nome, cliente_id, clientes_nome, percentual_uso, percentual_sociedade, tipo_rateio, periodicidade, valor_total, valor_rateado, valor_pago_real, pago_por, status",
         )
         .eq("despesa_id", mov.id);
+      
+      const isReembolsoInicial = !(mov.pago_diretamente ?? true);
+      
       const rows = ((data as any[]) || []).map((r) => ({
         ...r,
         valor_total: (r as any).valor_total ?? null,
-        // Sugestão: o cotista paga o que lhe foi rateado
         valor_pago_real:
           r.valor_pago_real === null || r.valor_pago_real === undefined
             ? Number(r.valor_rateado) || 0
             : Number(r.valor_pago_real),
-        pago_por: r.pago_por || r.clientes_nome || r.socios_nome || null,
+        // Se for reembolso, trava em "Share", senão usa o cliente padrão
+        pago_por: isReembolsoInicial 
+          ? "Share" 
+          : (r.pago_por || r.clientes_nome || r.socios_nome || null),
       }));
       setRateioRows(rows);
     })();
-  }, [mov.id]);
+  }, [mov.id, mov.pago_diretamente]);
 
   const totalDespesaRateio =
     rateioRows.reduce((s, r) => s + (Number(r.valor_total) || 0), 0) / (rateioRows.length || 1) ||
     valorTotal;
+
+  // Lógica para alternar entre "Pago Diretamente" e "Com Reembolso"
+  // Atualizando dinamicamente quem está pagando no Rateio
+  const handleToggleReembolso = (direto: boolean) => {
+    setPagoDiretamente(direto);
+    const isReembolso = !direto;
+    
+    setRateioRows((prev) =>
+      prev.map((r) => ({
+        ...r,
+        pago_por: isReembolso
+          ? "Share"
+          : (r.pago_por === "Share" ? (r.clientes_nome || r.socios_nome || null) : r.pago_por),
+        pago_por_outro: false, // reseta o flag caso alterne
+      }))
+    );
+  };
 
   const updateRateioRow = (id: string, patch: Partial<RateioRow>) =>
     setRateioRows((prev) => {
@@ -297,10 +318,11 @@ export default function BaixaPagamentoModal({
       if (!("valor_pago_real" in patch)) return next;
       const alvo = next.find((r) => r.id === id);
       const total = Number(totalDespesaRateio) || valorTotal;
+      // Impede auto-marcar pago_por_outro caso seja a Share pagando tudo (comReembolso)
       const pagouTudo = !!alvo && total > 0 && (Number(alvo.valor_pago_real) || 0) >= total - 0.01;
       return next.map((r) => {
         if (r.id === id) return { ...r, pago_por_outro: false };
-        if (pagouTudo) {
+        if (pagouTudo && !comReembolso) {
           return {
             ...r,
             valor_pago_real: 0,
@@ -312,7 +334,7 @@ export default function BaixaPagamentoModal({
       });
     });
 
-  // Load existing anexos
+  // Carrega anexos existentes
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -560,7 +582,7 @@ export default function BaixaPagamentoModal({
                 periodicidade: r.periodicidade ?? null,
                 valor_rateado: r.valor_rateado,
                 valor_pago_real: r.valor_pago_real,
-                pago_por: r.pago_por,
+                pago_por: comReembolso ? "Share" : r.pago_por,
                 status: comReembolso ? "parcial" : "pago",
                 data_pagamento: dataPagamento,
                 pago_diretamente: !comReembolso,
@@ -575,7 +597,7 @@ export default function BaixaPagamentoModal({
       } else if (comReembolso) {
         await supabase
           .from("rateio_despesas")
-          .update({ pago_por: null, status: "parcial", pago_diretamente: false })
+          .update({ pago_por: "Share", status: "parcial", pago_diretamente: false })
           .eq("despesa_id", mov.id);
       } else {
         await supabase
@@ -705,7 +727,7 @@ export default function BaixaPagamentoModal({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setPagoDiretamente(true)}
+                  onClick={() => handleToggleReembolso(true)}
                   className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                     pagoDiretamente
                       ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-300"
@@ -716,7 +738,7 @@ export default function BaixaPagamentoModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPagoDiretamente(false)}
+                  onClick={() => handleToggleReembolso(false)}
                   className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                     comReembolso
                       ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
@@ -759,7 +781,7 @@ export default function BaixaPagamentoModal({
               color: pagoDiretamente ? "#67e8f9" : "#fbbf24",
             }}
           >
-            {pagoDiretamente ? "Pago diretamente" : "Com reembolso"}
+            {pagoDiretamente ? "Pago diretamente pelo Cliente" : "Despesa Inicial Paga pela Share (gera reembolso)"}
           </div>
 
           {/* Rateio da despesa */}
@@ -806,7 +828,7 @@ export default function BaixaPagamentoModal({
                           </span>
                         )}
                       </div>
-                      {r.pago_por_outro && (
+                      {r.pago_por_outro && !comReembolso && (
                         <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
                           Pago por {r.pago_por || "outro cliente"}
                         </span>
@@ -906,14 +928,21 @@ export default function BaixaPagamentoModal({
                         <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
                           Pago por
                         </label>
-                        <UISearchableCombobox
-                          items={socios.map((s) => ({ id: s.nome, label: s.nome }))}
-                          value={r.pago_por || ""}
-                          onChange={(_id, label) => updateRateioRow(r.id, { pago_por: label })}
-                          placeholder="Cotista..."
-                          searchPlaceholder="Buscar cotista..."
-                          allowFreeText
-                        />
+                        {/* Se for Com Reembolso trava visualmente em "Share" */}
+                        {comReembolso ? (
+                          <div className="w-full rounded-lg border border-slate-700 bg-slate-800/40 px-3 py-2 text-sm text-slate-400 cursor-not-allowed opacity-80 h-[38px] flex items-center">
+                            Share
+                          </div>
+                        ) : (
+                          <UISearchableCombobox
+                            items={socios.map((s) => ({ id: s.nome, label: s.nome }))}
+                            value={r.pago_por || ""}
+                            onChange={(_id, label) => updateRateioRow(r.id, { pago_por: label })}
+                            placeholder="Cotista..."
+                            searchPlaceholder="Buscar cotista..."
+                            allowFreeText
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

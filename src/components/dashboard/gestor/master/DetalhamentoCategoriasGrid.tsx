@@ -100,6 +100,11 @@ export default function DetalhamentoCategoriasGrid({
 }: DetalhamentoCategoriasGridProps) {
   const gridRef = useRef<any>(null);
 
+  const dataEmissaoValida = (m: MovimentacaoRow) => {
+    const value = String(m.data_emissao || "").trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  };
+
   const isDespesaParticular = (m: MovimentacaoRow) => {
     const catMap = getCategoriaMap();
     const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
@@ -110,9 +115,12 @@ export default function DetalhamentoCategoriasGrid({
   const rows: GridRow[] = useMemo(() => {
     return movimentacoes
       .filter((m) => !isEntrada(m) && isDespesaParticular(m))
-      .map((m) => {
-        const mesIdx = Number(String(m.data_emissao).slice(5, 7)) - 1;
-        return {
+      .flatMap((m) => {
+        const dataEmissao = dataEmissaoValida(m);
+        if (!dataEmissao) return [];
+
+        const mesIdx = Number(dataEmissao.slice(5, 7)) - 1;
+        return [{
           id: m.id,
           mesIdx,
           mes: MESES[mesIdx] ?? "-",
@@ -120,7 +128,7 @@ export default function DetalhamentoCategoriasGrid({
           banco: (m.conta_bancaria || "-").trim(),
           descricao: (m.descricao || "-").trim(),
           valor: val(m),
-        };
+        }];
       })
       .sort((a, b) => a.mesIdx - b.mesIdx || a.categoria.localeCompare(b.categoria) || b.valor - a.valor);
   }, [movimentacoes]);

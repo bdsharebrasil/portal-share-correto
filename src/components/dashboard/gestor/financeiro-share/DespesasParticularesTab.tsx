@@ -46,13 +46,19 @@ export default function DespesasParticularesTab() {
           const caixa = String(m.tipo_caixa || "").toLowerCase();
           return caixa === "share" || caixa === "";
         })
-        .map((m: any) => ({
-          ...m,
-          data_emissao: String(
-            m.data_emissao || m.data_pagamento || m.criado_em || "",
-          ).slice(0, 10),
-        }))
-        .filter((m: any) => m.data_emissao.startsWith(String(ano)));
+        .map((m: any) => {
+          const dataReferencia = String(m.data_emissao || m.data_pagamento || "").trim();
+          return {
+            ...m,
+            data_emissao: dataReferencia ? dataReferencia.slice(0, 10) : "",
+          };
+        })
+        .filter((m: any) => {
+          if (!m.data_emissao || !/^\d{4}-\d{2}-\d{2}$/.test(m.data_emissao)) {
+            return false;
+          }
+          return m.data_emissao.startsWith(String(ano));
+        });
     },
   });
   return (
