@@ -111,7 +111,7 @@ export default function DetalhamentoCategoriasGrid({
 
   const rows: GridRow[] = useMemo(() => {
     return movimentacoes
-      .filter((m) => !isEntrada(m) && isPago(m) && isDespesaParticular(m))
+      .filter((m) => !isEntrada(m) && isDespesaParticular(m))
       .map((m) => {
         const mesIdx = Number(String(m.data_emissao).slice(5, 7)) - 1;
         return {
