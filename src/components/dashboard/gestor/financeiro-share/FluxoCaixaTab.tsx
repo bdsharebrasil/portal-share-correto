@@ -197,11 +197,14 @@ const norm = (s?: string | null) =>
 // Meses do ano, usados pelo filtro de "Mês" acima da tabela.
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-/** Extrai o índice do mês (0-11) de uma data no formato YYYY-MM-DD. Retorna null se inválida. */
-const mesIndexFromDate = (d?: string | null): number | null => {
-  if (!d) return null;
-  const idx = Number(String(d).slice(5, 7)) - 1;
-  return Number.isNaN(idx) || idx < 0 || idx > 11 ? null : idx;
+const periodKeyFromDate = (d?: string | null): string | null => {
+  const value = String(d || "");
+  return /^\d{4}-(0[1-9]|1[0-2])/.test(value) ? value.slice(0, 7) : null;
+};
+
+const periodLabel = (period: string) => {
+  const month = Number(period.slice(5, 7)) - 1;
+  return `${MESES[month]} ${period.slice(0, 4)}`;
 };
 
 const GRUPOS_EMPRESA = [
@@ -362,8 +365,8 @@ export default function FluxoCaixaTab() {
   const [statusFilter, setStatusFilter] = useState<"todos" | "pendente" | "pago" | "vencido">("todos");
   const [contasCaixa, setContasCaixa] = useState<"share" | "cliente">("share");
   const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
-  // Filtro de mês (estilo apex-grid): null = "Todos os meses".
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  // null = todos os meses; o valor YYYY-MM evita misturar o mesmo mês de anos diferentes.
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedDgaCard, setSelectedDgaCard] = useState<string | null>(null);
   const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa-share", {
     data: 130, descricao: 260, categoria: 150, cliente: 170, valor: 130, status: 130, docs: 90,
@@ -609,17 +612,16 @@ export default function FluxoCaixaTab() {
     return list;
   }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, contasCaixa, dateOf, grupoOf]);
 
-  /* ── meses disponíveis para o filtro (calculados a partir do filtro-base) ── */
+  /* ── períodos disponíveis para o filtro (calculados a partir do filtro-base) ── */
   const availableMonths = useMemo(() => {
-    const set = new Set<number>();
+    const periods = new Set<string>();
     baseFilteredMovs.forEach((m) => {
-      const idx = mesIndexFromDate(dateOf(m));
-      if (idx !== null) set.add(idx);
+      const period = periodKeyFromDate(dateOf(m));
+      if (period) periods.add(period);
     });
-    return Array.from(set).sort((a, b) => a - b);
+    return Array.from(periods).sort().reverse();
   }, [baseFilteredMovs, dateOf]);
 
-  // Se o mês selecionado deixar de existir na lista atual (ex.: trocou de aba), volta para "Todos os meses".
   useEffect(() => {
     if (selectedMonth !== null && !availableMonths.includes(selectedMonth)) {
       setSelectedMonth(null);
@@ -629,7 +631,7 @@ export default function FluxoCaixaTab() {
   /* ── filtro de mês ── */
   const monthFilteredMovs = useMemo(() => {
     if (selectedMonth === null) return baseFilteredMovs;
-    return baseFilteredMovs.filter((m) => mesIndexFromDate(dateOf(m)) === selectedMonth);
+    return baseFilteredMovs.filter((m) => periodKeyFromDate(dateOf(m)) === selectedMonth);
   }, [baseFilteredMovs, selectedMonth, dateOf]);
 
   /* ── filtro do card DGA + ordenação ── */
@@ -793,7 +795,7 @@ export default function FluxoCaixaTab() {
       return;
     }
     const tabLabel = TABS.find((t) => t.key === activeTab)?.label || "Fluxo de Caixa";
-    const mesLabel = selectedMonth !== null ? ` — ${MESES[selectedMonth]}` : "";
+    const mesLabel = selectedMonth !== null ? ` — ${periodLabel(selectedMonth)}` : "";
     const rows = filteredMovs.map((m) => {
       const entrada = isEntrada(m);
       const name = resolveName(m);
@@ -864,14 +866,14 @@ export default function FluxoCaixaTab() {
             value={selectedMonth ?? "todos"}
             onChange={(event) => {
               const v = event.target.value;
-              setSelectedMonth(v === "todos" ? null : Number(v));
+              setSelectedMonth(v === "todos" ? null : v);
               setCurrentPage(1);
             }}
             className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-colors focus:border-primary"
           >
             <option value="todos">Todos os meses</option>
-            {availableMonths.map((idx) => (
-              <option key={idx} value={idx}>{MESES[idx]}</option>
+            {availableMonths.map((period) => (
+              <option key={period} value={period}>{periodLabel(period)}</option>
             ))}
           </select>
         </label>
@@ -916,7 +918,7 @@ export default function FluxoCaixaTab() {
           </div>
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-purple-200/70 mb-2">
-              Aportes dos cotistas {selectedMonth !== null ? `em ${MESES[selectedMonth]}` : "(todos os meses, conforme filtro)"}
+              Aportes dos cotistas {selectedMonth !== null ? `em ${periodLabel(selectedMonth)}` : "(todos os meses, conforme filtro)"}
             </div>
             {dgaStats.aportes.length === 0 ? (
               <div className="text-xs text-muted-foreground italic">Nenhum aporte encontrado para os filtros selecionados.</div>

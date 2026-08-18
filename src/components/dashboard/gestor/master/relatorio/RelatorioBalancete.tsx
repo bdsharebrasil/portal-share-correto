@@ -36,7 +36,7 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor_rateado, valor_original, categoria_id, data_emissao, data_vencimento, data_pagamento")
+        .select("id, fluxo, valor_rateado, valor_original, categoria_id, data_emissao, data_vencimento, data_pagamento")
         .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
         .lte("data_emissao", format(endDate, "yyyy-MM-dd"));
 

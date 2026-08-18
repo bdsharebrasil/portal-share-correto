@@ -13,6 +13,7 @@ interface MovimentacaoRow {
   id: string;
   descricao?: string;
   tipo?: string;
+  fluxo?: string | null;
   valor_rateado?: number | null;
   valor_original?: number | null;
   data_emissao: string; // YYYY-MM-DD
@@ -50,8 +51,13 @@ interface DetalhamentoCategoriasGridProps {
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const val = (m: MovimentacaoRow) => Number(m.valor_rateado ?? m.valor_original ?? 0);
-const isEntrada = (m: MovimentacaoRow) => ["entrada", "receita"].includes(String(m.tipo || "").toLowerCase());
-const isPago = (m: MovimentacaoRow) => m.status === "pago" || Boolean(m.data_pagamento);
+const normalize = (value?: string | null) => String(value || "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .trim()
+  .toLowerCase();
+const isEntrada = (m: MovimentacaoRow) => ["entrada", "receita"].includes(normalize(m.fluxo || m.tipo));
+const isPago = (m: MovimentacaoRow) => normalize(m.status) === "pago" || Boolean(m.data_pagamento);
 
 /**
  * Usa o mesmo sistema de classificação do MasterRelatorios, baseado em grupo_categoria + tipo_despesa.
@@ -96,20 +102,11 @@ export default function DetalhamentoCategoriasGrid({
 }: DetalhamentoCategoriasGridProps) {
   const gridRef = useRef<any>(null);
 
-  const normalize = (value?: string | null) =>
-    String(value || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-
   const isDespesaParticular = (m: MovimentacaoRow) => {
     const catMap = getCategoriaMap();
     const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
-    const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
-    if (grupo === "DESPESAS PARTICULARES") return true;
-    if (grupo.includes("PARTICULAR")) return true;
-    return false;
+    const grupo = normalize(catInfo?.grupo || m.grupo_custo);
+    return grupo.includes("particular");
   };
 
   const rows: GridRow[] = useMemo(() => {
