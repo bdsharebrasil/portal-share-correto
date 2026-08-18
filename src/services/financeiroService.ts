@@ -1,21 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export async function fetchFinanceiroData() {
-  const [movs, rateios, clientes, socios] = await Promise.all([
+  const [movs, rateios, clientes, socios, categorias] = await Promise.all([
     supabase.from("movimentacoes").select("*").order("data_emissao", { ascending: false }).limit(20000),
     supabase.from("rateio_despesas").select("*").limit(20000),
     supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
     supabase.from("socios").select("id,nome,clientes_id").order("nome"),
+    supabase.from("categorias_movimentacao").select("id,nome,grupo_categoria,tipo,reembolsavel").order("nome"),
   ]);
   if (movs.error) throw movs.error;
   if (rateios.error) throw rateios.error;
   if (clientes.error) throw clientes.error;
   if (socios.error) throw socios.error;
+  if (categorias.error) throw categorias.error;
   return {
     movimentacoes: movs.data ?? [],
     rateios: rateios.data ?? [],
     clientes: (clientes.data ?? []).map((c: any) => ({ id: c.id, nome: c.razao_social || c.proprietario || "Cliente sem nome" })),
     socios: socios.data ?? [],
+    categorias: categorias.data ?? [],
   };
 }
 

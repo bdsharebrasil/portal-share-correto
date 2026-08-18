@@ -4,6 +4,12 @@ import { formatBRL } from "@/lib/format";
 import { dateOf, isDga, isDgaCotistaOutOfPocket, isDgaPaidByBank, isEntrada, periodOf, valueOf } from "@/utils/financeiroRules";
 import NovaMovimentacaoDgaModal from "@/components/dashboard/gestor/financeiro-share/NovaMovimentacaoDgaModal";
 
+function formatarPeriodo(periodo: string) {
+  const [ano, mes] = periodo.split("-");
+  const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  return `${meses[Number(mes) - 1]} / ${ano}`;
+}
+
 export default function DgaSituacao({ movimentacoes, socios, onChanged }: { movimentacoes:any[]; socios:any[]; onChanged?: () => void }) {
   const [showNova, setShowNova] = useState(false);
   const [detalhe, setDetalhe] = useState<{ titulo: string; itens: any[] } | null>(null);
@@ -34,11 +40,11 @@ export default function DgaSituacao({ movimentacoes, socios, onChanged }: { movi
     <Kpi label="A acertar com cotistas" value={saidasCotistas} icon={HandCoins} onClick={()=>abrirDetalhe("A acertar com cotistas", isDgaCotistaOutOfPocket)}/>
   </div>
 
-  <div className="rounded-2xl border border-border bg-card/60 overflow-hidden"><div className="p-4 border-b border-border"><div className="font-bold">Movimentação mensal da DGA</div><div className="text-xs text-muted-foreground">Clique em um valor para ver os lançamentos que o compõem.</div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><th className="text-left px-4 py-3">Mês</th><th className="text-right px-4 py-3">Aportes</th><th className="text-right px-4 py-3">Saidas</th><th className="text-right px-4 py-3">Pagamentos direto cotista</th></tr></thead><tbody>{mensal.map(r=><tr key={r.periodo} className="border-t border-border/60"><td className="px-4 py-3 font-semibold">{r.periodo}</td>
-    <td className="px-4 py-3 text-right"><button className="font-semibold text-emerald-400 hover:underline" onClick={()=>abrirDetalhe(`Aportes · ${r.periodo}`,(m)=>isEntrada(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.aportes)}</button></td>
-    <td className="px-4 py-3 text-right"><button className="font-semibold text-red-400 hover:underline" onClick={()=>abrirDetalhe(`Despesas banco DGA · ${r.periodo}`,(m)=>isDgaPaidByBank(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.despesasBanco)}</button></td>
-    <td className="px-4 py-3 text-right"><button className="font-semibold text-amber-400 hover:underline" onClick={()=>abrirDetalhe(`Pago por cotistas · ${r.periodo}`,(m)=>isDgaCotistaOutOfPocket(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.pagoCotistas)}</button></td>
-  </tr>)}</tbody></table></div></div>
+  <div className="rounded-2xl border border-border bg-card/60 overflow-hidden"><div className="p-4 border-b border-border"><div className="font-bold">Movimentação mensal da DGA</div><div className="text-xs text-muted-foreground">Clique em um valor para ver os lançamentos que o compõem.</div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><th className="text-left px-4 py-3">Mês</th><th className="text-right px-4 py-3">Aportes</th><th className="text-right px-4 py-3">Saidas</th><th className="text-right px-4 py-3">Pagamentos direto cotista</th></tr></thead><tbody>{mensal.map(r=>{const periodoFormatado=formatarPeriodo(r.periodo);return <tr key={r.periodo} className="border-t border-border/60"><td className="px-4 py-3 font-semibold">{periodoFormatado}</td>
+    <td className="px-4 py-3 text-right"><button className="font-semibold text-emerald-400 hover:underline" onClick={()=>abrirDetalhe(`Aportes · ${periodoFormatado}`,(m)=>isEntrada(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.aportes)}</button></td>
+    <td className="px-4 py-3 text-right"><button className="font-semibold text-red-400 hover:underline" onClick={()=>abrirDetalhe(`Despesas banco DGA · ${periodoFormatado}`,(m)=>isDgaPaidByBank(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.despesasBanco)}</button></td>
+    <td className="px-4 py-3 text-right"><button className="font-semibold text-amber-400 hover:underline" onClick={()=>abrirDetalhe(`Pago por cotistas · ${periodoFormatado}`,(m)=>isDgaCotistaOutOfPocket(m)&&periodOf(dateOf(m))===r.periodo)}>{formatBRL(r.pagoCotistas)}</button></td>
+  </tr>})}</tbody></table></div></div>
 
   <div className="rounded-2xl border border-border bg-card/60 overflow-hidden"><div className="p-4 border-b border-border flex items-center gap-2"><Users className="h-4 w-4 text-violet-400"/><div className="font-bold">Acertos pendentes com cotistas</div></div><div className="divide-y divide-border/60">{cotistas.length===0?<div className="p-8 text-center text-sm text-muted-foreground">Nenhum pagamento pessoal de cotista identificado.</div>:cotistas.map(c=><div key={c.id} className="flex items-center justify-between px-4 py-3"><div><div className="font-semibold">{c.nome}</div><div className="text-xs text-muted-foreground">Pago diretamente pelo cotista</div></div><div className="text-lg font-bold text-amber-400">{formatBRL(c.total)}</div></div>)}</div></div>
 
