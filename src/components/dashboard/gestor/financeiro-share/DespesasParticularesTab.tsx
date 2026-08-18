@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DetalhamentoCategoriasGrid from "@/components/dashboard/gestor/master/DetalhamentoCategoriasGrid";
 import { setCategoriaMap } from "@/components/dashboard/gestor/master/MasterRelatorios";
-
 /**
  * Mesma apresentação da tabela "Despesas Particulares" do Gestor Master,
  * porém dentro do módulo Financeiro Share (Gestão Fiscal).
@@ -15,7 +14,6 @@ export default function DespesasParticularesTab() {
     () => Array.from({ length: 6 }, (_, i) => anoAtual - i),
     [anoAtual],
   );
-
   const { data, isLoading } = useQuery({
     queryKey: ["share-despesas-particulares", ano],
     queryFn: async () => {
@@ -23,7 +21,7 @@ export default function DespesasParticularesTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, tipo, fluxo, valor_rateado, valor_original, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, grupo_custo, conta_bancaria",
+            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria",
           )
           .neq("status", "cancelado")
           .order("criado_em", { ascending: false })
@@ -33,7 +31,6 @@ export default function DespesasParticularesTab() {
           .select("id, grupo_categoria, tipo_despesa"),
       ]);
       if (movRes.error) throw movRes.error;
-
       const catMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
       (catRes.data || []).forEach((c: any) => {
         catMap.set(c.id, {
@@ -42,7 +39,6 @@ export default function DespesasParticularesTab() {
         });
       });
       setCategoriaMap(catMap);
-
       // Muitos lançamentos não possuem data_emissao — usamos pagamento/criação
       // como referência para agrupar por mês e filtrar o ano.
       return (movRes.data || [])
@@ -59,8 +55,6 @@ export default function DespesasParticularesTab() {
         .filter((m: any) => m.data_emissao.startsWith(String(ano)));
     },
   });
-
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -77,7 +71,6 @@ export default function DespesasParticularesTab() {
           ))}
         </select>
       </div>
-
       {isLoading ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
           Carregando lançamentos...
