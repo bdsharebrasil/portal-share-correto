@@ -36,7 +36,7 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor_rateado, valor_original, categoria_id")
+        .select("id, fluxo, valor_rateado, valor_total, categoria_id")
         .gte("data_emissao", format(startDate, "yyyy-MM-dd"))
         .lte("data_emissao", format(endDate, "yyyy-MM-dd"));
 
@@ -60,13 +60,15 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
   const dreData = useMemo(() => {
     if (!transacoes) return null;
 
+    const isEntrada = (fluxo: string | null) => fluxo === "receita" || fluxo === "entrada";
+
     const receitas = transacoes
-      .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+      .filter((t) => isEntrada(t.fluxo))
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
 
     const despesas = transacoes
-      .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
+      .filter((t) => !isEntrada(t.fluxo))
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_total ?? 0), 0);
 
     // Agrupar por categoria
     const receitasPorCategoria: Record<string, number> = {};
@@ -74,11 +76,11 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
 
     transacoes.forEach((t) => {
       const categoria = getCategoriaName(t.categoria_id);
-      const tipoMovimento = t.tipo === "receita" || t.tipo === "entrada" ? "entrada" : "saida";
-      if (tipoMovimento === "entrada") {
-        receitasPorCategoria[categoria] = (receitasPorCategoria[categoria] || 0) + Number(t.valor_rateado ?? t.valor_original ?? 0);
+      const valor = Number(t.valor_rateado ?? t.valor_total ?? 0);
+      if (isEntrada(t.fluxo)) {
+        receitasPorCategoria[categoria] = (receitasPorCategoria[categoria] || 0) + valor;
       } else {
-        despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + Number(t.valor_rateado ?? t.valor_original ?? 0);
+        despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + valor;
       }
     });
 
@@ -226,7 +228,7 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
             </div>
           </CardContent>
         </Card>
-        </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
