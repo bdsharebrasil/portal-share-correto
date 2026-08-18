@@ -17,37 +17,47 @@ interface CategoryData {
 }
 
 interface DashboardStats {
-  // Totais gerais baseados em tipo_movimento
   totalReceitas: number;
   totalDespesas: number;
   saldoGeral: number;
-  // Contadores de status
   receitasConferidas: number;
   despesasConferidas: number;
   receitasPendentes: number;
   despesasPendentes: number;
-  // Alertas
   contasVencidas: number;
   recebimentosVencidos: number;
-  // Do mês
+  reembolsosPendentes: number;
+  totalReembolsosPendentes: number;
   totalConferido: number;
   totalPendente: number;
   transacoesDoMes: number;
 }
 
 const CHART_COLORS = [
-  "#10b981", // green
-  "#3b82f6", // blue
-  "#f97316", // orange
-  "#8b5cf6", // purple
-  "#ef4444", // red
-  "#06b6d4", // cyan
-  "#eab308", // yellow
-  "#ec4899", // pink
+  "#10b981", "#3b82f6", "#f97316", "#8b5cf6",
+  "#ef4444", "#06b6d4", "#eab308", "#ec4899",
 ];
 
+/**
+ * "aguardando_reembolso" numa DESPESA = a SHARE pagou o fornecedor direto
+ * (dívida com fornecedor quitada). O que falta é o cliente/sócio reembolsar
+ * a SHARE — isso é rastreado por `reembolsavel` / `reembolso_quitado`.
+ * Por isso conta como conferida do lado despesa. Do lado receita não se aplica.
+ */
+function isConferido(status: string, tipoMovimento: "entrada" | "saida"): boolean {
+  if (status === "pago" || status === "recebido") return true;
+  if (status === "aguardando_reembolso" && tipoMovimento === "saida") return true;
+  return false;
+}
+
+/** Status que não devem contar como "vencido" mesmo com data passada */
+function isNaoVencido(status: string, tipoMovimento: "entrada" | "saida"): boolean {
+  if (["pago", "recebido", "reembolsado", "cancelado"].includes(status)) return true;
+  if (status === "aguardando_reembolso" && tipoMovimento === "saida") return true;
+  return false;
+}
+
 export function useDashboardGestorData(currentDate: Date) {
-  // Buscar transações de `movimentacoes` (a antiga `controle_bancario` não existe mais)
   const { data: transacoes = [], isLoading: isLoadingTransacoes } = useQuery({
     queryKey: ["dashboard-gestor-transacoes"],
     queryFn: async () => {
@@ -60,19 +70,27 @@ export function useDashboardGestorData(currentDate: Date) {
 
       if (error) throw error;
 
-      return (data || []).map((row: any) => ({
-        ...row,
-        data: row.data_pagamento || row.data_vencimento || row.data_emissao,
-        tipo_movimento:
-          row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
-        valor: Number(row.valor_rateado ?? row.valor_original ?? 0),
-        grupo_categoria: row.grupo_custo ?? row.categoria_nome ?? null,
-      }));
-    },
+      return (data || []).map((row: any) => {
+        const valorRateado = Number(row.valor_rateado ?? row.valor_total ?? 0);
+        const valorPagoReal =
+          row.valor_pago_real !== null && row.valor_pago_real !== undefined
+            ? Number(row.valor_pago_real)
+            : null;
 
+        return {
+          ...row,
+          data: row.data_pagamento || row.data_vencimento || row.data_emissao,
+          tipo_movimento:
+            row.fluxo === "receita" || row.fluxo === "entrada" ? "entrada" : "saida",
+          valor: valorRateado,
+          valor_pago_real: valorPagoReal,
+          valor_conferido: valorPagoReal ?? valorRateado,
+          grupo_categoria: row.categorias_movimentacao?.grupo_categoria ?? row.categoria_nome ?? null,
+        };
+      });
+    },
   });
 
-  // Calcular dados mensais para gráficos (últimos 6 meses)
   const monthlyData: MonthlyData[] = (() => {
     const result: MonthlyData[] = [];
 
@@ -89,12 +107,10 @@ export function useDashboardGestorData(currentDate: Date) {
         return tDate >= monthStart && tDate <= monthEnd;
       });
 
-      // Receitas = tipo_movimento "entrada"
       const receitas = monthTransacoes
         .filter((t: any) => t.tipo_movimento === "entrada")
         .reduce((acc: number, t: any) => acc + Math.abs(Number(t.valor || 0)), 0);
 
-      // Despesas = tipo_movimento "saida"
       const despesas = monthTransacoes
         .filter((t: any) => t.tipo_movimento === "saida")
         .reduce((acc: number, t: any) => acc + Math.abs(Number(t.valor || 0)), 0);
@@ -111,10 +127,9 @@ export function useDashboardGestorData(currentDate: Date) {
     return result;
   })();
 
-  // Calcular distribuição de despesas por categoria
   const categoryData: CategoryData[] = (() => {
     const categoryTotals: Record<string, number> = {};
-    
+
     transacoes
       .filter((t: any) => t.tipo_movimento === "saida")
       .forEach((t: any) => {
@@ -135,7 +150,6 @@ export function useDashboardGestorData(currentDate: Date) {
     }));
   })();
 
-  // Calcular estatísticas baseadas em tipo_movimento e status real do Supabase
   const stats: DashboardStats = (() => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -147,79 +161,62 @@ export function useDashboardGestorData(currentDate: Date) {
       return tDate >= monthStart && tDate <= monthEnd;
     });
 
-    // Separar por tipo_movimento: entrada = receita, saida = despesa
     const receitas = transacoes.filter((t: any) => t.tipo_movimento === "entrada");
     const despesas = transacoes.filter((t: any) => t.tipo_movimento === "saida");
 
-    // Total de receitas (todas as entradas)
     const totalReceitas = receitas
       .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor || 0)), 0);
 
-    // Total de despesas (todas as saídas)
     const totalDespesas = despesas
       .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor || 0)), 0);
 
-    // Receitas conferidas (status = pago ou confirmado)
     const receitasConferidas = receitas
-      .filter((r: any) => r.status === "pago" || r.status === "confirmado")
-      .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor || 0)), 0);
+      .filter((r: any) => isConferido(r.status, "entrada"))
+      .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor_conferido || 0)), 0);
 
-    // Despesas conferidas (status = pago ou confirmado)
     const despesasConferidas = despesas
-      .filter((d: any) => d.status === "pago" || d.status === "confirmado")
-      .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor || 0)), 0);
+      .filter((d: any) => isConferido(d.status, "saida"))
+      .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor_conferido || 0)), 0);
 
-    // Receitas pendentes (qualquer status que não seja pago/confirmado)
     const receitasPendentes = receitas
-      .filter((r: any) => r.status !== "pago" && r.status !== "confirmado")
+      .filter((r: any) => !isConferido(r.status, "entrada"))
       .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor || 0)), 0);
 
-    // Despesas pendentes
     const despesasPendentes = despesas
-      .filter((d: any) => d.status !== "pago" && d.status !== "confirmado")
+      .filter((d: any) => !isConferido(d.status, "saida"))
       .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor || 0)), 0);
 
-    // Contas vencidas (despesas com data passada e não pagas)
     const contasVencidas = despesas.filter((d: any) => {
       const dataVenc = d.data_vencimento
         ? (typeof d.data_vencimento === 'string' ? parseISO(d.data_vencimento) : new Date(d.data_vencimento))
         : (d.data ? (typeof d.data === 'string' ? parseISO(d.data) : new Date(d.data)) : null);
-      return (
-        dataVenc &&
-        dataVenc < today &&
-        d.status !== "confirmado" &&
-        d.status !== "pago" &&
-        d.status !== "recebido" &&
-        d.status !== "reembolsado"
-      );
+      return dataVenc && dataVenc < today && !isNaoVencido(d.status, "saida");
     }).length;
 
-    // Recebimentos vencidos
     const recebimentosVencidos = receitas.filter((r: any) => {
       const dataVenc = r.data_vencimento
         ? (typeof r.data_vencimento === 'string' ? parseISO(r.data_vencimento) : new Date(r.data_vencimento))
         : (r.data ? (typeof r.data === 'string' ? parseISO(r.data) : new Date(r.data)) : null);
-      return (
-        dataVenc &&
-        dataVenc < today &&
-        r.status !== "confirmado" &&
-        r.status !== "pago" &&
-        r.status !== "recebido" &&
-        r.status !== "reembolsado"
-      );
+      return dataVenc && dataVenc < today && !isNaoVencido(r.status, "entrada");
     }).length;
 
-    // Total conferido no mês (pago ou confirmado)
+    const despesasAguardandoReembolso = despesas.filter(
+      (d: any) => d.reembolsavel === true && d.reembolso_quitado === false
+    );
+    const reembolsosPendentes = despesasAguardandoReembolso.length;
+    const totalReembolsosPendentes = despesasAguardandoReembolso.reduce(
+      (acc: number, d: any) => acc + Math.abs(Number(d.valor_conferido || d.valor || 0)),
+      0
+    );
+
     const totalConferido = transacoesDoMesAtual
-      .filter((t: any) => t.status === "pago" || t.status === "confirmado")
-      .reduce((sum: number, t: any) => sum + Math.abs(Number(t.valor || 0)), 0);
+      .filter((t: any) => isConferido(t.status, t.tipo_movimento))
+      .reduce((sum: number, t: any) => sum + Math.abs(Number(t.valor_conferido || 0)), 0);
 
-    // Total pendente no mês
     const totalPendente = transacoesDoMesAtual
-      .filter((t: any) => t.status !== "pago" && t.status !== "confirmado")
+      .filter((t: any) => !isConferido(t.status, t.tipo_movimento))
       .reduce((sum: number, t: any) => sum + Math.abs(Number(t.valor || 0)), 0);
 
-    // Saldo geral = receitas conferidas - despesas conferidas
     const saldoGeral = receitasConferidas - despesasConferidas;
 
     return {
@@ -232,13 +229,14 @@ export function useDashboardGestorData(currentDate: Date) {
       despesasPendentes,
       contasVencidas,
       recebimentosVencidos,
+      reembolsosPendentes,
+      totalReembolsosPendentes,
       totalConferido,
       totalPendente,
       transacoesDoMes: transacoesDoMesAtual.length,
     };
   })();
 
-  // Separar receitas e despesas para tabelas (baseado em tipo_movimento)
   const contasReceber = transacoes.filter((t: any) => t.tipo_movimento === "entrada");
   const contasPagar = transacoes.filter((t: any) => t.tipo_movimento === "saida");
 
