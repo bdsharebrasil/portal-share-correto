@@ -6764,6 +6764,7 @@ export type Database = {
           fluxo: string | null
           forma_pagamento: string | null
           fornecedor_nome: string | null
+          grupo_categoria: string | null
           id: string
           movimentacao_origem_id: string | null
           movimentacao_pai_id: string | null
@@ -6818,6 +6819,7 @@ export type Database = {
           fluxo?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
+          grupo_categoria?: string | null
           id?: string
           movimentacao_origem_id?: string | null
           movimentacao_pai_id?: string | null
@@ -6872,6 +6874,7 @@ export type Database = {
           fluxo?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
+          grupo_categoria?: string | null
           id?: string
           movimentacao_origem_id?: string | null
           movimentacao_pai_id?: string | null
