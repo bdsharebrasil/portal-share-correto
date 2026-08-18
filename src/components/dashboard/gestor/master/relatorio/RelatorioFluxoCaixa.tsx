@@ -45,7 +45,7 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
       const date = subMonths(new Date(), i);
       result.push({
         value: format(date, "yyyy-MM"),
-        label: format(date, "MMMM yyyy", { locale: ptBR }),
+        label: format(date, "MMM - yyyy", { locale: ptBR }),
       });
     }
     return result;
