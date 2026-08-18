@@ -12,19 +12,16 @@ import { getCategoriaMap } from "./MasterRelatorios";
 interface MovimentacaoRow {
   id: string;
   descricao?: string;
-  tipo?: string;
   fluxo?: string | null;
   valor_rateado?: number | null;
-  valor_original?: number | null;
+  valor_total?: number | null;
   data_emissao: string; // YYYY-MM-DD
   status?: string;
   data_pagamento?: string | null;
   tipo_caixa?: string | null;
   categoria_id?: string | null;
   categoria_nome?: string | null;
-  grupo_custo?: string | null;
   conta_bancaria?: string | null;
-  categorias_movimentacao?: { grupo_categoria?: string | null };
 }
 
 interface GridRow {
@@ -50,23 +47,24 @@ interface DetalhamentoCategoriasGridProps {
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-const val = (m: MovimentacaoRow) => Number(m.valor_rateado ?? m.valor_original ?? 0);
+const val = (m: MovimentacaoRow) => Number(m.valor_rateado ?? m.valor_total ?? 0);
 const normalize = (value?: string | null) => String(value || "")
   .normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .trim()
   .toLowerCase();
-const isEntrada = (m: MovimentacaoRow) => ["entrada", "receita"].includes(normalize(m.fluxo || m.tipo));
+const isEntrada = (m: MovimentacaoRow) => ["entrada", "receita"].includes(normalize(m.fluxo));
 const isPago = (m: MovimentacaoRow) => normalize(m.status) === "pago" || Boolean(m.data_pagamento);
 
 /**
- * Usa o mesmo sistema de classificação do MasterRelatorios, baseado em grupo_categoria + tipo_despesa.
+ * Usa o mesmo sistema de classificação do MasterRelatorios, baseado em grupo_categoria + tipo_despesa
+ * (buscados via categoria_id no catMap — movimentacoes não tem esses campos diretamente).
  */
 const naturezaDe = (m: MovimentacaoRow) => {
   const catMap = getCategoriaMap();
   const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
-  const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
-  const tipoDespesa = (catInfo?.tipoDespesa || String((m as any).tipo_despesa || "")).toLowerCase().trim();
+  const grupo = String(catInfo?.grupo || "").toUpperCase().trim();
+  const tipoDespesa = String(catInfo?.tipoDespesa || "").toLowerCase().trim();
 
   if (grupo === "DESPESAS PARTICULARES") return tipoDespesa === "variavel" ? "Particulares Variável" : "Particulares Fixo";
   if (grupo === "DESPESAS EMPRESA" || grupo === "DESPESAS EMPRESA - BANCO") return tipoDespesa === "variavel" ? "Despesas Empresa Variável" : "Despesas Empresa Fixo";
@@ -105,7 +103,7 @@ export default function DetalhamentoCategoriasGrid({
   const isDespesaParticular = (m: MovimentacaoRow) => {
     const catMap = getCategoriaMap();
     const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
-    const grupo = normalize(catInfo?.grupo || m.grupo_custo);
+    const grupo = normalize(catInfo?.grupo);
     return grupo.includes("particular");
   };
 
