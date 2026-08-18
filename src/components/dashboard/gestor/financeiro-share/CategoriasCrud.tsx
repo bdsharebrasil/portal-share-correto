@@ -755,7 +755,7 @@ export function CategoriasCrud() {
             </div>
 
             <div>
-              <Label htmlFor="tipo" className="text-foreground/90">Tipo *</Label>
+              <Label htmlFor="tipo" className="text-foreground/90">Fluxo *</Label>
               <Select
                 value={formData.tipo}
                 onValueChange={value => setFormData(prev => ({
