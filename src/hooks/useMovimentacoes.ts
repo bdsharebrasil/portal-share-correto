@@ -145,11 +145,11 @@ export function useMovimentacoes() {
       if (aeronaveIds.length > 0) {
         const { data: aeronavesData } = await supabase
           .from("aeronave")
-          .select("id, registro")
+          .select("id, matricula")
           .in("id", aeronaveIds);
 
         if (aeronavesData) {
-          aeronavesById = new Map(aeronavesData.map((aeronave: any) => [aeronave.id, aeronave.registro]));
+          aeronavesById = new Map(aeronavesData.map((aeronave: any) => [aeronave.id, aeronave.matricula]));
         }
       }
 
