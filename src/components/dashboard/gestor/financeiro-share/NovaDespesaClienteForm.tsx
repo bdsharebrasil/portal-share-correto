@@ -133,6 +133,21 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
 
   useEffect(() => {
+    if (isDgaModo) {
+      (supabase as any)
+        .from("socios")
+        .select("id,nome")
+        .eq("clientes_id", CLIENTE_DGA_ID)
+        .order("nome")
+        .then(({ data }: any) => setCotistas((data ?? []).map((s: any) => ({
+          id_clientes: CLIENTE_DGA_ID,
+          socios_id: s.id,
+          percentual_sociedade: null,
+          clientes: { razao_social: "DGA" },
+          socios: s,
+        }))));
+    }
+
     (supabase as any)
       .from("expense_configu")
       .select("id,expense_type,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4")
@@ -164,8 +179,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
   /* Cotistas da aeronave selecionada */
   useEffect(() => {
-    if (!form.aeronave_id) {
-      setCotistas([]);
+    if (isDgaModo || !form.aeronave_id) {
+      if (!isDgaModo) setCotistas([]);
       return;
     }
     (supabase as any)
@@ -173,7 +188,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
       .select("id_clientes, socios_id, percentual_sociedade, clientes:clientes(id,razao_social,proprietario), socios:socios(id,nome)")
       .eq("id_aeronave", form.aeronave_id)
       .then(({ data }: any) => setCotistas(data ?? []));
-  }, [form.aeronave_id]);
+  }, [form.aeronave_id, isDgaModo]);
 
 
   const entrada = isEntradaTipo(form.tipo);
@@ -239,6 +254,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     [configSelecionada],
   );
 
+
+  const grupoCategoria = isDgaModo ? "DGA" : null;
 
   const valorTotal = Number(form.valor_original) || 0;
   const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
@@ -384,9 +401,11 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
-    if (!form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
+    if (!isDgaModo && !form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
 
-    const linhasValidas = linhas.filter((l) => l.cliente_id || l.socio_id);
+    const linhasValidas = isDgaModo
+      ? linhas.filter((l) => l.socio_id).map((l) => ({ ...l, cliente_id: CLIENTE_DGA_ID, clientes_nome: "DGA" }))
+      : linhas.filter((l) => l.cliente_id || l.socio_id);
     if (linhasValidas.length === 0) return toast.error("Adicione ao menos um cotista no rateio.");
 
     setSaving(true);
@@ -408,7 +427,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
       const nomeClientePrincipal = clientePrincipal?.clientes_nome || null;
       const socioMov = linhasValidas.length === 1 ? linhasValidas[0].socio_id : null;
       const socioNomeMov = linhasValidas.length === 1 ? linhasValidas[0].socios_nome : null;
-      const pagadorMov = form.pago_pela_share ? SHARE_BRASIL : nomeClientePrincipal || socioNomeMov || null;
+      const pagadorMov = form.pago_pela_share
+        ? SHARE_BRASIL
+        : (socioNomeMov || (linhasValidas.length > 1 ? linhasValidas.map((l) => l.socios_nome).filter(Boolean).join(", ") : null) || nomeClientePrincipal || null);
 
       // Regra "pago diretamente pelo cotista":
       // - ENTRADA nunca é pagamento direto (sempre false)
@@ -434,18 +455,20 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
         const payload: any = {
           descricao: descricaoItem,
           fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
-          tipo_caixa: "cliente",
+          tipo_caixa: isDgaModo ? "dga" : "cliente",
           numero_voo: rel?.numero_voo || form.numero_voo || null,
           categoria_id: form.categoria_id || null,
           categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
+          grupo_categoria: grupoCategoria,
           periodicidade: form.periodicidade || null,
           tipo_rateio: form.tipo_rateio || null,
           aeronave_id: form.aeronave_id,
-          clientes_id: clienteMov,
+          clientes_id: isDgaModo ? CLIENTE_DGA_ID : clienteMov,
           socio_id: socioMov,
           socios_nome: socioMov ? socioNomeMov : null,
           valor_total: valorItem,
           valor_rateado: Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          valor_pago_real: form.pago_pela_share ? null : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
           data_emissao: form.data_emissao,
           data_vencimento: form.data_vencimento || null,
           data_pagamento: form.data_pagamento || null,
@@ -460,6 +483,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           reembolso_quitado: false,
           criado_por: criadoPor,
           ...(rel ? { reference_type: "relatorio_viagem", reference_id: rel.id } : {}),
+          ...mapAnexosToMovimentacao(anexos),
         };
 
         const { data: mov, error } = await supabase
@@ -578,7 +602,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           </div>
 
           <div>
-            <Label className="flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" /> Aeronave *</Label>
+            <Label className="flex items-center gap-1.5"><Plane className="h-3.5 w-3.5" /> Aeronave {isDgaModo ? "(não aplicável)" : "*"}</Label>
             <SearchableCombobox
               items={aeronaveItems}
               value={form.aeronave_id}
@@ -766,10 +790,10 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
                 items={cotistaItems}
                 value={`${l.cliente_id || ""}|${l.socio_id || ""}`}
                 onChange={(id) => escolherCotista(idx, id)}
-                placeholder={form.aeronave_id ? "Selecione o cotista" : "Escolha a aeronave primeiro"}
+                placeholder={isDgaModo ? "Selecione o sócio" : form.aeronave_id ? "Selecione o cotista" : "Escolha a aeronave primeiro"}
                 searchPlaceholder="Buscar cotista..."
                 emptyMessage="Nenhum cotista para esta aeronave."
-                disabled={!form.aeronave_id}
+                disabled={!form.aeronave_id && !isDgaModo}
               />
               <Input
                 type="number"
@@ -815,6 +839,11 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
               Pago pelo caixa da Share Brasil (gera reembolso a receber do cliente)
             </Label>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <Label className="mb-3 flex items-center gap-2"><Paperclip className="h-4 w-4" /> Anexos</Label>
+          <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`movimentacoes/${storageId}`} />
         </div>
 
         <div>

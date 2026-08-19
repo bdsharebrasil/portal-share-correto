@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,8 @@ import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import { X, Save, Wallet } from "lucide-react";
 import { agruparCategoriasPorGrupo } from "./categoryFilters";
+import AnexosDinamicosField, { type AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
+import { mapAnexosToMovimentacao } from "./anexosMapper";
 
 interface Props {
   onCancel: () => void;
@@ -55,6 +58,8 @@ const addMonths = (iso: string, n: number) => {
 
 export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
   const hoje = new Date().toISOString().slice(0, 10);
+  const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
+  const [storageId] = useState(() => crypto.randomUUID());
 
   const [saving, setSaving] = useState(false);
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -198,6 +203,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           reembolsavel: false,
           reembolso_quitado: false,
           criado_por: criadoPor,
+          ...mapAnexosToMovimentacao(anexos),
         };
 
         const { data: mov, error } = await supabase
@@ -440,6 +446,11 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               </p>
             </div>
           )}
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <Label className="mb-3 flex items-center gap-2">Anexos</Label>
+          <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`movimentacoes/${storageId}`} />
         </div>
 
         <div>
