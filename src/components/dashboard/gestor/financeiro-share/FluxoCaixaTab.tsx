@@ -1,27 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
-  BarChart3,
-  CalendarDays,
+  Calculator,
+  CheckSquare,
   ChevronDown,
-  Download,
+  Clock3,
   Edit3,
+  Filter,
   HandCoins,
-  Layers3,
   Plus,
+  ReceiptText,
   RefreshCw,
   Search,
   Trash2,
-  Users,
   Wallet,
-  Calculator,
-  CheckSquare,
-  Filter
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { useQueryClient } from "@tanstack/react-query";
+import { addDays, format } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import BaixaPagamentoModal from "@/components/dashboard/gestor/financeiro-share/BaixaPagamentoModal";
 import ReembolsoModal from "@/components/dashboard/gestor/financeiro-share/ReembolsoModal";
@@ -32,6 +29,8 @@ import NovaDespesaClienteForm from "@/components/dashboard/gestor/financeiro-sha
 import FinanceiroResumo from "@/components/dashboard/gestor/financeiro-share/FinanceiroResumo";
 import ClienteSituacao from "@/components/dashboard/gestor/financeiro-share/ClienteSituacao";
 import DgaSituacao from "@/components/dashboard/gestor/financeiro-share/DgaSituacao";
+import { useInadimplencia } from "@/hooks/useInadimplencia";
+import { supabase } from "@/integrations/supabase/client";
 
 import { formatBRL } from "@/lib/format";
 import { deleteMovimentacao, fetchFinanceiroData } from "@/services/financeiroService";
@@ -66,13 +65,35 @@ export default function FluxoCaixaTab() {
   const [newCaixa, setNewCaixa] = useState<"share" | "cliente">("share");
 
   const queryClient = useQueryClient();
+  const hoje = format(new Date(), "yyyy-MM-dd");
+  const limiteContasAPagar = format(addDays(new Date(), 5), "yyyy-MM-dd");
+  const { data: contasAPagar = [], isLoading: contasAPagarLoading, error: contasAPagarError } = useQuery({
+    queryKey: ["contas-apagar-proximas", hoje, limiteContasAPagar],
+    queryFn: async () => {
+      const { data: contas, error } = await supabase
+        .from("contas_apagar")
+        .select("id, descricao, fornecedor_nome, categoria, valor, data_vencimento, status")
+        .gte("data_vencimento", hoje)
+        .lte("data_vencimento", limiteContasAPagar)
+        .neq("status", "paga")
+        .neq("status", "cancelada")
+        .order("data_vencimento", { ascending: true });
+
+      if (error) throw error;
+      return contas;
+    },
+  });
+  const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({ diasAtrasoMinimo: 6 });
 
   const load = useCallback(async () => {
     setLoading(true); setErro(null);
-    try { setData(await fetchFinanceiroData()); } 
-    catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); } 
+    try {
+      setData(await fetchFinanceiroData());
+      await queryClient.invalidateQueries({ queryKey: ["contas-apagar-proximas"] });
+      await queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
+    } catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); }
     finally { setLoading(false); }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -168,16 +189,6 @@ export default function FluxoCaixaTab() {
     return { entradas, saidas, saldo: entradas - saidas, aReceber, dgaSaldo: dgaEntrada - dgaSaida };
   }, [data.movimentacoes]);
 
-  const evolucaoMensal = useMemo(() => Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + index, 1);
-    const periodo = format(date, "yyyy-MM");
-    const transacoes = data.movimentacoes.filter((m: any) => String(m.status || "").toLowerCase() !== "cancelado" && String(dateOf(m) || "").slice(0, 7) === periodo);
-    const entradas = transacoes.filter((m: any) => !isDga(m) && isEntrada(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const saidas = transacoes.filter((m: any) => !isDga(m) && !isEntrada(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    return { periodo, label: format(date, "MMM", { locale: ptBR }), entradas, saidas, saldo: entradas - saidas };
-  }), [data.movimentacoes]);
-
-  const maiorMovimento = Math.max(1, ...evolucaoMensal.flatMap((m) => [m.entradas, m.saidas]));
   const formatMesAno = (periodo: string) => { const [ano, mesNumero] = periodo.split("-"); return `${mesNumero}/${ano}`; };
 
   const onBaixaSuccess = async () => { setBaixaMov(null); await load(); await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }); };
@@ -260,28 +271,46 @@ export default function FluxoCaixaTab() {
             <Card title="Saldo DGA" value={formatBRL(resumo.dgaSaldo)} note="não integra dívida de clientes" tone="violet" />
           </div>
           
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-sm backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <BarChart3 className="h-5 w-5 text-cyan-500" />
-              <div className="font-bold text-slate-200">Evolução mensal</div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {evolucaoMensal.map((item) => (
-                <div key={item.periodo} className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                  <div className="text-center text-xs font-bold uppercase tracking-wider text-slate-400">{item.label}</div>
-                  <div className="mt-4 flex h-32 items-end justify-center gap-2">
-                    <div title={`Entradas: ${formatBRL(item.entradas)}`} className="w-6 rounded-t bg-emerald-400/80 hover:bg-emerald-400 transition-colors" style={{ height: `${item.entradas ? Math.max(8, (item.entradas / maiorMovimento) * 100) : 2}%` }} />
-                    <div title={`Saídas: ${formatBRL(item.saidas)}`} className="w-6 rounded-t bg-rose-400/80 hover:bg-rose-400 transition-colors" style={{ height: `${item.saidas ? Math.max(8, (item.saidas / maiorMovimento) * 100) : 2}%` }} />
-                  </div>
-                  <div className={`mt-3 text-center text-sm font-black ${item.saldo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatBRL(item.saldo)}</div>
-                  <div className="text-center text-[10px] text-slate-500 mt-1">{formatMesAno(item.periodo)}</div>
-                </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <ResumoLista
+              icon={<ReceiptText className="h-5 w-5 text-cyan-400" />}
+              title="Contas a pagar nos próximos 5 dias"
+              description={`Vencimentos de hoje até ${format(addDays(new Date(), 5), "dd/MM")}.`}
+              count={contasAPagar.length}
+              loading={contasAPagarLoading}
+              error={contasAPagarError}
+              empty="Nenhuma conta a pagar com vencimento nos próximos 5 dias."
+            >
+              {contasAPagar.map((conta) => (
+                <ResumoItem
+                  key={conta.id}
+                  title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"}
+                  detail={`${conta.categoria || "Sem categoria"} · vence em ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`}
+                  value={formatBRL(Number(conta.valor))}
+                  tone="cyan"
+                />
               ))}
-            </div>
-            <div className="mt-5 flex justify-center gap-6 text-xs font-medium text-slate-400 border-t border-slate-800/50 pt-5">
-              <span className="flex items-center gap-2"><i className="block h-2.5 w-2.5 rounded-full bg-emerald-400/80" /> Entradas</span>
-              <span className="flex items-center gap-2"><i className="block h-2.5 w-2.5 rounded-full bg-rose-400/80" /> Saídas</span>
-            </div>
+            </ResumoLista>
+
+            <ResumoLista
+              icon={<AlertTriangle className="h-5 w-5 text-rose-400" />}
+              title="Alertas de inadimplência"
+              description="Clientes com mais de 5 dias de atraso."
+              count={inadimplencias.length}
+              loading={inadimplenciasLoading}
+              error={inadimplenciasError}
+              empty="Nenhum cliente com atraso superior a 5 dias."
+            >
+              {inadimplencias.map((item) => (
+                <ResumoItem
+                  key={`${item.origem}-${item.id}`}
+                  title={item.cliente_nome}
+                  detail={`${item.descricao} · ${item.dias_atraso} dias em atraso`}
+                  value={formatBRL(item.valor)}
+                  tone="rose"
+                />
+              ))}
+            </ResumoLista>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-sm backdrop-blur-sm">
@@ -439,7 +468,7 @@ export default function FluxoCaixaTab() {
                       </td>
                       <td className="px-5 py-3.5 text-center">
                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                            fornecedorStatus(m) === "pago" || fornecedorStatus(m) === "recebido"
+                            fornecedorStatus(m) === "pago"
                               ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                               : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                           }`}>
@@ -475,6 +504,60 @@ export default function FluxoCaixaTab() {
       {reembolsoMov && <ReembolsoModal mov={reembolsoMov} onClose={() => setReembolsoMov(null)} onSuccess={async () => { setReembolsoMov(null); await load(); }} />}
       {editMovId && <EditLancamentoModal movId={editMovId} onClose={() => setEditMovId(null)} onSaved={async () => { setEditMovId(null); await load(); }} />}
       {attachment?.url && <AttachmentViewerModal url={attachment.url} title={attachment.title} onClose={() => setAttachment(null)} />}
+    </div>
+  );
+}
+
+function ResumoLista({
+  icon,
+  title,
+  description,
+  count,
+  loading,
+  error,
+  empty,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  count: number;
+  loading: boolean;
+  error: Error | null;
+  empty: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm backdrop-blur-sm">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-slate-950/70 p-2.5">{icon}</div>
+          <div>
+            <h3 className="font-bold text-slate-100">{title}</h3>
+            <p className="mt-0.5 text-xs text-slate-400">{description}</p>
+          </div>
+        </div>
+        <span className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-bold text-slate-300">{count}</span>
+      </div>
+      <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+        {loading ? <div className="py-6 text-center text-sm text-slate-500">Carregando...</div> : error ? <div className="py-6 text-center text-sm text-rose-300">Não foi possível carregar os dados.</div> : count === 0 ? <div className="py-6 text-center text-sm text-slate-500">{empty}</div> : children}
+      </div>
+    </section>
+  );
+}
+
+function ResumoItem({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "cyan" | "rose" }) {
+  const valueClass = tone === "cyan" ? "text-cyan-300" : "text-rose-300";
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <Clock3 className="h-4 w-4 shrink-0 text-slate-500" />
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-200">{title}</div>
+          <div className="truncate text-xs text-slate-500">{detail}</div>
+        </div>
+      </div>
+      <span className={`shrink-0 text-sm font-black ${valueClass}`}>{value}</span>
     </div>
   );
 }
