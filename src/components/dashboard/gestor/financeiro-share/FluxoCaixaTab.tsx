@@ -94,14 +94,33 @@ export default function FluxoCaixaTab() {
 
   const grupos = useMemo(() => Array.from(new Set(data.movimentacoes.map((m: any) => grupoDe(m)).filter(Boolean))).sort((a: string, b: string) => a.localeCompare(b)), [data.movimentacoes, grupoDe]);
 
+  // Uma despesa é "reembolsável" quando é do caixa Share, é saída, e sua categoria
+  // pertence ao grupo "Reembolsáveis". Essas despesas só devem aparecer na aba
+  // "Despesas Reembolsáveis" — nunca na aba "Caixa".
+  const isReembolsavel = useCallback((m: any) => {
+    if (!isShare(m) || isEntrada(m)) return false;
+    const grupo = String(grupoDe(m) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return grupo.includes("reembolsav");
+  }, [grupoDe]);
+
   const movs = useMemo(() => {
     const filtrados = data.movimentacoes.filter((m: any) => {
       if (String(m.status || '').toLowerCase() === 'cancelado') return false;
-      const grupo = String(grupoDe(m) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      if (aba === "reembolsaveis" && (!isShare(m) || isEntrada(m) || !grupo.includes("reembolsav"))) return false;
+
+      const reembolsavel = isReembolsavel(m);
+
+      // Aba "Despesas Reembolsáveis": mostra só as reembolsáveis.
+      if (aba === "reembolsaveis" && !reembolsavel) return false;
+      // Aba "Caixa": nunca mostra reembolsáveis (elas ficam só na aba própria).
+      if (aba === "caixa" && reembolsavel) return false;
+
       if (caixa === 'dga' && !isDga(m)) return false;
-      if (caixa === 'share' && (!isShare(m) || isEntrada(m))) return false;
+      // Caixa "Share": mostra tudo do caixa Share (entradas E saídas),
+      // exceto DGA (DGA é tratado separadamente). Reembolsáveis já foram
+      // filtradas acima quando a aba é "caixa".
+      if (caixa === 'share' && (!isShare(m) || isDga(m))) return false;
       if (caixa === 'cliente' && (isDga(m) || isShare(m))) return false;
+
       if (mes && String(getDisplayDate(m) || '').slice(0, 7) !== mes) return false;
       if (grupoFiltro && grupoDe(m) !== grupoFiltro) return false;
       if (busca) {
@@ -121,7 +140,7 @@ export default function FluxoCaixaTab() {
       return ordem === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
     });
     return ordenados;
-  }, [data.movimentacoes, aba, caixa, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe]);
+  }, [data.movimentacoes, aba, caixa, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe, isReembolsavel]);
 
   // Lógica de Seleção
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
