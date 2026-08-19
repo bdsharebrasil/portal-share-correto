@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,6 +41,7 @@ interface Aircraft {
 }
 
 interface FreelanceCrew {
+  matricula_aeronave: string;
   id: string;
   canac: string;
   nome_completo: string;
@@ -133,7 +135,7 @@ export function CrewRegistrationForm() {
         throw error;
       }
 
-      setCrewList((data || []) as FreelanceCrew[]);
+      setCrewList((data || []) as unknown as FreelanceCrew[]);
     } catch (error: any) {
       console.error("Erro ao carregar tripulantes externos:", error);
 
@@ -213,6 +215,8 @@ export function CrewRegistrationForm() {
     try {
       setIsLoading(true);
 
+      // These fields exist in the database but are missing from the generated
+      // Supabase table types. Keep the payload usable for both insert and update.
       const payload = {
         canac: formData.canac.trim(),
         nome_completo: formData.nome_completo.trim(),
@@ -224,7 +228,7 @@ export function CrewRegistrationForm() {
         status: formData.status,
         aeronave_id: formData.aeronave_id || null,
         observacao: formData.observacao.trim() || null,
-      };
+      } as any;
 
       if (editingId) {
         const { error } = await supabase
@@ -442,7 +446,7 @@ export function CrewRegistrationForm() {
                     <TableHead>Tripulante</TableHead>
                     <TableHead>CANAC</TableHead>
                     <TableHead>Aeronave</TableHead>
-                    <TableHead>Vínculo / Observação</TableHead>
+                    <TableHead>Observação</TableHead>
                     <TableHead>Contato</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">
@@ -493,43 +497,26 @@ export function CrewRegistrationForm() {
 
                       {/* AERONAVE */}
                       <TableCell>
-                        {crew.aeronave ? (
-                          <div className="flex items-center gap-2 min-w-[180px]">
-                            <div className="h-8 w-8 rounded-lg bg-sky-500/10 flex items-center justify-center">
-                              <Plane className="h-4 w-4 text-sky-400" />
-                            </div>
-
-                            <div>
-                              <p className="font-medium">
-                                {crew.aeronave.matricula}
-                              </p>
-
-                              <p className="text-xs text-muted-foreground">
-                                {crew.aeronave.modelo}
-                              </p>
-                            </div>
+                        {crew.aeronave_id ? (
+                          <div className="flex items-center gap-2">
+                            <Plane className="h-4 w-4 text-muted-foreground" />
+                            <span>{crew.matricula_aeronave || "Aeronave vinculada"}</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground italic">
-                            Não vinculada
+                            Aeronave não vinculada
                           </span>
                         )}
                       </TableCell>
 
-                      {/* VÍNCULO / OBSERVAÇÃO */}
+                      {/*OBSERVAÇÃO */}
                       <TableCell>
                         <div className="max-w-[300px] space-y-1">
-                          <Badge
-                            variant="outline"
-                            className="border-amber-500/30 text-amber-400"
-                          >
-                          </Badge>
+                          
 
                           <p className="text-sm text-muted-foreground line-clamp-3">
                             {crew.observacao || (
-                              <span className="italic">
-                                Sem observação informada
-                              </span>
+<span className="italic text-muted-foreground"></span>
                             )}
                           </p>
                         </div>
@@ -799,46 +786,25 @@ export function CrewRegistrationForm() {
                   Aeronave
                 </Label>
 
-                <Select
-                  value={formData.aeronave_id || undefined}
-                  onValueChange={(value) =>
-                    handleInputChange(
-                      "aeronave_id",
-                      value
-                    )
+                <SearchableCombobox
+                  items={aircraftList.map((aircraft) => ({
+                    id: aircraft.id,
+                    label: `${aircraft.matricula} — ${aircraft.modelo}`,
+                  }))}
+                  value={formData.aeronave_id}
+                  onChange={(value) =>
+                    handleInputChange("aeronave_id", value)
                   }
+                  placeholder={
+                    isAircraftLoading
+                      ? "Carregando aeronaves..."
+                      : "Selecione a aeronave"
+                  }
+                  searchPlaceholder="Buscar aeronave..."
+                  emptyMessage="Nenhuma aeronave encontrada"
+                  icon={<Plane className="h-4 w-4" />}
                   disabled={isAircraftLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        isAircraftLoading
-                          ? "Carregando aeronaves..."
-                          : "Selecione a aeronave"
-                      }
-                    />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {aircraftList.length === 0 ? (
-                      <SelectItem
-                        value="__none__"
-                        disabled
-                      >
-                        Nenhuma aeronave encontrada
-                      </SelectItem>
-                    ) : (
-                      aircraftList.map((aircraft) => (
-                        <SelectItem
-                          key={aircraft.id}
-                          value={aircraft.id}
-                        >
-                          {aircraft.matricula} — {aircraft.modelo}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                />
 
                 {selectedAircraft && (
                   <p className="text-xs text-muted-foreground">
@@ -867,10 +833,9 @@ export function CrewRegistrationForm() {
                   }
                   rows={4}
                   placeholder={`Exemplos:
-Freelancer contratado pela Share para esta aeronave.
 Contratação direta do cliente.
 Freelancer para voo específico.
-Tripulante eventual sem vínculo empregatício com a Share.`}
+`}
                 />
 
                 <p className="text-xs text-muted-foreground">
