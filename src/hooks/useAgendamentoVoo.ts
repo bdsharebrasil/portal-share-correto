@@ -303,6 +303,17 @@ export interface JornadaVoo {
   observacoes:
     | string
     | null;
+
+  // Limites calculados pela Tabela C.1 (RBAC/IS)
+  // a partir do horário da primeira decolagem
+  // e da quantidade de etapas da jornada.
+  limite_jornada_minutos?:
+    | number
+    | null;
+
+  limite_tempo_voo_minutos?:
+    | number
+    | null;
 }
 
 /* ============================================================
@@ -775,6 +786,133 @@ export function vooCobreDia(
         iso(fim),
       )
   );
+}
+
+/* ============================================================
+   LIMITES DE JORNADA — TABELA C.1
+   (operação com dois pilotos, não complexa)
+
+   Retorna, em minutos, o limite de jornada e o limite de
+   tempo de voo a partir do horário local de início da
+   jornada (primeira apresentação/decolagem) e da
+   quantidade de etapas (pernas) previstas.
+============================================================ */
+
+export function calcularLimiteJornadaMinutos(
+  horarioInicio: string,
+  quantidadeEtapas: number,
+): {
+  jornada: number;
+  tempoVoo: number;
+} | null {
+  const [horaStr] = horarioInicio.split(":");
+  const hora = Number(horaStr);
+
+  if (Number.isNaN(hora)) {
+    return null;
+  }
+
+  if (hora >= 6 && hora < 7) {
+    if (quantidadeEtapas <= 2) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    if (quantidadeEtapas === 6) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  }
+
+  if (hora >= 7 && hora < 8) {
+    if (quantidadeEtapas <= 2) return { jornada: 13 * 60, tempoVoo: 9.5 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 6) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  }
+
+  if (hora >= 8 && hora < 12) {
+    if (quantidadeEtapas <= 2) return { jornada: 13 * 60, tempoVoo: 10 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 13 * 60, tempoVoo: 9.5 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 6) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+  }
+
+  if (hora >= 12 && hora < 14) {
+    if (quantidadeEtapas <= 2) return { jornada: 12 * 60, tempoVoo: 9.5 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 6) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  }
+
+  if (hora >= 14 && hora < 16) {
+    if (quantidadeEtapas <= 2) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    if (quantidadeEtapas === 6) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  }
+
+  if (hora >= 16 && hora < 18) {
+    if (quantidadeEtapas <= 2) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    if (quantidadeEtapas <= 4) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+    if (quantidadeEtapas === 5) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  }
+
+  return {
+    jornada: 9 * 60,
+    tempoVoo: quantidadeEtapas <= 2 ? 8 * 60 : 7 * 60,
+  };
+}
+
+/* ============================================================
+   NÍVEL DE ALERTA DA JORNADA
+
+   > 60 min restantes → normal
+   60 a 31 min        → atencao
+   30 a 1 min         → critico
+   0 ou negativo      → limite
+============================================================ */
+
+export type NivelAlertaJornada =
+  | "normal"
+  | "atencao"
+  | "critico"
+  | "limite";
+
+export function calcularNivelAlerta(
+  inicioEm: string | null,
+  limiteMinutos: number | null,
+  agora = new Date(),
+): NivelAlertaJornada {
+  if (!inicioEm || !limiteMinutos) {
+    return "normal";
+  }
+
+  const inicio = new Date(inicioEm);
+
+  const minutosDecorridos = Math.max(
+    0,
+    Math.floor(
+      (agora.getTime() - inicio.getTime()) / 60000,
+    ),
+  );
+
+  const restante = limiteMinutos - minutosDecorridos;
+
+  if (restante <= 0) {
+    return "limite";
+  }
+
+  if (restante <= 30) {
+    return "critico";
+  }
+
+  if (restante <= 60) {
+    return "atencao";
+  }
+
+  return "normal";
 }
 
 /* ============================================================
@@ -2054,11 +2192,12 @@ async function criarJornadaDoDia({
       data_jornada:
         dataJornada,
 
+      // Apenas apresentação. A jornada ainda não começou.
       apresentacao_em:
         apresentacaoEm.toISOString(),
 
-      inicio_em:
-        apresentacaoEm.toISOString(),
+      // A jornada começa somente com a primeira decolagem.
+      inicio_em: null,
 
       fim_em: null,
 
@@ -2933,6 +3072,49 @@ export function useAgendamentoMutations() {
             );
 
           /* --------------------------------------------------
+             REGISTRA O INÍCIO REAL DA JORNADA
+             (somente na primeira decolagem)
+          -------------------------------------------------- */
+
+          const inicioJornada =
+            normalizarDateTimeUtc(
+              dataPartida,
+              horarioDecolagem,
+            );
+
+          if (!jornada.inicio_em) {
+            const {
+              data: jornadaAtualizada,
+              error: inicioJornadaError,
+            } = await sb
+              .from(
+                "jornadas_voo",
+              )
+              .update({
+                inicio_em:
+                  inicioJornada.toISOString(),
+
+                atualizado_em:
+                  new Date().toISOString(),
+              })
+              .eq(
+                "id",
+                jornada.id,
+              )
+              .select("*")
+              .single();
+
+            if (inicioJornadaError) {
+              throw inicioJornadaError;
+            }
+
+            Object.assign(
+              jornada,
+              jornadaAtualizada,
+            );
+          }
+
+          /* --------------------------------------------------
              VINCULA A PERNA À JORNADA
           -------------------------------------------------- */
 
@@ -2980,6 +3162,71 @@ export function useAgendamentoMutations() {
 
           if (pernaError)
             throw pernaError;
+
+          /* --------------------------------------------------
+             RECALCULA OS LIMITES DA JORNADA (TABELA C.1)
+             com base no horário da decolagem e na
+             quantidade de etapas já vinculadas a ela
+          -------------------------------------------------- */
+
+          const {
+            data: pernasJornada,
+            error: pernasJornadaError,
+          } = await sb
+            .from(
+              "pernas_voo",
+            )
+            .select(
+              "id, numero_perna, horario_decolagem, horario_pouso, horario_corte, jornada_id",
+            )
+            .eq(
+              "jornada_id",
+              jornada.id,
+            )
+            .order(
+              "numero_perna",
+              {
+                ascending: true,
+              },
+            );
+
+          if (pernasJornadaError) {
+            throw pernasJornadaError;
+          }
+
+          const quantidadeEtapas =
+            pernasJornada?.length ?? 0;
+
+          const limites =
+            calcularLimiteJornadaMinutos(
+              horarioDecolagem,
+              quantidadeEtapas,
+            );
+
+          if (limites) {
+            await sb
+              .from(
+                "jornadas_voo",
+              )
+              .update({
+                limite_jornada_minutos:
+                  Math.round(
+                    limites.jornada,
+                  ),
+
+                limite_tempo_voo_minutos:
+                  Math.round(
+                    limites.tempoVoo,
+                  ),
+
+                atualizado_em:
+                  new Date().toISOString(),
+              })
+              .eq(
+                "id",
+                jornada.id,
+              );
+          }
 
           /* --------------------------------------------------
              SOLICITAÇÃO
