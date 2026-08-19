@@ -951,190 +951,161 @@ export function DetalhesVooDialog({
             </div>
 
             {/* ================================================================
-                PERNAS
-            ================================================================ */}
+    PERNAS DE VOO
+================================================================ */}
+<div className="rounded-xl border border-border bg-background/80 p-4">
+  <div className="flex flex-wrap items-center justify-between gap-2">
+    <div>
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        Pernas de voo ({pernasOrdenadas.length})
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        O pouso encerra a perna, não necessariamente a jornada.
+      </p>
+    </div>
 
-            <div className="rounded-xl border border-border bg-background/80 p-4">
+    {voo.status !== "concluido" && voo.status !== "cancelado" && (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setPernaAberta(true)}
+      >
+        <Plus className="mr-1 h-3.5 w-3.5" />
+        Nova perna
+      </Button>
+    )}
+  </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2">
+  {pernasOrdenadas.length === 0 ? (
+    <div className="mt-3 rounded-lg border border-dashed border-border p-4 text-center">
+      <PlaneTakeoff className="mx-auto h-5 w-5 text-muted-foreground" />
+      <p className="mt-2 text-sm text-muted-foreground">
+        Nenhuma perna registrada ainda.
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Adicione as pernas de voo para detalhar os trechos desta operação.
+      </p>
+    </div>
+  ) : (
+    <div className="mt-3 space-y-3">
+      {pernasOrdenadas.map((p) => {
+        const jornada = p.jornada_id
+          ? jornadasOrdenadas.find((j) => j.id === p.jornada_id)
+          : null;
 
+        const completa = Boolean(p.horario_pouso && p.horario_corte);
+        const emRota = Boolean(p.horario_decolagem && !p.horario_pouso);
+
+        return (
+          <div
+            key={p.id}
+            className={cn(
+              "rounded-lg border p-3.5 transition-all",
+              completa
+                ? "border-emerald-500/30 bg-emerald-500/[0.02]"
+                : emRota
+                ? "border-amber-500/30 bg-amber-500/[0.02]"
+                : "border-border bg-background/50"
+            )}
+          >
+            {/* Cabeçalho da Perna */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-bold text-primary">
+                  {p.numero_perna}
+                </span>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Pernas de voo
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-foreground">
+                      {p.origem}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-semibold text-foreground">
+                      {p.destino}
+                    </span>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    O pouso encerra a perna, não necessariamente a jornada.
+                    {p.numero_voo && (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                        Voo {p.numero_voo}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {p.data_perna
+                      ? format(parseISO(p.data_perna), "dd/MM/yyyy", { locale: ptBR })
+                      : "—"}
+                    {jornada ? ` · Jornada ${jornada.numero_jornada}` : ""}
+                    {p.qtd_passageiros ? ` · ${p.qtd_passageiros} pax` : ""}
                   </p>
                 </div>
-
-                {voo.status !==
-                  "concluido" &&
-                  voo.status !==
-                    "cancelado" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setPernaAberta(
-                          true,
-                        )
-                      }
-                    >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-
-                      Nova perna
-                    </Button>
-                  )}
               </div>
 
-              {pernasOrdenadas.length ===
-              0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Nenhuma perna registrada ainda.
-                </p>
-              ) : (
-                <div className="mt-3 space-y-2">
-
-                  {pernasOrdenadas.map(
-                    (p) => {
-
-                      const jornada =
-                        p.jornada_id
-                          ? jornadasOrdenadas.find(
-                              (
-                                j,
-                              ) =>
-                                j.id ===
-                                p.jornada_id,
-                            )
-                          : null;
-
-                      const completa =
-                        Boolean(
-                          p.horario_pouso &&
-                            p.horario_corte,
-                        );
-
-                      return (
-                        <div
-                          key={p.id}
-                          className={cn(
-                            "rounded-lg border bg-background/50 p-3",
-                            completa
-                              ? "border-emerald-500/20"
-                              : "border-amber-500/20",
-                          )}
-                        >
-
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-
-                            <div>
-
-                              <p className="font-medium text-foreground">
-                                #{p.numero_perna} ·{" "}
-                                {p.origem}{" "}
-                                →{" "}
-                                {p.destino}
-                              </p>
-
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {p.data_perna
-                                  ? format(
-                                      parseISO(
-                                        p.data_perna,
-                                      ),
-                                      "dd/MM/yyyy",
-                                      {
-                                        locale:
-                                          ptBR,
-                                      },
-                                    )
-                                  : "—"}
-
-                                {jornada
-                                  ? ` · Jornada ${jornada.numero_jornada}`
-                                  : ""}
-                              </p>
-
-                            </div>
-
-                            <Badge
-                              className={
-                                completa
-                                  ? "bg-emerald-500/15 text-emerald-400"
-                                  : "bg-amber-500/15 text-amber-400"
-                              }
-                            >
-                              {completa
-                                ? "Pousada"
-                                : p.horario_decolagem
-                                  ? "Em rota"
-                                  : "Não iniciada"}
-                            </Badge>
-
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-
-                            <div>
-                              <p className="text-muted-foreground">
-                                AC
-                              </p>
-
-                              <p className="font-mono font-semibold text-foreground">
-                                {formatarHora(
-                                  p.horario_acionamento,
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-muted-foreground">
-                                DEP
-                              </p>
-
-                              <p className="font-mono font-semibold text-foreground">
-                                {formatarHora(
-                                  p.horario_decolagem,
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-muted-foreground">
-                                ARR
-                              </p>
-
-                              <p className="font-mono font-semibold text-foreground">
-                                {formatarHora(
-                                  p.horario_pouso,
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-muted-foreground">
-                                CORT
-                              </p>
-
-                              <p className="font-mono font-semibold text-foreground">
-                                {formatarHora(
-                                  p.horario_corte,
-                                )}
-                              </p>
-                            </div>
-
-                          </div>
-
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-              )}
+              <Badge
+                className={cn(
+                  "font-normal",
+                  completa
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : emRota
+                    ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                    : "bg-muted text-muted-foreground border-border"
+                )}
+              >
+                {completa ? "Pousada / Concluída" : emRota ? "Em Rota" : "Não iniciada"}
+              </Badge>
             </div>
 
+            {/* Grid de Horários */}
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-md bg-muted/30 p-2.5 text-xs sm:grid-cols-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Acionamento (AC)
+                </p>
+                <p className="mt-0.5 font-mono font-medium text-foreground">
+                  {formatarHora(p.horario_acionamento)} UTC
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Decolagem (DEP)
+                </p>
+                <p className="mt-0.5 font-mono font-medium text-foreground">
+                  {formatarHora(p.horario_decolagem)} UTC
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Pouso (ARR)
+                </p>
+                <p className="mt-0.5 font-mono font-medium text-foreground">
+                  {formatarHora(p.horario_pouso)} UTC
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Corte (CORT)
+                </p>
+                <p className="mt-0.5 font-mono font-medium text-foreground">
+                  {formatarHora(p.horario_corte)} UTC
+                </p>
+              </div>
+            </div>
+
+            {/* Observações da Perna */}
+            {p.observacoes && (
+              <p className="mt-2 text-xs italic text-muted-foreground">
+                Obs: {p.observacoes}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
             {/* ================================================================
                 OBSERVAÇÕES
             ================================================================ */}
