@@ -42,7 +42,7 @@ export default function GestaoFiscal() {
 
   return (
     <Layout>
-      <div className="space-y-6 px-2">
+      <div className="space-y-6 border border-[rgba(12,17,27,0.24)] px-2 text-[#becbe6]">
         {/* Header */}
         <header className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20 text-primary">
@@ -81,7 +81,7 @@ export default function GestaoFiscal() {
         </div>
 
         {/* Tab content */}
-        <div className="w-full">
+        <div className="w-full ml-[-1px] rounded-[20px] border border-[#05080e] bg-[rgba(3,10,22,1)] px-1 shadow-[1px_1px_3px_1px_rgba(0,0,0,1)] overflow-hidden">
           {activeTab === "fluxo" && <FluxoCaixaTab />}
           {activeTab === "despesas-particulares" && <DespesasParticularesTab />}
           {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}

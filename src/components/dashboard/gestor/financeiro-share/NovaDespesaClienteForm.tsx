@@ -59,6 +59,7 @@ const FLUXOS = [
 
 const PERIODICIDADES = [
   { id: "UNICO", label: "ÚNICO" },
+    { id: "EVENTUAL", label: "EVENTUAL" },
   { id: "MENSAL", label: "MENSAL" },
   { id: "BIMESTRAL", label: "BIMESTRAL" },
   { id: "TRIMESTRAL", label: "TRIMESTRAL" },

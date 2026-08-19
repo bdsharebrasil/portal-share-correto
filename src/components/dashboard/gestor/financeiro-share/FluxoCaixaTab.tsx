@@ -285,13 +285,13 @@ export default function FluxoCaixaTab() {
 
       {/* ABA VISÃO GERAL */}
       {aba === "visao" && (
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-hidden rounded-[9px] border border-[rgba(78,93,126,0.1)] px-[10px] ml-0 mr-0">
           {/* RESUMO PRINCIPAL */}
           <section className="relative overflow-hidden rounded-3xl border border-slate-800/90 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-5 shadow-2xl">
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
 
-            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between mt-[7px] mb-[7px]">
               <div>
                 <div className="mb-1 text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400/80">Visão financeira</div>
                 <h3 className="text-xl font-black tracking-tight text-white">O que está acontecendo com o caixa?</h3>
