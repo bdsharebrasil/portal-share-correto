@@ -179,18 +179,26 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [tableWidth, setTableWidth] = useState<number>(0);
 
   useLayoutEffect(() => {
+    let frameId = 0;
     const update = () => {
-      if (tableRef.current) setTableWidth(tableRef.current.scrollWidth);
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        const width = tableRef.current?.scrollWidth ?? 0;
+        setTableWidth((currentWidth) => currentWidth === width ? currentWidth : width);
+      });
     };
+
     update();
-    const ro = new ResizeObserver(update);
-    if (tableRef.current) ro.observe(tableRef.current);
+    const observer = new ResizeObserver(update);
+    if (tableRef.current) observer.observe(tableRef.current);
     window.addEventListener("resize", update);
+
     return () => {
-      ro.disconnect();
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
       window.removeEventListener("resize", update);
     };
-  });
+  }, []);
 
   useEffect(() => {
     if (!resizing) return;
