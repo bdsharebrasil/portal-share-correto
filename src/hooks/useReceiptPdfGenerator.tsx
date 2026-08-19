@@ -1,7 +1,7 @@
-import { pdf } from '@react-pdf/renderer';
-import React from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { ReciboDocument } from '@/lib/reciboGenerator';
+import { pdf } from "@react-pdf/renderer";
+import { ReciboDocument } from "@/lib/reciboGenerator";
+import { supabase } from "@/integrations/supabase/client";
+import React from "react";
 
 interface GeneratePdfOptions {
   receiptData: any;
@@ -10,13 +10,17 @@ interface GeneratePdfOptions {
   onError?: (error: Error) => void;
 }
 
+/**
+ * Normaliza um registro da tabela `recibos` (colunas em PT) para o formato
+ * esperado pelo componente de PDF (chaves em EN) e carrega os dados do emissor.
+ */
 export const normalizeReceiptForPdf = async (receiptData: any) => {
   let emissor = receiptData?.emissor || null;
   if (!emissor) {
     const { data: empresa } = await (supabase as any)
-      .from('configuracao_empresa')
-      .select('*')
-      .order('criado_em', { ascending: false })
+      .from("configuracao_empresa")
+      .select("*")
+      .order("criado_em", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (empresa) {
@@ -33,14 +37,14 @@ export const normalizeReceiptForPdf = async (receiptData: any) => {
 
   return {
     ...receiptData,
-    receipt_number: receiptData.receipt_number || receiptData.numero_recibo || '',
-    payer_name: receiptData.payer_name || receiptData.nome_pagador || '',
-    payer_document: receiptData.payer_document || receiptData.documento_pagador || '',
+    receipt_number: receiptData.receipt_number || receiptData.numero_recibo || "",
+    payer_name: receiptData.payer_name || receiptData.nome_pagador || "",
+    payer_document: receiptData.payer_document || receiptData.documento_pagador || "",
     payer_address: receiptData.payer_address || receiptData.endereco_pagador || null,
     payer_city: receiptData.payer_city || receiptData.cidade_pagador || null,
     payer_uf: receiptData.payer_uf || receiptData.uf_pagador || null,
-    service_description: receiptData.service_description || receiptData.descricao_servico || '',
-    receipt_type: receiptData.receipt_type || receiptData.tipo_recibo || 'pagamento',
+    service_description: receiptData.service_description || receiptData.descricao_servico || "",
+    receipt_type: receiptData.receipt_type || receiptData.tipo_recibo || "pagamento",
     issue_date: receiptData.issue_date || receiptData.data_emissao || null,
     max_payment_date: receiptData.max_payment_date || receiptData.data_max_pagamento || null,
     payment_method: receiptData.payment_method || receiptData.forma_pagamento || null,
@@ -51,54 +55,131 @@ export const normalizeReceiptForPdf = async (receiptData: any) => {
   };
 };
 
-export function useReceiptPdfGenerator() {
-  const generateAndUploadPdf = async ({ receiptData, userId, onSuccess, onError }: GeneratePdfOptions): Promise<string | null> => {
+/**
+ * Hook para gerar e fazer upload de PDF de recibos
+ * Usa @react-pdf/renderer para a geração
+ */
+export const useReceiptPdfGenerator = () => {
+  const generateAndUploadPdf = async (
+    options: GeneratePdfOptions
+  ): Promise<string | null> => {
     try {
-      if (!receiptData?.id) throw new Error('ID do recibo não encontrado');
-      if (!receiptData?.numero_recibo && !receiptData?.receipt_number) throw new Error('Número do recibo não encontrado');
+      const { receiptData, userId, onSuccess, onError } = options;
 
+      console.log("📄 Iniciando geração de PDF...");
+
+      // Validar dados obrigatórios
+      if (!receiptData?.id) {
+        throw new Error("ID do recibo não encontrado");
+      }
+
+      if (!receiptData?.numero_recibo && !receiptData?.receipt_number) {
+        throw new Error("Número do recibo não encontrado");
+      }
+
+      // Normalizar para o formato do documento PDF
       const pdfData = await normalizeReceiptForPdf(receiptData);
-      const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
-      if (!pdfBlob) throw new Error('Falha ao gerar PDF');
 
+      // Gerar PDF usando @react-pdf/renderer
+      const pdfBlob = await pdf(
+        <ReciboDocument data={pdfData} />
+      ).toBlob();
+
+
+      if (!pdfBlob) {
+        throw new Error("Falha ao gerar PDF");
+      }
+
+      console.log(`✅ PDF gerado com sucesso (${(pdfBlob.size / 1024).toFixed(2)} KB)`);
+
+      // Preparar nome do arquivo
       const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
+
+      // Upload para Storage
+      console.log("📤 Fazendo upload do PDF...");
       const { error: uploadError } = await supabase.storage
-        .from('recibos')
-        .upload(pdfFileName, pdfBlob, { contentType: 'application/pdf', cacheControl: '3600', upsert: true });
-      if (uploadError) throw new Error(`Erro ao fazer upload: ${uploadError.message}`);
+        .from("recibos")
+        .upload(pdfFileName, pdfBlob, {
+          contentType: "application/pdf",
+          cacheControl: "3600",
+          upsert: true,
+        });
 
-      const { data: urlData } = supabase.storage.from('recibos').getPublicUrl(pdfFileName);
-      if (!urlData?.publicUrl) throw new Error('Falha ao obter URL pública do PDF');
+      if (uploadError) {
+        throw new Error(`Erro ao fazer upload: ${uploadError.message}`);
+      }
 
+      // Obter URL pública
+      const { data: urlData } = supabase.storage
+        .from("recibos")
+        .getPublicUrl(pdfFileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error("Falha ao obter URL pública do PDF");
+      }
+
+      console.log("✅ URL pública obtida:", urlData.publicUrl);
+
+      // Atualizar registro no banco de dados
+      console.log("💾 Atualizando banco de dados...");
       const { error: updateError } = await supabase
-        .from('recibos')
+        .from("recibos")
         .update({ pdf_url: urlData.publicUrl })
-        .eq('id', receiptData.id)
-        .eq('usuario_id', userId);
-      if (updateError) throw new Error(`Erro ao atualizar banco: ${updateError.message}`);
+        .eq("id", receiptData.id)
+        .eq("usuario_id", userId);
 
-      onSuccess?.(urlData.publicUrl);
+      if (updateError) {
+        throw new Error(`Erro ao atualizar banco: ${updateError.message}`);
+      }
+
+      console.log("✅ PDF gerado e salvo com sucesso!");
+
+      // Chamar callback de sucesso
+      if (onSuccess) {
+        onSuccess(urlData.publicUrl);
+      }
+
       return urlData.publicUrl;
     } catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(String(error));
-      onError?.(normalizedError);
-      throw normalizedError;
+      console.error("❌ Erro ao gerar PDF:", error);
+
+      // Chamar callback de erro
+      if (options.onError && error instanceof Error) {
+        options.onError(error);
+      }
+
+      throw error;
     }
   };
 
   const downloadPdf = async (pdfUrl: string, fileName: string) => {
-    const response = await fetch(pdfUrl);
-    if (!response.ok) throw new Error(`Erro ao baixar: ${response.statusText}`);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    try {
+      console.log("📥 Iniciando download do PDF...");
+
+      const response = await fetch(pdfUrl);
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log("✅ Download concluído!");
+    } catch (error) {
+      console.error("❌ Erro ao fazer download:", error);
+      throw error;
+    }
   };
 
-  return { generateAndUploadPdf, downloadPdf };
-}
+  return {
+    generateAndUploadPdf,
+    downloadPdf,
+  };
+};
