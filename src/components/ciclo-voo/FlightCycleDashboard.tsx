@@ -98,7 +98,7 @@ export function FlightCycleDashboard() {
 
   return (
     <div className="min-h-full w-full overflow-hidden rounded-[31px] bg-background">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[30px] border-2 border-[rgba(45,52,67,0.22)] bg-[rgba(0,3,8,0.04)] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[30px] border-2 border-[rgba(45,52,67,0.22)] bg-[rgba(0,10,24,0.96)] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         {/* =========================================================
             HERO / HEADER
         ========================================================== */}
@@ -196,8 +196,8 @@ export function FlightCycleDashboard() {
         {/* =========================================================
             CONTENT
         ========================================================== */}
-        <section className="rounded-[28px] border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-xl sm:p-5 lg:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <section className="rounded-[28px] border border-border/70 bg-[rgba(5,41,83,0)] p-4 shadow-sm backdrop-blur-xl sm:p-5 lg:p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-[rgba(2,34,73,0)]">
             {/* Top bar */}
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0">
@@ -278,7 +278,7 @@ export function FlightCycleDashboard() {
             ====================================================== */}
             <TabsContent
               value="active"
-              className="mt-6 focus-visible:outline-none"
+              className="mt-6 bg-[rgba(191,198,226,1)] focus-visible:outline-none"
             >
               <CycleGrid
                 loading={loading}
@@ -297,7 +297,7 @@ export function FlightCycleDashboard() {
             ====================================================== */}
             <TabsContent
               value="completed"
-              className="mt-6 focus-visible:outline-none"
+              className="mt-6 bg-[rgba(8,11,25,1)] focus-visible:outline-none"
             >
               <CycleGrid
                 loading={loading}
@@ -458,7 +458,7 @@ function CycleGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 bg-[rgba(5,8,19,1)] text-[rgba(206,215,235,1)] md:grid-cols-2 2xl:grid-cols-3">
       {cycles.map((cycle) => (
         <div
           key={cycle.id}
@@ -467,7 +467,7 @@ function CycleGrid({
           {/* Glow */}
           <div className="pointer-events-none absolute inset-x-5 -bottom-2 h-10 rounded-full bg-primary/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
 
-          <div className="relative">
+          <div className="relative bg-[rgba(233,217,217,0)]">
             <FlightCycleCard
               cycle={cycle}
               onClick={() => onSelect(cycle)}

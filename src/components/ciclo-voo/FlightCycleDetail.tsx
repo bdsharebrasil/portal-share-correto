@@ -409,7 +409,7 @@ export function FlightCycleDetail({
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[17px] border border-[rgba(20,31,54,1)] bg-[rgba(4,7,20,1)] px-4 py-4 text-[rgba(192,206,240,1)] sm:px-6 lg:px-8 lg:py-6">
         {/* ====================================================
             TOP NAV
         ===================================================== */}
