@@ -61,7 +61,6 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
           data_vencimento,
           status,
           fluxo,
-          tipo,
           tipo_caixa,
           clientes_id,
           contas_areceber_id,
@@ -104,7 +103,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       const itensMovimentacoes = movimentacoes
         .filter((movimentacao) => {
           if (!isPendente(movimentacao.status)) return false;
-          const fluxo = (movimentacao.fluxo || movimentacao.tipo || "").toLowerCase();
+          const fluxo = (movimentacao.fluxo || "").toLowerCase();
           if (movimentacao.tipo_caixa === "cliente") return !["entrada", "receita"].includes(fluxo);
           return ["entrada", "receita"].includes(fluxo);
         })

@@ -3,7 +3,8 @@ import { AbastecimentosPendentesAlert } from "@/components/PreVoo/Abastecimentos
 import {
   Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause,
   ArrowUpRight, CalendarDays, CheckCircle2, Timer,
-  Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send, Mail
+  Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send, Mail,
+  Fuel, ChevronDown, ChevronUp // Novos ícones adicionados aqui
 } from "lucide-react";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 import TravelReportsTracking from "@/components/dashboard/financeiro/TravelReportsTracking";
@@ -51,6 +52,9 @@ export function FinanceiroDashboard() {
   const [discordancesLoading, setDiscordancesLoading] = useState(true);
   const [solicitacaoPagamentoOpen, setSolicitacaoPagamentoOpen] = useState(false);
   const [travelReportsOpen, setTravelReportsOpen] = useState(false);
+  
+  // Novo estado para controlar a expansão dos abastecimentos (inicia aberto)
+  const [isAbastecimentosExpanded, setIsAbastecimentosExpanded] = useState(true);
 
   useEffect(() => {
     loadTodayEntry();
@@ -72,7 +76,6 @@ export function FinanceiroDashboard() {
     };
     fetchName();
   }, [user]);
-
 
   const loadTodayEntry = async () => {
     try {
@@ -224,7 +227,6 @@ export function FinanceiroDashboard() {
       iconBg: "bg-blue-500/10",
       hoverGlow: "hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]",
     },
-
     {
       icon: Plane,
       label: "CICLO DE VOO",
@@ -317,7 +319,40 @@ export function FinanceiroDashboard() {
         </div>
       </div>
 
-      <AbastecimentosPendentesAlert />
+      {/* Abastecimentos Pendentes - Seção Recolhível */}
+      <div className="rounded-xl md:rounded-2xl bg-white/[0.02] border border-white/[0.05] shadow-lg overflow-hidden transition-all duration-300">
+        <button
+          onClick={() => setIsAbastecimentosExpanded(!isAbastecimentosExpanded)}
+          className="w-full flex items-center justify-between p-4 bg-white/[0.01] hover:bg-white/[0.03] transition-colors focus:outline-none"
+        >
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.15)] flex-shrink-0">
+              <Fuel className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="flex flex-col items-start">
+              <h3 className="font-semibold text-foreground text-sm md:text-base uppercase tracking-wide">
+                Abastecimentos Pendentes
+              </h3>
+              <p className="text-xs text-muted-foreground text-left">
+                Verifique as pendências de conclusão financeira
+              </p>
+            </div>
+          </div>
+          <div className="p-1 rounded-full hover:bg-white/[0.05] transition-colors">
+            {isAbastecimentosExpanded ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+        </button>
+
+        {isAbastecimentosExpanded && (
+          <div className="p-4 border-t border-white/[0.05] animate-in fade-in slide-in-from-top-2 duration-300">
+            <AbastecimentosPendentesAlert />
+          </div>
+        )}
+      </div>
 
       {/* Discordâncias Alert */}
       {!discordancesLoading && reportDiscordances.length > 0 && (

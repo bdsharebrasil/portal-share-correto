@@ -139,11 +139,8 @@ export function FechamentoBalancoTab({
     });
   }, [rateios, ano, selectedMonths]);
 
-  // Only saídas (despesas) matter for conference
-  const despesas = useMemo(
-    () => rateiosDoPeriodo.filter((r) => isSaida(r.fluxo)),
-    [rateiosDoPeriodo]
-  );
+  // A tabela exibe entradas e saídas; apenas saídas participam da conferência.
+  const despesas = rateiosDoPeriodo;
 
   // Agrupa despesas pelo despesa_id para mostrar uma única linha por despesa
   const despesasAgrupadas = useMemo(() => {
@@ -244,10 +241,13 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
   }, [filteredDespesasAgrupadas, sortBy, sortDir]);
 
   const totalConferido = useMemo(
-    () => despesasAgrupadas.filter((g) => g.todosConferidos).length,
+    () => despesasAgrupadas.filter((g) => isSaida(g.representante.fluxo) && g.todosConferidos).length,
     [despesasAgrupadas]
   );
-  const totalLancamentos = despesasAgrupadas.length;
+  const totalLancamentos = useMemo(
+    () => despesasAgrupadas.filter((g) => isSaida(g.representante.fluxo)).length,
+    [despesasAgrupadas]
+  );
   const todosConferidos = totalLancamentos > 0 && totalConferido === totalLancamentos;
 
   const conferirMutation = useMutation({
@@ -278,7 +278,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
   const fecharMesMutation = useMutation({
     mutationFn: async () => {
       const ids = despesasAgrupadas
-        .filter((g) => !g.todosConferidos)
+        .filter((g) => isSaida(g.representante.fluxo) && !g.todosConferidos)
         .flatMap((g) => g.todos.map((r) => r.id));
       if (ids.length === 0) return;
       const { data: userData } = await supabase.auth.getUser();
@@ -643,7 +643,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                           {formatBRL(grupo.valorRateado)}
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <button
+                          {isSaida(r.fluxo) ? <button
                             onClick={() => {
                               const idsParaConferir = grupo.todos.map(r => r.id);
                               idsParaConferir.forEach((id) => {
@@ -662,7 +662,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                             ) : (
                               <><Circle className="h-3 w-3" /> Conferir</>
                             )}
-                          </button>
+                          </button> : <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-400">Entrada</span>}
                         </td>
                       </tr>
 

@@ -21,7 +21,7 @@ export default function DespesasParticularesTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria",
+            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria, grupo_categoria",
           )
           .neq("status", "cancelado")
           .order("criado_em", { ascending: false })
@@ -48,8 +48,10 @@ export default function DespesasParticularesTab() {
         })
         .map((m: any) => {
           const dataReferencia = String(m.data_emissao || m.data_pagamento || "").trim();
+          const grupo = m.grupo_categoria || catMap.get(m.categoria_id)?.grupo || "";
           return {
             ...m,
+            grupo_categoria: grupo,
             data_emissao: dataReferencia ? dataReferencia.slice(0, 10) : "",
           };
         })

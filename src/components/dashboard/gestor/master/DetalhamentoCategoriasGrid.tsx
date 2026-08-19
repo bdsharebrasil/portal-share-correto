@@ -22,6 +22,7 @@ interface MovimentacaoRow {
   categoria_id?: string | null;
   categoria_nome?: string | null;
   conta_bancaria?: string | null;
+  grupo_categoria?: string | null;
 }
 
 interface GridRow {
@@ -63,7 +64,7 @@ const isPago = (m: MovimentacaoRow) => normalize(m.status) === "pago" || Boolean
 const naturezaDe = (m: MovimentacaoRow) => {
   const catMap = getCategoriaMap();
   const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
-  const grupo = String(catInfo?.grupo || "").toUpperCase().trim();
+  const grupo = String((m as any).grupo_categoria || catInfo?.grupo || "").toUpperCase().trim();
   const tipoDespesa = String(catInfo?.tipoDespesa || "").toLowerCase().trim();
 
   if (grupo === "DESPESAS PARTICULARES") return tipoDespesa === "variavel" ? "Particulares Variável" : "Particulares Fixo";
@@ -108,7 +109,7 @@ export default function DetalhamentoCategoriasGrid({
   const isDespesaParticular = (m: MovimentacaoRow) => {
     const catMap = getCategoriaMap();
     const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
-    const grupo = normalize(catInfo?.grupo);
+    const grupo = normalize((m as any).grupo_categoria || catInfo?.grupo);
     return grupo.includes("particular");
   };
 
