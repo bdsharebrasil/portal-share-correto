@@ -67,6 +67,29 @@ interface ContaBancaria {
   tipo_conta: string | null;
 }
 
+interface MembroTripulacaoRow {
+  id: string;
+  user_id: string;
+}
+
+interface HorasVooRow {
+  membro_tripulacao_id: string;
+  aeronave_id: string;
+  horas_totais: number | string | null;
+}
+
+interface AeronaveInfo {
+  id: string;
+  matricula: string;
+  modelo: string;
+}
+
+interface TaxaHoraRow {
+  aeronave_id: string;
+  taxa_hora: number;
+  data_vigencia: string;
+}
+
 interface FormState {
   base_salary_holerite: string;
   benefit: string;
@@ -120,6 +143,20 @@ const MESES = [
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
+// Departamentos que recebem pagamento por hora de voo.
+const isCrewDepartamento = (departamento: string | null | undefined) => {
+  const d = (departamento || "").toUpperCase();
+  return d === "TRIPULANTE" || d === "PILOTO_CHEFE";
+};
+
+const getMonthYearFromDate = (dateString: string): { month: number; year: number } => {
+  const date = new Date(dateString);
+  return {
+    month: date.getMonth() + 1,
+    year: date.getFullYear(),
+  };
+};
+
 /* ─────────────────────────── main ─────────────────────────── */
 
 export default function SalariosTab() {
@@ -137,6 +174,13 @@ export default function SalariosTab() {
   const [forms, setForms] = useState<Record<string, FormState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
+
+  // Dados para a calculadora de horas de voo (tripulante / piloto chefe)
+  const [aeronaves, setAeronaves] = useState<AeronaveInfo[]>([]);
+  const [taxasHora, setTaxasHora] = useState<TaxaHoraRow[]>([]);
+  const [horasVooPorUsuario, setHorasVooPorUsuario] = useState<
+    Record<string, { aeronave_id: string; horas: number }[]>
+  >({});
 
   const fetchContas = useCallback(async () => {
     const { data } = await supabase
@@ -202,12 +246,68 @@ export default function SalariosTab() {
       if (userList.length === 0) {
         setPagamentos({});
         setForms({});
+        setHorasVooPorUsuario({});
         setLoaded(true);
         setLoading(false);
         return;
       }
 
       const userIds = userList.map((u) => u.id);
+
+      // 1.1 Para tripulantes / piloto chefe, busca horas de voo lançadas no período
+      const crewUsers = userList.filter((u) => isCrewDepartamento(u.departamento));
+      if (crewUsers.length > 0) {
+        const crewUserIds = crewUsers.map((u) => u.id);
+
+        const { data: membrosData } = await (supabase as any)
+          .from("membros_tripulacao")
+          .select("id,user_id")
+          .in("user_id", crewUserIds);
+
+        const membroIdToUserId: Record<string, string> = {};
+        (membrosData ?? []).forEach((m: MembroTripulacaoRow) => {
+          membroIdToUserId[m.id] = m.user_id;
+        });
+        const membroIds = Object.keys(membroIdToUserId);
+
+        if (membroIds.length > 0) {
+          const [{ data: horasData }, { data: aeronaveData }, { data: taxasData }] = await Promise.all([
+            (supabase as any)
+              .from("horas_voo_tripulante")
+              .select("membro_tripulacao_id,aeronave_id,horas_totais")
+              .in("membro_tripulacao_id", membroIds)
+              .eq("mes", mes)
+              .eq("ano", ano),
+            supabase.from("aeronave").select("id,matricula,modelo"),
+            (supabase as any)
+              .from("taxas_hora_aeronave")
+              .select("aeronave_id,taxa_hora,data_vigencia")
+              .order("data_vigencia", { ascending: false }),
+          ]);
+
+          setAeronaves((aeronaveData ?? []) as AeronaveInfo[]);
+          setTaxasHora((taxasData ?? []) as TaxaHoraRow[]);
+
+          const horasMap: Record<string, { aeronave_id: string; horas: number }[]> = {};
+          (horasData ?? []).forEach((h: HorasVooRow) => {
+            const userId = membroIdToUserId[h.membro_tripulacao_id];
+            if (!userId) return;
+            if (!horasMap[userId]) horasMap[userId] = [];
+            const linha = horasMap[userId].find((x) => x.aeronave_id === h.aeronave_id);
+            const horas = Number(h.horas_totais) || 0;
+            if (linha) {
+              linha.horas += horas;
+            } else {
+              horasMap[userId].push({ aeronave_id: h.aeronave_id, horas });
+            }
+          });
+          setHorasVooPorUsuario(horasMap);
+        } else {
+          setHorasVooPorUsuario({});
+        }
+      } else {
+        setHorasVooPorUsuario({});
+      }
 
       // 2. Busca histórico de salários para pré-preenchimento
       const { data: salariosData } = await (supabase as any)
@@ -282,17 +382,75 @@ export default function SalariosTab() {
     }
   }, [mes, ano]);
 
+  // Taxa/hora vigente de uma aeronave para o mês/ano selecionado
+  // (usa a taxa do próprio mês; se não houver, a mais recente anterior a ele).
+  const taxaParaAeronave = useCallback(
+    (aeronaveId: string) => {
+      const doMes = taxasHora.find((t) => {
+        if (t.aeronave_id !== aeronaveId) return false;
+        const { month, year } = getMonthYearFromDate(t.data_vigencia);
+        return month === mes && year === ano;
+      });
+      if (doMes) return doMes.taxa_hora;
+
+      const selectedDate = new Date(ano, mes - 1);
+      const anterior = taxasHora.find((t) => {
+        if (t.aeronave_id !== aeronaveId) return false;
+        const { month, year } = getMonthYearFromDate(t.data_vigencia);
+        const rateDate = new Date(year, month - 1);
+        return rateDate <= selectedDate;
+      });
+      return anterior?.taxa_hora ?? 0;
+    },
+    [taxasHora, mes, ano]
+  );
+
+  // Calculadora: horas x taxa por aeronave + total, para um colaborador tripulante/piloto chefe
+  const calculadoraHoras = useCallback(
+    (userId: string) => {
+      const linhas = horasVooPorUsuario[userId] ?? [];
+      const detalhado = linhas
+        .filter((l) => l.horas > 0)
+        .map((l) => {
+          const taxa = taxaParaAeronave(l.aeronave_id);
+          const aeronave = aeronaves.find((a) => a.id === l.aeronave_id);
+          return {
+            aeronaveId: l.aeronave_id,
+            matricula: aeronave?.matricula || "—",
+            modelo: aeronave?.modelo || "",
+            horas: l.horas,
+            taxa,
+            valor: l.horas * taxa,
+          };
+        });
+      const total = detalhado.reduce((acc, d) => acc + d.valor, 0);
+      return { detalhado, total };
+    },
+    [horasVooPorUsuario, aeronaves, taxaParaAeronave]
+  );
+
   const saveRow = async (userId: string) => {
     const f = forms[userId];
     if (!f) return;
     setSavingId(userId);
     setToast(null);
     try {
+      const user = funcionarios.find((u) => u.id === userId);
+      const crew = isCrewDepartamento(user?.departamento);
+
+      const horasVoadasTexto = crew
+        ? (() => {
+            const { detalhado } = calculadoraHoras(userId);
+            if (detalhado.length === 0) return null;
+            return detalhado.map((d) => `${d.matricula}: ${d.horas.toFixed(1)}h`).join("; ");
+          })()
+        : f.horas_voo.trim() || null;
+
       const payload = {
         id_usuario: userId,
         salario_holerite: f.base_salary_holerite ? Number(f.base_salary_holerite) : null,
         beneficios: f.benefit.trim() || null,
-        horas_voadas: f.horas_voo.trim() || null,
+        horas_voadas: horasVoadasTexto,
         adicionais: f.extra.trim() || null,
         decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
         decimo_terceiro_parcela2: f.show13 && f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
@@ -333,6 +491,7 @@ export default function SalariosTab() {
     if (!f) return 0;
     return (
       num(f.base_salary_holerite) +
+      num(f.extra) +
       (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) +
       (f.showFerias ? num(f.ferias) : 0)
     );
@@ -433,6 +592,10 @@ export default function SalariosTab() {
             const expanded = expandedId === u.id;
             const pago = !!pagamentos[u.id];
             const f = forms[u.id] ?? emptyForm;
+            const crew = isCrewDepartamento(u.departamento);
+            const { detalhado: horasDetalhado, total: horasTotal } = crew
+              ? calculadoraHoras(u.id)
+              : { detalhado: [], total: 0 };
 
             return (
               <div
@@ -529,17 +692,7 @@ export default function SalariosTab() {
                         />
                       </div>
                       <div>
-                        <label className={labelCls}>Horas de Voo</label>
-                        <input
-                          className={inputCls}
-                          value={f.horas_voo}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, horas_voo: e.target.value } }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Extra</label>
+                        <label className={labelCls}>Adicional</label>
                         <input
                           className={inputCls}
                           value={f.extra}
@@ -577,6 +730,60 @@ export default function SalariosTab() {
                         />
                       </div>
                     </div>
+
+                    {/* Calculadora de Horas de Voo — apenas Tripulante / Piloto Chefe */}
+                    {crew && (
+                      <div className="p-3 bg-slate-900/40 rounded-xl border border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                            Cálculo de Horas de Voo — {MESES.find((m) => m.value === mes)?.label}/{ano}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={horasTotal === 0}
+                            onClick={() =>
+                              setForms((prev) => ({
+                                ...prev,
+                                [u.id]: { ...f, extra: horasTotal.toFixed(2) },
+                              }))
+                            }
+                            className="text-[11px] bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 px-2 py-1 rounded-lg border border-cyan-500/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Usar {formatBRL(horasTotal)} como Adicional
+                          </button>
+                        </div>
+
+                        {horasDetalhado.length === 0 ? (
+                          <p className="text-xs text-slate-500">
+                            Nenhuma hora de voo lançada para este colaborador no período selecionado.
+                          </p>
+                        ) : (
+                          <div className="space-y-1">
+                            {horasDetalhado.map((d) => (
+                              <div
+                                key={d.aeronaveId}
+                                className="flex items-center justify-between text-xs text-slate-300 gap-2"
+                              >
+                                <span className="truncate">
+                                  {d.matricula}
+                                  {d.modelo ? ` · ${d.modelo}` : ""}
+                                </span>
+                                <span className="text-slate-400 whitespace-nowrap">
+                                  {d.horas.toFixed(1)}h × {formatBRL(d.taxa)}
+                                </span>
+                                <span className="text-cyan-300 font-semibold whitespace-nowrap">
+                                  {formatBRL(d.valor)}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-slate-800">
+                              <span className="font-semibold text-slate-200">Total Horas de Voo</span>
+                              <span className="text-cyan-300 font-bold">{formatBRL(horasTotal)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Botões para Habilitar 13º e Férias */}
                     <div className="flex items-center gap-2 pt-1">
