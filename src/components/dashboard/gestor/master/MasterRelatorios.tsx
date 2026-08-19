@@ -23,8 +23,8 @@ import {
 import DetalhamentoCategoriasGrid from "./DetalhamentoCategoriasGrid";
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-const val = (m: any) => Number(m.valor_rateado ?? m.valor_original ?? 0);
-const isEntrada = (m: any) => ["entrada", "receita"].includes(String(m.tipo || "").toLowerCase());
+const val = (m: any) => Number(m.valor_rateado ?? m.valor_total ?? 0);
+const isEntrada = (m: any) => ["entrada", "receita"].includes(String(m.fluxo || "").toLowerCase());
 const isPago = (m: any) => m.status === "pago" || Boolean(m.data_pagamento);
 const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reembolsavel));
 const isReembolso = (m: any) =>
@@ -53,7 +53,7 @@ const naturezaDe = (m: any) => {
   if (m.reembolsavel === true) return "Despesas Reembolsáveis";
 
   const catInfo = m.categoria_id ? _categoriaMap.get(m.categoria_id) : undefined;
-  const grupo = (catInfo?.grupo || String(m.grupo_custo || "")).toUpperCase().trim();
+  const grupo = (catInfo?.grupo || String(m.grupo_categoria || "")).toUpperCase().trim();
   const tipoDespesa = (catInfo?.tipoDespesa || String(m.tipo_despesa || "")).toLowerCase().trim();
 
   if (grupo === "DESPESAS PARTICULARES") {
@@ -147,7 +147,7 @@ export default function MasterRelatorios() {
         supabase
           .from("movimentacoes")
           .select(
-            `id, descricao, tipo, valor_rateado, valor_original, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, conta_bancaria, reembolsavel`
+            `id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_categoria, categoria_id, conta_bancaria, reembolsavel`
           )
           .gte("data_emissao", `${ano}-01-01`)
           .lte("data_emissao", `${ano}-12-31`)
