@@ -1020,7 +1020,6 @@ export function useAgendamentoMutations() {
           solicitacao.numero_voo ??
           null,
 
-        jornada_id: null,
       };
 
       const { data, error: insertError } =
