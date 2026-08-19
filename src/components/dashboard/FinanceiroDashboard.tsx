@@ -475,8 +475,8 @@ export function FinanceiroDashboard() {
       <TimeClockHistoryModal open={timeClockHistoryOpen} onOpenChange={setTimeClockHistoryOpen} />
 
       {showFlightCycle && (
-        <div className="fixed inset-0 z-50 -mt-[1px] overflow-auto bg-[rgba(2,11,24,1)] backdrop-blur-md">
-          <div className="container mx-auto bg-[rgba(6,6,19,0)] px-4 py-[43px] md:px-8">
+        <div className="fixed inset-0 z-50 -mt-[6px] overflow-auto bg-[rgba(2,11,24,1)] backdrop-blur-md">
+          <div className="container mx-auto bg-[rgba(6,6,19,0)] px-4 py-[25px] md:px-8">
             <div className="mb-6 flex items-center justify-between border-b border-white/[0.05] pb-4">
               <Button
                 variant="outline"
