@@ -23,9 +23,6 @@ import {
 type PernaVooInsert =
   Database["public"]["Tables"]["pernas_voo"]["Insert"];
 
-type PernaVooUpdate =
-  Database["public"]["Tables"]["pernas_voo"]["Update"];
-
 /* ============================================================
    CLIENT
 ============================================================ */
@@ -56,11 +53,39 @@ function normalizarDateTimeUtc(
 }
 
 function formatarHora(
-  dataIso: string,
+  dataIso: string | null,
 ) {
+  if (!dataIso) {
+    return "--:--";
+  }
+
   return new Date(
     dataIso,
   )
+    .toISOString()
+    .slice(11, 16);
+}
+
+/**
+ * Extrai HH:mm de um timestamp ISO.
+ *
+ * A jornada usa sempre o horário da PRIMEIRA DECOLAGEM
+ * para determinar o limite da Tabela C.1.
+ */
+function extrairHoraDeInicioJornada(
+  inicioEm: string | null,
+) {
+  if (!inicioEm) {
+    return null;
+  }
+
+  const data = new Date(inicioEm);
+
+  if (Number.isNaN(data.getTime())) {
+    return null;
+  }
+
+  return data
     .toISOString()
     .slice(11, 16);
 }
@@ -283,12 +308,26 @@ export interface JornadaVoo {
 
   data_jornada: string;
 
+  /**
+   * Momento em que o tripulante se apresenta.
+   *
+   * Importante:
+   * este campo NÃO inicia o relógio operacional
+   * da jornada neste sistema.
+   */
   apresentacao_em: string;
 
+  /**
+   * Momento real da primeira decolagem da jornada.
+   */
   inicio_em:
     | string
     | null;
 
+  /**
+   * Fim da jornada:
+   * corte final + minutos_pos_corte.
+   */
   fim_em:
     | string
     | null;
@@ -304,15 +343,23 @@ export interface JornadaVoo {
     | string
     | null;
 
-  // Limites calculados pela Tabela C.1 (RBAC/IS)
-  // a partir do horário da primeira decolagem
-  // e da quantidade de etapas da jornada.
+  /**
+   * Limite calculado automaticamente.
+   */
   limite_jornada_minutos?:
     | number
     | null;
 
   limite_tempo_voo_minutos?:
     | number
+    | null;
+
+  nivel_alerta_jornada?:
+    | "normal"
+    | "atencao"
+    | "critico"
+    | "limite"
+    | string
     | null;
 }
 
@@ -509,10 +556,7 @@ const SOLICITACAO_COLUMNS = [
 ] as const;
 
 export function sanitizeSolicitacaoPayload(
-  payload: Record<
-    string,
-    any
-  >,
+  payload: Record<string, any>,
 ) {
   const src = {
     ...payload,
@@ -526,19 +570,14 @@ export function sanitizeSolicitacaoPayload(
       src.horario_partida;
   }
 
-  const out: Record<
-    string,
-    any
-  > = {};
+  const out: Record<string, any> = {};
 
   SOLICITACAO_COLUMNS.forEach(
     (col) => {
       if (
-        src[col] !==
-        undefined
+        src[col] !== undefined
       ) {
-        out[col] =
-          src[col];
+        out[col] = src[col];
       }
     },
   );
@@ -569,22 +608,20 @@ export function calcularDisponibilidadeTripulante(
   ) {
     return {
       tripulante,
-      situacao:
-        "inativo",
+      situacao: "inativo",
       detalhe: "Inativo",
     };
   }
 
   if (
     tripulante.validade_cma &&
-    tripulante.validade_cma <
-      dia
+    tripulante.validade_cma < dia
   ) {
     return {
       tripulante,
-      situacao:
-        "cma_vencido",
-      detalhe: `CMA venceu em ${tripulante.validade_cma}`,
+      situacao: "cma_vencido",
+      detalhe:
+        `CMA venceu em ${tripulante.validade_cma}`,
     };
   }
 
@@ -597,12 +634,14 @@ export function calcularDisponibilidadeTripulante(
             isWithinInterval(
               data,
               {
-                start: parseISO(
-                  f.start_date,
-                ),
-                end: parseISO(
-                  f.end_date,
-                ),
+                start:
+                  parseISO(
+                    f.start_date,
+                  ),
+                end:
+                  parseISO(
+                    f.end_date,
+                  ),
               },
             ),
         )
@@ -611,10 +650,8 @@ export function calcularDisponibilidadeTripulante(
   if (deFerias) {
     return {
       tripulante,
-      situacao:
-        "ferias",
-      detalhe:
-        "Em férias",
+      situacao: "ferias",
+      detalhe: "Em férias",
     };
   }
 
@@ -623,10 +660,8 @@ export function calcularDisponibilidadeTripulante(
       (e) =>
         e.membro_id ===
           tripulante.id &&
-        e.data_inicio <=
-          dia &&
-        e.data_fim >=
-          dia &&
+        e.data_inicio <= dia &&
+        e.data_fim >= dia &&
         e.status !==
           "cancelado",
     );
@@ -634,8 +669,7 @@ export function calcularDisponibilidadeTripulante(
   if (escalado) {
     return {
       tripulante,
-      situacao:
-        "em_voo",
+      situacao: "em_voo",
       detalhe:
         escalado.funcao.toUpperCase(),
     };
@@ -643,8 +677,7 @@ export function calcularDisponibilidadeTripulante(
 
   return {
     tripulante,
-    situacao:
-      "disponivel",
+    situacao: "disponivel",
   };
 }
 
@@ -667,8 +700,7 @@ export function calcularSituacaoAeronave(
   situacao: SituacaoAeronave;
   detalhe?: string;
 } {
-  const dia =
-    iso(data);
+  const dia = iso(data);
 
   const status =
     statusFrota.find(
@@ -679,18 +711,15 @@ export function calcularSituacaoAeronave(
 
   if (
     (
-      aeronave.status ??
-      ""
+      aeronave.status ?? ""
     ).toLowerCase() ===
       "manutencao" ||
     status?.status_atual ===
       "manutencao"
   ) {
     return {
-      situacao:
-        "manutencao",
-      detalhe:
-        "Em manutenção",
+      situacao: "manutencao",
+      detalhe: "Em manutenção",
     };
   }
 
@@ -699,8 +728,7 @@ export function calcularSituacaoAeronave(
     "em_voo"
   ) {
     return {
-      situacao:
-        "em_voo",
+      situacao: "em_voo",
       detalhe:
         status.localizacao_atual ??
         undefined,
@@ -722,13 +750,10 @@ export function calcularSituacaoAeronave(
   if (bloqueio) {
     const manut =
       (
-        bloqueio.motivo ??
-        ""
+        bloqueio.motivo ?? ""
       )
         .toLowerCase()
-        .includes(
-          "manuten",
-        );
+        .includes("manuten");
 
     return {
       situacao:
@@ -742,8 +767,7 @@ export function calcularSituacaoAeronave(
   }
 
   return {
-    situacao:
-      "disponivel",
+    situacao: "disponivel",
   };
 }
 
@@ -790,12 +814,13 @@ export function vooCobreDia(
 
 /* ============================================================
    LIMITES DE JORNADA — TABELA C.1
-   (operação com dois pilotos, não complexa)
 
-   Retorna, em minutos, o limite de jornada e o limite de
-   tempo de voo a partir do horário local de início da
-   jornada (primeira apresentação/decolagem) e da
-   quantidade de etapas (pernas) previstas.
+   Operação com dois pilotos, não complexa.
+
+   IMPORTANTE:
+   O horário usado é o da PRIMEIRA DECOLAGEM da jornada.
+   A quantidade de etapas corresponde às pernas vinculadas
+   àquela jornada.
 ============================================================ */
 
 export function calcularLimiteJornadaMinutos(
@@ -805,73 +830,379 @@ export function calcularLimiteJornadaMinutos(
   jornada: number;
   tempoVoo: number;
 } | null {
-  const [horaStr] = horarioInicio.split(":");
-  const hora = Number(horaStr);
+  const [horaStr] =
+    horarioInicio.split(":");
+
+  const hora =
+    Number(horaStr);
 
   if (Number.isNaN(hora)) {
     return null;
   }
 
-  if (hora >= 6 && hora < 7) {
-    if (quantidadeEtapas <= 2) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    if (quantidadeEtapas === 6) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
-    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  /* 06:00 - 06:59 */
+
+  if (
+    hora >= 6 &&
+    hora < 7
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          9 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        9 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
 
-  if (hora >= 7 && hora < 8) {
-    if (quantidadeEtapas <= 2) return { jornada: 13 * 60, tempoVoo: 9.5 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 6) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  /* 07:00 - 07:59 */
+
+  if (
+    hora >= 7 &&
+    hora < 8
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          13 * 60,
+        tempoVoo:
+          9.5 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          12 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        9 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
 
-  if (hora >= 8 && hora < 12) {
-    if (quantidadeEtapas <= 2) return { jornada: 13 * 60, tempoVoo: 10 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 13 * 60, tempoVoo: 9.5 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 6) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    return { jornada: 10 * 60, tempoVoo: 8 * 60 };
+  /* 08:00 - 11:59 */
+
+  if (
+    hora >= 8 &&
+    hora < 12
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          13 * 60,
+        tempoVoo:
+          10 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          13 * 60,
+        tempoVoo:
+          9.5 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          12 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        10 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
 
-  if (hora >= 12 && hora < 14) {
-    if (quantidadeEtapas <= 2) return { jornada: 12 * 60, tempoVoo: 9.5 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 12 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 6) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  /* 12:00 - 13:59 */
+
+  if (
+    hora >= 12 &&
+    hora < 14
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          12 * 60,
+        tempoVoo:
+          9.5 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          12 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        9 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
 
-  if (hora >= 14 && hora < 16) {
-    if (quantidadeEtapas <= 2) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 11 * 60, tempoVoo: 9 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    if (quantidadeEtapas === 6) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
-    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  /* 14:00 - 15:59 */
+
+  if (
+    hora >= 14 &&
+    hora < 16
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          11 * 60,
+        tempoVoo:
+          9 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          9 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        9 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
 
-  if (hora >= 16 && hora < 18) {
-    if (quantidadeEtapas <= 2) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    if (quantidadeEtapas <= 4) return { jornada: 10 * 60, tempoVoo: 8 * 60 };
-    if (quantidadeEtapas === 5) return { jornada: 9 * 60, tempoVoo: 8 * 60 };
-    return { jornada: 9 * 60, tempoVoo: 8 * 60 };
+  /* 16:00 - 17:59 */
+
+  if (
+    hora >= 16 &&
+    hora < 18
+  ) {
+    if (
+      quantidadeEtapas <= 2
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas <= 4
+    ) {
+      return {
+        jornada:
+          10 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 5
+    ) {
+      return {
+        jornada:
+          9 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    if (
+      quantidadeEtapas === 6
+    ) {
+      return {
+        jornada:
+          9 * 60,
+        tempoVoo:
+          8 * 60,
+      };
+    }
+
+    return {
+      jornada:
+        9 * 60,
+      tempoVoo:
+        8 * 60,
+    };
   }
+
+  /* 18:00 - 05:59 */
 
   return {
-    jornada: 9 * 60,
-    tempoVoo: quantidadeEtapas <= 2 ? 8 * 60 : 7 * 60,
+    jornada:
+      9 * 60,
+
+    tempoVoo:
+      quantidadeEtapas <= 2
+        ? 8 * 60
+        : 7 * 60,
   };
 }
 
 /* ============================================================
-   NÍVEL DE ALERTA DA JORNADA
-
-   > 60 min restantes → normal
-   60 a 31 min        → atencao
-   30 a 1 min         → critico
-   0 ou negativo      → limite
+   NÍVEL DE ALERTA
 ============================================================ */
 
 export type NivelAlertaJornada =
@@ -885,20 +1216,40 @@ export function calcularNivelAlerta(
   limiteMinutos: number | null,
   agora = new Date(),
 ): NivelAlertaJornada {
-  if (!inicioEm || !limiteMinutos) {
+  if (
+    !inicioEm ||
+    !limiteMinutos ||
+    limiteMinutos <= 0
+  ) {
     return "normal";
   }
 
-  const inicio = new Date(inicioEm);
+  const inicio =
+    new Date(inicioEm);
 
-  const minutosDecorridos = Math.max(
-    0,
-    Math.floor(
-      (agora.getTime() - inicio.getTime()) / 60000,
-    ),
-  );
+  if (
+    Number.isNaN(
+      inicio.getTime(),
+    )
+  ) {
+    return "normal";
+  }
 
-  const restante = limiteMinutos - minutosDecorridos;
+  const minutosDecorridos =
+    Math.max(
+      0,
+      Math.floor(
+        (
+          agora.getTime() -
+          inicio.getTime()
+        ) /
+          60000,
+      ),
+    );
+
+  const restante =
+    limiteMinutos -
+    minutosDecorridos;
 
   if (restante <= 0) {
     return "limite";
@@ -913,6 +1264,195 @@ export function calcularNivelAlerta(
   }
 
   return "normal";
+}
+
+/* ============================================================
+   CONTROLE COMPLETO DA JORNADA
+============================================================ */
+
+async function recalcularControleJornada(
+  jornadaId: string,
+) {
+  const {
+    data: jornada,
+    error: jornadaError,
+  } = await sb
+    .from("jornadas_voo")
+    .select("*")
+    .eq("id", jornadaId)
+    .single();
+
+  if (jornadaError) {
+    throw jornadaError;
+  }
+
+  if (
+    !jornada?.inicio_em
+  ) {
+    return jornada;
+  }
+
+  const {
+    data: pernas,
+    error: pernasError,
+  } = await sb
+    .from("pernas_voo")
+    .select(
+      `
+        id,
+        numero_perna,
+        horario_decolagem,
+        horario_pouso,
+        horario_corte,
+        jornada_id
+      `,
+    )
+    .eq(
+      "jornada_id",
+      jornadaId,
+    )
+    .order(
+      "numero_perna",
+      {
+        ascending: true,
+      },
+    );
+
+  if (pernasError) {
+    throw pernasError;
+  }
+
+  const quantidadeEtapas =
+    pernas?.length ?? 0;
+
+  if (
+    quantidadeEtapas <= 0
+  ) {
+    return jornada;
+  }
+
+  const horarioInicio =
+    extrairHoraDeInicioJornada(
+      jornada.inicio_em,
+    );
+
+  const limites =
+    horarioInicio
+      ? calcularLimiteJornadaMinutos(
+          horarioInicio,
+          quantidadeEtapas,
+        )
+      : null;
+
+  if (!limites) {
+    return jornada;
+  }
+
+  /**
+   * Se a jornada já terminou, usamos o fim real.
+   * Se ainda estiver aberta, usamos o agora.
+   */
+  const referenciaTempo =
+    jornada.fim_em
+      ? new Date(
+          jornada.fim_em,
+        )
+      : new Date();
+
+  const nivel =
+    calcularNivelAlerta(
+      jornada.inicio_em,
+      limites.jornada,
+      referenciaTempo,
+    );
+
+  const inicio =
+    new Date(
+      jornada.inicio_em,
+    );
+
+  const minutosDecorridos =
+    Math.max(
+      0,
+      Math.floor(
+        (
+          referenciaTempo.getTime() -
+          inicio.getTime()
+        ) /
+          60000,
+      ),
+    );
+
+  const minutosRestantes =
+    limites.jornada -
+    minutosDecorridos;
+
+  const percentual =
+    limites.jornada > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            (
+              minutosDecorridos /
+              limites.jornada
+            ) *
+              100,
+          ),
+        )
+      : 0;
+
+  const {
+    data: atualizada,
+    error: updateError,
+  } = await sb
+    .from("jornadas_voo")
+    .update({
+      limite_jornada_minutos:
+        Math.round(
+          limites.jornada,
+        ),
+
+      limite_tempo_voo_minutos:
+        Math.round(
+          limites.tempoVoo,
+        ),
+
+      nivel_alerta_jornada:
+        nivel,
+
+      atualizado_em:
+        new Date().toISOString(),
+    })
+    .eq(
+      "id",
+      jornadaId,
+    )
+    .select("*")
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return {
+    ...atualizada,
+
+    quantidade_etapas:
+      quantidadeEtapas,
+
+    minutos_decorridos:
+      minutosDecorridos,
+
+    minutos_restantes:
+      minutosRestantes,
+
+    percentual_jornada:
+      percentual,
+
+    nivel_alerta_jornada:
+      nivel,
+  };
 }
 
 /* ============================================================
@@ -1002,8 +1542,7 @@ export function useSolicitacoes() {
           throw error;
 
         const rows =
-          (data ??
-            []) as any[];
+          (data ?? []) as any[];
 
         const clienteIds =
           [
@@ -1040,9 +1579,7 @@ export function useSolicitacoes() {
           await Promise.all([
             clienteIds.length
               ? sb
-                  .from(
-                    "clientes",
-                  )
+                  .from("clientes")
                   .select(
                     "id, razao_social",
                   )
@@ -1052,13 +1589,12 @@ export function useSolicitacoes() {
                   )
               : Promise.resolve({
                   data: [],
+                  error: null,
                 }),
 
             aeronaveIds.length
               ? sb
-                  .from(
-                    "aeronave",
-                  )
+                  .from("aeronave")
                   .select(
                     "id, matricula, modelo, fabricante, status, url_imagem",
                   )
@@ -1068,14 +1604,24 @@ export function useSolicitacoes() {
                   )
               : Promise.resolve({
                   data: [],
+                  error: null,
                 }),
           ]);
 
+        if (
+          clientesRes.error
+        ) {
+          throw clientesRes.error;
+        }
+
+        if (
+          aeronavesRes.error
+        ) {
+          throw aeronavesRes.error;
+        }
+
         const clientes =
-          new Map<
-            string,
-            any
-          >(
+          new Map<string, any>(
             (
               clientesRes.data ??
               []
@@ -1088,10 +1634,7 @@ export function useSolicitacoes() {
           );
 
         const aeronaves =
-          new Map<
-            string,
-            any
-          >(
+          new Map<string, any>(
             (
               aeronavesRes.data ??
               []
@@ -1125,8 +1668,7 @@ export function useSolicitacoes() {
                 r.aeronave_id
                   ? aeronaves.get(
                       r.aeronave_id,
-                    ) ??
-                    null
+                    ) ?? null
                   : null,
             }) as Solicitacao,
         );
@@ -1221,8 +1763,7 @@ export function useTripulantes() {
           ).map(
             (t: any) => ({
               id: t.id,
-              user_id:
-                null,
+              user_id: null,
               nome_completo:
                 t.nome_completo,
               status:
@@ -1287,13 +1828,14 @@ export function useTripulantes() {
 
         return [
           ...membros.map(
-            (m: Tripulante) => ({
+            (
+              m: Tripulante,
+            ) => ({
               ...m,
               validade_cma:
                 cmaPorMembro.get(
                   m.id,
-                ) ??
-                null,
+                ) ?? null,
             }),
           ),
 
@@ -1561,18 +2103,19 @@ export function useDatasBloqueadas(
       async (): Promise<
         DataBloqueada[]
       > => {
-        let query = sb
-          .from(
-            "datas_bloqueadas_voo",
-          )
-          .select("*")
-          .order(
-            "data_bloqueio",
-            {
-              ascending:
-                true,
-            },
-          );
+        let query =
+          sb
+            .from(
+              "datas_bloqueadas_voo",
+            )
+            .select("*")
+            .order(
+              "data_bloqueio",
+              {
+                ascending:
+                  true,
+              },
+            );
 
         if (aeronaveId) {
           query = query.or(
@@ -1744,13 +2287,9 @@ export function useAgendamentoRealtime() {
               "solicitacoes_reserva_voo",
           },
           (payload: any) => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: ["agv"],
+            });
 
             if (
               payload.eventType ===
@@ -1759,7 +2298,14 @@ export function useAgendamentoRealtime() {
               toast.info(
                 "Nova solicitação de voo",
                 {
-                  description: `${payload.new?.origem ?? "?"} → ${payload.new?.destino ?? "?"}`,
+                  description:
+                    `${
+                      payload.new?.origem ??
+                      "?"
+                    } → ${
+                      payload.new?.destino ??
+                      "?"
+                    }`,
                 },
               );
             }
@@ -1775,14 +2321,12 @@ export function useAgendamentoRealtime() {
               "config_agendamento_aeronave",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "config-agendamento",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "config-agendamento",
+              ],
+            });
           },
         )
 
@@ -1795,14 +2339,12 @@ export function useAgendamentoRealtime() {
               "escala_tripulacao",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "escala",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "escala",
+              ],
+            });
           },
         )
 
@@ -1815,23 +2357,19 @@ export function useAgendamentoRealtime() {
               "status_tempo_real_aeronave",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "status-frota",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "status-frota",
+              ],
+            });
 
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "disponibilidade-aeronave",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "disponibilidade-aeronave",
+              ],
+            });
           },
         )
 
@@ -1844,14 +2382,12 @@ export function useAgendamentoRealtime() {
               "datas_bloqueadas_voo",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "bloqueios",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "bloqueios",
+              ],
+            });
           },
         )
 
@@ -1864,14 +2400,19 @@ export function useAgendamentoRealtime() {
               "pernas_voo",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "pernas",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "pernas",
+              ],
+            });
+
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "jornadas",
+              ],
+            });
           },
         )
 
@@ -1884,14 +2425,12 @@ export function useAgendamentoRealtime() {
               "jornadas_voo",
           },
           () => {
-            qc.invalidateQueries(
-              {
-                queryKey: [
-                  "agv",
-                  "jornadas",
-                ],
-              },
-            );
+            qc.invalidateQueries({
+              queryKey: [
+                "agv",
+                "jornadas",
+              ],
+            });
           },
         )
 
@@ -2168,9 +2707,10 @@ async function criarJornadaDoDia({
   }
 
   const numeroJornada =
-    (ultimaJornada?.numero_jornada ??
-      0) +
-    1;
+    (
+      ultimaJornada?.numero_jornada ??
+      0
+    ) + 1;
 
   const {
     data,
@@ -2192,20 +2732,32 @@ async function criarJornadaDoDia({
       data_jornada:
         dataJornada,
 
-      // Apenas apresentação. A jornada ainda não começou.
+      /**
+       * A apresentação é registrada,
+       * mas não inicia o relógio
+       * operacional da jornada.
+       */
       apresentacao_em:
         apresentacaoEm.toISOString(),
 
-      // A jornada começa somente com a primeira decolagem.
-      inicio_em: null,
+      /**
+       * A jornada somente começa
+       * na primeira decolagem.
+       */
+      inicio_em:
+        null,
 
-      fim_em: null,
+      fim_em:
+        null,
 
       minutos_pos_corte:
         minutosPosCorte,
 
       status:
         "aberta",
+
+      nivel_alerta_jornada:
+        "normal",
 
       criado_por:
         userId,
@@ -2231,13 +2783,11 @@ export function useAgendamentoMutations() {
 
   const invalidate =
     () =>
-      qc.invalidateQueries(
-        {
-          queryKey: [
-            "agv",
-          ],
-        },
-      );
+      qc.invalidateQueries({
+        queryKey: [
+          "agv",
+        ],
+      });
 
   /* ==========================================================
      CRIAR SOLICITAÇÃO
@@ -2530,10 +3080,11 @@ export function useAgendamentoMutations() {
 
           const dadosAtualizados =
             sanitizeSolicitacaoPayload(
-              dados as Record<
+              (dados ??
+                {}) as Record<
                 string,
                 any
-              > ?? {},
+              >,
             );
 
           let numeroVoo =
@@ -2761,7 +3312,16 @@ export function useAgendamentoMutations() {
 
               observacoes:
                 observacoes ??
-                `Voo ${solicitacao.numero_voo ?? ""} • ${solicitacao.origem ?? "—"} → ${solicitacao.destino ?? "—"}`,
+                `Voo ${
+                  solicitacao.numero_voo ??
+                  ""
+                } • ${
+                  solicitacao.origem ??
+                  "—"
+                } → ${
+                  solicitacao.destino ??
+                  "—"
+                }`,
 
               criado_por:
                 userId,
@@ -2794,14 +3354,12 @@ export function useAgendamentoMutations() {
 
           invalidate();
 
-          qc.invalidateQueries(
-            {
-              queryKey: [
-                "agv",
-                "escala",
-              ],
-            },
-          );
+          qc.invalidateQueries({
+            queryKey: [
+              "agv",
+              "escala",
+            ],
+          });
         },
 
       onError:
@@ -2866,7 +3424,7 @@ export function useAgendamentoMutations() {
     });
 
   /* ==========================================================
-     INICIAR PERNA
+     INICIAR PERNA / INICIAR JORNADA
   ========================================================== */
 
   const iniciarVoo =
@@ -2992,7 +3550,7 @@ export function useAgendamentoMutations() {
 
           /* --------------------------------------------------
              GARANTE QUE NÃO EXISTE OUTRA JORNADA ABERTA
-             EM OUTRO DIA
+             EM OUTRO DIA PARA A MESMA SOLICITAÇÃO
           -------------------------------------------------- */
 
           const {
@@ -3037,7 +3595,7 @@ export function useAgendamentoMutations() {
           }
 
           /* --------------------------------------------------
-             CRIA OU RECUPERA A JORNADA DO DIA
+             CRIA OU LOCALIZA A JORNADA
           -------------------------------------------------- */
 
           const jornada =
@@ -3072,8 +3630,10 @@ export function useAgendamentoMutations() {
             );
 
           /* --------------------------------------------------
-             REGISTRA O INÍCIO REAL DA JORNADA
-             (somente na primeira decolagem)
+             INÍCIO REAL DA JORNADA
+             
+             A jornada começa SOMENTE na primeira
+             decolagem da jornada.
           -------------------------------------------------- */
 
           const inicioJornada =
@@ -3082,10 +3642,14 @@ export function useAgendamentoMutations() {
               horarioDecolagem,
             );
 
-          if (!jornada.inicio_em) {
+          if (
+            !jornada.inicio_em
+          ) {
             const {
-              data: jornadaAtualizada,
-              error: inicioJornadaError,
+              data:
+                jornadaAtualizada,
+              error:
+                inicioJornadaError,
             } = await sb
               .from(
                 "jornadas_voo",
@@ -3101,10 +3665,16 @@ export function useAgendamentoMutations() {
                 "id",
                 jornada.id,
               )
+              .eq(
+                "status",
+                "aberta",
+              )
               .select("*")
               .single();
 
-            if (inicioJornadaError) {
+            if (
+              inicioJornadaError
+            ) {
               throw inicioJornadaError;
             }
 
@@ -3164,69 +3734,15 @@ export function useAgendamentoMutations() {
             throw pernaError;
 
           /* --------------------------------------------------
-             RECALCULA OS LIMITES DA JORNADA (TABELA C.1)
-             com base no horário da decolagem e na
-             quantidade de etapas já vinculadas a ela
+             RECALCULA O LIMITE
+             
+             O horário de referência é SEMPRE a primeira
+             decolagem da jornada.
           -------------------------------------------------- */
 
-          const {
-            data: pernasJornada,
-            error: pernasJornadaError,
-          } = await sb
-            .from(
-              "pernas_voo",
-            )
-            .select(
-              "id, numero_perna, horario_decolagem, horario_pouso, horario_corte, jornada_id",
-            )
-            .eq(
-              "jornada_id",
-              jornada.id,
-            )
-            .order(
-              "numero_perna",
-              {
-                ascending: true,
-              },
-            );
-
-          if (pernasJornadaError) {
-            throw pernasJornadaError;
-          }
-
-          const quantidadeEtapas =
-            pernasJornada?.length ?? 0;
-
-          const limites =
-            calcularLimiteJornadaMinutos(
-              horarioDecolagem,
-              quantidadeEtapas,
-            );
-
-          if (limites) {
-            await sb
-              .from(
-                "jornadas_voo",
-              )
-              .update({
-                limite_jornada_minutos:
-                  Math.round(
-                    limites.jornada,
-                  ),
-
-                limite_tempo_voo_minutos:
-                  Math.round(
-                    limites.tempoVoo,
-                  ),
-
-                atualizado_em:
-                  new Date().toISOString(),
-              })
-              .eq(
-                "id",
-                jornada.id,
-              );
-          }
+          await recalcularControleJornada(
+            jornada.id,
+          );
 
           /* --------------------------------------------------
              SOLICITAÇÃO
@@ -3331,7 +3847,7 @@ export function useAgendamentoMutations() {
             solicitacao.status,
             "em_rota",
             userId,
-            `Jornada ${jornada.numero_jornada} iniciada • apresentação ${horarioApresentacao} • perna ${perna.numero_perna}`,
+            `Jornada ${jornada.numero_jornada} iniciada na primeira decolagem às ${horarioDecolagem} • apresentação ${horarioApresentacao} • perna ${perna.numero_perna}`,
           );
 
           return jornada;
@@ -3462,6 +3978,14 @@ export function useAgendamentoMutations() {
             throw pernaError;
 
           /* --------------------------------------------------
+             RECALCULA CONTROLE
+          -------------------------------------------------- */
+
+          await recalcularControleJornada(
+            perna.jornada_id,
+          );
+
+          /* --------------------------------------------------
              SOLICITAÇÃO = POUSADO
           -------------------------------------------------- */
 
@@ -3588,6 +4112,14 @@ export function useAgendamentoMutations() {
           }
 
           if (
+            !jornada.inicio_em
+          ) {
+            throw new Error(
+              "A jornada ainda não foi iniciada pela primeira decolagem.",
+            );
+          }
+
+          if (
             !horarioCorte
           ) {
             throw new Error(
@@ -3611,6 +4143,40 @@ export function useAgendamentoMutations() {
               jornada.minutos_pos_corte,
             );
 
+          /* --------------------------------------------------
+             ATUALIZA LIMITE/ALERTA PARA O MOMENTO REAL
+             DO FIM
+          -------------------------------------------------- */
+
+          let limiteFinal =
+            jornada.limite_jornada_minutos ??
+            null;
+
+          if (
+            !limiteFinal
+          ) {
+            const recalculada =
+              await recalcularControleJornada(
+                jornada.id,
+              );
+
+            limiteFinal =
+              recalculada
+                ?.limite_jornada_minutos ??
+              null;
+          }
+
+          const nivelFinal =
+            calcularNivelAlerta(
+              jornada.inicio_em,
+              limiteFinal,
+              fimJornada,
+            );
+
+          /* --------------------------------------------------
+             ENCERRA JORNADA
+          -------------------------------------------------- */
+
           const {
             data:
               jornadaEncerrada,
@@ -3626,6 +4192,9 @@ export function useAgendamentoMutations() {
 
               status:
                 "encerrada",
+
+              nivel_alerta_jornada:
+                nivelFinal,
 
               atualizado_em:
                 new Date().toISOString(),
@@ -3645,7 +4214,7 @@ export function useAgendamentoMutations() {
             throw jornadaError;
 
           /* --------------------------------------------------
-             ÚLTIMA PERNA
+             ÚLTIMA PERNA DA JORNADA ATUAL
           -------------------------------------------------- */
 
           const {
@@ -3658,11 +4227,19 @@ export function useAgendamentoMutations() {
               "pernas_voo",
             )
             .select(
-              "id, numero_perna, origem, destino, data_perna, horario_pouso, horario_corte",
+              `
+                id,
+                numero_perna,
+                origem,
+                destino,
+                data_perna,
+                horario_pouso,
+                horario_corte
+              `,
             )
             .eq(
-              "solicitacao_id",
-              solicitacao.id,
+              "jornada_id",
+              jornada.id,
             )
             .order(
               "numero_perna",
@@ -3737,7 +4314,9 @@ export function useAgendamentoMutations() {
               solicitacao.status,
               "pousado",
               userId,
-              `Jornada ${jornada.numero_jornada} encerrada. Fim da jornada: ${formatarHora(
+              `Jornada ${jornada.numero_jornada} encerrada. Início às ${formatarHora(
+                jornada.inicio_em,
+              )}. Fim da jornada: ${formatarHora(
                 jornadaEncerrada.fim_em,
               )}. Próxima jornada será iniciada com nova apresentação.`,
             );
@@ -3745,6 +4324,7 @@ export function useAgendamentoMutations() {
             return {
               finalDaViagem:
                 false,
+
               jornada:
                 jornadaEncerrada as JornadaVoo,
             };
@@ -3958,8 +4538,8 @@ export function useAgendamentoMutations() {
               0
             ) + 1;
 
-          const perna: PernaVooInsert =
-            {
+          const perna:
+            PernaVooInsert = {
               solicitacao_id:
                 solicitacao.id,
 
@@ -4006,7 +4586,7 @@ export function useAgendamentoMutations() {
 
               jornada_id:
                 null,
-            } as PernaVooInsert;
+            };
 
           const {
             data,
@@ -4525,14 +5105,12 @@ export function useAgendamentoMutations() {
               : "Aeronave bloqueada para agendamento",
           );
 
-          qc.invalidateQueries(
-            {
-              queryKey: [
-                "agv",
-                "config-agendamento",
-              ],
-            },
-          );
+          qc.invalidateQueries({
+            queryKey: [
+              "agv",
+              "config-agendamento",
+            ],
+          });
         },
 
       onError:
