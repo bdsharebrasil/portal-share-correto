@@ -6,7 +6,14 @@ import {
   CheckCircle2,
   Save,
   Calendar,
-  Link as LinkIcon,
+  Upload,
+  FileText,
+  Plus,
+  Trash2,
+  Building2,
+  CreditCard,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -19,6 +26,19 @@ interface UserProfile {
   email: string | null;
   employment_status: string | null;
   tipo: string | null;
+  bank_account: string | null;
+  bank_agency: string | null;
+  bank_name: string | null;
+  bank_pix: string | null;
+  departamento: string | null;
+}
+
+interface SalarioVigente {
+  user_id: string;
+  salario_bruto: number | null;
+  salario_liquido: number | null;
+  beneficios: string | null;
+  data_vigencia: string;
 }
 
 interface PagamentoSalario {
@@ -60,6 +80,8 @@ interface FormState {
   obs: string;
   holerite_url: string;
   comprovante_url: string;
+  show13: boolean;
+  showFerias: boolean;
 }
 
 const emptyForm: FormState = {
@@ -75,6 +97,8 @@ const emptyForm: FormState = {
   obs: "",
   holerite_url: "",
   comprovante_url: "",
+  show13: false,
+  showFerias: false,
 };
 
 const MESES = [
@@ -96,8 +120,6 @@ const MESES = [
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 /* ─────────────────────────── main ─────────────────────────── */
 
 export default function SalariosTab() {
@@ -114,6 +136,7 @@ export default function SalariosTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<string, FormState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
 
   const fetchContas = useCallback(async () => {
     const { data } = await supabase
@@ -127,16 +150,51 @@ export default function SalariosTab() {
     fetchContas();
   }, [fetchContas]);
 
+  const uploadFileToStorage = async (file: File, folder: string): Promise<string> => {
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("documentos_rh")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from("documentos_rh").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleFileUpload = async (userId: string, field: "holerite" | "comprovante", file: File) => {
+    try {
+      setUploadingField({ userId, field });
+      const publicUrl = await uploadFileToStorage(file, field);
+      setForms((prev) => ({
+        ...prev,
+        [userId]: {
+          ...prev[userId],
+          [field === "holerite" ? "holerite_url" : "comprovante_url"]: publicUrl,
+        },
+      }));
+      setToast({ type: "ok", text: `${field === "holerite" ? "Holerite" : "Comprovante"} enviado com sucesso!` });
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao realizar upload." });
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   const carregar = useCallback(async () => {
     setLoading(true);
     setToast(null);
     try {
+      // 1. Busca colaboradores com dados bancários e departamento
       const { data: users, error: ue } = await supabase
         .from("user_profiles")
-        .select("id,full_name,email,employment_status,tipo")
+        .select("id,full_name,email,employment_status,tipo,bank_account,bank_agency,bank_name,bank_pix,departamento")
         .eq("employment_status", "ativo")
         .eq("tipo", "colaborador")
         .order("full_name", { ascending: true });
+
       if (ue) throw ue;
       const userList = (users ?? []) as UserProfile[];
       setFuncionarios(userList);
@@ -149,30 +207,49 @@ export default function SalariosTab() {
         return;
       }
 
+      const userIds = userList.map((u) => u.id);
+
+      // 2. Busca histórico de salários para pré-preenchimento
+      const { data: salariosData } = await (supabase as any)
+        .from("salarios")
+        .select("user_id, salario_bruto, salario_liquido, beneficios, data_vigencia")
+        .in("user_id", userIds)
+        .order("data_vigencia", { ascending: false });
+
+      const salariosMap: Record<string, SalarioVigente> = {};
+      (salariosData ?? []).forEach((s: any) => {
+        if (!salariosMap[s.user_id]) salariosMap[s.user_id] = s;
+      });
+
+      // 3. Busca histórico de pagamentos salvos
       const { data: pags, error: pe } = await (supabase as any)
         .from("historico_pagamentos_funcionarios")
         .select("*")
-        .in(
-          "id_usuario",
-          userList.map((u) => u.id),
-        );
+        .in("id_usuario", userIds);
+
       if (pe) throw pe;
 
       const pagMap: Record<string, PagamentoSalario | null> = {};
       const formMap: Record<string, FormState> = {};
+
       (pags ?? []).forEach((p: any) => {
         const existing = pagMap[p.id_usuario];
-        // keep the most recent by data_pagamento / atualizado_em
         if (!existing || (p.atualizado_em ?? "") > (existing.atualizado_em ?? "")) {
           pagMap[p.id_usuario] = p as PagamentoSalario;
         }
       });
+
       userList.forEach((u) => {
         const p = pagMap[u.id] ?? null;
+        const salVigente = salariosMap[u.id];
+
         if (p) {
+          const has13 = Boolean(p.decimo_terceiro_parcela1 || p.decimo_terceiro_parcela2);
+          const hasFerias = Boolean(p.ferias);
+
           formMap[u.id] = {
-            base_salary_holerite: p.salario_holerite != null ? String(p.salario_holerite) : "",
-            benefit: p.beneficios ?? "",
+            base_salary_holerite: p.salario_holerite != null ? String(p.salario_holerite) : (salVigente?.salario_bruto ? String(salVigente.salario_bruto) : ""),
+            benefit: p.beneficios ?? (salVigente?.beneficios ?? ""),
             horas_voo: p.horas_voadas ?? "",
             extra: p.adicionais ?? "",
             decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? String(p.decimo_terceiro_parcela1) : "",
@@ -183,11 +260,18 @@ export default function SalariosTab() {
             obs: p.observacoes ?? "",
             holerite_url: p.url_holerite ?? "",
             comprovante_url: p.url_comprovante ?? "",
+            show13: has13,
+            showFerias: hasFerias,
           };
         } else {
-          formMap[u.id] = { ...emptyForm };
+          formMap[u.id] = {
+            ...emptyForm,
+            base_salary_holerite: salVigente?.salario_bruto ? String(salVigente.salario_bruto) : "",
+            benefit: salVigente?.beneficios ?? "",
+          };
         }
       });
+
       setPagamentos(pagMap);
       setForms(formMap);
       setLoaded(true);
@@ -210,19 +294,20 @@ export default function SalariosTab() {
         beneficios: f.benefit.trim() || null,
         horas_voadas: f.horas_voo.trim() || null,
         adicionais: f.extra.trim() || null,
-        decimo_terceiro_parcela1: f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
-        decimo_terceiro_parcela2: f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
-        ferias: f.ferias ? Number(f.ferias) : null,
+        decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
+        decimo_terceiro_parcela2: f.show13 && f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
+        ferias: f.showFerias && f.ferias ? Number(f.ferias) : null,
         banco_pagamento: f.banco || null,
         data_pagamento: f.data_pagamento || null,
         observacoes: f.obs.trim() || null,
         url_holerite: f.holerite_url.trim() || null,
         url_comprovante: f.comprovante_url.trim() || null,
       };
+
       const existing = pagamentos[userId];
       if (existing?.id) {
-      const { error } = await (supabase as any)
-        .from("historico_pagamentos_funcionarios")
+        const { error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
           .update({ ...payload, atualizado_em: new Date().toISOString() })
           .eq("id", existing.id);
         if (error) throw error;
@@ -248,9 +333,8 @@ export default function SalariosTab() {
     if (!f) return 0;
     return (
       num(f.base_salary_holerite) +
-      num(f.decimo_terceiro_parcela1) +
-      num(f.decimo_terceiro_parcela2) +
-      num(f.ferias)
+      (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) +
+      (f.showFerias ? num(f.ferias) : 0)
     );
   };
 
@@ -269,7 +353,7 @@ export default function SalariosTab() {
         </div>
       </div>
 
-      {/* period selector */}
+      {/* Seletor de Período */}
       <div
         className="rounded-2xl p-4 flex flex-wrap items-end gap-3"
         style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
@@ -312,7 +396,7 @@ export default function SalariosTab() {
         </button>
       </div>
 
-      {/* toast */}
+      {/* Toast */}
       {toast && (
         <div
           className="rounded-lg px-4 py-2 text-sm border"
@@ -326,7 +410,7 @@ export default function SalariosTab() {
         </div>
       )}
 
-      {/* list */}
+      {/* Lista */}
       {!loaded ? (
         <div
           className="rounded-2xl p-10 text-center text-sm text-slate-400"
@@ -349,13 +433,14 @@ export default function SalariosTab() {
             const expanded = expandedId === u.id;
             const pago = !!pagamentos[u.id];
             const f = forms[u.id] ?? emptyForm;
+
             return (
               <div
                 key={u.id}
                 className="rounded-2xl overflow-hidden"
                 style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
               >
-                {/* row header */}
+                {/* Cabeçalho da Linha */}
                 <button
                   onClick={() => setExpandedId(expanded ? null : u.id)}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/40"
@@ -367,8 +452,16 @@ export default function SalariosTab() {
                       <ChevronRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
                     )}
                     <div className="min-w-0 text-left">
-                      <div className="text-sm font-semibold text-slate-100 truncate">
-                        {u.full_name || "Sem nome"}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-100 truncate">
+                          {u.full_name || "Sem nome"}
+                        </span>
+                        {u.departamento && (
+                          <span className="text-[10px] bg-slate-800 text-cyan-300 border border-slate-700 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <Building2 className="h-2.5 w-2.5" />
+                            {u.departamento}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-400 truncate">{u.email || "—"}</div>
                     </div>
@@ -392,9 +485,23 @@ export default function SalariosTab() {
                   </div>
                 </button>
 
-                {/* expanded form */}
+                {/* Form Expandido */}
                 {expanded && (
-                  <div className="px-4 pb-4 pt-1 border-t border-slate-800 space-y-3">
+                  <div className="px-4 pb-4 pt-3 border-t border-slate-800 space-y-4">
+                    {/* Bloco de Dados Bancários do Colaborador */}
+                    <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs flex flex-wrap items-center justify-between gap-3 text-slate-300">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-cyan-400" />
+                        <span className="font-semibold text-slate-200">Dados Bancários Cadastrados:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4">
+                        <span><strong>Banco:</strong> {u.bank_name || "—"}</span>
+                        <span><strong>Agência:</strong> {u.bank_agency || "—"}</span>
+                        <span><strong>Conta:</strong> {u.bank_account || "—"}</span>
+                        <span><strong>PIX:</strong> {u.bank_pix || "—"}</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label className={labelCls}>Salário Base (Holerite)</label>
@@ -442,49 +549,7 @@ export default function SalariosTab() {
                         />
                       </div>
                       <div>
-                        <label className={labelCls}>13º Parcela 1</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className={inputCls}
-                          value={f.decimo_terceiro_parcela1}
-                          onChange={(e) =>
-                            setForms((prev) => ({
-                              ...prev,
-                              [u.id]: { ...f, decimo_terceiro_parcela1: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>13º Parcela 2</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className={inputCls}
-                          value={f.decimo_terceiro_parcela2}
-                          onChange={(e) =>
-                            setForms((prev) => ({
-                              ...prev,
-                              [u.id]: { ...f, decimo_terceiro_parcela2: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Férias</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className={inputCls}
-                          value={f.ferias}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias: e.target.value } }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Conta Bancária</label>
+                        <label className={labelCls}>Conta Origem Pagamento</label>
                         <select
                           className={inputCls + " cursor-pointer"}
                           value={f.banco}
@@ -511,51 +576,226 @@ export default function SalariosTab() {
                           }
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <label className={labelCls}>Observações</label>
-                        <textarea
-                          className={inputCls}
-                          rows={2}
-                          value={f.obs}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, obs: e.target.value } }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>URL Holerite</label>
-                        <input
-                          className={inputCls}
-                          value={f.holerite_url}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, holerite_url: e.target.value } }))
-                          }
-                          placeholder="https://..."
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>URL Comprovante</label>
-                        <input
-                          className={inputCls}
-                          value={f.comprovante_url}
-                          onChange={(e) =>
+                    </div>
+
+                    {/* Botões para Habilitar 13º e Férias */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {!f.show13 ? (
+                        <button
+                          type="button"
+                          onClick={() => setForms((prev) => ({ ...prev, [u.id]: { ...f, show13: true } }))}
+                          className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Adicionar 13º Salário
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
                             setForms((prev) => ({
                               ...prev,
-                              [u.id]: { ...f, comprovante_url: e.target.value },
+                              [u.id]: { ...f, show13: false, decimo_terceiro_parcela1: "", decimo_terceiro_parcela2: "" },
                             }))
                           }
-                          placeholder="https://..."
-                        />
+                          className="text-xs bg-red-950/40 hover:bg-red-900/60 text-red-300 px-3 py-1.5 rounded-lg border border-red-800/50 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remover 13º
+                        </button>
+                      )}
+
+                      {!f.showFerias ? (
+                        <button
+                          type="button"
+                          onClick={() => setForms((prev) => ({ ...prev, [u.id]: { ...f, showFerias: true } }))}
+                          className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Adicionar Férias
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForms((prev) => ({
+                              ...prev,
+                              [u.id]: { ...f, showFerias: false, ferias: "" },
+                            }))
+                          }
+                          className="text-xs bg-red-950/40 hover:bg-red-900/60 text-red-300 px-3 py-1.5 rounded-lg border border-red-800/50 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remover Férias
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Campos Condicionais de 13º e Férias */}
+                    {(f.show13 || f.showFerias) && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-900/30 rounded-xl border border-slate-800">
+                        {f.show13 && (
+                          <>
+                            <div>
+                              <label className={labelCls}>13º Parcela 1</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className={inputCls}
+                                value={f.decimo_terceiro_parcela1}
+                                onChange={(e) =>
+                                  setForms((prev) => ({
+                                    ...prev,
+                                    [u.id]: { ...f, decimo_terceiro_parcela1: e.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>13º Parcela 2</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className={inputCls}
+                                value={f.decimo_terceiro_parcela2}
+                                onChange={(e) =>
+                                  setForms((prev) => ({
+                                    ...prev,
+                                    [u.id]: { ...f, decimo_terceiro_parcela2: e.target.value },
+                                  }))
+                                }
+                              />
+                            </div>
+                          </>
+                        )}
+                        {f.showFerias && (
+                          <div>
+                            <label className={labelCls}>Férias</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className={inputCls}
+                              value={f.ferias}
+                              onChange={(e) =>
+                                setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias: e.target.value } }))
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Upload de Arquivos (Holerite / Comprovante) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Holerite Upload */}
+                      <div>
+                        <label className={labelCls}>Holerite (Imagem/PDF)</label>
+                        {f.holerite_url ? (
+                          <div className="flex items-center justify-between p-2 bg-slate-950/80 border border-slate-700 rounded-lg text-xs">
+                            <a
+                              href={f.holerite_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-400 hover:underline flex items-center gap-1.5 truncate"
+                            >
+                              <FileText className="h-4 w-4" /> Ver Holerite
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForms((prev) => ({ ...prev, [u.id]: { ...f, holerite_url: "" } }))
+                              }
+                              className="text-red-400 hover:text-red-300 p-1"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-700 hover:border-cyan-400/50 bg-slate-950/40 rounded-lg cursor-pointer text-xs text-slate-400 transition-colors">
+                            {uploadingField?.userId === u.id && uploadingField?.field === "holerite" ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                            ) : (
+                              <Upload className="h-4 w-4 text-cyan-400" />
+                            )}
+                            <span>Anexar Holerite</span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              disabled={uploadingField !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(u.id, "holerite", file);
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Comprovante Upload */}
+                      <div>
+                        <label className={labelCls}>Comprovante (Imagem/PDF)</label>
+                        {f.comprovante_url ? (
+                          <div className="flex items-center justify-between p-2 bg-slate-950/80 border border-slate-700 rounded-lg text-xs">
+                            <a
+                              href={f.comprovante_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-400 hover:underline flex items-center gap-1.5 truncate"
+                            >
+                              <FileText className="h-4 w-4" /> Ver Comprovante
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForms((prev) => ({ ...prev, [u.id]: { ...f, comprovante_url: "" } }))
+                              }
+                              className="text-red-400 hover:text-red-300 p-1"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-700 hover:border-cyan-400/50 bg-slate-950/40 rounded-lg cursor-pointer text-xs text-slate-400 transition-colors">
+                            {uploadingField?.userId === u.id && uploadingField?.field === "comprovante" ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                            ) : (
+                              <Upload className="h-4 w-4 text-cyan-400" />
+                            )}
+                            <span>Anexar Comprovante</span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              disabled={uploadingField !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(u.id, "comprovante", file);
+                              }}
+                            />
+                          </label>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-1">
+
+                    <div className="md:col-span-3">
+                      <label className={labelCls}>Observações</label>
+                      <textarea
+                        className={inputCls}
+                        rows={2}
+                        value={f.obs}
+                        onChange={(e) =>
+                          setForms((prev) => ({ ...prev, [u.id]: { ...f, obs: e.target.value } }))
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
                       <div className="text-xs text-slate-400 inline-flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
-                        Total: <span className="text-cyan-300 font-bold">{formatBRL(totalFuncionario(u.id))}</span>
+                        Total Final: <span className="text-cyan-300 font-bold ml-1">{formatBRL(totalFuncionario(u.id))}</span>
                       </div>
                       <button
                         onClick={() => saveRow(u.id)}
-                        disabled={savingId === u.id}
+                        disabled={savingId === u.id || uploadingField !== null}
                         className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
                         style={{ background: "#06b6d4" }}
                       >
@@ -570,11 +810,6 @@ export default function SalariosTab() {
           })}
         </div>
       )}
-
-      {/* footer hint */}
-      <div className="text-[11px] text-slate-500 inline-flex items-center gap-1">
-        <LinkIcon className="h-3 w-3" /> Os pagamentos são salvos por colaborador e período.
-      </div>
     </div>
   );
 }
