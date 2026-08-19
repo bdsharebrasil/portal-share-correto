@@ -10,12 +10,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
-import { FileText, Loader2, Plane, Plus, Save, Trash2, Users, X } from "lucide-react";
+import AnexosDinamicosField, { type AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
+import { mapAnexosToMovimentacao } from "./anexosMapper";
+import { CLIENTE_DGA_ID } from "@/utils/financeiroRules";
+import { Building2, FileText, Loader2, Paperclip, Plane, Plus, Save, Trash2, Users, X } from "lucide-react";
 
 interface Props {
   onCancel: () => void;
   onSaved: (rows: any[]) => void;
+  /** "cliente" (padrão) ou "dga" — no modo DGA o caixa e o cliente são fixos. */
+  modo?: "cliente" | "dga";
 }
+
 
 
 
@@ -52,7 +58,6 @@ const FLUXOS = [
 
 const PERIODICIDADES = [
   { id: "UNICO", label: "ÚNICO" },
-    { id: "EVENTUAL", label: "EVENTUAL" },
   { id: "MENSAL", label: "MENSAL" },
   { id: "BIMESTRAL", label: "BIMESTRAL" },
   { id: "TRIMESTRAL", label: "TRIMESTRAL" },
@@ -85,8 +90,11 @@ const novaLinha = (): Linha => ({
   valor_rateado: "",
 });
 
-export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
+export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "cliente" }: Props) {
   const hoje = new Date().toISOString().slice(0, 10);
+  const isDgaModo = modo === "dga";
+  const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
+  const [storageId] = useState(() => crypto.randomUUID());
 
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
@@ -98,6 +106,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
   const [clienteVooId, setClienteVooId] = useState<string | null>(null);
   const [relatorios, setRelatorios] = useState<any[]>([]);
   const [loadingRelatorios, setLoadingRelatorios] = useState(false);
+
 
   const [form, setForm] = useState({
     numero_voo: "",
