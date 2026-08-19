@@ -447,7 +447,7 @@ export default function FluxoCaixaTab() {
       )}
 
       {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 
-      {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} socios={data.socios} />} 
+      {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} socios={data.socios} onChanged={load} />} 
 
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
       {(aba === "caixa" || aba === "reembolsaveis") && (
@@ -702,8 +702,8 @@ function CaixaAlertaCard({
   return (
     <section className={`relative overflow-hidden rounded-3xl border p-5 shadow-xl ${
       payable
-        ? "border-orange-500/20 bg-gradient-to-br from-orange-500/[0.09] via-slate-900/80 to-slate-950"
-        : "border-rose-500/20 bg-gradient-to-br from-rose-500/[0.10] via-slate-900/80 to-slate-950"
+        ? "border-[#daa01a]/20 bg-[#bb7602] bg-gradient-to-br from-orange-500/[0.09] via-slate-900/80 to-slate-950"
+        : "border-[#a71029]/20 bg-[#061524] bg-gradient-to-br from-rose-500/[0.10] via-slate-900/80 to-slate-950"
     }`}>
       <div className={`absolute right-0 top-0 h-40 w-40 rounded-full blur-3xl ${payable ? "bg-orange-500/10" : "bg-rose-500/10"}`} />
       <div className="relative">
@@ -719,7 +719,7 @@ function CaixaAlertaCard({
         <div className="mt-5">
           <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${payable ? "text-orange-300/70" : "text-rose-300/70"}`}>{eyebrow}</div>
           <h4 className="mt-1 text-lg font-black text-white">{title}</h4>
-          <div className={`mt-2 text-3xl font-black tracking-tight ${payable ? "text-orange-300" : "text-rose-300"}`}>{value}</div>
+          <div className={`mt-2 text-3xl font-black tracking-tight ${payable ? "text-[#fdf5ec]" : "text-rose-300"}`}>{value}</div>
           <p className="mt-2 text-xs leading-relaxed text-slate-400">{description}</p>
         </div>
 
@@ -762,7 +762,7 @@ function ResumoLista({
 }) {
   const payable = tone === "payable";
   return (
-    <section className={`rounded-3xl border bg-slate-900/60 p-5 shadow-xl backdrop-blur-sm ${payable ? "border-orange-500/15" : "border-rose-500/15"}`}>
+    <section className={`rounded-3xl border p-5 shadow-xl backdrop-blur-sm ${payable ? "border-[#a34809]/[0.56] bg-[#040d22]/60" : "border-[#eb0930]/[0.53] bg-[#061524]/80"}`}>
       <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className={`rounded-2xl border p-2.5 ${payable ? "border-orange-500/20 bg-orange-500/10" : "border-rose-500/20 bg-rose-500/10"}`}>{icon}</div>

@@ -181,17 +181,18 @@ export default function SalariosTab() {
     fetchContas();
   }, [fetchContas]);
 
-  const uploadFileToStorage = async (file: File, folder: string): Promise<string> => {
+  const uploadFileToStorage = async (file: File, folder: "holerite" | "comprovante"): Promise<string> => {
     const fileExt = file.name.split(".").pop();
-    const filePath = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const bucket = folder === "holerite" ? "holerites" : "comprovantes";
+    const filePath = `pagamento-salario/${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("documentos_rh")
+      .from(bucket)
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage.from("documentos_rh").getPublicUrl(filePath);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
     return data.publicUrl;
   };
 

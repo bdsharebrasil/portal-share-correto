@@ -96,19 +96,19 @@ export function PagamentoSalarioDialog({
 
   const uploadFile = async (
     file: File,
-    folder: "salarios" | "holerites",
-    prefix: string
+    bucket: "holerites" | "comprovantes",
+    prefix: string,
   ): Promise<string> => {
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 100);
     const fileExt = sanitizedFileName.split(".").pop();
     const fileName = `${prefix}_${timestamp}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
+    const filePath = `pagamento-salario/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage.from("comprovantes").upload(filePath, file);
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
     if (uploadError) throw uploadError;
 
-    const { data: publicUrlData } = supabase.storage.from("comprovantes").getPublicUrl(filePath);
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
     return publicUrlData.publicUrl;
   };
 
@@ -124,7 +124,7 @@ export function PagamentoSalarioDialog({
 
     setIsUploadingComprovante(true);
     try {
-      const url = await uploadFile(file, "salarios", "comprovante");
+      const url = await uploadFile(file, "comprovantes", "comprovante");
       setFormData((prev) => ({ ...prev, url_comprovante: url }));
       toast.success("Comprovante enviado com sucesso!");
     } catch (error: any) {
