@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, Plane, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  Clock3,
+  Plane,
+  Plus,
+  CalendarDays,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import {
   Dialog,
   DialogContent,
@@ -11,12 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import {
   type PernaVoo,
   type Solicitacao,
   useAgendamentoMutations,
+  useJornadasVoo,
   usePernasVoo,
 } from "@/hooks/useAgendamentoVoo";
+
 import { NovaPernaDialog } from "./NovaPernaDialog";
 
 interface Props {
@@ -25,211 +36,626 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const timeValue = (value?: string | null) => value?.slice(0, 5) ?? "";
-const isoTimeValue = (value?: string | null) => (value ? new Date(value).toISOString().slice(11, 16) : "");
-const todayYYYYMMDD = () => new Date().toISOString().slice(0, 10);
+const timeValue = (
+  value?: string | null,
+) => value?.slice(0, 5) ?? "";
 
-export function AtualizarHorariosVooDialog({ voo, open, onOpenChange }: Props) {
-  const { data: pernas = [] } = usePernasVoo(open ? voo?.id : null);
-  const { registrarHorariosPerna, alterarStatusVoo } = useAgendamentoMutations();
+const isoTimeValue = (
+  value?: string | null,
+) =>
+  value
+    ? new Date(value)
+        .toISOString()
+        .slice(11, 16)
+    : "";
 
-  const [novaPernaAberta, setNovaPernaAberta] = useState(false);
-  const [perguntando, setPerguntando] = useState(false);
+const todayYYYYMMDD = () =>
+  new Date()
+    .toISOString()
+    .slice(0, 10);
 
-  const [dataPerna, setDataPerna] = useState("");
-  const [acionamento, setAcionamento] = useState("");
-  const [decolagem, setDecolagem] = useState("");
-  const [pouso, setPouso] = useState("");
-  const [corte, setCorte] = useState("");
+export function AtualizarHorariosVooDialog({
+  voo,
+  open,
+  onOpenChange,
+}: Props) {
+  const {
+    data: pernas = [],
+  } = usePernasVoo(
+    open ? voo?.id : null,
+  );
 
-  const ordenadas = [...pernas].sort((a, b) => a.numero_perna - b.numero_perna);
-  const pernaAtiva: PernaVoo | null = ordenadas.find((p) => !p.horario_pouso || !p.horario_corte) ?? null;
-  const temProximaPerna = pernaAtiva
-    ? ordenadas.some((p) => p.numero_perna > pernaAtiva.numero_perna)
-    : false;
-  const fase: "iniciar" | "pousar" = pernaAtiva?.horario_decolagem ? "pousar" : "iniciar";
+  const {
+    data: jornadas = [],
+  } = useJornadasVoo(
+    open ? voo?.id : null,
+  );
+
+  const {
+    iniciarVoo,
+    registrarPousoPerna,
+    encerrarJornada,
+    adicionarPerna,
+  } = useAgendamentoMutations();
+
+  const [novaPernaAberta, setNovaPernaAberta] =
+    useState(false);
+
+  const [etapa, setEtapa] = useState<
+    "voo" | "decisao" | "nova-jornada"
+  >("voo");
+
+  const [dataPerna, setDataPerna] =
+    useState("");
+
+  const [apresentacao, setApresentacao] =
+    useState("");
+
+  const [acionamento, setAcionamento] =
+    useState("");
+
+  const [decolagem, setDecolagem] =
+    useState("");
+
+  const [pouso, setPouso] =
+    useState("");
+
+  const [corte, setCorte] =
+    useState("");
+
+  const [
+    minutosPosCorte,
+    setMinutosPosCorte,
+  ] = useState<30 | 45>(45);
+
+  const ordenadas = useMemo(
+    () =>
+      [...pernas].sort(
+        (a, b) =>
+          a.numero_perna -
+          b.numero_perna,
+      ),
+    [pernas],
+  );
+
+  const pernaAtiva =
+    [...ordenadas]
+      .reverse()
+      .find(
+        (p) =>
+          !p.horario_pouso ||
+          !p.horario_corte,
+      ) ??
+    ordenadas[
+      ordenadas.length - 1
+    ] ??
+    null;
+
+  const jornadaAtual =
+    jornadas.find(
+      (j) =>
+        j.status === "aberta" &&
+        j.data_jornada ===
+          pernaAtiva?.data_perna,
+    ) ?? null;
+
+  const fase =
+    pernaAtiva?.horario_decolagem
+      ? "pousar"
+      : "iniciar";
 
   useEffect(() => {
     if (!open || !voo) return;
-    setPerguntando(false);
-    setDataPerna(pernaAtiva?.data_perna ?? voo.data_partida ?? voo.data_agendada ?? todayYYYYMMDD());
-    setAcionamento(timeValue(pernaAtiva?.horario_acionamento) || (pernaAtiva ? "" : timeValue(voo.horario_acionamento)));
-    setDecolagem(timeValue(pernaAtiva?.horario_decolagem) || (pernaAtiva ? "" : timeValue(voo.horario_decolagem)));
-    setPouso(timeValue(pernaAtiva?.horario_pouso));
-    setCorte(isoTimeValue(pernaAtiva?.horario_corte));
-  }, [open, voo, pernaAtiva?.id]);
+
+    const dataInicial =
+      pernaAtiva?.data_perna ??
+      voo.data_partida ??
+      voo.data_agendada ??
+      todayYYYYMMDD();
+
+    setEtapa("voo");
+
+    setDataPerna(dataInicial);
+
+    setApresentacao(
+      jornadaAtual
+        ? new Date(
+            jornadaAtual.apresentacao_em,
+          )
+            .toISOString()
+            .slice(11, 16)
+        : "",
+    );
+
+    setAcionamento(
+      timeValue(
+        pernaAtiva?.horario_acionamento,
+      ),
+    );
+
+    setDecolagem(
+      timeValue(
+        pernaAtiva?.horario_decolagem,
+      ),
+    );
+
+    setPouso(
+      timeValue(
+        pernaAtiva?.horario_pouso,
+      ),
+    );
+
+    setCorte(
+      isoTimeValue(
+        pernaAtiva?.horario_corte,
+      ),
+    );
+
+    setMinutosPosCorte(
+      jornadaAtual?.minutos_pos_corte ??
+        45,
+    );
+  }, [
+    open,
+    voo,
+    pernaAtiva?.id,
+    jornadaAtual?.id,
+  ]);
 
   if (!voo) return null;
 
-  const salvar = (finalizar?: boolean) => {
+  const iniciarDisabled =
+    !dataPerna ||
+    !apresentacao ||
+    !acionamento ||
+    !decolagem;
+
+  const pousarDisabled =
+    !dataPerna ||
+    !pouso ||
+    !corte;
+
+  const abrirNovaPerna = () => {
+    setNovaPernaAberta(true);
+  };
+
+  const iniciarPerna = () => {
     if (!pernaAtiva) return;
-    registrarHorariosPerna.mutate(
+
+    iniciarVoo.mutate(
       {
         solicitacao: voo,
         perna: pernaAtiva,
-        fase,
-        dataPerna,
-        horarioAcionamento: acionamento,
-        horarioDecolagem: decolagem,
-        horarioPouso: pouso || null,
-        horarioCorte: corte || null,
-        finalizar,
+        dataPartida: dataPerna,
+        horarioApresentacao:
+          apresentacao,
+        horarioAcionamento:
+          acionamento,
+        horarioDecolagem:
+          decolagem,
+        minutosPosCorte,
+        pilotoId:
+          voo.piloto_id ?? null,
+        copilotoId:
+          voo.copiloto_id ?? null,
+        qtdPassageiros:
+          voo.qtd_passageiros ??
+          1,
       },
       {
         onSuccess: () => {
-          setPerguntando(false);
           onOpenChange(false);
         },
       },
     );
   };
 
-  const podeSalvar =
-    fase === "iniciar"
-      ? Boolean(dataPerna && acionamento && decolagem)
-      : Boolean(dataPerna && acionamento && decolagem && pouso && corte);
-
   const registrarPouso = () => {
-    if (!podeSalvar) return;
-    if (temProximaPerna) salvar(false);
-    else setPerguntando(true);
+    if (!pernaAtiva) return;
+
+    registrarPousoPerna.mutate(
+      {
+        solicitacao: voo,
+        perna: pernaAtiva,
+        dataPerna,
+        horarioPouso: pouso,
+        horarioCorte: corte,
+      },
+      {
+        onSuccess: () => {
+          setEtapa("decisao");
+        },
+      },
+    );
   };
 
-  const encerrarJornada = () => {
-    if (pernaAtiva) salvar(true);
-    else {
-      alterarStatusVoo.mutate(
-        { solicitacao: voo, status: "concluido" },
-        { onSuccess: () => onOpenChange(false) },
-      );
+  const finalizarJornada = () => {
+    if (!jornadaAtual) {
+      setEtapa("nova-jornada");
+      return;
     }
-  };
 
-  const salvandoPouso = () => {
-    // grava o pouso mantendo o voo como "pousado" e abre o cadastro de nova perna
-    salvar(false);
-    setNovaPernaAberta(true);
+    encerrarJornada.mutate(
+      {
+        solicitacao: voo,
+        jornada: jornadaAtual,
+        dataPerna,
+        horarioCorte: corte,
+      },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+        },
+      },
+    );
   };
-
-  const titulo =
-    fase === "iniciar"
-      ? `Iniciar perna ${pernaAtiva?.numero_perna ?? ""}`
-      : `Registrar pouso da perna ${pernaAtiva?.numero_perna ?? ""}`;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
-          {!pernaAtiva ? (
+      <Dialog
+        open={open}
+        onOpenChange={onOpenChange}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
+
+          {/* ==================================================
+              DECISÃO APÓS POUSO
+          ================================================== */}
+
+          {etapa === "decisao" ? (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Todas as pernas pousadas
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  Pouso registrado
                 </DialogTitle>
+
                 <DialogDescription>
-                  Deseja adicionar uma nova perna de voo ou encerrar a jornada deste agendamento?
+                  A perna foi concluída, mas a
+                  jornada ainda não foi encerrada.
+                  O que deseja fazer?
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="gap-2 sm:justify-between">
-                <Button variant="outline" onClick={() => setNovaPernaAberta(true)}>
-                  <Plus className="mr-1.5 h-4 w-4" /> Nova perna de voo
+
+              <div className="space-y-3">
+
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold">
+                    Perna {pernaAtiva?.numero_perna}
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    {pernaAtiva?.origem}
+                    {" → "}
+                    {pernaAtiva?.destino}
+                  </p>
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    ARR {pouso} • CORT {corte}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-semibold">
+                    Jornada do dia
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    A jornada atual permanece aberta
+                    até você decidir encerrá-la.
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={abrirNovaPerna}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar nova perna
                 </Button>
-                <Button onClick={encerrarJornada} disabled={alterarStatusVoo.isPending}>
-                  <CheckCircle2 className="mr-1.5 h-4 w-4" /> Encerrar jornada
+
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={finalizarJornada}
+                  disabled={
+                    encerrarJornada.isPending
+                  }
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Encerrar jornada
                 </Button>
+
               </DialogFooter>
             </>
-          ) : perguntando ? (
+          ) : etapa === "nova-jornada" ? (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Pouso registrado
+                  <CalendarDays className="h-5 w-5" />
+                  Nova jornada
                 </DialogTitle>
+
                 <DialogDescription>
-                  Não existe outra perna registrada. Deseja adicionar uma nova perna de voo ou encerrar a jornada?
+                  A jornada anterior já foi
+                  encerrada. A próxima perna deverá
+                  começar com uma nova apresentação.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="gap-2 sm:justify-between">
-                <Button variant="outline" onClick={salvandoPouso} disabled={registrarHorariosPerna.isPending}>
-                  <Plus className="mr-1.5 h-4 w-4" /> Nova perna de voo
+
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm font-medium">
+                  Próximo dia de operação
+                </p>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ao iniciar a próxima perna,
+                  informe novamente o horário de
+                  apresentação da tripulação.
+                </p>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    onOpenChange(false)
+                  }
+                >
+                  Fechar
                 </Button>
-                <Button onClick={() => salvar(true)} disabled={registrarHorariosPerna.isPending}>
-                  <CheckCircle2 className="mr-1.5 h-4 w-4" /> Encerrar jornada
+
+                <Button
+                  onClick={abrirNovaPerna}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar próxima perna
                 </Button>
               </DialogFooter>
             </>
           ) : (
             <>
               <DialogHeader>
+
                 <DialogTitle className="flex items-center gap-2">
-                  {fase === "pousar" ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                  ) : (
+                  {fase === "iniciar" ? (
                     <Plane className="h-5 w-5 text-amber-500" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   )}
-                  {titulo}
-                </DialogTitle>
-                <DialogDescription>
-                  {pernaAtiva.origem} → {pernaAtiva.destino}.{" "}
+
                   {fase === "iniciar"
-                    ? "Informe AC e DEP para colocar esta perna em rota."
-                    : "Informe o pouso (ARR) e o corte (CORT) para encerrar esta perna."}{" "}
-                  Todos os horários são em UTC.
+                    ? `Iniciar perna ${
+                        pernaAtiva?.numero_perna ??
+                        ""
+                      }`
+                    : `Registrar pouso da perna ${
+                        pernaAtiva?.numero_perna ??
+                        ""
+                      }`}
+                </DialogTitle>
+
+                <DialogDescription>
+                  {pernaAtiva?.origem}
+                  {" → "}
+                  {pernaAtiva?.destino}
                 </DialogDescription>
+
               </DialogHeader>
 
-              <div className="grid gap-4 py-2 sm:grid-cols-2">
+              <div className="grid gap-4 py-2">
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="data-etapa">Data da perna</Label>
-                  <Input id="data-etapa" type="date" value={dataPerna} onChange={(e) => setDataPerna(e.target.value)} className="font-mono" />
+                  <Label>
+                    Data da perna
+                  </Label>
+
+                  <Input
+                    type="date"
+                    value={dataPerna}
+                    onChange={(e) =>
+                      setDataPerna(
+                        e.target.value,
+                      )
+                    }
+                  />
                 </div>
+
+                {fase === "iniciar" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label>
+                        Apresentação da tripulação
+                      </Label>
+
+                      <Input
+                        type="time"
+                        value={apresentacao}
+                        onChange={(e) =>
+                          setApresentacao(
+                            e.target.value,
+                          )
+                        }
+                      />
+
+                      <p className="text-xs text-muted-foreground">
+                        Normalmente cerca de 30
+                        minutos antes da partida.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>
+                        Minutos após o corte para
+                        encerrar a jornada
+                      </Label>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={
+                            minutosPosCorte === 30
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setMinutosPosCorte(
+                              30,
+                            )
+                          }
+                        >
+                          30 min
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant={
+                            minutosPosCorte === 45
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setMinutosPosCorte(
+                              45,
+                            )
+                          }
+                        >
+                          45 min
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="ac-etapa">Acionamento (AC)</Label>
-                  <Input id="ac-etapa" type="time" value={acionamento} onChange={(e) => setAcionamento(e.target.value)} className="font-mono" />
+                  <Label>
+                    Acionamento (AC)
+                  </Label>
+
+                  <Input
+                    type="time"
+                    value={acionamento}
+                    onChange={(e) =>
+                      setAcionamento(
+                        e.target.value,
+                      )
+                    }
+                  />
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="dep-etapa">Decolagem (DEP)</Label>
-                  <Input id="dep-etapa" type="time" value={decolagem} onChange={(e) => setDecolagem(e.target.value)} className="font-mono" />
+                  <Label>
+                    Decolagem (DEP)
+                  </Label>
+
+                  <Input
+                    type="time"
+                    value={decolagem}
+                    onChange={(e) =>
+                      setDecolagem(
+                        e.target.value,
+                      )
+                    }
+                  />
                 </div>
+
                 {fase === "pousar" && (
                   <>
                     <div className="space-y-1.5">
-                      <Label htmlFor="arr-etapa">Pouso (ARR)</Label>
-                      <Input id="arr-etapa" type="time" value={pouso} onChange={(e) => setPouso(e.target.value)} className="font-mono" />
+                      <Label>
+                        Pouso (ARR)
+                      </Label>
+
+                      <Input
+                        type="time"
+                        value={pouso}
+                        onChange={(e) =>
+                          setPouso(
+                            e.target.value,
+                          )
+                        }
+                      />
                     </div>
+
                     <div className="space-y-1.5">
-                      <Label htmlFor="cort-etapa">Corte (CORT)</Label>
-                      <Input id="cort-etapa" type="time" value={corte} onChange={(e) => setCorte(e.target.value)} className="font-mono" />
+                      <Label>
+                        Corte (CORT)
+                      </Label>
+
+                      <Input
+                        type="time"
+                        value={corte}
+                        onChange={(e) =>
+                          setCorte(
+                            e.target.value,
+                          )
+                        }
+                      />
                     </div>
                   </>
                 )}
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+
                 <Button
-                  onClick={() => (fase === "iniciar" ? salvar() : registrarPouso())}
-                  disabled={!podeSalvar || registrarHorariosPerna.isPending}
+                  variant="outline"
+                  onClick={() =>
+                    onOpenChange(false)
+                  }
                 >
-                  <Clock3 className="mr-1.5 h-4 w-4" />
-                  {registrarHorariosPerna.isPending
-                    ? "Salvando..."
-                    : fase === "iniciar"
-                      ? "Colocar em rota"
-                      : "Registrar pouso"}
+                  Cancelar
                 </Button>
+
+                {fase === "iniciar" ? (
+                  <Button
+                    onClick={iniciarPerna}
+                    disabled={
+                      iniciarDisabled ||
+                      iniciarVoo.isPending
+                    }
+                  >
+                    <Clock3 className="mr-2 h-4 w-4" />
+
+                    {iniciarVoo.isPending
+                      ? "Iniciando..."
+                      : "Iniciar perna"}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={registrarPouso}
+                    disabled={
+                      pousarDisabled ||
+                      registrarPousoPerna.isPending
+                    }
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+
+                    {registrarPousoPerna.isPending
+                      ? "Registrando..."
+                      : "Registrar pouso"}
+                  </Button>
+                )}
+
               </DialogFooter>
             </>
           )}
+
         </DialogContent>
       </Dialog>
 
       <NovaPernaDialog
         voo={voo}
         open={novaPernaAberta}
-        onOpenChange={(o) => {
-          setNovaPernaAberta(o);
-          if (!o) onOpenChange(false);
+        onOpenChange={(value) => {
+          setNovaPernaAberta(value);
+
+          if (!value) {
+            onOpenChange(false);
+          }
         }}
       />
     </>
