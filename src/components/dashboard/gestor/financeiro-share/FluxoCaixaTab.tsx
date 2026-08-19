@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Banknote,
   ArrowDown,
   ArrowUp,
   Calculator,
+  CircleDollarSign,
   CheckSquare,
   ChevronDown,
   Clock3,
@@ -12,6 +14,9 @@ import {
   HandCoins,
   Plus,
   ReceiptText,
+  TrendingDown,
+  TrendingUp,
+  Users,
   RefreshCw,
   Search,
   Trash2,
@@ -189,6 +194,22 @@ export default function FluxoCaixaTab() {
     return { entradas, saidas, saldo: entradas - saidas, aReceber, dgaSaldo: dgaEntrada - dgaSaida };
   }, [data.movimentacoes]);
 
+  const visaoGeral = useMemo(() => {
+    const contasTotal = contasAPagar.reduce((sum: number, conta: any) => sum + Number(conta?.valor || 0), 0);
+    const inadimplenciaTotal = inadimplencias.reduce((sum: number, item: any) => sum + Number(item?.valor || 0), 0);
+    const diasMaxAtraso = inadimplencias.reduce((max: number, item: any) => Math.max(max, Number(item?.dias_atraso || 0)), 0);
+    const saldoAposContas = resumo.saldo - contasTotal;
+    const pressaoSobreCaixa = resumo.saldo > 0 ? Math.min(100, Math.max(0, (contasTotal / resumo.saldo) * 100)) : 0;
+
+    return {
+      contasTotal,
+      inadimplenciaTotal,
+      diasMaxAtraso,
+      saldoAposContas,
+      pressaoSobreCaixa,
+    };
+  }, [contasAPagar, inadimplencias, resumo.saldo]);
+
   const formatMesAno = (periodo: string) => { const [ano, mesNumero] = periodo.split("-"); return `${mesNumero}/${ano}`; };
 
   const onBaixaSuccess = async () => { setBaixaMov(null); await load(); await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }); };
@@ -265,19 +286,129 @@ export default function FluxoCaixaTab() {
       {/* ABA VISÃO GERAL */}
       {aba === "visao" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card title="Dívidas de clientes" value={formatBRL(resumo.aReceber)} note="somente valores antecipados pela Share" tone="amber" />
+          {/* RESUMO PRINCIPAL */}
+          <section className="relative overflow-hidden rounded-3xl border border-slate-800/90 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-5 shadow-2xl">
+            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
+
+            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <div className="mb-1 text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400/80">Visão financeira</div>
+                <h3 className="text-xl font-black tracking-tight text-white">O que está acontecendo com o caixa?</h3>
+                <p className="mt-1 max-w-2xl text-sm text-slate-400">
+                  Entradas e saídas mostram o caixa realizado. Contas a pagar representam compromissos da empresa; inadimplência representa dinheiro que deveria entrar dos clientes.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-black/20 px-4 py-3 text-right">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Saldo atual</div>
+                <div className={`mt-1 text-2xl font-black ${resumo.saldo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {formatBRL(resumo.saldo)}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <FluxoMetric
+                icon={<TrendingUp className="h-4 w-4" />}
+                label="Entradas realizadas"
+                value={formatBRL(resumo.entradas)}
+                helper="Dinheiro que efetivamente entrou"
+                tone="green"
+              />
+              <FluxoMetric
+                icon={<TrendingDown className="h-4 w-4" />}
+                label="Saídas realizadas"
+                value={formatBRL(resumo.saidas)}
+                helper="Despesas já registradas no caixa"
+                tone="red"
+              />
+              <FluxoMetric
+                icon={<CircleDollarSign className="h-4 w-4" />}
+                label="Dívidas de clientes"
+                value={formatBRL(resumo.aReceber)}
+                helper="Valores antecipados pela Share"
+                tone="amber"
+              />
+            </div>
+          </section>
+
+          {/* O QUE SAI X O QUE DEVERIA ENTRAR */}
+          <div className="grid gap-5 xl:grid-cols-2">
+            <CaixaAlertaCard
+              tone="payable"
+              icon={<ReceiptText className="h-5 w-5" />}
+              eyebrow="COMPROMISSO DO CAIXA"
+              title="O que eu preciso pagar"
+              value={formatBRL(visaoGeral.contasTotal)}
+              count={contasAPagar.length}
+              countLabel="contas em aberto nos próximos 5 dias"
+              description={`Vencimentos de hoje até ${format(addDays(new Date(), 5), "dd/MM")}.`}
+              loading={contasAPagarLoading}
+              error={contasAPagarError}
+            />
+
+            <CaixaAlertaCard
+              tone="default"
+              icon={<Users className="h-5 w-5" />}
+              eyebrow="DINHEIRO A RECEBER"
+              title="O que o cliente está devendo"
+              value={formatBRL(visaoGeral.inadimplenciaTotal)}
+              count={inadimplencias.length}
+              countLabel="clientes com atraso superior a 5 dias"
+              description={visaoGeral.diasMaxAtraso > 0 ? `Maior atraso identificado: ${visaoGeral.diasMaxAtraso} dias.` : "Sem atrasos críticos identificados."}
+              loading={inadimplenciasLoading}
+              error={inadimplenciasError}
+            />
           </div>
-          
+
+          {/* LEITURA DE IMPACTO */}
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-3 text-violet-300">
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Leitura rápida do caixa</div>
+                  <h4 className="mt-1 text-base font-black text-slate-100">Quanto do saldo atual está comprometido?</h4>
+                  <p className="mt-1 text-xs text-slate-400">Isto é um indicador operacional: subtrai apenas as contas a pagar listadas nos próximos 5 dias.</p>
+                </div>
+              </div>
+
+              <div className="min-w-[220px] lg:text-right">
+                <div className={`text-2xl font-black ${visaoGeral.saldoAposContas >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {formatBRL(visaoGeral.saldoAposContas)}
+                </div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">saldo após compromissos próximos</div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                <span className="text-slate-500">Pressão das contas a pagar sobre o saldo</span>
+                <span className={visaoGeral.pressaoSobreCaixa > 100 ? "text-rose-400" : "text-slate-300"}>{Math.round(visaoGeral.pressaoSobreCaixa)}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all ${visaoGeral.pressaoSobreCaixa >= 80 ? "bg-rose-500" : visaoGeral.pressaoSobreCaixa >= 50 ? "bg-amber-500" : "bg-cyan-500"}`}
+                  style={{ width: `${Math.min(100, visaoGeral.pressaoSobreCaixa)}%` }}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* LISTAS DETALHADAS */}
           <div className="grid gap-6 xl:grid-cols-2">
             <ResumoLista
-              icon={<ReceiptText className="h-5 w-5 text-cyan-400" />}
-              title="Contas a pagar nos próximos 5 dias"
-              description={`Vencimentos de hoje até ${format(addDays(new Date(), 5), "dd/MM")}.`}
+              icon={<ReceiptText className="h-5 w-5 text-orange-300" />}
+              title="Contas a pagar"
+              description="Compromissos da empresa que precisam ser pagos."
               count={contasAPagar.length}
               loading={contasAPagarLoading}
               error={contasAPagarError}
               empty="Nenhuma conta a pagar com vencimento nos próximos 5 dias."
+              tone="payable"
+              total={visaoGeral.contasTotal}
             >
               {contasAPagar.map((conta) => (
                 <ResumoItem
@@ -285,19 +416,21 @@ export default function FluxoCaixaTab() {
                   title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"}
                   detail={`${conta.categoria || "Sem categoria"} · vence em ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`}
                   value={formatBRL(Number(conta.valor))}
-                  tone="cyan"
+                  tone="orange"
                 />
               ))}
             </ResumoLista>
 
             <ResumoLista
-              icon={<AlertTriangle className="h-5 w-5 text-rose-400" />}
-              title="Alertas de inadimplência"
-              description="Clientes com mais de 5 dias de atraso."
+              icon={<AlertTriangle className="h-5 w-5 text-rose-300" />}
+              title="Inadimplência de clientes"
+              description="Dinheiro que deveria entrar, mas está atrasado."
               count={inadimplencias.length}
               loading={inadimplenciasLoading}
               error={inadimplenciasError}
               empty="Nenhum cliente com atraso superior a 5 dias."
+              tone="overdue"
+              total={visaoGeral.inadimplenciaTotal}
             >
               {inadimplencias.map((item) => (
                 <ResumoItem
@@ -310,10 +443,7 @@ export default function FluxoCaixaTab() {
               ))}
             </ResumoLista>
           </div>
-
-          
-          </div>
-      
+        </div>
       )}
 
       {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 
@@ -500,6 +630,113 @@ export default function FluxoCaixaTab() {
   );
 }
 
+function FluxoMetric({
+  icon,
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  helper: string;
+  tone: "green" | "red" | "amber";
+}) {
+  const styles = {
+    green: {
+      icon: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+      value: "text-emerald-300",
+      glow: "bg-emerald-500/5",
+    },
+    red: {
+      icon: "border-rose-500/20 bg-rose-500/10 text-rose-300",
+      value: "text-rose-300",
+      glow: "bg-rose-500/5",
+    },
+    amber: {
+      icon: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+      value: "text-amber-300",
+      glow: "bg-amber-500/5",
+    },
+  }[tone];
+
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/50 p-4 ${styles.glow}`}>
+      <div className="flex items-center gap-3">
+        <div className={`rounded-xl border p-2.5 ${styles.icon}`}>{icon}</div>
+        <div className="min-w-0">
+          <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</div>
+          <div className={`mt-1 truncate text-xl font-black ${styles.value}`}>{value}</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-500">{helper}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CaixaAlertaCard({
+  tone,
+  icon,
+  eyebrow,
+  title,
+  value,
+  count,
+  countLabel,
+  description,
+  loading,
+  error,
+}: {
+  tone: "payable" | "default";
+  icon: React.ReactNode;
+  eyebrow: string;
+  title: string;
+  value: string;
+  count: number;
+  countLabel: string;
+  description: string;
+  loading: boolean;
+  error: Error | null;
+}) {
+  const payable = tone === "payable";
+  return (
+    <section className={`relative overflow-hidden rounded-3xl border p-5 shadow-xl ${
+      payable
+        ? "border-orange-500/20 bg-gradient-to-br from-orange-500/[0.09] via-slate-900/80 to-slate-950"
+        : "border-rose-500/20 bg-gradient-to-br from-rose-500/[0.10] via-slate-900/80 to-slate-950"
+    }`}>
+      <div className={`absolute right-0 top-0 h-40 w-40 rounded-full blur-3xl ${payable ? "bg-orange-500/10" : "bg-rose-500/10"}`} />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className={`rounded-2xl border p-3 ${payable ? "border-orange-400/20 bg-orange-400/10 text-orange-300" : "border-rose-400/20 bg-rose-400/10 text-rose-300"}`}>
+            {icon}
+          </div>
+          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${payable ? "border-orange-400/20 bg-orange-400/10 text-orange-300" : "border-rose-400/20 bg-rose-400/10 text-rose-300"}`}>
+            {payable ? "Sai dinheiro" : "Falta entrar"}
+          </span>
+        </div>
+
+        <div className="mt-5">
+          <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${payable ? "text-orange-300/70" : "text-rose-300/70"}`}>{eyebrow}</div>
+          <h4 className="mt-1 text-lg font-black text-white">{title}</h4>
+          <div className={`mt-2 text-3xl font-black tracking-tight ${payable ? "text-orange-300" : "text-rose-300"}`}>{value}</div>
+          <p className="mt-2 text-xs leading-relaxed text-slate-400">{description}</p>
+        </div>
+
+        <div className="mt-5 flex items-end justify-between gap-4 border-t border-white/5 pt-4">
+          <div>
+            <div className="text-2xl font-black text-slate-100">{count}</div>
+            <div className="max-w-[220px] text-[10px] font-bold uppercase tracking-wider text-slate-500">{countLabel}</div>
+          </div>
+          <div className="text-right text-[10px] text-slate-500">
+            {loading ? "Atualizando..." : error ? "Erro ao atualizar" : "Dados atualizados"}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ResumoLista({
   icon,
   title,
@@ -508,6 +745,8 @@ function ResumoLista({
   loading,
   error,
   empty,
+  tone,
+  total,
   children,
 }: {
   icon: React.ReactNode;
@@ -517,39 +756,64 @@ function ResumoLista({
   loading: boolean;
   error: Error | null;
   empty: string;
+  tone: "payable" | "overdue";
+  total: number;
   children: React.ReactNode;
 }) {
+  const payable = tone === "payable";
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-slate-950/70 p-2.5">{icon}</div>
-          <div>
-            <h3 className="font-bold text-slate-100">{title}</h3>
+    <section className={`rounded-3xl border bg-slate-900/60 p-5 shadow-xl backdrop-blur-sm ${payable ? "border-orange-500/15" : "border-rose-500/15"}`}>
+      <div className="flex items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={`rounded-2xl border p-2.5 ${payable ? "border-orange-500/20 bg-orange-500/10" : "border-rose-500/20 bg-rose-500/10"}`}>{icon}</div>
+          <div className="min-w-0">
+            <div className={`text-[9px] font-black uppercase tracking-[0.18em] ${payable ? "text-orange-300/70" : "text-rose-300/70"}`}>
+              {payable ? "Saída prevista" : "Recebimento em atraso"}
+            </div>
+            <h3 className="truncate font-black text-slate-100">{title}</h3>
             <p className="mt-0.5 text-xs text-slate-400">{description}</p>
           </div>
         </div>
-        <span className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-bold text-slate-300">{count}</span>
+        <div className="text-right">
+          <div className={`text-lg font-black ${payable ? "text-orange-300" : "text-rose-300"}`}>{formatBRL(total)}</div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">total</span>
+        </div>
       </div>
-      <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-        {loading ? <div className="py-6 text-center text-sm text-slate-500">Carregando...</div> : error ? <div className="py-6 text-center text-sm text-rose-300">Não foi possível carregar os dados.</div> : count === 0 ? <div className="py-6 text-center text-sm text-slate-500">{empty}</div> : children}
+
+      <div className="mt-4 flex items-center justify-between">
+        <span className="rounded-full border border-slate-800 bg-slate-950 px-2.5 py-1 text-[10px] font-black text-slate-300">{count} {count === 1 ? "item" : "itens"}</span>
+        <span className="text-[10px] text-slate-500">{payable ? "Dinheiro que sai" : "Dinheiro que deveria entrar"}</span>
+      </div>
+
+      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+        {loading ? (
+          <div className="py-8 text-center text-sm text-slate-500">Carregando...</div>
+        ) : error ? (
+          <div className="py-8 text-center text-sm text-rose-300">Não foi possível carregar os dados.</div>
+        ) : count === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/30 px-4 py-8 text-center text-sm text-slate-500">{empty}</div>
+        ) : children}
       </div>
     </section>
   );
 }
 
-function ResumoItem({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "cyan" | "rose" }) {
-  const valueClass = tone === "cyan" ? "text-cyan-300" : "text-rose-300";
+function ResumoItem({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "orange" | "rose" }) {
+  const isOrange = tone === "orange";
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-2.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Clock3 className="h-4 w-4 shrink-0 text-slate-500" />
+    <div className={`flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 transition ${
+      isOrange
+        ? "border-orange-500/10 bg-orange-500/[0.035] hover:border-orange-500/20 hover:bg-orange-500/[0.06]"
+        : "border-rose-500/10 bg-rose-500/[0.035] hover:border-rose-500/20 hover:bg-rose-500/[0.06]"
+    }`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`h-2 w-2 shrink-0 rounded-full ${isOrange ? "bg-orange-400" : "bg-rose-400"}`} />
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-200">{title}</div>
           <div className="truncate text-xs text-slate-500">{detail}</div>
         </div>
       </div>
-      <span className={`shrink-0 text-sm font-black ${valueClass}`}>{value}</span>
+      <span className={`shrink-0 text-sm font-black ${isOrange ? "text-orange-300" : "text-rose-300"}`}>{value}</span>
     </div>
   );
 }

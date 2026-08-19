@@ -229,7 +229,7 @@ export function EscalaTripulacao({
   diaSelecionado,
 }: Props) {
   const {
-    adicionarEscala: criarEscala,
+    criarEscala,
     excluirEscala,
   } = useAgendamentoMutations();
 
