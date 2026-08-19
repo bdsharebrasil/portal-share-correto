@@ -475,19 +475,13 @@ export function FinanceiroDashboard() {
       <TimeClockHistoryModal open={timeClockHistoryOpen} onOpenChange={setTimeClockHistoryOpen} />
 
       {showFlightCycle && (
-        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-auto">
-          <div className="container mx-auto py-6 px-4 md:px-8">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/[0.05]">
-              <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 uppercase tracking-wide">
-                <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                  <Plane className="h-6 w-6 text-orange-400" />
-                </div>
-                Ciclo de Vida do Voo
-              </h2>
+        <div className="fixed inset-0 z-50 -mt-[1px] overflow-auto bg-[rgba(2,11,24,1)] backdrop-blur-md">
+          <div className="container mx-auto bg-[rgba(6,6,19,0)] px-4 py-[43px] md:px-8">
+            <div className="mb-6 flex items-center justify-between border-b border-white/[0.05] pb-4">
               <Button
                 variant="outline"
                 onClick={() => setShowFlightCycle(false)}
-                className="bg-white/[0.02] border-white/[0.1] hover:bg-white/[0.05]"
+                className="bg-white/[0.02] border-white/[0.1] text-[rgba(207,218,245,1)] hover:bg-white/[0.05]"
               >
                 Voltar ao Dashboard
               </Button>

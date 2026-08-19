@@ -16,7 +16,6 @@ import {
   Clock3,
   AlertTriangle,
   WalletCards,
-  Sparkles,
   ArrowUpRight,
 } from "lucide-react";
 import {
@@ -98,8 +97,8 @@ export function FlightCycleDashboard() {
   }
 
   return (
-    <div className="min-h-full w-full bg-background">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+    <div className="min-h-full w-full overflow-hidden rounded-[31px] bg-background">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[30px] border-2 border-[rgba(45,52,67,0.22)] bg-[rgba(0,3,8,0.04)] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         {/* =========================================================
             HERO / HEADER
         ========================================================== */}
@@ -115,17 +114,6 @@ export function FlightCycleDashboard() {
               </div>
 
               <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
-                    Flight Operations
-                  </span>
-
-                  <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                    Operação ativa
-                  </span>
-                </div>
-
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                   Ciclos de voo
                 </h1>
@@ -190,8 +178,7 @@ export function FlightCycleDashboard() {
               </h2>
             </div>
 
-            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground sm:flex">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-[rgba(172,236,187,1)] sm:flex">
               Atualização em tempo real
             </div>
           </div>
