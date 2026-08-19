@@ -108,6 +108,7 @@ import {
 } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/DiarioBordoDetalhes/components/PartnerSelectModal';
 import { ReceiptViewer } from '@/components/dashboard/financeiro/recibos/ReceiptViewer';
+import { EnviarEmailClienteDialog } from '@/components/dashboard/financeiro/EnviarEmailClienteDialog';
 import { TravelReportForm } from '@/components/RelatorioDespesaViagem/TravelReportForm';
 
 // ---------------------------------------------------------------------------
@@ -131,10 +132,8 @@ export default function RelatorioViagem() {
   const [clientPartners, setClientPartners] = useState<any[]>([]);
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [receiptViewerUrl, setReceiptViewerUrl] = useState('');
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [sendReportTarget, setSendReportTarget] = useState<TravelReport | null>(null);
-  const [sendDueDate, setSendDueDate] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailReportTarget, setEmailReportTarget] = useState<TravelReport | null>(null);
   const [requireClientApproval, setRequireClientApproval] = useState(false);
   const [approvalLinkOpen, setApprovalLinkOpen] = useState(false);
   const [approvalLinkData, setApprovalLinkData] = useState<{ url: string; numero: string; tripulante: string; cliente?: string } | null>(null);
@@ -1029,59 +1028,39 @@ export default function RelatorioViagem() {
     }
   };
 
-  // -------------------------------------------------------------------------
-  // Envio ao Cliente
-  // -------------------------------------------------------------------------
-  const handleSendReport = async () => {
-    if (!sendReportTarget?.id || !sendDueDate) {
-      toast.error('Informe o prazo de vencimento');
+  const openEmailDialogForReport = async (report: TravelReport) => {
+    if (!report.id) return;
+
+    try {
+      let reportWithPdf = await loadReportDetails(report.id);
+      if (!reportWithPdf.pdf_url) {
+        await ensureReportPdf(reportWithPdf);
+        reportWithPdf = await loadReportDetails(report.id);
+      }
+      if (!reportWithPdf.pdf_url) throw new Error('Não foi possível preparar o PDF do relatório');
+
+      setEmailReportTarget(reportWithPdf);
+      setEmailDialogOpen(true);
+    } catch (error: any) {
+      console.error('Erro ao preparar e-mail do relatório:', error);
+      toast.error(`Erro ao preparar o e-mail: ${error.message}`);
+    }
+  };
+
+  const handleReportEmailSent = async () => {
+    if (!emailReportTarget?.id) return;
+
+    const { error } = await supabase
+      .from('travel_expense_reports')
+      .update({ status: 'Enviado', updated_at: new Date().toISOString() })
+      .eq('id', emailReportTarget.id);
+
+    if (error) {
+      toast.error(`E-mail enviado, mas não foi possível atualizar o relatório: ${error.message}`);
       return;
     }
-    setIsSending(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
 
-      // 1. Atualizar status do relatório para "Enviado"
-      const { error: reportError } = await supabase
-        .from('travel_expense_reports')
-        .update({ status: 'Enviado', updated_at: new Date().toISOString() })
-        .eq('id', sendReportTarget.id);
-      if (reportError) throw reportError;
-
-      // 2. Inserir/Atualizar registro em conciliacoes_bancarias
-      const reconciliationData = {
-        tipo: 'cliente',
-        data: new Date().toISOString().split('T')[0],
-        descricao: `Relatório de Viagem ${sendReportTarget.numero_relatorio}`,
-        valor: sendReportTarget.total_valor || 0,
-        status: 'enviado',
-        clientes_id: sendReportTarget.clientes_id,
-        aeronave_id: sendReportTarget.aeronave_id,
-        prazo_pagamento: sendDueDate,
-        tipo_referencia: 'travel_expense_report',
-        referencia_id: sendReportTarget.id,
-        tipo_documento: 'despesa_viagem',
-        criado_por: user.id,
-        criado_em: new Date().toISOString(),
-      };
-
-      const { error: reconcError } = await supabase
-        .from('conciliacoes_bancarias')
-        .insert([reconciliationData]);
-      if (reconcError) throw reconcError;
-
-      toast.success('✓ Relatório enviado ao cliente com sucesso!');
-      setSendDialogOpen(false);
-      setSendReportTarget(null);
-      setSendDueDate('');
-      loadReports();
-    } catch (error: any) {
-      console.error('Erro ao enviar relatório:', error);
-      toast.error(`❌ Erro ao enviar: ${error.message}`);
-    } finally {
-      setIsSending(false);
-    }
+    loadReports();
   };
 
   // -------------------------------------------------------------------------
@@ -1121,9 +1100,7 @@ export default function RelatorioViagem() {
                   size="sm"
                   onClick={e => {
                     e.stopPropagation();
-                    setSendReportTarget(report);
-                    setSendDueDate('');
-                    setSendDialogOpen(true);
+                    void openEmailDialogForReport(report);
                   }}
                   className="h-6 px-2 text-xs gap-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
                 >
@@ -1368,11 +1345,8 @@ export default function RelatorioViagem() {
                               toast.error('Erro ao gerar link de assinatura');
                             }
                           }
-                          // Enviar ao Cliente: abre dialog com prazo de vencimento
                           else if (type === 'cliente') {
-                            setSendReportTarget(fullReport);
-                            setSendDueDate('');
-                            setSendDialogOpen(true);
+                            await openEmailDialogForReport(fullReport);
                           }
                         }}
                         onEditReportNumber={async (reportId, newNumber) => {
@@ -1481,58 +1455,27 @@ export default function RelatorioViagem() {
         title="Comprovante Anexado"
       />
 
-      {/* Dialog de envio ao cliente */}
-      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-900 border border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white">
-              <Send className="h-5 w-5 text-cyan-400" />
-              Enviar Relatório ao Cliente
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="rounded-lg bg-slate-800/50 p-4 border border-slate-700">
-              <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Relatório</p>
-              <p className="font-mono font-semibold text-white text-lg">{sendReportTarget?.numero_relatorio}</p>
-              <p className="text-xs text-slate-400 mt-1">{sendReportTarget?.client}</p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-400 mb-2">
-                Total: <span className="font-bold text-white text-base">{fmt(sendReportTarget?.total_valor)}</span>
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="due-date" className="text-slate-300 text-sm font-medium">Prazo de Vencimento</Label>
-              <Input
-                id="due-date"
-                type="date"
-                value={sendDueDate}
-                onChange={e => setSendDueDate(e.target.value)}
-                className="mt-2 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/20"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="mt-6 gap-2 flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setSendDialogOpen(false)}
-              className="border-slate-600 text-slate-300 hover:bg-slate-800"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSendReport}
-              disabled={!sendDueDate || isSending}
-              className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white gap-2 font-medium"
-            >
-              {isSending ? 'Enviando...' : <><Send className="h-4 w-4" /> Enviar</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {emailReportTarget?.pdf_url && (
+        <EnviarEmailClienteDialog
+          open={emailDialogOpen}
+          onOpenChange={open => {
+            setEmailDialogOpen(open);
+            if (!open) setEmailReportTarget(null);
+          }}
+          clienteId={emailReportTarget.clientes_id}
+          assuntoSugerido={`Relatório de viagem ${emailReportTarget.numero_relatorio}${emailReportTarget.client ? ` — ${emailReportTarget.client}` : ''}`}
+          mensagemSugerida={`Olá${emailReportTarget.client ? ` ${emailReportTarget.client}` : ''},\n\nSegue o relatório de despesas de viagem ${emailReportTarget.numero_relatorio}, referente ao período de ${format(parseISO(emailReportTarget.data_inicio), 'dd/MM/yyyy')} a ${format(parseISO(emailReportTarget.data_fim), 'dd/MM/yyyy')}.\n\nO documento está disponível no link anexo.\n\nAtenciosamente,\nEquipe Share Brasil`}
+          anexos={[{
+            filename: `relatorio-viagem-${emailReportTarget.numero_relatorio}.pdf`,
+            url: emailReportTarget.pdf_url,
+            label: `Relatório de viagem ${emailReportTarget.numero_relatorio}`,
+          }]}
+          tipo="relatorio_viagem"
+          referenceType="travel_expense_reports"
+          referenceIds={emailReportTarget.id ? [emailReportTarget.id] : []}
+          onEnviado={() => void handleReportEmailSent()}
+        />
+      )}
 
       {/* Dialog do link de aprovação */}
       <Dialog open={approvalLinkOpen} onOpenChange={setApprovalLinkOpen}>
