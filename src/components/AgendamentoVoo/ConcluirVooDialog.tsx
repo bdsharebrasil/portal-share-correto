@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { supabase } from "@/integrations/supabase/client";
+import { type Solicitacao } from "@/hooks/useAgendamentoVoo";
+import { toast } from "sonner";
 
 interface Props {
   voo: Solicitacao | null;
@@ -23,10 +26,11 @@ const nowHHMM = () => new Date().toISOString().slice(11, 16);
 const todayYYYYMMDD = () => new Date().toISOString().slice(0, 10);
 
 export function ConcluirVooDialog({ voo, open, onOpenChange }: Props) {
-  const { concluirVoo } = useAgendamentoMutations();
+  const queryClient = useQueryClient();
   const [dataPerna, setDataPerna] = useState("");
   const [pouso, setPouso] = useState("");
   const [corte, setCorte] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -36,12 +40,32 @@ export function ConcluirVooDialog({ voo, open, onOpenChange }: Props) {
     }
   }, [open, voo]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!voo || !dataPerna || !pouso || !corte) return;
-    concluirVoo.mutate(
-      { solicitacao: voo, dataPerna, horarioPouso: pouso, horarioCorte: corte },
-      { onSuccess: () => onOpenChange(false) },
-    );
+
+    setIsSaving(true);
+    try {
+      const horarioCorte = new Date(`${dataPerna}T${corte}:00Z`).toISOString();
+      const { error } = await supabase
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: "concluido",
+          data_partida: dataPerna,
+          horario_pouso: `${pouso}:00`,
+          horario_corte: horarioCorte,
+        })
+        .eq("id", voo.id);
+
+      if (error) throw error;
+
+      toast.success("Voo concluído com sucesso");
+      await queryClient.invalidateQueries({ queryKey: ["agv"] });
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error.message ?? "Erro ao concluir voo");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -96,8 +120,8 @@ export function ConcluirVooDialog({ voo, open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={!dataPerna || !pouso || !corte || concluirVoo.isPending}>
-            {concluirVoo.isPending ? "Registrando..." : "Concluir voo"}
+          <Button onClick={submit} disabled={!dataPerna || !pouso || !corte || isSaving}>
+            {isSaving ? "Registrando..." : "Concluir voo"}
           </Button>
         </DialogFooter>
       </DialogContent>

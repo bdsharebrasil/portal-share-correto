@@ -1,10 +1,37 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import {
+  format,
+  parseISO,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle, ClipboardCheck, UserCheck, Hash } from "lucide-react";
+
+import {
+  Plane,
+  CircleDot,
+  CheckCircle2,
+  Clock,
+  History,
+  MoreVertical,
+  Trash2,
+  XCircle,
+  PlayCircle,
+  AlertTriangle,
+  ClipboardCheck,
+  UserCheck,
+  Hash,
+  CalendarClock,
+} from "lucide-react";
+
 import { cn } from "@/lib/utils";
-import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, vooCobreDia } from "@/hooks/useAgendamentoVoo";
+
+import {
+  Solicitacao,
+  SolicitacaoStatus,
+  useAgendamentoMutations,
+  vooCobreDia,
+} from "@/hooks/useAgendamentoVoo";
+
 import { usePreVooChecklistsStatus } from "@/hooks/usePreVooChecklist";
 
 import {
@@ -14,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,356 +52,1137 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
 import { IniciarVooDialog } from "./IniciarVooDialog";
 import { AtualizarHorariosVooDialog } from "./AtualizarHorariosVooDialog";
 import { EscalarTripulacaoDialog } from "./EscalarTripulacaoDialog";
+
 import { utcToBrasilia } from "@/lib/timezone-utils";
 
+/* ==========================================================================
+   STATUS
+========================================================================== */
 
-// Mapeamento dos status permitidos na CHECK constraint do PostgreSQL.
-const STATUS_META: Record<string, { label: string; badge: string; dot: string }> = {
-  pendente: { label: "Pendente", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
-  confirmado: { label: "Agendado", badge: "bg-primary/15 text-primary", dot: "text-primary" },
-  em_rota: { label: "Em Rota", badge: "bg-amber-500/20 text-amber-400", dot: "text-amber-400 font-semibold" },
-  pousado: { label: "Pousado", badge: "bg-sky-500/20 text-sky-400", dot: "text-sky-400 font-semibold" },
-  concluido: { label: "Concluído", badge: "bg-emerald-500/15 text-emerald-400", dot: "text-emerald-400" },
-  rejeitado: { label: "Rejeitado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
-  cancelado: { label: "Cancelado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
+const STATUS_META: Record<
+  string,
+  {
+    label: string;
+    badge: string;
+    dot: string;
+  }
+> = {
+  pendente: {
+    label: "Pendente",
+    badge:
+      "bg-muted text-muted-foreground",
+    dot:
+      "text-muted-foreground",
+  },
+
+  confirmado: {
+    label: "Agendado",
+    badge:
+      "bg-primary/15 text-primary",
+    dot:
+      "text-primary",
+  },
+
+  em_rota: {
+    label: "Em Rota",
+    badge:
+      "bg-amber-500/20 text-amber-400",
+    dot:
+      "text-amber-400 font-semibold",
+  },
+
+  pousado: {
+    label: "Pousado",
+    badge:
+      "bg-sky-500/20 text-sky-400",
+    dot:
+      "text-sky-400 font-semibold",
+  },
+
+  concluido: {
+    label: "Concluído",
+    badge:
+      "bg-emerald-500/15 text-emerald-400",
+    dot:
+      "text-emerald-400",
+  },
+
+  rejeitado: {
+    label: "Rejeitado",
+    badge:
+      "bg-destructive/15 text-destructive",
+    dot:
+      "text-destructive",
+  },
+
+  cancelado: {
+    label: "Cancelado",
+    badge:
+      "bg-destructive/15 text-destructive",
+    dot:
+      "text-destructive",
+  },
 };
+
+/* ==========================================================================
+   PROPS
+========================================================================== */
 
 interface Props {
   solicitacoes: Solicitacao[];
-  onSelect?: (s: Solicitacao) => void;
+  onSelect?: (
+    s: Solicitacao,
+  ) => void;
 }
 
-export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
+/* ==========================================================================
+   COMPONENTE
+========================================================================== */
+
+export function CronogramaVoos({
+  solicitacoes,
+  onSelect,
+}: Props) {
   const navigate = useNavigate();
-  const { alterarStatusVoo, excluirSolicitacao, confirmarVoo } = useAgendamentoMutations();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
-  const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
-  const [horariosTarget, setHorariosTarget] = useState<Solicitacao | null>(null);
-  const [escalarTarget, setEscalarTarget] = useState<Solicitacao | null>(null);
 
-  const hoje = format(new Date(), "yyyy-MM-dd");
-  const voos = useMemo(
-    () =>
-      solicitacoes
-        .filter((s) => ["confirmado", "em_rota", "pousado", "cancelado", "pendente"].includes(s.status))
-        .filter((s) => ["em_rota", "pousado"].includes(s.status) || vooCobreDia(s, hoje) || s.data_agendada >= hoje)
-        .slice(0, 6),
-    [solicitacoes, hoje],
-  );
-  const { data: checklistStatus = {} } = usePreVooChecklistsStatus(voos.map((v) => v.id));
-  const historico = useMemo(
-    () =>
-      solicitacoes
-        .filter((s) => s.status === "concluido" || (s.data_agendada < hoje && !["em_rota", "pousado", "pendente", "confirmado"].includes(s.status)))
-        .sort((a, b) => (b.data_partida ?? b.data_agendada).localeCompare(a.data_partida ?? a.data_agendada)),
-    [solicitacoes, hoje],
+  const {
+    alterarStatusVoo,
+    excluirSolicitacao,
+    confirmarVoo,
+  } =
+    useAgendamentoMutations();
+
+  const [
+    expandedId,
+    setExpandedId,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    deleteTarget,
+    setDeleteTarget,
+  ] =
+    useState<Solicitacao | null>(
+      null,
+    );
+
+  const [
+    iniciarTarget,
+    setIniciarTarget,
+  ] =
+    useState<Solicitacao | null>(
+      null,
+    );
+
+  const [
+    horariosTarget,
+    setHorariosTarget,
+  ] =
+    useState<Solicitacao | null>(
+      null,
+    );
+
+  const [
+    escalarTarget,
+    setEscalarTarget,
+  ] =
+    useState<Solicitacao | null>(
+      null,
+    );
+
+  /* ==========================================================================
+     DATA ATUAL
+  ========================================================================== */
+
+  const hoje = format(
+    new Date(),
+    "yyyy-MM-dd",
   );
 
-  const handleStatusChange = (voo: Solicitacao, newStatus: SolicitacaoStatus) => {
-    alterarStatusVoo.mutate({ solicitacao: voo, status: newStatus });
+  /* ==========================================================================
+     PRÓXIMOS VOOS
+  ========================================================================== */
+
+  const voos =
+    useMemo(
+      () =>
+        solicitacoes
+          .filter((s) =>
+            [
+              "confirmado",
+              "em_rota",
+              "pousado",
+              "cancelado",
+              "pendente",
+            ].includes(
+              s.status,
+            ),
+          )
+          .filter(
+            (s) =>
+              [
+                "em_rota",
+                "pousado",
+              ].includes(
+                s.status,
+              ) ||
+              vooCobreDia(
+                s,
+                hoje,
+              ) ||
+              s.data_agendada >=
+                hoje,
+          )
+          .sort(
+            (a, b) =>
+              (
+                a.data_partida ??
+                a.data_agendada
+              ).localeCompare(
+                b.data_partida ??
+                  b.data_agendada,
+              ),
+          )
+          .slice(0, 6),
+
+      [
+        solicitacoes,
+        hoje,
+      ],
+    );
+
+  /* ==========================================================================
+     CHECKLIST PRÉ-VOO
+  ========================================================================== */
+
+  const {
+    data:
+      checklistStatus = {},
+  } =
+    usePreVooChecklistsStatus(
+      voos.map(
+        (v) => v.id,
+      ),
+    );
+
+  /* ==========================================================================
+     HISTÓRICO
+  ========================================================================== */
+
+  const historico =
+    useMemo(
+      () =>
+        solicitacoes
+          .filter(
+            (s) =>
+              s.status ===
+                "concluido" ||
+              (
+                s.data_agendada <
+                  hoje &&
+                ![
+                  "em_rota",
+                  "pousado",
+                  "pendente",
+                  "confirmado",
+                ].includes(
+                  s.status,
+                )
+              ),
+          )
+          .sort(
+            (a, b) =>
+              (
+                b.data_partida ??
+                b.data_agendada
+              ).localeCompare(
+                a.data_partida ??
+                  a.data_agendada,
+              ),
+          ),
+
+      [
+        solicitacoes,
+        hoje,
+      ],
+    );
+
+  /* ==========================================================================
+     STATUS
+  ========================================================================== */
+
+  const handleStatusChange =
+    (
+      voo: Solicitacao,
+      newStatus: SolicitacaoStatus,
+    ) => {
+      alterarStatusVoo.mutate(
+        {
+          solicitacao:
+            voo,
+          status:
+            newStatus,
+        },
+      );
+    };
+
+  /* ==========================================================================
+     ABRIR OPERAÇÃO
+  ========================================================================== */
+
+  const abrirOperacao = (
+    voo: Solicitacao,
+  ) => {
+    if (
+      voo.status ===
+        "em_rota" ||
+      voo.status ===
+        "pousado"
+    ) {
+      setHorariosTarget(
+        voo,
+      );
+
+      return;
+    }
+
+    onSelect?.(voo);
   };
 
+  /* ==========================================================================
+     RENDER
+  ========================================================================== */
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
+
       <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Cronograma de Voos</h2>
-        <span className="text-xs text-muted-foreground">Próximos voos</span>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Cronograma de Voos
+          </h2>
+
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Próximos voos e operações em andamento
+          </p>
+        </div>
+
+        <span className="text-xs text-muted-foreground">
+          {voos.length} operação(ões)
+        </span>
       </header>
 
-      {voos.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Nenhum voo programado.</p>
+      {/* ====================================================================
+          VOOS
+      ==================================================================== */}
+
+      {voos.length ===
+      0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Nenhum voo programado.
+        </p>
       ) : (
         <ol className="relative space-y-3 pl-7">
-          <span className="absolute left-[9px] top-2 bottom-2 w-px bg-border" aria-hidden />
-          {voos.map((voo) => {
-            const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
-            const emRota = voo.status === "em_rota";
-            const pousado = voo.status === "pousado";
-            const emJornada = emRota || pousado;
-            const temPouso = pousado || (Boolean(voo.horario_pouso) && voo.status === "concluido");
-            const preVooOk = checklistStatus[voo.id] === "concluido";
-            const confirmado = voo.status === "confirmado";
 
-            
-            const Icon = temPouso ? CheckCircle2 : emRota ? Plane : CircleDot;
-            const expanded = expandedId === voo.id;
+          <span
+            className="absolute bottom-2 left-[9px] top-2 w-px bg-border"
+            aria-hidden
+          />
 
-            // Ajuste dos horários vindos do banco
-            const horarioAgendado = voo.horario_previsto_agendamento?.slice(0, 5) ?? "--:--";
+          {voos.map(
+            (voo) => {
+              const meta =
+                STATUS_META[
+                  voo.status
+                ] ??
+                STATUS_META
+                  .pendente;
 
-            return (
-              <li key={voo.id} className="relative">
-                <Icon className={cn("absolute -left-7 top-4 h-[18px] w-[18px] bg-card", meta.dot)} />
-                <div
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-left transition-colors hover:border-primary/50",
-                    emRota && "border-amber-500/40 bg-amber-500/5",
-                    pousado && "border-sky-500/40 bg-sky-500/5",
-                    voo.status === "cancelado" && "border-destructive/30 bg-destructive/5",
-                  )}
+              const emRota =
+                voo.status ===
+                "em_rota";
+
+              const pousado =
+                voo.status ===
+                "pousado";
+
+              const emJornada =
+                emRota ||
+                pousado;
+
+              const temPouso =
+                Boolean(
+                  voo.horario_pouso,
+                );
+
+              const preVooOk =
+                checklistStatus[
+                  voo.id
+                ] ===
+                "concluido";
+
+              const confirmado =
+                voo.status ===
+                "confirmado";
+
+              const Icon =
+                temPouso
+                  ? CheckCircle2
+                  : emRota
+                    ? Plane
+                    : CircleDot;
+
+              const expanded =
+                expandedId ===
+                voo.id;
+
+              const horarioAgendado =
+                voo.horario_previsto_agendamento?.slice(
+                  0,
+                  5,
+                ) ??
+                "--:--";
+
+              return (
+                <li
+                  key={voo.id}
+                  className="relative"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (emJornada) {
-                        setHorariosTarget(voo);
-                        return;
-                      }
-                      setExpandedId(expanded ? null : voo.id);
-                      onSelect?.(voo);
-                    }}
-                    className="min-w-0 flex-1"
-                  >
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {voo.aeronave?.matricula ?? "Aeronave —"}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        ({voo.origem ?? "—"} → {voo.destino ?? "—"})
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {format(parseISO(voo.data_partida || voo.data_agendada), "dd 'de' MMM", { locale: ptBR })}
-                      {voo.cliente_nome ? ` · ${voo.cliente_nome}` : ""}
-                    </p>
-                  </button>
-                  
-                  <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
-                    {meta.label}
-                  </span>
+                  <Icon
+                    className={cn(
+                      "absolute -left-7 top-4 h-[18px] w-[18px] bg-card",
+                      meta.dot,
+                    )}
+                  />
 
-                  {voo.status === "pendente" && (
+                  <div
+                    className={cn(
+                      "flex w-full flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-left transition-colors hover:border-primary/50",
+
+                      emRota &&
+                        "border-amber-500/40 bg-amber-500/5",
+
+                      pousado &&
+                        "border-sky-500/40 bg-sky-500/5",
+
+                      voo.status ===
+                        "cancelado" &&
+                        "border-destructive/30 bg-destructive/5",
+                    )}
+                  >
+
+                    {/* ------------------------------------------------------
+                        IDENTIFICAÇÃO
+                    ------------------------------------------------------ */}
+
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmarVoo.mutate(voo);
-                      }}
-                      disabled={confirmarVoo.isPending}
-                      className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Confirmar voo
-                    </button>
-                  )}
+                      onClick={() => {
+                        if (
+                          emJornada
+                        ) {
+                          setHorariosTarget(
+                            voo,
+                          );
 
-                  {["confirmado", "em_rota", "pousado"].includes(voo.status) && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {confirmado && voo.numero_voo && (
+                          return;
+                        }
+
+                        setExpandedId(
+                          expanded
+                            ? null
+                            : voo.id,
+                        );
+
+                        onSelect?.(
+                          voo,
+                        );
+                      }}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {
+                          voo
+                            .aeronave
+                            ?.matricula ??
+                          "Aeronave —"
+                        }{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (
+                          {voo.origem ??
+                            "—"}{" "}
+                          →{" "}
+                          {voo.destino ??
+                            "—"}
+                          )
+                        </span>
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {format(
+                          parseISO(
+                            voo.data_partida ??
+                              voo.data_agendada,
+                          ),
+                          "dd 'de' MMM",
+                          {
+                            locale:
+                              ptBR,
+                          },
+                        )}
+
+                        {voo.cliente_nome
+                          ? ` · ${voo.cliente_nome}`
+                          : ""}
+                      </p>
+                    </button>
+
+                    {/* ------------------------------------------------------
+                        STATUS
+                    ------------------------------------------------------ */}
+
+                    <span
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] font-medium",
+                        meta.badge,
+                      )}
+                    >
+                      {meta.label}
+                    </span>
+
+                    {/* ------------------------------------------------------
+                        AÇÕES
+                    ------------------------------------------------------ */}
+
+                    {voo.status ===
+                      "pendente" && (
+                      <button
+                        type="button"
+                        onClick={(
+                          e,
+                        ) => {
+                          e.stopPropagation();
+
+                          confirmarVoo.mutate(
+                            voo,
+                          );
+                        }}
+                        disabled={
+                          confirmarVoo.isPending
+                        }
+                        className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+
+                        Confirmar voo
+                      </button>
+                    )}
+
+                    {[
+                      "confirmado",
+                      "em_rota",
+                      "pousado",
+                    ].includes(
+                      voo.status,
+                    ) && (
+                      <div className="flex flex-wrap items-center gap-2">
+
+                        {/* Escala */}
+
+                        {confirmado &&
+                          voo.numero_voo && (
+                            <button
+                              type="button"
+                              onClick={(
+                                e,
+                              ) => {
+                                e.stopPropagation();
+
+                                setEscalarTarget(
+                                  voo,
+                                );
+                              }}
+                              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                            >
+                              <UserCheck className="h-3.5 w-3.5" />
+
+                              Escalar Trip
+                            </button>
+                          )}
+
+                        {/* Número do voo */}
+
+                        {voo.numero_voo && (
+                          <span className="flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                            <Hash className="h-3 w-3" />
+
+                            {voo.numero_voo}
+                          </span>
+                        )}
+
+                        {/* Pré-voo */}
+
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={(
+                            e,
+                          ) => {
                             e.stopPropagation();
-                            setEscalarTarget(voo);
+
+                            navigate(
+                              `/pre-voo/${voo.id}`,
+                            );
                           }}
-                          className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                          className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 transition-colors hover:bg-sky-500/20"
                         >
-                          <UserCheck className="h-3.5 w-3.5" /> Escalar Trip
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+
+                          {preVooOk
+                            ? "Pré-Voo Concluído"
+                            : "Iniciar Pré-Voo"}
                         </button>
-                      )}
-                      {voo.numero_voo && (
-                        <span className="flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                          <Hash className="h-3 w-3" />
-                          {voo.numero_voo}
+
+                        {/* Iniciar primeira perna */}
+
+                        {confirmado && (
+                          <button
+                            type="button"
+                            onClick={(
+                              e,
+                            ) => {
+                              e.stopPropagation();
+
+                              setIniciarTarget(
+                                voo,
+                              );
+                            }}
+                            disabled={
+                              !preVooOk
+                            }
+                            title={
+                              !preVooOk
+                                ? "Conclua o checklist pré-voo para iniciar a primeira perna"
+                                : undefined
+                            }
+                            className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+                          >
+                            <PlayCircle className="h-3.5 w-3.5" />
+
+                            Iniciar Perna
+                          </button>
+                        )}
+
+                        {/* Operação atual */}
+
+                        {emJornada && (
+                          <button
+                            type="button"
+                            onClick={(
+                              e,
+                            ) => {
+                              e.stopPropagation();
+
+                              setHorariosTarget(
+                                voo,
+                              );
+                            }}
+                            className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20"
+                          >
+                            <CalendarClock className="h-3.5 w-3.5" />
+
+                            Operação
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ------------------------------------------------------
+                        DATA REPROGRAMADA
+                    ------------------------------------------------------ */}
+
+                    {voo.data_partida &&
+                      voo.data_partida !==
+                        voo.data_agendada && (
+                        <span className="block w-full text-xs text-muted-foreground">
+                          Agendado:{" "}
+                          {format(
+                            parseISO(
+                              voo.data_agendada,
+                            ),
+                            "dd/MM",
+                          )}
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/pre-voo/${voo.id}`);
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 transition-colors hover:bg-sky-500/20"
+
+                    {/* ------------------------------------------------------
+                        HORÁRIOS
+                    ------------------------------------------------------ */}
+
+                    <div className="w-full sm:w-auto">
+
+                      {emJornada ? (
+                        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold tabular-nums text-foreground">
+                          <span>
+                            AC{" "}
+                            {voo.horario_acionamento?.slice(
+                              0,
+                              5,
+                            ) ??
+                              "--:--"}{" "}
+                            UTC
+                          </span>
+
+                          <span>
+                            DEP{" "}
+                            {voo.horario_decolagem?.slice(
+                              0,
+                              5,
+                            ) ??
+                              "--:--"}{" "}
+                            UTC
+                          </span>
+
+                          {voo.horario_pouso && (
+                            <span>
+                              ARR{" "}
+                              {voo.horario_pouso.slice(
+                                0,
+                                5,
+                              )}{" "}
+                              UTC
+                            </span>
+                          )}
+
+                          {voo.horario_corte && (
+                            <span>
+                              CORT{" "}
+                              {voo.horario_corte.slice(
+                                11,
+                                16,
+                              )}{" "}
+                              UTC
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+
+                          <span>
+                            {horarioAgendado} UTC
+                          </span>
+
+                          {voo.horario_previsto_agendamento && (
+                            <span className="text-muted-foreground/70">
+                              ·{" "}
+                              {utcToBrasilia(
+                                voo.horario_previsto_agendamento,
+                              )}{" "}
+                              BSB
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* ------------------------------------------------------
+                        MENU
+                    ------------------------------------------------------ */}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        asChild
                       >
-                        <ClipboardCheck className="h-3.5 w-3.5" /> {preVooOk ? "Pré-Voo Concluído" : "Iniciar Pré-Voo"}
-                      </button>
-                      {confirmado && (
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIniciarTarget(voo);
-                          }}
-                          disabled={!preVooOk}
-                          title={!preVooOk ? "Conclua o checklist pré-voo para iniciar o voo" : undefined}
-                          className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+                          onClick={(
+                            e,
+                          ) =>
+                            e.stopPropagation()
+                          }
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                         >
-                          <PlayCircle className="h-3.5 w-3.5" /> Iniciar Voo
+                          <MoreVertical className="h-4 w-4" />
                         </button>
-                      )}
-                    </div>
-                  )}
+                      </DropdownMenuTrigger>
 
-                  
-                  {voo.data_partida && voo.data_partida !== voo.data_agendada && (
-                    <span className="text-xs text-muted-foreground block mb-1">
-                      Agendado: {format(parseISO(voo.data_agendada), "dd/MM")}
-                    </span>
-                  )}
-
-                  {emJornada ? (
-                    <div className="flex flex-col gap-1 text-xs font-semibold tabular-nums text-foreground">
-                      <span>AC {voo.horario_acionamento?.slice(0, 5) ?? "--:--"} UTC</span>
-                      <span>DEP {voo.horario_decolagem?.slice(0, 5) ?? "--:--"} UTC</span>
-                      {voo.horario_pouso && <span>ARR {voo.horario_pouso.slice(0, 5)} UTC</span>}
-                    </div>
-                  ) : temPouso ? (
-                    <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-foreground">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>ARR {voo.horario_pouso?.slice(0, 5) ?? "--:--"} UTC</span>
-                    </div>
-                  ) : (
-                    <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{horarioAgendado} UTC</span>
-                      {voo.horario_previsto_agendamento && (
-                        <span className="text-muted-foreground/70">· {utcToBrasilia(voo.horario_previsto_agendamento)} BSB</span>
-                      )}
-                    </span>
-                  )}
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48"
                       >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      {voo.status === "pendente" && (
-                        <DropdownMenuItem onClick={() => handleStatusChange(voo, "confirmado")}>
-                          <CheckCircle2 className="mr-2 h-4 w-4 text-primary" /> Confirmar
-                        </DropdownMenuItem>
-                      )}
-                      {voo.status === "confirmado" && (
-                        <DropdownMenuItem onClick={() => setIniciarTarget(voo)}>
-                          <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
-                        </DropdownMenuItem>
-                      )}
-                      {emJornada && (
-                        <DropdownMenuItem onClick={() => setHorariosTarget(voo)}>
-                          <Clock className="mr-2 h-4 w-4 text-amber-500" /> Atualizar horários / pernas
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => handleStatusChange(voo, "cancelado")}
-                        disabled={voo.status === "cancelado"}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <XCircle className="mr-2 h-4 w-4" /> Cancelar voo
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {(voo.status === "cancelado" || voo.status === "rejeitado") && (
+                        {voo.status ===
+                          "pendente" && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(
+                                voo,
+                                "confirmado",
+                              )
+                            }
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
+
+                            Confirmar
+                          </DropdownMenuItem>
+                        )}
+
+                        {voo.status ===
+                          "confirmado" && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setIniciarTarget(
+                                voo,
+                              )
+                            }
+                            disabled={
+                              !preVooOk
+                            }
+                          >
+                            <PlayCircle className="mr-2 h-4 w-4 text-amber-500" />
+
+                            Iniciar primeira perna
+                          </DropdownMenuItem>
+                        )}
+
+                        {emJornada && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setHorariosTarget(
+                                voo,
+                              )
+                            }
+                          >
+                            <Clock className="mr-2 h-4 w-4 text-amber-500" />
+
+                            Atualizar operação
+                          </DropdownMenuItem>
+                        )}
+
                         <DropdownMenuItem
-                          onClick={() => setDeleteTarget(voo)}
+                          onClick={() =>
+                            navigate(
+                              `/pre-voo/${voo.id}`,
+                            )
+                          }
+                        >
+                          <ClipboardCheck className="mr-2 h-4 w-4 text-sky-500" />
+
+                          Abrir pré-voo
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onClick={() =>
+                            handleStatusChange(
+                              voo,
+                              "cancelado",
+                            )
+                          }
+                          disabled={
+                            voo.status ===
+                            "cancelado"
+                          }
                           className="text-destructive focus:text-destructive"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" /> Excluir solicitação
+                          <XCircle className="mr-2 h-4 w-4" />
+
+                          Cancelar voo
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </li>
-            );
-          })}
+
+                        <DropdownMenuSeparator />
+
+                        {[
+                          "cancelado",
+                          "rejeitado",
+                        ].includes(
+                          voo.status,
+                        ) && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setDeleteTarget(
+                                voo,
+                              )
+                            }
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+
+                            Excluir solicitação
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </li>
+              );
+            },
+          )}
         </ol>
       )}
 
-      <section className="mt-5 border-t border-border pt-5" aria-label="Histórico de voos">
+      {/* ====================================================================
+          HISTÓRICO
+      ==================================================================== */}
+
+      <section
+        className="mt-5 border-t border-border pt-5"
+        aria-label="Histórico de voos"
+      >
         <header className="mb-3 flex items-center justify-between">
+
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Histórico de voos</h3>
+
+            <h3 className="text-sm font-semibold text-foreground">
+              Histórico de voos
+            </h3>
           </div>
-          <span className="text-xs text-muted-foreground">{historico.length} registro(s)</span>
+
+          <span className="text-xs text-muted-foreground">
+            {historico.length} registro(s)
+          </span>
         </header>
-        {historico.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum voo concluído ou anterior.</p>
+
+        {historico.length ===
+        0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            Nenhum voo concluído ou anterior.
+          </p>
         ) : (
           <div className="space-y-2">
-            {historico.map((voo) => {
-              const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
-              const dataVoo = voo.data_partida ?? voo.data_agendada;
-              return (
-                <button
-                  key={voo.id}
-                  type="button"
-                  onClick={() => onSelect?.(voo)}
-                  className="flex w-full items-center gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-left transition-colors hover:border-primary/50"
-                >
-                  <History className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">
-                      {voo.aeronave?.matricula ?? "Aeronave —"} · {voo.origem ?? "—"} → {voo.destino ?? "—"}
+
+            {historico.map(
+              (voo) => {
+                const meta =
+                  STATUS_META[
+                    voo.status
+                  ] ??
+                  STATUS_META
+                    .pendente;
+
+                const dataVoo =
+                  voo.data_partida ??
+                  voo.data_agendada;
+
+                return (
+                  <button
+                    key={voo.id}
+                    type="button"
+                    onClick={() =>
+                      onSelect?.(
+                        voo,
+                      )
+                    }
+                    className="flex w-full items-center gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-left transition-colors hover:border-primary/50"
+                  >
+                    <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {
+                          voo
+                            .aeronave
+                            ?.matricula ??
+                          "Aeronave —"
+                        }{" "}
+                        ·{" "}
+                        {voo.origem ??
+                          "—"}{" "}
+                        →{" "}
+                        {voo.destino ??
+                          "—"}
+                      </span>
+
+                      <span className="block text-xs text-muted-foreground">
+                        {format(
+                          parseISO(
+                            dataVoo,
+                          ),
+                          "dd/MM/yyyy",
+                          {
+                            locale:
+                              ptBR,
+                          },
+                        )}
+
+                        {voo.horario_pouso
+                          ? ` · ARR ${voo.horario_pouso.slice(
+                              0,
+                              5,
+                            )} UTC`
+                          : ""}
+                      </span>
                     </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {format(parseISO(dataVoo), "dd/MM/yyyy", { locale: ptBR })}
-                      {voo.horario_pouso ? ` · ARR ${voo.horario_pouso.slice(0, 5)} UTC` : ""}
+
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium",
+                        meta.badge,
+                      )}
+                    >
+                      {meta.label}
                     </span>
-                  </span>
-                  <span className={cn("shrink-0 rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
-                    {voo.horario_pouso ? "Pousado" : meta.label}
-                  </span>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              },
+            )}
           </div>
         )}
       </section>
 
+      {/* ====================================================================
+          DIALOGS
+      ==================================================================== */}
+
       <IniciarVooDialog
         voo={iniciarTarget}
-        open={!!iniciarTarget}
-        onOpenChange={(open) => !open && setIniciarTarget(null)}
+        open={
+          !!iniciarTarget
+        }
+        onOpenChange={(
+          open,
+        ) => {
+          if (!open) {
+            setIniciarTarget(
+              null,
+            );
+          }
+        }}
       />
+
       <AtualizarHorariosVooDialog
-        voo={horariosTarget}
-        open={!!horariosTarget}
-        onOpenChange={(open) => !open && setHorariosTarget(null)}
+        voo={
+          horariosTarget
+        }
+        open={
+          !!horariosTarget
+        }
+        onOpenChange={(
+          open,
+        ) => {
+          if (!open) {
+            setHorariosTarget(
+              null,
+            );
+          }
+        }}
       />
+
       <EscalarTripulacaoDialog
-        voo={escalarTarget}
-        open={!!escalarTarget}
-        onOpenChange={(open) => !open && setEscalarTarget(null)}
+        voo={
+          escalarTarget
+        }
+        open={
+          !!escalarTarget
+        }
+        onOpenChange={(
+          open,
+        ) => {
+          if (!open) {
+            setEscalarTarget(
+              null,
+            );
+          }
+        }}
       />
 
+      {/* ====================================================================
+          CONFIRMAÇÃO DE EXCLUSÃO
+      ==================================================================== */}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={
+          !!deleteTarget
+        }
+        onOpenChange={(
+          open,
+        ) => {
+          if (!open) {
+            setDeleteTarget(
+              null,
+            );
+          }
+        }}
+      >
         <AlertDialogContent>
+
           <AlertDialogHeader>
+
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
+
               Excluir voo?
             </AlertDialogTitle>
+
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o voo{" "}
+              Tem certeza que deseja
+              excluir o voo{" "}
+
               <strong className="text-foreground">
-                {deleteTarget?.aeronave?.matricula ?? "—"} ({deleteTarget?.origem ?? "—"} → {deleteTarget?.destino ?? "—"})
+                {deleteTarget
+                  ?.aeronave
+                  ?.matricula ??
+                  "—"}{" "}
+                (
+                {deleteTarget
+                  ?.origem ??
+                  "—"}{" "}
+                →
+                {deleteTarget
+                  ?.destino ??
+                  "—"}
+                )
               </strong>
-              ? Esta ação não pode ser desfeita.
+              ?
+
+              <br />
+
+              Esta ação não pode ser
+              desfeita.
             </AlertDialogDescription>
+
           </AlertDialogHeader>
+
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+            <AlertDialogCancel>
+              Cancelar
+            </AlertDialogCancel>
+
             <AlertDialogAction
               onClick={() => {
-                if (deleteTarget) excluirSolicitacao.mutate(deleteTarget);
-                setDeleteTarget(null);
+                if (
+                  deleteTarget
+                ) {
+                  excluirSolicitacao.mutate(
+                    deleteTarget,
+                  );
+                }
+
+                setDeleteTarget(
+                  null,
+                );
               }}
-              disabled={excluirSolicitacao.isPending}
+              disabled={
+                excluirSolicitacao.isPending
+              }
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {excluirSolicitacao.isPending ? "Excluindo..." : "Excluir"}
+              {excluirSolicitacao.isPending
+                ? "Excluindo..."
+                : "Excluir"}
             </AlertDialogAction>
+
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </section>
   );
 }
+
+export default CronogramaVoos;

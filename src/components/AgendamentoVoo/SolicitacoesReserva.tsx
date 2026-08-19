@@ -17,10 +17,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { utcToBrasilia } from "@/lib/timezone-utils";
 import {
-  DisponibilidadeTripulante,
   Solicitacao,
   useAgendamentoMutations,
 } from "@/hooks/useAgendamentoVoo";
+
+interface DisponibilidadeTripulante {
+  situacao: string;
+  tripulante: {
+    id: string;
+    nome_completo: string;
+  };
+}
 
 interface Props {
   solicitacoes: Solicitacao[];
@@ -28,7 +35,7 @@ interface Props {
 }
 
 export function SolicitacoesReserva({ solicitacoes, disponibilidade }: Props) {
-  const { aprovar, rejeitar } = useAgendamentoMutations();
+  const { aprovar, rejeitar } = useAgendamentoMutations() as any;
   const [aprovando, setAprovando] = useState<Solicitacao | null>(null);
   const [rejeitando, setRejeitando] = useState<Solicitacao | null>(null);
   const [pilotoId, setPilotoId] = useState("");

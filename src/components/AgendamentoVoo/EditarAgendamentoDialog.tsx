@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Solicitacao, useAeronavesAgendamento, useAgendamentoMutations, useTripulantes } from "@/hooks/useAgendamentoVoo";
+import {
+  type Solicitacao,
+  useTripulantes,
+} from "@/hooks/useAgendamentoVoo";
+import { toast } from "sonner";
 
 interface Props {
   voo: Solicitacao | null;
@@ -24,6 +29,12 @@ interface Props {
 interface ClienteOption {
   id: string;
   razao_social: string;
+}
+
+interface AeronaveOption {
+  id: string;
+  matricula: string;
+  modelo: string | null;
 }
 
 function useClientesLista() {
@@ -37,11 +48,26 @@ function useClientesLista() {
   });
 }
 
+function useAeronavesLista() {
+  return useQuery<AeronaveOption[]>({
+    queryKey: ["agv", "aeronaves-lista"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("aeronave")
+        .select("id, matricula, modelo")
+        .order("matricula");
+      if (error) throw error;
+      return (data ?? []) as unknown as AeronaveOption[];
+    },
+  });
+}
+
 export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
-  const { atualizarSolicitacao, alterarStatusVoo, aprovar } = useAgendamentoMutations();
+  const queryClient = useQueryClient();
   const { data: clientes = [] } = useClientesLista();
-  const { data: aeronaves = [] } = useAeronavesAgendamento();
+  const { data: aeronaves = [] } = useAeronavesLista();
   const { data: tripulantes = [] } = useTripulantes();
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     cliente_id: "",
@@ -95,23 +121,51 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
     copiloto_id: form.copiloto_id || null,
   };
 
+  const atualizar = async (status?: string) => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        cliente_id: dadosFormulario.cliente_id,
+        aeronave_id: dadosFormulario.aeronave_id,
+        origem: dadosFormulario.origem,
+        destino: dadosFormulario.destino,
+        data_agendada: dadosFormulario.data_agendada,
+        horario_previsto_agendamento: dadosFormulario.horario_previsto_agendamento,
+        dias_duracao: dadosFormulario.dias_duracao,
+        qtd_passageiros: dadosFormulario.qtd_passageiros,
+        observacoes: dadosFormulario.observacoes,
+        piloto_id: dadosFormulario.piloto_id,
+        copiloto_id: dadosFormulario.copiloto_id,
+        ...(status ? { status } : {}),
+      };
+      const { error } = await supabase
+        .from("solicitacoes_reserva_voo")
+        .update(payload)
+        .eq("id", voo.id);
+
+      if (error) throw error;
+
+      toast.success(status === "confirmado" ? "Voo confirmado" : "Agendamento atualizado");
+      await queryClient.invalidateQueries({ queryKey: ["agv"] });
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error.message ?? "Erro ao atualizar agendamento");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const salvar = () => {
-    atualizarSolicitacao.mutate(
-      { id: voo.id, dados: dadosFormulario },
-      { onSuccess: () => onOpenChange(false) },
-    );
+    void atualizar();
   };
 
   const confirmar = () => {
-    aprovar.mutate(
-      {
-        solicitacao: voo,
-        pilotoId: form.piloto_id,
-        copilotoId: form.copiloto_id || null,
-        dados: dadosFormulario,
-      },
-      { onSuccess: () => onOpenChange(false) },
-    );
+    if (!form.piloto_id) return;
+    void atualizar("confirmado");
+  };
+
+  const cancelar = () => {
+    void atualizar("cancelado");
   };
 
   return (
@@ -262,8 +316,8 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
           {!["cancelado", "concluido", "rejeitado"].includes(voo.status) && (
             <Button
               variant="destructive"
-              disabled={alterarStatusVoo.isPending}
-              onClick={() => alterarStatusVoo.mutate({ solicitacao: voo, status: "cancelado" }, { onSuccess: () => onOpenChange(false) })}
+              disabled={isSaving}
+              onClick={cancelar}
             >
               Cancelar voo
             </Button>
@@ -273,12 +327,12 @@ export function EditarAgendamentoDialog({ voo, open, onOpenChange }: Props) {
               Fechar
             </Button>
             {voo.status === "pendente" ? (
-              <Button disabled={!ok || !form.piloto_id || aprovar.isPending} onClick={confirmar}>
+              <Button disabled={!ok || !form.piloto_id || isSaving} onClick={confirmar}>
                 Confirmar voo
               </Button>
             ) : (
-              <Button disabled={!ok || atualizarSolicitacao.isPending} onClick={salvar}>
-                Salvar alterações
+              <Button disabled={!ok || isSaving} onClick={salvar}>
+                {isSaving ? "Salvando..." : "Salvar alterações"}
               </Button>
             )}
           </div>

@@ -1,29 +1,69 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Plane, Wrench, CheckCircle2, CalendarClock, CalendarCheck, CalendarX, Search, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plane, CalendarCheck, CalendarX, Search, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { cn } from "@/lib/utils";
-import {
-  Aeronave,
-  ConfigAgendamentoAeronave,
-  DataBloqueada,
-  DisponibilidadeAeronave,
-  SituacaoAeronave,
-  StatusFrota,
-  calcularSituacaoAeronave,
-  isAgendamentoHabilitado,
-  useAgendamentoMutations,
-} from "@/hooks/useAgendamentoVoo";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DataBloqueada } from "@/hooks/useAgendamentoVoo";
+
+type SituacaoAeronave = "disponivel" | "em_voo" | "manutencao" | "reservado";
+
+type Aeronave = {
+  id: string;
+  matricula: string;
+  modelo?: string | null;
+  fabricante?: string | null;
+  url_imagem?: string | null;
+};
+
+type ConfigsAgendamento = Array<Record<string, unknown>>;
+type StatusFrota = Array<Record<string, unknown>>;
+
+function isAgendamentoHabilitado(aeronaveId: string, configs: ConfigsAgendamento): boolean {
+  const config = configs.find((item) => {
+    const id = item.aeronave_id ?? item.id;
+    return id === aeronaveId;
+  });
+
+  return config?.habilitado !== false;
+}
+
+function calcularSituacaoAeronave(
+  aeronave: Aeronave,
+  dia: Date,
+  bloqueios: DataBloqueada[],
+  statusFrota: StatusFrota,
+): { situacao: SituacaoAeronave; detalhe?: string } {
+  const data = format(dia, "yyyy-MM-dd");
+  const status = statusFrota.find((item) => {
+    const id = item.aeronave_id ?? item.id;
+    return id === aeronave.id;
+  });
+  const statusAtual = String(status?.status ?? "");
+
+  if (["disponivel", "em_voo", "manutencao", "reservado"].includes(statusAtual)) {
+    return { situacao: statusAtual as SituacaoAeronave };
+  }
+
+  const bloqueio = bloqueios.find((item) => {
+    const registro = item as unknown as Record<string, unknown>;
+    const id = registro.aeronave_id ?? registro.id;
+    const dataBloqueio = registro.data ?? registro.data_bloqueada ?? registro.dia;
+    return (id == null || id === aeronave.id) && String(dataBloqueio ?? "").startsWith(data);
+  });
+
+  return bloqueio
+    ? { situacao: "reservado", detalhe: "Indisponível na data selecionada" }
+    : { situacao: "disponivel" };
+}
+
+type DisponibilidadeAeronave = {
+  id?: string | null;
+  registro?: string | null;
+  localizacao_atual?: string | null;
+  dias_bloqueados?: number | null;
+};
 
 const SITUACAO_META: Record<SituacaoAeronave, { label: string; className: string }> = {
   disponivel: { label: "Pronto", className: "bg-emerald-500/15 text-emerald-500" },
@@ -35,14 +75,13 @@ const SITUACAO_META: Record<SituacaoAeronave, { label: string; className: string
 interface Props {
   aeronaves: Aeronave[];
   bloqueios: DataBloqueada[];
-  statusFrota: StatusFrota[];
+  statusFrota: StatusFrota;
   disponibilidade?: DisponibilidadeAeronave[];
-  configs?: ConfigAgendamentoAeronave[];
+  configs?: ConfigsAgendamento;
   dia: Date;
 }
 
 export function PainelFrota({ aeronaves, bloqueios, statusFrota, disponibilidade = [], configs = [], dia }: Props) {
-  const { definirStatusAeronave, definirAgendamentoHabilitado } = useAgendamentoMutations();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<string>("todos");
   const [recolhidos, setRecolhidos] = useState<Record<string, boolean>>({});
@@ -150,53 +189,6 @@ export function PainelFrota({ aeronaves, bloqueios, statusFrota, disponibilidade
                   {agendavel ? <CalendarCheck className="h-3 w-3" /> : <CalendarX className="h-3 w-3" />}
                   {agendavel ? "Agendamento liberado" : "Agendamento bloqueado"}
                 </span>
-
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="mt-3 w-full">
-                      Alterar situação
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => definirStatusAeronave.mutate({ aeronaveId: a.id, status: "disponivel" })}
-                    >
-                      <CheckCircle2 className="mr-2 h-4 w-4" /> Disponível
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => definirStatusAeronave.mutate({ aeronaveId: a.id, status: "em_voo" })}
-                    >
-                      <Plane className="mr-2 h-4 w-4" /> Em voo
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => definirStatusAeronave.mutate({ aeronaveId: a.id, status: "manutencao" })}
-                    >
-                      <Wrench className="mr-2 h-4 w-4" /> Em manutenção
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => definirStatusAeronave.mutate({ aeronaveId: a.id, status: "reservado" })}
-                    >
-                      <CalendarClock className="mr-2 h-4 w-4" /> Reservado
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        definirAgendamentoHabilitado.mutate({ aeronaveId: a.id, habilitado: !agendavel })
-                      }
-                    >
-                      {agendavel ? (
-                        <>
-                          <CalendarX className="mr-2 h-4 w-4" /> Bloquear agendamento
-                        </>
-                      ) : (
-                        <>
-                          <CalendarCheck className="mr-2 h-4 w-4" /> Liberar agendamento
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
 
               </div>
               </div>

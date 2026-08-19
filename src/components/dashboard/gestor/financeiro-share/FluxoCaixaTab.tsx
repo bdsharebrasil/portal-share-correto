@@ -267,8 +267,6 @@ export default function FluxoCaixaTab() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card title="Dívidas de clientes" value={formatBRL(resumo.aReceber)} note="somente valores antecipados pela Share" tone="amber" />
-            <Card title="Resultado líquido" value={formatBRL(resumo.saldo)} note="Share + clientes; DGA separado" tone={resumo.saldo >= 0 ? "green" : "red"} />
-            <Card title="Saldo DGA" value={formatBRL(resumo.dgaSaldo)} note="não integra dívida de clientes" tone="violet" />
           </div>
           
           <div className="grid gap-6 xl:grid-cols-2">
@@ -313,15 +311,9 @@ export default function FluxoCaixaTab() {
             </ResumoLista>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-sm backdrop-blur-sm">
-            <div className="font-bold text-slate-200 mb-4">Regra financeira</div>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
-              <Rule title="Cliente" text="Se a Share paga uma despesa do cliente, ela fica em aberto contra o cliente até o recebimento." />
-              <Rule title="Pagamento direto" text="Se o cliente paga diretamente o fornecedor, não vira dívida com a Share." />
-              <Rule title="DGA" text="Despesas pagas pela conta DGA não geram dívida com a Share. Pagamentos pessoais de cotistas ficam para acerto no balanço DGA." />
-            </div>
+          
           </div>
-        </div>
+      
       )}
 
       {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 

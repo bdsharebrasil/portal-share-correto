@@ -1,24 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  PlayCircle,
-  ShieldAlert,
-  ClipboardCheck,
-  CalendarClock,
-  PlaneTakeoff,
+  CheckCircle2,
+  Clock3,
+  Plane,
+  Plus,
+  CalendarDays,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import {
   Dialog,
@@ -37,7 +28,7 @@ import {
   usePernasVoo,
 } from "@/hooks/useAgendamentoVoo";
 
-import { usePreVooChecklist } from "@/hooks/usePreVooChecklist";
+import { NovaPernaDialog } from "./NovaPernaDialog";
 
 interface Props {
   voo: Solicitacao | null;
@@ -45,336 +36,108 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const nowHHMM = () =>
-  new Date().toISOString().slice(11, 16);
+const timeValue = (value?: string | null) => value?.slice(0, 5) ?? "";
 
-const todayYYYYMMDD = () =>
-  new Date().toISOString().slice(0, 10);
+const isoTimeValue = (value?: string | null) =>
+  value ? new Date(value).toISOString().slice(11, 16) : "";
 
-const timeValue = (value?: string | null) =>
-  value?.slice(0, 5) ?? "";
+const todayYYYYMMDD = () => new Date().toISOString().slice(0, 10);
 
 export function IniciarVooDialog({
   voo,
   open,
   onOpenChange,
 }: Props) {
-  const navigate = useNavigate();
+  const { data: pernas = [] } = usePernasVoo(open ? voo?.id : null);
+  const { data: jornadas = [] } = useJornadasVoo(open ? voo?.id : null);
 
   const {
     iniciarVoo,
+    registrarPousoPerna,
+    encerrarJornada,
+    adicionarPerna,
   } = useAgendamentoMutations();
 
-  const tripulantes = useMemo(
-    () =>
-      [
-        voo?.piloto_id,
-        voo?.copiloto_id,
-      ]
-        .filter(
-          (id): id is string => Boolean(id),
-        )
-        .filter(
-          (id, index, ids) =>
-            ids.indexOf(id) === index,
-        )
-        .map((id) => ({
-          id,
-          nome_completo: id,
-        })),
-    [voo?.piloto_id, voo?.copiloto_id],
-  );
+  const [novaPernaAberta, setNovaPernaAberta] = useState(false);
+  const [etapa, setEtapa] = useState<"voo" | "decisao" | "nova-jornada">("voo");
 
-  const {
-    data: pernas = [],
-    isLoading: pernasLoading,
-  } = usePernasVoo(
-    open ? voo?.id : null,
-  );
+  const [dataPerna, setDataPerna] = useState("");
+  const [apresentacao, setApresentacao] = useState("");
+  const [acionamento, setAcionamento] = useState("");
+  const [decolagem, setDecolagem] = useState("");
+  const [pouso, setPouso] = useState("");
+  const [corte, setCorte] = useState("");
 
-  const {
-    data: jornadas = [],
-    isLoading: jornadasLoading,
-  } = useJornadasVoo(
-    open ? voo?.id : null,
-  );
-
-  const {
-    data: checklist,
-    isLoading: checklistLoading,
-  } = usePreVooChecklist(
-    open ? voo?.id : null,
-  );
-
-  /* ============================================================
-     ESTADOS
-  ============================================================ */
-
-  const [
-    dataPartida,
-    setDataPartida,
-  ] = useState("");
-
-  const [
-    apresentacao,
-    setApresentacao,
-  ] = useState("");
-
-  const [
-    acionamento,
-    setAcionamento,
-  ] = useState("");
-
-  const [
-    decolagem,
-    setDecolagem,
-  ] = useState("");
-
-  const [picId, setPicId] =
-    useState("");
-
-  const [sicId, setSicId] =
-    useState("");
-
-  const [
-    passageirosConfirmados,
-    setPassageirosConfirmados,
-  ] = useState("1");
-
-  const [
-    minutosPosCorte,
-    setMinutosPosCorte,
-  ] = useState<30 | 45>(45);
-
-  /* ============================================================
-     CHECKLIST
-  ============================================================ */
-
-  const checklistConcluido =
-    checklist?.status ===
-    "concluido";
-
-  /* ============================================================
-     PERNAS ORDENADAS
-  ============================================================ */
-
-  const pernasOrdenadas = useMemo(
-    () =>
-      [...pernas].sort(
-        (a, b) =>
-          a.numero_perna -
-          b.numero_perna,
-      ),
+  const ordenadas = useMemo(
+    () => [...pernas].sort((a, b) => a.numero_perna - b.numero_perna),
     [pernas],
   );
 
-  /*
-   * A próxima perna a iniciar é a primeira
-   * que ainda não possui decolagem.
-   */
-  const pernaAtual =
-    pernasOrdenadas.find(
-      (perna) =>
-        !perna.horario_decolagem,
-    ) ?? null;
+  const pernaAtiva =
+    [...ordenadas]
+      .reverse()
+      .find((p) => !p.horario_pouso || !p.horario_corte) ??
+    ordenadas[ordenadas.length - 1] ??
+    null;
 
-  /*
-   * Caso ainda não exista nenhuma perna,
-   * o sistema cria a primeira automaticamente
-   * usando origem/destino do agendamento.
-   *
-   * Porém, no fluxo normal, a perna já deve ter
-   * sido criada quando o agendamento foi confirmado.
-   */
-  const ultimaPerna =
-    pernasOrdenadas[
-      pernasOrdenadas.length - 1
-    ] ?? null;
-
-  const dataOperacao =
-    dataPartida ||
-    pernaAtual?.data_perna ||
-    voo?.data_partida ||
-    voo?.data_agendada ||
-    todayYYYYMMDD();
-
-  /* ============================================================
-     JORNADA DO DIA
-  ============================================================ */
-
-  const jornadaDoDia =
+  const jornadaAtual =
     jornadas.find(
       (j) =>
-        j.data_jornada ===
-          dataOperacao &&
-        j.status === "aberta",
+        j.status === "aberta" && j.data_jornada === pernaAtiva?.data_perna,
     ) ?? null;
 
-  const jornadaAbertaOutroDia =
-    jornadas.find(
-      (j) => j.status === "aberta",
-    ) ?? null;
-
-  const proximaJornadaNumero =
-    jornadas.length + 1;
-
-  /* ============================================================
-     INICIALIZAÇÃO
-  ============================================================ */
+  const fase = pernaAtiva?.horario_decolagem ? "pousar" : "iniciar";
 
   useEffect(() => {
     if (!open || !voo) return;
 
-    const pernaInicial =
-      pernas
-        .slice()
-        .sort(
-          (a, b) =>
-            a.numero_perna -
-            b.numero_perna,
-        )
-        .find(
-          (p) => !p.horario_decolagem,
-        );
-
     const dataInicial =
-      pernaInicial?.data_perna ??
+      pernaAtiva?.data_perna ??
       voo.data_partida ??
       voo.data_agendada ??
       todayYYYYMMDD();
 
-    const jornadaExistente =
-      jornadas.find(
-        (j) =>
-          j.status === "aberta" &&
-          j.data_jornada ===
-            dataInicial,
-      );
-
-    setDataPartida(
-      dataInicial,
-    );
+    setEtapa("voo");
+    setDataPerna(dataInicial);
 
     setApresentacao(
-      jornadaExistente
-        ? new Date(
-            jornadaExistente.apresentacao_em,
-          )
-            .toISOString()
-            .slice(11, 16)
-        : nowHHMM(),
+      jornadaAtual
+        ? new Date(jornadaAtual.apresentacao_em).toISOString().slice(11, 16)
+        : "",
     );
 
-    setAcionamento(
-      pernaInicial
-        ? timeValue(
-            pernaInicial.horario_acionamento,
-          )
-        : nowHHMM(),
-    );
+    setAcionamento(timeValue(pernaAtiva?.horario_acionamento));
+    setDecolagem(timeValue(pernaAtiva?.horario_decolagem));
+    setPouso(timeValue(pernaAtiva?.horario_pouso));
+    setCorte(isoTimeValue(pernaAtiva?.horario_corte));
+  }, [open, voo, pernaAtiva?.id, jornadaAtual?.id]);
 
-    setDecolagem("");
+  if (!voo) return null;
 
-    setPicId(
-      voo.piloto_id ?? "",
-    );
+  const iniciarDisabled =
+    !dataPerna || !apresentacao || !acionamento || !decolagem;
 
-    setSicId(
-      voo.copiloto_id ?? "",
-    );
+  const pousarDisabled = !dataPerna || !pouso || !corte;
 
-    setPassageirosConfirmados(
-      String(
-        voo.qtd_passageiros ??
-          1,
-      ),
-    );
+  const abrirNovaPerna = () => {
+    setNovaPernaAberta(true);
+  };
 
-    setMinutosPosCorte(
-      jornadaExistente?.minutos_pos_corte ??
-        45,
-    );
-  }, [
-    open,
-    voo,
-    pernas,
-    jornadas,
-  ]);
-
-  /* ============================================================
-     VALIDAÇÕES
-  ============================================================ */
-
-  const podeIniciar =
-    Boolean(
-      voo &&
-        pernaAtual &&
-        dataPartida &&
-        apresentacao &&
-        acionamento &&
-        decolagem &&
-        picId &&
-        checklistConcluido,
-    );
-
-  /*
-   * Se já existe jornada aberta em outro dia,
-   * bloqueamos o início até resolver aquela jornada.
-   */
-  const jornadaConflitante =
-    jornadaAbertaOutroDia &&
-    jornadaAbertaOutroDia.data_jornada !==
-      dataOperacao
-      ? jornadaAbertaOutroDia
-      : null;
-
-  /* ============================================================
-     SUBMIT
-  ============================================================ */
-
-  const submit = () => {
-    if (
-      !voo ||
-      !pernaAtual ||
-      !podeIniciar
-    ) {
-      return;
-    }
-
-    if (jornadaConflitante) {
-      return;
-    }
+  const iniciarPerna = () => {
+    if (!pernaAtiva) return;
 
     iniciarVoo.mutate(
       {
         solicitacao: voo,
-
-        perna: pernaAtual,
-
-        dataPartida:
-          dataPartida,
-
-        horarioApresentacao:
-          apresentacao,
-
-        horarioAcionamento:
-          acionamento,
-
-        horarioDecolagem:
-          decolagem,
-
-        pilotoId:
-          picId || null,
-
-        copilotoId:
-          sicId || null,
-
-        qtdPassageiros:
-          Number(
-            passageirosConfirmados,
-          ) || 1,
-
-        minutosPosCorte,
+        perna: pernaAtiva,
+        dataPartida: dataPerna,
+        horarioApresentacao: apresentacao,
+        horarioAcionamento: acionamento,
+        horarioDecolagem: decolagem,
+        minutosPosCorte: 30, // Padronizado em 30 min sem perguntar ao usuário
+        pilotoId: voo.piloto_id ?? null,
+        copilotoId: voo.copiloto_id ?? null,
+        qtdPassageiros: voo.qtd_passageiros ?? 1,
       },
       {
         onSuccess: () => {
@@ -384,463 +147,261 @@ export function IniciarVooDialog({
     );
   };
 
-  /* ============================================================
-     SEM VOO
-  ============================================================ */
+  const registrarPouso = () => {
+    if (!pernaAtiva) return;
 
-  if (!voo) return null;
+    registrarPousoPerna.mutate(
+      {
+        solicitacao: voo,
+        perna: pernaAtiva,
+        dataPerna: dataPerna,
+        horarioPouso: pouso,
+        horarioCorte: corte,
+      },
+      {
+        onSuccess: () => {
+          setEtapa("decisao");
+        },
+      },
+    );
+  };
 
-  /* ============================================================
-     RENDER
-  ============================================================ */
+  const finalizarJornada = () => {
+    if (!jornadaAtual) {
+      setEtapa("nova-jornada");
+      return;
+    }
+
+    encerrarJornada.mutate(
+      {
+        solicitacao: voo,
+        jornada: jornadaAtual,
+        dataPerna: dataPerna,
+        horarioCorte: corte,
+      },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+        },
+      },
+    );
+  };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
+          {etapa === "decisao" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  Pouso registrado
+                </DialogTitle>
+                <DialogDescription>
+                  A perna foi concluída, mas a jornada ainda não foi encerrada.
+                  O que deseja fazer?
+                </DialogDescription>
+              </DialogHeader>
 
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PlaneTakeoff className="h-5 w-5 text-amber-500" />
+              <div className="space-y-3">
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold">
+                    Perna {pernaAtiva?.numero_perna}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {pernaAtiva?.origem} {" → "} {pernaAtiva?.destino}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    ARR {pouso} • CORT {corte}
+                  </p>
+                </div>
 
-            Iniciar perna
-            {pernaAtual
-              ? ` ${pernaAtual.numero_perna}`
-              : ""}
-          </DialogTitle>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-semibold">Jornada do dia</p>
+                  <p className="text-sm text-muted-foreground">
+                    A jornada atual permanece aberta até você decidir encerrá-la.
+                  </p>
+                </div>
+              </div>
 
-          <DialogDescription>
-            {voo.aeronave?.matricula ??
-              "Aeronave"}
-            {" · "}
-            {pernaAtual?.origem ??
-              voo.origem ??
-              "—"}
-            {" → "}
-            {pernaAtual?.destino ??
-              voo.destino ??
-              "—"}
-            . Informe os horários
-            em Zulu (UTC).
-          </DialogDescription>
-        </DialogHeader>
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={abrirNovaPerna}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar nova perna
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={finalizarJornada}
+                  disabled={encerrarJornada.isPending}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Encerrar jornada
+                </Button>
+              </DialogFooter>
+            </>
+          ) : etapa === "nova-jornada" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  Nova jornada
+                </DialogTitle>
+                <DialogDescription>
+                  A jornada anterior já foi encerrada. A próxima perna deverá
+                  começar com uma nova apresentação.
+                </DialogDescription>
+              </DialogHeader>
 
-        {/* ======================================================
-            INFORMAÇÕES DA JORNADA
-        ====================================================== */}
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm font-medium">Próximo dia de operação</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ao iniciar a próxima perna, informe novamente o horário de
+                  apresentação da tripulação.
+                </p>
+              </div>
 
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-
-          <div className="flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-primary" />
-
-            <div>
-              <p className="text-sm font-semibold">
-                {jornadaDoDia
-                  ? `Jornada ${jornadaDoDia.numero_jornada} em andamento`
-                  : `Nova jornada ${proximaJornadaNumero}`}
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                {dataOperacao}
-              </p>
-            </div>
-          </div>
-
-          {jornadaDoDia ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              A jornada deste dia já está
-              aberta. A apresentação
-              registrada anteriormente será
-              mantida.
-            </p>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Fechar
+                </Button>
+                <Button onClick={abrirNovaPerna}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar próxima perna
+                </Button>
+              </DialogFooter>
+            </>
           ) : (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Esta apresentação iniciará uma
-              nova jornada de trabalho.
-            </p>
-          )}
-        </div>
-
-        {/* ======================================================
-            JORNADA ABERTA EM OUTRO DIA
-        ====================================================== */}
-
-        {jornadaConflitante && (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-
-            <p className="font-semibold">
-              Existe uma jornada aberta em
-              outro dia
-            </p>
-
-            <p className="mt-1 text-xs">
-              Jornada{" "}
-              {jornadaConflitante.numero_jornada}
-              {" • "}
-              {jornadaConflitante.data_jornada}
-            </p>
-
-            <p className="mt-1 text-xs">
-              Encerre a jornada anterior antes
-              de iniciar uma nova jornada.
-            </p>
-          </div>
-        )}
-
-        {/* ======================================================
-            CHECKLIST
-        ====================================================== */}
-
-        {!checklistLoading &&
-          !checklistConcluido && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-
-              <p className="flex items-center gap-2 font-semibold">
-                <ShieldAlert className="h-4 w-4" />
-
-                Checklist pré-voo pendente
-              </p>
-
-              <p className="mt-1 text-xs">
-                A perna só pode ser iniciada
-                após a conclusão do checklist
-                pré-voo desta solicitação.
-              </p>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 gap-1.5"
-                onClick={() => {
-                  onOpenChange(false);
-
-                  navigate(
-                    `/pre-voo/${voo.id}`,
-                  );
-                }}
-              >
-                <ClipboardCheck className="h-3.5 w-3.5" />
-
-                Abrir pré-voo
-              </Button>
-            </div>
-          )}
-
-        {/* ======================================================
-            DADOS DA PERNA
-        ====================================================== */}
-
-        {!pernasLoading &&
-          !jornadasLoading &&
-          pernaAtual && (
-            <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="data-partida">
-                  Data da operação
-                </Label>
-
-                <Input
-                  id="data-partida"
-                  type="date"
-                  value={dataPartida}
-                  onChange={(e) =>
-                    setDataPartida(
-                      e.target.value,
-                    )
-                  }
-                  className="font-mono"
-                />
-              </div>
-
-              {!jornadaDoDia && (
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="apresentacao">
-                    Apresentação da tripulação
-                  </Label>
-
-                  <Input
-                    id="apresentacao"
-                    type="time"
-                    value={apresentacao}
-                    onChange={(e) =>
-                      setApresentacao(
-                        e.target.value,
-                      )
-                    }
-                    className="font-mono"
-                  />
-
-                  <p className="text-xs text-muted-foreground">
-                    Início da jornada de
-                    trabalho. Geralmente ocorre
-                    cerca de 30 minutos antes
-                    do voo.
-                  </p>
-                </div>
-              )}
-
-              {jornadaDoDia && (
-                <div className="rounded-lg border bg-muted/20 p-3 sm:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Apresentação registrada
-                  </p>
-
-                  <p className="mt-1 font-mono text-sm font-semibold">
-                    {new Date(
-                      jornadaDoDia.apresentacao_em,
-                    )
-                      .toISOString()
-                      .slice(
-                        11,
-                        16,
-                      )}{" "}
-                    UTC
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="acionamento">
-                  Acionamento (AC)
-                </Label>
-
-                <Input
-                  id="acionamento"
-                  type="time"
-                  value={acionamento}
-                  onChange={(e) =>
-                    setAcionamento(
-                      e.target.value,
-                    )
-                  }
-                  className="font-mono"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="decolagem">
-                  Decolagem (DEP)
-                </Label>
-
-                <Input
-                  id="decolagem"
-                  type="time"
-                  value={decolagem}
-                  onChange={(e) =>
-                    setDecolagem(
-                      e.target.value,
-                    )
-                  }
-                  className="font-mono"
-                />
-              </div>
-
-            </div>
-          )}
-
-        {/* ======================================================
-            REGRA PÓS-CORTE
-        ====================================================== */}
-
-        {!jornadaDoDia && (
-          <div className="space-y-2 py-1">
-
-            <Label>
-              Encerramento da jornada
-            </Label>
-
-            <p className="text-xs text-muted-foreground">
-              A jornada termina após o corte
-              final dos motores. Informe o
-              intervalo regulamentar utilizado
-              para esta tripulação.
-            </p>
-
-            <div className="flex gap-2">
-
-              <Button
-                type="button"
-                variant={
-                  minutosPosCorte === 30
-                    ? "default"
-                    : "outline"
-                }
-                onClick={() =>
-                  setMinutosPosCorte(
-                    30,
-                  )
-                }
-              >
-                30 minutos
-              </Button>
-
-              <Button
-                type="button"
-                variant={
-                  minutosPosCorte === 45
-                    ? "default"
-                    : "outline"
-                }
-                onClick={() =>
-                  setMinutosPosCorte(
-                    45,
-                  )
-                }
-              >
-                45 minutos
-              </Button>
-
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================
-            TRIPULAÇÃO
-        ====================================================== */}
-
-        <div className="space-y-4 py-2">
-
-          <div className="space-y-1.5">
-            <Label htmlFor="pic">
-              PIC *
-            </Label>
-
-            <Select
-              value={picId}
-              onValueChange={setPicId}
-            >
-              <SelectTrigger id="pic">
-                <SelectValue placeholder="Selecione o comandante" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {tripulantes.map(
-                  (tripulante) => (
-                    <SelectItem
-                      key={tripulante.id}
-                      value={
-                        tripulante.id
-                      }
-                    >
-                      {
-                        tripulante.nome_completo
-                      }
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="sic">
-              SIC
-            </Label>
-
-            <Select
-              value={sicId}
-              onValueChange={setSicId}
-            >
-              <SelectTrigger id="sic">
-                <SelectValue placeholder="Opcional" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {tripulantes
-                  .filter(
-                    (tripulante) =>
-                      tripulante.id !==
-                      picId,
-                  )
-                  .map(
-                    (tripulante) => (
-                      <SelectItem
-                        key={
-                          tripulante.id
-                        }
-                        value={
-                          tripulante.id
-                        }
-                      >
-                        {
-                          tripulante.nome_completo
-                        }
-                      </SelectItem>
-                    ),
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {fase === "iniciar" ? (
+                    <Plane className="h-5 w-5 text-amber-500" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   )}
-              </SelectContent>
-            </Select>
-          </div>
+                  {fase === "iniciar"
+                    ? `Iniciar perna ${pernaAtiva?.numero_perna ?? ""}`
+                    : `Registrar pouso da perna ${pernaAtiva?.numero_perna ?? ""}`}
+                </DialogTitle>
+                <DialogDescription>
+                  {pernaAtiva?.origem} {" → "} {pernaAtiva?.destino}
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="passageiros">
-              Passageiros confirmados
-            </Label>
+              {/* Grid Responsivo Aqui */}
+              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Data da perna</Label>
+                  <Input
+                    type="date"
+                    value={dataPerna}
+                    onChange={(e) => setDataPerna(e.target.value)}
+                  />
+                </div>
 
-            <Input
-              id="passageiros"
-              type="number"
-              min="1"
-              value={
-                passageirosConfirmados
-              }
-              onChange={(e) =>
-                setPassageirosConfirmados(
-                  e.target.value,
-                )
-              }
-            />
-          </div>
+                {fase === "iniciar" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Apresentação da tripulação</Label>
+                    <Input
+                      type="time"
+                      value={apresentacao}
+                      onChange={(e) => setApresentacao(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Por padrão, 30 minutos antes da partida.
+                    </p>
+                  </div>
+                )}
 
-        </div>
+                <div className="space-y-1.5">
+                  <Label>Acionamento (AC)</Label>
+                  <Input
+                    type="time"
+                    value={acionamento}
+                    onChange={(e) => setAcionamento(e.target.value)}
+                  />
+                </div>
 
-        {/* ======================================================
-            FOOTER
-        ====================================================== */}
+                <div className="space-y-1.5">
+                  <Label>Decolagem (DEP)</Label>
+                  <Input
+                    type="time"
+                    value={decolagem}
+                    onChange={(e) => setDecolagem(e.target.value)}
+                  />
+                </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
+                {fase === "pousar" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label>Pouso (ARR)</Label>
+                      <Input
+                        type="time"
+                        value={pouso}
+                        onChange={(e) => setPouso(e.target.value)}
+                      />
+                    </div>
 
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() =>
-              onOpenChange(false)
-            }
-          >
-            Cancelar
-          </Button>
+                    <div className="space-y-1.5">
+                      <Label>Corte (CORT)</Label>
+                      <Input
+                        type="time"
+                        value={corte}
+                        onChange={(e) => setCorte(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
 
-          <Button
-            className="w-full sm:w-auto"
-            onClick={submit}
-            disabled={
-              !pernaAtual ||
-              !dataPartida ||
-              !acionamento ||
-              !decolagem ||
-              !picId ||
-              !checklistConcluido ||
-              !!jornadaConflitante ||
-              iniciarVoo.isPending ||
-              pernasLoading ||
-              jornadasLoading
-            }
-          >
-            {iniciarVoo.isPending
-              ? "Iniciando..."
-              : `Iniciar perna ${
-                  pernaAtual?.numero_perna ??
-                  ""
-                }`}
-          </Button>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancelar
+                </Button>
+                {fase === "iniciar" ? (
+                  <Button
+                    onClick={iniciarPerna}
+                    disabled={iniciarDisabled || iniciarVoo.isPending}
+                  >
+                    <Clock3 className="mr-2 h-4 w-4" />
+                    {iniciarVoo.isPending ? "Iniciando..." : "Iniciar perna"}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={registrarPouso}
+                    disabled={pousarDisabled || registrarPousoPerna.isPending}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {registrarPousoPerna.isPending
+                      ? "Registrando..."
+                      : "Registrar pouso"}
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
-        </DialogFooter>
-
-      </DialogContent>
-    </Dialog>
+      <NovaPernaDialog
+        voo={voo}
+        open={novaPernaAberta}
+        onOpenChange={(value) => {
+          setNovaPernaAberta(value);
+          if (!value) {
+            onOpenChange(false);
+          }
+        }}
+      />
+    </>
   );
 }
+export default IniciarVooDialog;

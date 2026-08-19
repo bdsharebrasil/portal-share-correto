@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       abastecimentos: {
@@ -801,7 +826,7 @@ export type Database = {
           id: string
           nome: string
           reembolsavel: boolean | null
-          tipo: string
+          tipo: string | null
           tipo_despesa: string | null
         }
         Insert: {
@@ -814,7 +839,7 @@ export type Database = {
           id?: string
           nome: string
           reembolsavel?: boolean | null
-          tipo: string
+          tipo?: string | null
           tipo_despesa?: string | null
         }
         Update: {
@@ -827,7 +852,7 @@ export type Database = {
           id?: string
           nome?: string
           reembolsavel?: boolean | null
-          tipo?: string
+          tipo?: string | null
           tipo_despesa?: string | null
         }
         Relationships: []
@@ -5893,6 +5918,86 @@ export type Database = {
         }
         Relationships: []
       }
+      jornadas_voo: {
+        Row: {
+          aeronave_id: string | null
+          apresentacao_em: string
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          data_jornada: string
+          fim_em: string | null
+          id: string
+          inicio_em: string | null
+          minutos_pos_corte: number
+          numero_jornada: number
+          observacoes: string | null
+          solicitacao_id: string
+          status: string
+        }
+        Insert: {
+          aeronave_id?: string | null
+          apresentacao_em: string
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          data_jornada: string
+          fim_em?: string | null
+          id?: string
+          inicio_em?: string | null
+          minutos_pos_corte?: number
+          numero_jornada: number
+          observacoes?: string | null
+          solicitacao_id: string
+          status?: string
+        }
+        Update: {
+          aeronave_id?: string | null
+          apresentacao_em?: string
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          data_jornada?: string
+          fim_em?: string | null
+          id?: string
+          inicio_em?: string | null
+          minutos_pos_corte?: number
+          numero_jornada?: number
+          observacoes?: string | null
+          solicitacao_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jornadas_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jornadas_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jornadas_voo_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "jornadas_voo_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       justificativa_ausencia: {
         Row: {
           aprovado_em: string | null
@@ -7484,6 +7589,7 @@ export type Database = {
           horario_decolagem: string | null
           horario_pouso: string | null
           id: string
+          jornada_id: string | null
           numero_perna: number
           numero_voo: string | null
           observacoes: string | null
@@ -7501,6 +7607,7 @@ export type Database = {
           horario_decolagem?: string | null
           horario_pouso?: string | null
           id?: string
+          jornada_id?: string | null
           numero_perna?: number
           numero_voo?: string | null
           observacoes?: string | null
@@ -7518,6 +7625,7 @@ export type Database = {
           horario_decolagem?: string | null
           horario_pouso?: string | null
           id?: string
+          jornada_id?: string | null
           numero_perna?: number
           numero_voo?: string | null
           observacoes?: string | null
@@ -7526,6 +7634,13 @@ export type Database = {
           solicitacao_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pernas_voo_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas_voo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pernas_voo_solicitacao_id_fkey"
             columns: ["solicitacao_id"]
@@ -8358,7 +8473,7 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           cidade_pagador: string | null
-          cliente_id: string | null
+          clientes_id: string | null
           compartilhado: boolean | null
           competencia_decea: string | null
           competencia_infraero: string | null
@@ -8399,7 +8514,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8440,7 +8555,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           cidade_pagador?: string | null
-          cliente_id?: string | null
+          clientes_id?: string | null
           compartilhado?: boolean | null
           competencia_decea?: string | null
           competencia_infraero?: string | null
@@ -8499,8 +8614,8 @@ export type Database = {
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "recibos_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "recibos_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
@@ -9673,6 +9788,7 @@ export type Database = {
       }
       tripulacao: {
         Row: {
+          aeronave_id: string | null
           canac: string
           cpf: string | null
           criado_em: string | null
@@ -9680,12 +9796,14 @@ export type Database = {
           endereco: string | null
           id: string
           nome_completo: string
+          observacao: string | null
           rg: string | null
           status: string
           telefone: string | null
           url_avatar: string | null
         }
         Insert: {
+          aeronave_id?: string | null
           canac: string
           cpf?: string | null
           criado_em?: string | null
@@ -9693,12 +9811,14 @@ export type Database = {
           endereco?: string | null
           id?: string
           nome_completo: string
+          observacao?: string | null
           rg?: string | null
           status?: string
           telefone?: string | null
           url_avatar?: string | null
         }
         Update: {
+          aeronave_id?: string | null
           canac?: string
           cpf?: string | null
           criado_em?: string | null
@@ -9706,12 +9826,35 @@ export type Database = {
           endereco?: string | null
           id?: string
           nome_completo?: string
+          observacao?: string | null
           rg?: string | null
           status?: string
           telefone?: string | null
           url_avatar?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tripulacao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tripulacao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tripulacao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
       }
       tutorial_steps: {
         Row: {
@@ -11000,6 +11143,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
