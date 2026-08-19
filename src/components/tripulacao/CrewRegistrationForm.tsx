@@ -523,7 +523,6 @@ export function CrewRegistrationForm() {
                             variant="outline"
                             className="border-amber-500/30 text-amber-400"
                           >
-                            Sem vínculo Share
                           </Badge>
 
                           <p className="text-sm text-muted-foreground line-clamp-3">
