@@ -67,17 +67,6 @@ interface ContaBancaria {
   tipo_conta: string | null;
 }
 
-interface MembroTripulacaoRow {
-  id: string;
-  user_id: string;
-}
-
-interface HorasVooRow {
-  membro_tripulacao_id: string;
-  aeronave_id: string;
-  horas_totais: number | string | null;
-}
-
 interface AeronaveInfo {
   id: string;
   matricula: string;
@@ -143,7 +132,6 @@ const MESES = [
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
-// Departamentos que recebem pagamento por hora de voo.
 const isCrewDepartamento = (departamento: string | null | undefined) => {
   const d = (departamento || "").toUpperCase();
   return d === "TRIPULANTE" || d === "PILOTO_CHEFE";
@@ -175,7 +163,6 @@ export default function SalariosTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
 
-  // Dados para a calculadora de horas de voo (tripulante / piloto chefe)
   const [aeronaves, setAeronaves] = useState<AeronaveInfo[]>([]);
   const [taxasHora, setTaxasHora] = useState<TaxaHoraRow[]>([]);
   const [horasVooPorUsuario, setHorasVooPorUsuario] = useState<
@@ -254,30 +241,27 @@ export default function SalariosTab() {
 
       const userIds = userList.map((u) => u.id);
 
-      // 1.1 Para tripulantes / piloto chefe, busca horas de voo lançadas no período
+      // 1.1 Para tripulantes / piloto chefe, busca horas de voo diretamente do diário de bordo no período
       const crewUsers = userList.filter((u) => isCrewDepartamento(u.departamento));
       if (crewUsers.length > 0) {
         const crewUserIds = crewUsers.map((u) => u.id);
 
         const { data: membrosData } = await (supabase as any)
           .from("membros_tripulacao")
-          .select("id,user_id")
+          .select("id,user_id,canac")
           .in("user_id", crewUserIds);
 
-        const membroIdToUserId: Record<string, string> = {};
-        (membrosData ?? []).forEach((m: MembroTripulacaoRow) => {
-          membroIdToUserId[m.id] = m.user_id;
-        });
-        const membroIds = Object.keys(membroIdToUserId);
+        if (membrosData && membrosData.length > 0) {
+          const startDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
+          const lastDay = new Date(ano, mes, 0).getDate();
+          const endDate = `${ano}-${String(mes).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}T23:59:59`;
 
-        if (membroIds.length > 0) {
-          const [{ data: horasData }, { data: aeronaveData }, { data: taxasData }] = await Promise.all([
-            (supabase as any)
-              .from("horas_voo_tripulante")
-              .select("membro_tripulacao_id,aeronave_id,horas_totais")
-              .in("membro_tripulacao_id", membroIds)
-              .eq("mes", mes)
-              .eq("ano", ano),
+          const [{ data: entriesData }, { data: aeronaveData }, { data: taxasData }] = await Promise.all([
+            supabase
+              .from("lancamentos_diario_bordo")
+              .select("pic_canac,sic_canac,aeronave_id,tempo_total,data_registro")
+              .gte("data_registro", startDate)
+              .lte("data_registro", endDate),
             supabase.from("aeronave").select("id,matricula,modelo"),
             (supabase as any)
               .from("taxas_hora_aeronave")
@@ -289,18 +273,30 @@ export default function SalariosTab() {
           setTaxasHora((taxasData ?? []) as TaxaHoraRow[]);
 
           const horasMap: Record<string, { aeronave_id: string; horas: number }[]> = {};
-          (horasData ?? []).forEach((h: HorasVooRow) => {
-            const userId = membroIdToUserId[h.membro_tripulacao_id];
-            if (!userId) return;
-            if (!horasMap[userId]) horasMap[userId] = [];
-            const linha = horasMap[userId].find((x) => x.aeronave_id === h.aeronave_id);
-            const horas = Number(h.horas_totais) || 0;
-            if (linha) {
-              linha.horas += horas;
-            } else {
-              horasMap[userId].push({ aeronave_id: h.aeronave_id, horas });
-            }
+
+          (entriesData ?? []).forEach((entry: any) => {
+            const tempoTotal = Number(entry.tempo_total) || 0;
+            if (tempoTotal <= 0) return;
+
+            membrosData.forEach((m: any) => {
+              const isPic = entry.pic_canac === m.id || (m.canac && entry.pic_canac === m.canac);
+              const isSic = entry.sic_canac === m.id || (m.canac && entry.sic_canac === m.canac);
+
+              if (isPic || isSic) {
+                const userId = m.user_id;
+                if (!userId) return;
+
+                if (!horasMap[userId]) horasMap[userId] = [];
+                const linha = horasMap[userId].find((x) => x.aeronave_id === entry.aeronave_id);
+                if (linha) {
+                  linha.horas += tempoTotal;
+                } else {
+                  horasMap[userId].push({ aeronave_id: entry.aeronave_id, horas: tempoTotal });
+                }
+              }
+            });
           });
+
           setHorasVooPorUsuario(horasMap);
         } else {
           setHorasVooPorUsuario({});
@@ -382,8 +378,6 @@ export default function SalariosTab() {
     }
   }, [mes, ano]);
 
-  // Taxa/hora vigente de uma aeronave para o mês/ano selecionado
-  // (usa a taxa do próprio mês; se não houver, a mais recente anterior a ele).
   const taxaParaAeronave = useCallback(
     (aeronaveId: string) => {
       const doMes = taxasHora.find((t) => {
@@ -405,7 +399,6 @@ export default function SalariosTab() {
     [taxasHora, mes, ano]
   );
 
-  // Calculadora: horas x taxa por aeronave + total, para um colaborador tripulante/piloto chefe
   const calculadoraHoras = useCallback(
     (userId: string) => {
       const linhas = horasVooPorUsuario[userId] ?? [];
