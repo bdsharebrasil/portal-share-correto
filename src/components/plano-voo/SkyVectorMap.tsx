@@ -1,15 +1,16 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, LayersControl, WMSTileLayer } from 'react-leaflet';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents, LayersControl, WMSTileLayer } from 'react-leaflet';
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Map as MapIcon } from 'lucide-react';
+import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Map as MapIcon, Wind, CloudRain, Thermometer, Gauge, RefreshCw } from 'lucide-react';
 import { WeatherPanel } from './WeatherPanel';
 import { FloatingPanel } from './FloatingPanel';
 import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProjectionOverlay';
 import { DECEA_WMS_URL, WAC_LAYERS, REA_LAYERS, ARC_LAYERS, CNAV_LAYERS, AIRSPACE_LAYERS } from './deceaLayers';
 import type { ChartData } from '@/services/chartsService';
 import type { AISWebMETARData } from '@/services/aiswebWeather';
+import { fetchOpenWeatherPointDirect, openWeatherTileUrl, type OpenWeatherPoint } from '@/services/openweatherMap';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet default icons
@@ -146,10 +147,52 @@ const ChartsList: React.FC<{
 };
 
 const MapContainerAny = MapContainer as any;
+const useMapEventsAny = useMapEvents as any;
 const LayersControlAny = LayersControl as any;
 const TileLayerAny = TileLayer as any;
 const MarkerAny = Marker as any;
 const WMSTileLayerAny = WMSTileLayer as any;
+
+const WeatherMapClick: React.FC<{ onSelect: (point: { lat: number; lon: number }) => void }> = ({ onSelect }) => {
+  useMapEventsAny({ click: (event: any) => onSelect({ lat: event.latlng.lat, lon: event.latlng.lng }) });
+  return null;
+};
+
+const weatherNumber = (value: number | undefined, digits = 0) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
+
+const WeatherPointCard: React.FC<{
+  point: { lat: number; lon: number } | null;
+  data: OpenWeatherPoint | null;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}> = ({ point, data, loading, error, onRefresh }) => {
+  if (!point) return null;
+  return (
+    <Card className="absolute left-4 top-4 z-[1100] w-[min(21rem,calc(100%-2rem))] border-cyan-400/30 bg-slate-950/90 p-3 text-slate-100 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div>
+          <div className="mt-1 font-mono text-[10px] text-slate-400">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div>
+        </div>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-300 hover:text-cyan-300" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+      {loading && <div className="mt-3 text-xs text-slate-400">Atualizando dados da OpenWeather...</div>}
+      {error && <div className="mt-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-xs text-red-200">{error}</div>}
+      {data && !loading && (
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Thermometer className="h-3.5 w-3.5" /> Temperatura</div><strong className="font-mono text-base">{weatherNumber(data.main?.temp, 1)}°C</strong></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Wind className="h-3.5 w-3.5" /> Vento</div><strong className="font-mono text-base">{weatherNumber(data.wind?.speed, 1)} m/s</strong><span className="block text-[10px] text-slate-400">{weatherNumber(data.wind?.deg)}°</span></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><CloudRain className="h-3.5 w-3.5" /> Nuvens</div><strong className="font-mono text-base">{weatherNumber(data.clouds?.all)}%</strong></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Gauge className="h-3.5 w-3.5" /> Pressão</div><strong className="font-mono text-base">{weatherNumber(data.main?.pressure)} hPa</strong></div>
+        </div>
+      )}
+      {data?.weather?.[0]?.description && <div className="mt-2 text-xs capitalize text-slate-300">{data.weather[0].description}</div>}
+    </Card>
+  );
+};
 
 export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   waypoints,
@@ -165,6 +208,25 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [projectedChart, setProjectedChart] = useState<ChartProjectionItem | null>(null);
+  const [weatherPoint, setWeatherPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [weatherPointData, setWeatherPointData] = useState<OpenWeatherPoint | null>(null);
+  const [weatherPointLoading, setWeatherPointLoading] = useState(false);
+  const [weatherPointError, setWeatherPointError] = useState<string | null>(null);
+
+  const loadWeatherPoint = useCallback(async (point: { lat: number; lon: number }) => {
+    setWeatherPoint(point);
+    setWeatherPointLoading(true);
+    setWeatherPointError(null);
+    try {
+      const data = await fetchOpenWeatherPointDirect(point.lat, point.lon);
+      setWeatherPointData(data);
+    } catch (error: any) {
+      setWeatherPointData(null);
+      setWeatherPointError(error?.message || 'Não foi possível carregar a meteorologia deste ponto.');
+    } finally {
+      setWeatherPointLoading(false);
+    }
+  }, []);
 
   // Todos os pontos não-alternativa, na ordem em que vêm de PlanoVoo.tsx:
   // partida -> waypoints intermediários resolvidos da rota -> destino.
@@ -229,7 +291,23 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   return (
     <div className="relative w-full h-full">
       <MapContainerAny center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
+        <WeatherMapClick onSelect={loadWeatherPoint} />
         <LayersControlAny position="topright">
+          <LayersControl.Overlay checked name="Vento — OpenWeather">
+            <TileLayerAny url={openWeatherTileUrl('wind_new')} opacity={0.62} zIndex={450} attribution="&copy; OpenWeather" />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Precipitação — OpenWeather">
+            <TileLayerAny url={openWeatherTileUrl('precipitation_new')} opacity={0.58} zIndex={451} attribution="&copy; OpenWeather" />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Nuvens — OpenWeather">
+            <TileLayerAny url={openWeatherTileUrl('clouds_new')} opacity={0.48} zIndex={452} attribution="&copy; OpenWeather" />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Temperatura — OpenWeather">
+            <TileLayerAny url={openWeatherTileUrl('temp_new')} opacity={0.42} zIndex={453} attribution="&copy; OpenWeather" />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay name="Pressão — OpenWeather">
+            <TileLayerAny url={openWeatherTileUrl('pressure_new')} opacity={0.38} zIndex={454} attribution="&copy; OpenWeather" />
+          </LayersControl.Overlay>
           <LayersControl.BaseLayer checked name="CartoDB Dark">
             <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" />
           </LayersControl.BaseLayer>
@@ -292,6 +370,14 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
           <MarkerAny position={[planePosition.lat, planePosition.lng]} icon={createPlaneIcon(planePosition.bearing)} />
         )}
       </MapContainerAny>
+
+      <WeatherPointCard
+        point={weatherPoint}
+        data={weatherPointData}
+        loading={weatherPointLoading}
+        error={weatherPointError}
+        onRefresh={() => weatherPoint && loadWeatherPoint(weatherPoint)}
+      />
 
       {hasRoute && routePositions.length > 1 && (
         <div className="absolute bottom-4 left-4 z-[1000]">
