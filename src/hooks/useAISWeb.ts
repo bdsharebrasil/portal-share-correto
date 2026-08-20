@@ -8,6 +8,59 @@ import type { NOTAMData, RouteValidation } from '@/types/aisweb'
 
 interface FlightPoint { lat: number; lng: number; icao?: string }
 
+const asNotamArray = (raw: any): any[] => {
+  if (Array.isArray(raw)) return raw.flatMap((entry) => Array.isArray(entry?.item) ? entry.item : entry);
+  if (Array.isArray(raw?.item)) return raw.item;
+  if (Array.isArray(raw?.notams)) return raw.notams;
+  if (Array.isArray(raw?.data)) return raw.data;
+  return [];
+};
+
+const parseNotamDate = (value: any): string => {
+  if (value == null || value === '' || String(value).toUpperCase() === 'PERM') return '';
+  const text = String(value);
+  const compact = text.match(/^(\d{10})$/)?.[1];
+  if (compact) {
+    const [yy, mm, dd, hh, min] = [compact.slice(0, 2), compact.slice(2, 4), compact.slice(4, 6), compact.slice(6, 8), compact.slice(8, 10)];
+    return `20${yy}-${mm}-${dd}T${hh}:${min}:00Z`;
+  }
+  const date = new Date(text.replace(' ', 'T') + (text.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(text) ? '' : 'Z'));
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+};
+
+const normalizeNotam = (raw: any, fallbackIcao: string): NOTAMData => {
+  const message = String(raw?.message ?? raw?.e ?? raw?.text ?? raw?.descricao ?? '').trim();
+  const upperMessage = message.toUpperCase();
+  const priority: NOTAMData['priority'] = /AERODROME\\s+CLSD|RWY[^\\n]*CLSD|AIRSPACE[^\\n]*(PROHIB|RESTRICT)/.test(upperMessage)
+    ? 'critical'
+    : /UNSERVICEABLE|WORK IN PROGRESS|WIP|RESTRICTED|LIMITED/.test(upperMessage)
+      ? 'high'
+      : 'medium';
+  return {
+    id: String(raw?.id ?? `${fallbackIcao}-${raw?.n ?? raw?.number ?? Math.random()}`),
+    icao: String(raw?.loc ?? raw?.icao ?? fallbackIcao).toUpperCase(),
+    number: String(raw?.n ?? raw?.number ?? raw?.cod ?? '—'),
+    type: raw?.tp === 'NOTAMR' ? 'NOTAMR' : raw?.tp === 'NOTAMC' ? 'NOTAMC' : 'NOTAM',
+    category: String(raw?.cat ?? raw?.category ?? 'AGA'),
+    traffic: String(raw?.traffic ?? ''),
+    purpose: String(raw?.purpose ?? ''),
+    scope: String(raw?.s ?? raw?.scope ?? ''),
+    lower: String(raw?.f ?? raw?.lower ?? ''),
+    upper: String(raw?.g ?? raw?.upper ?? ''),
+    coordinates: raw?.geo ? String(raw.geo) : null,
+    radius: raw?.radius != null ? Number(raw.radius) : null,
+    message: message || 'Texto do NOTAM não informado pela fonte.',
+    startDate: parseNotamDate(raw?.b ?? raw?.startDate ?? raw?.dt),
+    endDate: parseNotamDate(raw?.c ?? raw?.endDate),
+    schedule: raw?.d ? String(raw.d) : null,
+    created: parseNotamDate(raw?.dt ?? raw?.created),
+    source: String(raw?.origem ?? raw?.source ?? 'AISWeb/DECEA'),
+    priority,
+  };
+};
+
+const normalizeNotams = (raw: any, icao: string): NOTAMData[] => asNotamArray(raw).map((entry) => normalizeNotam(entry, icao));
+
 type ValidationResult = RouteValidation & {
   distanceNm: number
   fuelRequired: number
@@ -95,7 +148,7 @@ export function useAISWeb() {
   // ── NOTAMs ──────────────────────────────────────────────────────────────────
 
   const getNOTAMs = useCallback(async (icao: string, forceRefresh = false) =>
-    withCache(CACHE_KEYS.NOTAM(icao), () => apiClient.getNotam(icao), forceRefresh),
+    withCache(CACHE_KEYS.NOTAM(icao), async () => normalizeNotams(await apiClient.getNotam(icao), icao), forceRefresh),
   [withCache])
 
   const getMultipleNOTAMs = useCallback(async (

@@ -58,16 +58,19 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
   const [pdfImage, setPdfImage] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [useExternalPdfViewer, setUseExternalPdfViewer] = useState(false);
 
   useEffect(() => {
     if (!isPdf || !chart.url) {
       setPdfImage(null);
       setPdfError(null);
+      setUseExternalPdfViewer(false);
       return;
     }
     let active = true;
     setPdfLoading(true);
     setPdfError(null);
+    setUseExternalPdfViewer(false);
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
     pdfjsLib.getDocument({ url: chart.url, withCredentials: false }).promise
       .then(async (pdf) => {
@@ -83,7 +86,10 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
       })
       .catch((error) => {
         console.error('[ChartProjectionOverlay] PDF indisponível para visualização inline', error);
-        if (active) setPdfError('Não foi possível renderizar esta carta no mapa.');
+        if (active) {
+          setPdfError('O servidor do DECEA bloqueou a leitura direta; carregando visualizador compatível.');
+          setUseExternalPdfViewer(true);
+        }
       })
       .finally(() => { if (active) setPdfLoading(false); });
     return () => { active = false; };
@@ -144,7 +150,7 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
       >
         {chart.url ? (
           isPdf ? (
-            pdfLoading ? <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Renderizando carta...</div> : pdfImage ? <img src={pdfImage} alt={chart.title} className="h-full w-full object-contain" style={{ opacity: opacity / 100, mixBlendMode: blend, filter: invert ? 'invert(1) hue-rotate(180deg)' : undefined }} /> : <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-muted-foreground"><span>{pdfError || 'Carta PDF indisponível para visualização.'}</span><a href={chart.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Abrir carta em nova aba</a></div>
+            pdfLoading ? <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Renderizando carta...</div> : pdfImage ? <img src={pdfImage} alt={chart.title} className="h-full w-full object-contain" style={{ opacity: opacity / 100, mixBlendMode: blend, filter: invert ? 'invert(1) hue-rotate(180deg)' : undefined }} /> : useExternalPdfViewer ? <iframe src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(chart.url)}`} title={chart.title} className="h-full w-full border-0" /> : <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-muted-foreground"><span>{pdfError || 'Carta PDF indisponível para visualização.'}</span><a href={chart.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Abrir carta em nova aba</a></div>
           ) : (
             <img
               src={chart.url}

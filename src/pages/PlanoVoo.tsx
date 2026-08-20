@@ -528,9 +528,9 @@ export default function PlanoVooPage() {
                           <div key={i} className="p-3 rounded-lg border bg-muted/30">
                             <div className="flex items-start justify-between mb-1">
                               <h4 className="text-sm font-semibold">{c.title}</h4>
-                              <Badge variant="outline" className="text-xs">{c.tipo}</Badge>
+                              <Badge variant="outline" className="text-xs">{c.type}</Badge>
                             </div>
-                            {c.descricao && <p className="text-xs text-muted-foreground mb-1">{c.descricao}</p>}
+                            {c.description && <p className="text-xs text-muted-foreground mb-1">{c.description}</p>}
                             {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary text-xs font-semibold"><Download className="w-3 h-3" /> Download</a> : <span className="text-xs text-muted-foreground">Sem link</span>}
                           </div>
                         ))}

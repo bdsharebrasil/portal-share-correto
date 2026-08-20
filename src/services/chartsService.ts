@@ -33,7 +33,7 @@ function parseChartsData(rawData: any): ChartData[] {
   let chartsArray: any[] = [];
 
   if (Array.isArray(rawData)) {
-    chartsArray = rawData;
+    chartsArray = rawData.flatMap((entry: any) => Array.isArray(entry?.item) ? entry.item : entry);
   } else if (rawData?.item && Array.isArray(rawData.item)) {
     // Formato DECEA: { item: [...] }
     chartsArray = rawData.item;
@@ -74,12 +74,14 @@ function parseChartsData(rawData: any): ChartData[] {
       const title = chart.titulo || chart.nome || chart.title || chart.designator || 'Sem título';
       const description = chart.tipo_descr || chart.descricao || tipoAPI || '';
 
+      const rawUrl = chart.url || chart.link || chart.download_url || chart.downloadUrl || chart.pdf_url || chart.pdf || undefined;
+      const normalizedUrl = typeof rawUrl === 'string' ? rawUrl.replace(/&amp;/gi, '&').replace(/\\u0026/gi, '&').trim() : undefined;
       const parsedChart: ChartData = {
         type,
         title,
         description,
-        url: chart.url || chart.link || undefined,
-        format: chart.format || (chart.arquivo ? 'PDF' : undefined),
+        url: normalizedUrl,
+        format: chart.format || (chart.arquivo || normalizedUrl?.toLowerCase().includes('.pdf') ? 'PDF' : undefined),
         scale: chart.scale || undefined,
         edition: chart.amdt || chart.edition || undefined,
       };
