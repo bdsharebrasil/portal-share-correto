@@ -13,6 +13,8 @@ import { X, Save, Wallet } from "lucide-react";
 import { agruparCategoriasPorGrupo } from "./categoryFilters";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { mapAnexosToMovimentacao } from "./anexosMapper";
+import DuplicidadeLancamentoDialog from "./DuplicidadeLancamentoDialog";
+import { buscarPossiveisDuplicatas, type PossivelDuplicata } from "@/lib/duplicateFinanceCheck";
 
 interface Props {
   onCancel: () => void;
@@ -156,11 +158,34 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     return c?.grupo_categoria || null;
   }, [categorias, form.categoria_id]);
 
-  const salvar = async () => {
+  const [duplicatas, setDuplicatas] = useState<PossivelDuplicata[]>([]);
+  const [checando, setChecando] = useState(false);
+
+  const salvar = async (ignorarDuplicidade = false) => {
     const valorTotal = Number(form.valor_original);
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
+
+    if (!ignorarDuplicidade) {
+      setChecando(true);
+      try {
+        const achados = await buscarPossiveisDuplicatas({
+          valor: valorTotal,
+          data: form.data_emissao,
+          fornecedor: form.fornecedor_nome,
+        });
+        if (achados.length > 0) {
+          setDuplicatas(achados);
+          setChecando(false);
+          return;
+        }
+      } catch {
+        /* falha na checagem não bloqueia o lançamento */
+      }
+      setChecando(false);
+    }
+    setDuplicatas([]);
 
     const parcelas = form.parcelado ? Math.max(1, Number(form.quantidade_parcelas) || 1) : 1;
     const valorParcela = Number((valorTotal / parcelas).toFixed(2));

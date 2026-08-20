@@ -34,6 +34,7 @@ interface MenuItem {
   isExpandable?: boolean;
   isExternal?: boolean;
   externalUrl?: string;
+  badgeKey?: string;
   subItems?: { title: string; href: string }[];
 }
 

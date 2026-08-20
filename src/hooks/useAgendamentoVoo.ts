@@ -2500,6 +2500,30 @@ async function registrarHistoricoStatus(
    STATUS DA AERONAVE
 ============================================================ */
 
+const STATUS_AERONAVE_VALIDOS = [
+  "disponivel",
+  "em_voo",
+  "manutencao",
+  "reservado",
+  "indisponivel",
+] as const;
+
+/** Converte apelidos usados na UI para os valores aceitos pelo banco. */
+function normalizarStatusAeronave(status: string): string {
+  const s = String(status || "").toLowerCase().trim();
+  if ((STATUS_AERONAVE_VALIDOS as readonly string[]).includes(s)) return s;
+  const mapa: Record<string, string> = {
+    em_solo: "disponivel",
+    pousado: "disponivel",
+    em_rota: "em_voo",
+    voando: "em_voo",
+    confirmado: "reservado",
+    agendado: "reservado",
+    parado: "indisponivel",
+  };
+  return mapa[s] || "disponivel";
+}
+
 async function upsertStatusAeronave(
   aeronaveId: string,
   status: string,
@@ -2534,7 +2558,9 @@ async function upsertStatusAeronave(
       aeronaveId,
 
     status_atual:
-      status,
+      normalizarStatusAeronave(
+        status,
+      ),
 
     voo_atual_id:
       vooId,

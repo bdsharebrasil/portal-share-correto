@@ -399,7 +399,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
 
 
-  const salvar = async () => {
+  const salvar = async (ignorarDuplicidade = false) => {
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");

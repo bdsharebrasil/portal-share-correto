@@ -2626,6 +2626,75 @@ export type Database = {
           },
         ]
       }
+      ctm_horas_voadas_rateio: {
+        Row: {
+          aeronave_id: string
+          categoria: string
+          clientes_id: string
+          criado_em: string
+          horas_voadas: number
+          id: string
+          mes_referencia: string
+          ordem_servico_id: string
+        }
+        Insert: {
+          aeronave_id: string
+          categoria?: string
+          clientes_id: string
+          criado_em?: string
+          horas_voadas?: number
+          id?: string
+          mes_referencia: string
+          ordem_servico_id: string
+        }
+        Update: {
+          aeronave_id?: string
+          categoria?: string
+          clientes_id?: string
+          criado_em?: string
+          horas_voadas?: number
+          id?: string
+          mes_referencia?: string
+          ordem_servico_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_horas_voadas_rateio_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_horas_voadas_rateio_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_horas_voadas_rateio_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_horas_voadas_rateio_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_horas_voadas_rateio_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_itens_aeronave: {
         Row: {
           aeronave_id: string
@@ -7680,6 +7749,8 @@ export type Database = {
           modelo: string
           nivel_cruzeiro_max_ft: number
           nivel_cruzeiro_min_ft: number
+          taxa_descida_fpm: number | null
+          taxa_subida_fpm: number | null
           teto_servico_ft: number
           velocidade_cruzeiro_kt: number | null
         }
@@ -7692,6 +7763,8 @@ export type Database = {
           modelo: string
           nivel_cruzeiro_max_ft: number
           nivel_cruzeiro_min_ft: number
+          taxa_descida_fpm?: number | null
+          taxa_subida_fpm?: number | null
           teto_servico_ft: number
           velocidade_cruzeiro_kt?: number | null
         }
@@ -7704,6 +7777,8 @@ export type Database = {
           modelo?: string
           nivel_cruzeiro_max_ft?: number
           nivel_cruzeiro_min_ft?: number
+          taxa_descida_fpm?: number | null
+          taxa_subida_fpm?: number | null
           teto_servico_ft?: number
           velocidade_cruzeiro_kt?: number | null
         }
