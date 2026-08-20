@@ -361,41 +361,7 @@ export default function FluxoCaixaTab() {
             />
           </div>
 
-          {/* LEITURA DE IMPACTO */}
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl backdrop-blur-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-3 text-violet-300">
-                  <Banknote className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Leitura rápida do caixa</div>
-                  <h4 className="mt-1 text-base font-black text-slate-100">Quanto do saldo atual está comprometido?</h4>
-                  <p className="mt-1 text-xs text-slate-400">Isto é um indicador operacional: subtrai apenas as contas a pagar listadas nos próximos 5 dias.</p>
-                </div>
-              </div>
-
-              <div className="min-w-[220px] lg:text-right">
-                <div className={`text-2xl font-black ${visaoGeral.saldoAposContas >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {formatBRL(visaoGeral.saldoAposContas)}
-                </div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">saldo após compromissos próximos</div>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
-                <span className="text-slate-500">Pressão das contas a pagar sobre o saldo</span>
-                <span className={visaoGeral.pressaoSobreCaixa > 100 ? "text-rose-400" : "text-slate-300"}>{Math.round(visaoGeral.pressaoSobreCaixa)}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className={`h-full rounded-full transition-all ${visaoGeral.pressaoSobreCaixa >= 80 ? "bg-rose-500" : visaoGeral.pressaoSobreCaixa >= 50 ? "bg-amber-500" : "bg-cyan-500"}`}
-                  style={{ width: `${Math.min(100, visaoGeral.pressaoSobreCaixa)}%` }}
-                />
-              </div>
-            </div>
-          </section>
+         
 
           {/* LISTAS DETALHADAS */}
           <div className="grid gap-6 xl:grid-cols-2">
@@ -447,7 +413,7 @@ export default function FluxoCaixaTab() {
       )}
 
       {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 
-      {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} socios={data.socios} onChanged={load} />} 
+      {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} />}
 
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
       {(aba === "caixa" || aba === "reembolsaveis") && (

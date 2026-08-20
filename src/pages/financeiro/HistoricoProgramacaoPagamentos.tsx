@@ -480,8 +480,8 @@ export default function HistoricoProgramacaoPagamentos() {
 
   return (
     <Layout>
-      <main className="min-h-[calc(100vh-4rem)] bg-[#090a0c] text-white">
-        <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6 lg:px-8">
+      <main className="min-h-[calc(100vh-4rem)] rounded-[13px] overflow-hidden bg-[#0f0f20] text-white">
+        <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6 lg:px-8 rounded-[8px] overflow-hidden">
 
           {/* =================================================
               HEADER

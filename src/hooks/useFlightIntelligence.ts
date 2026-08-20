@@ -30,7 +30,7 @@ export interface FlightIntelligence {
   suggestedRoute: string | null;
   suggestedAltitudeFt: number | null;
   suggestedAltitudeLabel: string | null;
-  altitudeSource: 'rpc' | 'heuristic' | null;
+  altitudeSource: 'performance' | 'rpc' | 'heuristic' | null;
   fuelRequiredL: number | null;
   totalFuelL: number | null;
   minimumEnduranceHHMM: string | null;
@@ -78,6 +78,7 @@ export function useFlightIntelligence(
   destination: string,
   alternate: string,
   aeronaveId: string | null,
+  performanceAeronaveId: string | null,
   flightRule: 'V' | 'I' | 'Y' | 'Z' = 'I',
 ): FlightIntelligence {
   const { getMultipleNOTAMs, fetchPreferentialRoutes } = useAISWeb();
@@ -122,7 +123,7 @@ export function useFlightIntelligence(
           aeronaveId
             ? (supabase as any)
                 .from('aeronave')
-                .select('consumo_combustivel, performance_aeronave:performance_aeronave_id(velocidade_cruzeiro_kt)')
+                .select('consumo_combustivel, performance_aeronave_id, performance_aeronave(categoria, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, aprovado_rvsm, velocidade_cruzeiro_kt)')
                 .eq('id', aeronaveId)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
@@ -148,13 +149,29 @@ export function useFlightIntelligence(
           Promise.all(icaos.map(async (icao) => [icao.toUpperCase(), await fetchAISWebMETAR(icao)] as const)),
           Promise.all(icaos.map(async (icao) => [icao.toUpperCase(), await fetchAirportCharts(icao)] as const)),
         ]);
+        const aircraft = aircraftResult.data;
+        const performance = Array.isArray(aircraft?.performance_aeronave)
+          ? aircraft.performance_aeronave[0]
+          : aircraft?.performance_aeronave;
+        const linkedPerformanceId = performanceAeronaveId || aircraft?.performance_aeronave_id;
         const isIFR = flightRule === 'I' || flightRule === 'Y' || flightRule === 'Z';
         const heuristic = suggestFlightLevel(magneticCourse, flightRule);
         let altitudeFt = heuristic.altitudeFt;
         let altitudeLabel = heuristic.label;
         let altitudeSource: FlightIntelligence['altitudeSource'] = 'heuristic';
 
-        if (aeronaveId) {
+        if (performance && linkedPerformanceId) {
+          const minimumFt = Number(performance.nivel_cruzeiro_min_ft);
+          const maximumFt = Math.min(
+            Number(performance.nivel_cruzeiro_max_ft),
+            Number(performance.teto_servico_ft),
+          );
+          altitudeFt = Math.max(minimumFt, Math.min(maximumFt, altitudeFt));
+          altitudeLabel = isIFR
+            ? `FL${String(Math.round(altitudeFt / 100)).padStart(3, '0')}`
+            : `${altitudeFt} ft`;
+          altitudeSource = 'performance';
+        } else if (aeronaveId) {
           const { data: rpcAltitude } = await supabase.rpc('calcular_nivel_voo', {
             p_aeronave_id: aeronaveId,
             p_rumo_magnetico: magneticCourse,
@@ -166,8 +183,7 @@ export function useFlightIntelligence(
           }
         }
 
-        const aircraft = aircraftResult.data;
-        const speedKt = Number(aircraft?.performance_aeronave?.velocidade_cruzeiro_kt ?? 0);
+        const speedKt = Number(performance?.velocidade_cruzeiro_kt ?? 0);
         const burnLph = Number(aircraft?.consumo_combustivel ?? 0);
         const estimatedTimeMinutes = speedKt > 0 ? (distanceNm / speedKt) * 60 : 0;
         const reserveMinutes = isIFR || isNight ? 45 : 30;
@@ -209,7 +225,7 @@ export function useFlightIntelligence(
     return () => {
       cancelled = true;
     };
-  }, [origin, destination, alternate, aeronaveId, flightRule, isNight, getMultipleNOTAMs, fetchPreferentialRoutes]);
+  }, [origin, destination, alternate, aeronaveId, performanceAeronaveId, flightRule, isNight, getMultipleNOTAMs, fetchPreferentialRoutes]);
 
   return state;
 }

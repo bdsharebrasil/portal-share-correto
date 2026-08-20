@@ -156,9 +156,7 @@ export default function DetalhamentoCategoriasGrid({
   const computeTotal = (data: GridRow[]) => data.reduce((sum, row) => sum + row.valor, 0);
 
   useEffect(() => {
-    const grid = gridRef.current;
-    const visibleRows = Array.isArray(grid?.dataView) ? grid.dataView as GridRow[] : filteredRows;
-    setTotal(computeTotal(visibleRows));
+    setTotal(computeTotal(filteredRows));
   }, [filteredRows]);
 
   useEffect(() => {

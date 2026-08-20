@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Fuel, Clock, FileText } from "lucide-react";
@@ -15,7 +15,13 @@ const brl = (v: number) => Number(v || 0).toLocaleString("pt-BR", { style: "curr
  */
 type ModoSolicitacao = "SHARE" | "REEMBOLSO" | "DIRETO";
 
-export function AbastecimentosPendentesAlert() {
+export function AbastecimentosPendentesAlert({
+  isExpanded,
+  onCountChange,
+}: {
+  isExpanded: boolean;
+  onCountChange: (count: number) => void;
+}) {
 
   const [modoDialogOpen, setModoDialogOpen] = useState(false);
   const [abastecimentoSelecionado, setAbastecimentoSelecionado] = useState<any>(null);
@@ -43,7 +49,11 @@ export function AbastecimentosPendentesAlert() {
     refetchInterval: 60_000,
   });
 
-  if (pendentes.length === 0) return null;
+  useEffect(() => {
+    onCountChange(pendentes.length);
+  }, [onCountChange, pendentes.length]);
+
+  if (!isExpanded || pendentes.length === 0) return null;
 
   const handleAbrirProgramacao = (abastecimento: any) => {
     setAbastecimentoSelecionado(abastecimento);

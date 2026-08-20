@@ -30,6 +30,19 @@ const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reem
 const isReembolso = (m: any) =>
   `${m.descricao ?? ""} ${m.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
 
+/**
+ * Muitos lançamentos são salvos só com data_pagamento (ou data_vencimento),
+ * sem data_emissao preenchida. Sempre que formos "bucketizar" por mês/ano,
+ * usamos essa cascata em vez de m.data_emissao direto — senão a linha some
+ * do relatório (String(null).slice(5,7) não vira um mês válido).
+ */
+const dataRef = (m: any) => m.data_emissao || m.data_pagamento || m.data_vencimento || null;
+const mesDe = (m: any) => {
+  const ref = dataRef(m);
+  if (!ref) return -1;
+  return Number(String(ref).slice(5, 7)) - 1;
+};
+
 /* Mapa de categoria_id -> { grupo_categoria, tipo_despesa } construído a partir da tabela categorias_movimentacao */
 let _categoriaMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
 export function setCategoriaMap(map: Map<string, { grupo: string; tipoDespesa: string | null }>) {
@@ -143,14 +156,28 @@ export default function MasterRelatorios() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["master-relatorios", ano],
     queryFn: async () => {
+      /*
+       * IMPORTANTE: muitos lançamentos de despesa são gravados só com
+       * data_pagamento (data_emissao fica null). Um filtro simples
+       * .gte/.lte em data_emissao descarta essas linhas na própria
+       * query (NULL nunca satisfaz uma comparação >=/<=), então elas
+       * nunca chegavam ao front-end. Aqui buscamos por data_emissao
+       * OU, quando ela for nula, por data_pagamento dentro do ano.
+       */
+      const inicioAno = `${ano}-01-01`;
+      const fimAno = `${ano}-12-31`;
+
       const [movRes, clientesRes, salariosRes, catRes] = await Promise.all([
         supabase
           .from("movimentacoes")
           .select(
             `id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_categoria, categoria_id, conta_bancaria, reembolsavel`
           )
-          .gte("data_emissao", `${ano}-01-01`)
-          .lte("data_emissao", `${ano}-12-31`)
+          .or(
+            `and(data_emissao.gte.${inicioAno},data_emissao.lte.${fimAno}),` +
+              `and(data_emissao.is.null,data_pagamento.gte.${inicioAno},data_pagamento.lte.${fimAno}),` +
+              `and(data_emissao.is.null,data_pagamento.is.null,data_vencimento.gte.${inicioAno},data_vencimento.lte.${fimAno})`
+          )
           .neq("status", "cancelado")
           .order("data_emissao", { ascending: false })
           .limit(5000),
@@ -191,7 +218,8 @@ export default function MasterRelatorios() {
   const movs = useMemo(() => {
     const all = data?.movimentacoes || [];
     return all.filter((m: any) => {
-      const mes = Number(String(m.data_emissao).slice(5, 7)) - 1;
+      const mes = mesDe(m);
+      if (mes < 0) return false;
       return mes >= mesInicio && mes <= mesLimite;
     });
   }, [data?.movimentacoes, mesInicio, mesLimite]);
@@ -230,7 +258,7 @@ export default function MasterRelatorios() {
     }));
     (data?.movimentacoes || []).forEach((m: any) => {
       if (!isPago(m) && !Boolean(m.reembolsavel)) return;
-      const i = Number(String(m.data_emissao).slice(5, 7)) - 1;
+      const i = mesDe(m);
       if (i < 0 || i > 11) return;
       const caixa = m.tipo_caixa === "cliente" ? "Cliente" : "Share";
       const key = `${isEntrada(m) ? "receita" : "despesa"}${caixa}`;
@@ -427,7 +455,7 @@ export default function MasterRelatorios() {
     const header = ["Data", "Caixa", "Tipo", "Categoria", "Natureza", "Descrição", "Cliente", "Status", "Valor"];
     const linhas = movs.map((m: any) =>
       [
-        m.data_emissao, m.tipo_caixa || "-", m.tipo, m.categoria_nome || "-", naturezaDe(m),
+        dataRef(m) || "-", m.tipo_caixa || "-", m.tipo, m.categoria_nome || "-", naturezaDe(m),
         m.descricao, clientNames.get(m.clientes_id || "") || m.fornecedor_nome || "-", m.status, val(m).toFixed(2),
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)

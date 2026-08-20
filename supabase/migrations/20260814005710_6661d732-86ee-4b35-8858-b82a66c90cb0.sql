@@ -1,1 +1,0 @@
-ALTER TABLE public.ctm_ras_itens ADD COLUMN IF NOT EXISTS motivo text;

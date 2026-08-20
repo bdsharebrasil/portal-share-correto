@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, LayersControl, WMSTileLayer } from 'react-leaflet';
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { WeatherPanel } from './WeatherPanel';
 import { FloatingPanel } from './FloatingPanel';
 import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProjectionOverlay';
 import { DECEA_WMS_URL, WAC_LAYERS, REA_LAYERS, ARC_LAYERS, CNAV_LAYERS, AIRSPACE_LAYERS } from './deceaLayers';
-import { fetchAirportCharts, type ChartData } from '@/services/chartsService'; 
+import type { ChartData } from '@/services/chartsService';
 import type { AISWebMETARData } from '@/services/aiswebWeather';
 import 'leaflet/dist/leaflet.css';
 
@@ -19,7 +19,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
-
 
 export interface RoutePoint {
   icao: string;
@@ -43,6 +42,14 @@ interface SkyVectorMapProps {
   destWeather: AISWebMETARData | null;
   loadingWeather?: boolean;
   weatherError?: string | null;
+  /**
+   * Cartas já resolvidas por ICAO (maiúsculo), vindas de `useFlightIntelligence`.
+   * O mapa NÃO busca cartas por conta própria — isso evitava um fetch duplicado
+   * do mesmo dado que já é buscado uma vez lá em cima, em `PlanoVoo.tsx`.
+   */
+  charts: Record<string, ChartData[]>;
+  chartsLoading?: boolean;
+  chartsError?: string | null;
 }
 
 const createWaypointIcon = (type: 'departure' | 'arrival' | 'alternate' | 'waypoint') => {
@@ -91,42 +98,6 @@ const FitBounds: React.FC<{ waypoints: RoutePoint[] }> = ({ waypoints }) => {
   return null;
 };
 
-// ─── Cartas por aeródromo, via chartsService (apiClient + cache IDB) ────────
-
-const useAirportCharts = (icao: string | undefined) => {
-  const [charts, setCharts] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!icao) {
-      setCharts([]);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-
-    fetchAirportCharts(icao)
-      .then(result => {
-        if (!cancelled) setCharts(result);
-      })
-      .catch(err => {
-        if (!cancelled) {
-          setError(err.message ?? 'Falha ao buscar cartas');
-          setCharts([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [icao]);
-
-  return { charts, loading, error };
-};
-
 const CHART_TYPE_LABEL: Record<ChartData['type'], string> = {
   SID: 'SID',
   STAR: 'STAR',
@@ -156,7 +127,7 @@ const ChartsList: React.FC<{
           <button
             type="button"
             disabled={!chart.url}
-            onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url })}
+            onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url, format: chart.format })}
             className={`flex-1 text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`}
             title="Projetar carta sobre o mapa"
           >
@@ -174,7 +145,6 @@ const ChartsList: React.FC<{
   );
 };
 
-
 const MapContainerAny = MapContainer as any;
 const LayersControlAny = LayersControl as any;
 const TileLayerAny = TileLayer as any;
@@ -188,12 +158,16 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   destWeather,
   loadingWeather,
   weatherError,
+  charts,
+  chartsLoading,
+  chartsError,
 }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [projectedChart, setProjectedChart] = useState<ChartProjectionItem | null>(null);
 
-
+  // Todos os pontos não-alternativa, na ordem em que vêm de PlanoVoo.tsx:
+  // partida -> waypoints intermediários resolvidos da rota -> destino.
   const routePositions = useMemo(() => {
     return waypoints.filter(w => w.type !== 'alternate').map(w => [w.lat, w.lng] as [number, number]);
   }, [waypoints]);
@@ -241,8 +215,16 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   const departure = waypoints.find(w => w.type === 'departure');
   const arrival = waypoints.find(w => w.type === 'arrival');
 
-  const departureCharts = useAirportCharts(departure?.icao);
-  const arrivalCharts = useAirportCharts(arrival?.icao);
+  const departureCharts = {
+    charts: charts[departure?.icao ?? ''] ?? [],
+    loading: !!chartsLoading,
+    error: chartsError ?? null,
+  };
+  const arrivalCharts = {
+    charts: charts[arrival?.icao ?? ''] ?? [],
+    loading: !!chartsLoading,
+    error: chartsError ?? null,
+  };
 
   return (
     <div className="relative w-full h-full">
@@ -261,7 +243,18 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             <TileLayerAny url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" />
           </LayersControl.BaseLayer>
 
-          <LayersControl.Overlay name="Cartas WAC (DECEA)">
+          {/*
+            IMPORTANTE: antes NENHUMA dessas overlays tinha `checked`, então as
+            cartas do DECEA nunca apareciam por padrão — o usuário precisava
+            abrir o controle de camadas manualmente e marcar cada uma.
+            Deixamos Espaço Aéreo e WAC ligadas por padrão (mais relevantes e
+            leves); REA/ARC/CNAV continuam opcionais para não sobrecarregar o
+            mapa com várias camadas raster grandes ao mesmo tempo.
+          */}
+          <LayersControl.Overlay checked name="Espaço aéreo (CTR/CTA/ATZ/TMA)">
+            <WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} />
+          </LayersControl.Overlay>
+          <LayersControl.Overlay checked name="Cartas WAC (DECEA)">
             <WMSTileLayerAny url={DECEA_WMS_URL} layers={WAC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={400} />
           </LayersControl.Overlay>
           <LayersControl.Overlay name="Corredores Visuais / REA (DECEA)">
@@ -273,11 +266,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
           <LayersControl.Overlay name="Cartas de Navegação CNAV (DECEA)">
             <WMSTileLayerAny url={DECEA_WMS_URL} layers={CNAV_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={403} />
           </LayersControl.Overlay>
-          <LayersControl.Overlay name="Espaço aéreo (CTR/CTA/ATZ/TMA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} />
-          </LayersControl.Overlay>
         </LayersControlAny>
-
 
         {hasRoute && <FitBounds waypoints={waypoints} />}
 
@@ -329,7 +318,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
         </div>
       )}
 
-      {/* Painéis flutuantes arrastáveis (recolhidos em ícones) */}
+      {/* Painéis flutuantes arrastáveis — abertos por padrão quando há dados,
+          para não passarem despercebidos (recolhem em ícone se preciso). */}
       {departure && (
         <>
           <FloatingPanel
@@ -337,6 +327,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`METAR ${departure.icao}`}
             icon={<CloudSun className="w-5 h-5 text-green-400" />}
             defaultPosition={{ x: 16, y: 16 }}
+            defaultCollapsed={false}
           >
             <WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} />
           </FloatingPanel>
@@ -345,6 +336,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`Cartas ${departure.icao}`}
             icon={<FileText className="w-5 h-5 text-green-400" />}
             defaultPosition={{ x: 16, y: 76 }}
+            defaultCollapsed={false}
             width={280}
           >
             <ChartsList icao={departure.icao} {...departureCharts} onProject={setProjectedChart} />
@@ -358,14 +350,16 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`METAR ${arrival.icao}`}
             icon={<CloudSun className="w-5 h-5 text-red-400" />}
             defaultPosition={{ x: 76, y: 16 }}
+            defaultCollapsed={false}
           >
-            <WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} />
+            <WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} error={weatherError} />
           </FloatingPanel>
           <FloatingPanel
             id={`charts-arr`}
             title={`Cartas ${arrival.icao}`}
             icon={<FileText className="w-5 h-5 text-red-400" />}
             defaultPosition={{ x: 76, y: 76 }}
+            defaultCollapsed={false}
             width={280}
           >
             <ChartsList icao={arrival.icao} {...arrivalCharts} onProject={setProjectedChart} />
@@ -376,7 +370,6 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
       {projectedChart && (
         <ChartProjectionOverlay chart={projectedChart} onClose={() => setProjectedChart(null)} />
       )}
-
 
       {legs.length > 0 && (
         <div className="absolute bottom-4 right-4 z-[1000]">

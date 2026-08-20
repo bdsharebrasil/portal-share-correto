@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       abastecimentos: {
@@ -5861,6 +5836,151 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_message_recipients: {
+        Row: {
+          created_at: string
+          folder_id: string | null
+          id: string
+          is_archived: boolean
+          is_deleted: boolean
+          is_read: boolean
+          is_starred: boolean
+          kind: string
+          message_id: string
+          read_at: string | null
+          recipient_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          is_archived?: boolean
+          is_deleted?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          kind?: string
+          message_id: string
+          read_at?: string | null
+          recipient_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          is_archived?: boolean
+          is_deleted?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          kind?: string
+          message_id?: string
+          read_at?: string | null
+          recipient_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_recipients_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "message_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_recipients_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_draft: boolean
+          parent_id: string | null
+          sender_archived: boolean
+          sender_deleted: boolean
+          sender_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_draft?: boolean
+          parent_id?: string | null
+          sender_archived?: boolean
+          sender_deleted?: boolean
+          sender_id: string
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_draft?: boolean
+          parent_id?: string | null
+          sender_archived?: boolean
+          sender_deleted?: boolean
+          sender_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           client_address: string | null
@@ -5929,7 +6049,10 @@ export type Database = {
           fim_em: string | null
           id: string
           inicio_em: string | null
+          limite_jornada_minutos: number | null
+          limite_tempo_voo_minutos: number | null
           minutos_pos_corte: number
+          nivel_alerta_jornada: string
           numero_jornada: number
           observacoes: string | null
           solicitacao_id: string
@@ -5945,7 +6068,10 @@ export type Database = {
           fim_em?: string | null
           id?: string
           inicio_em?: string | null
+          limite_jornada_minutos?: number | null
+          limite_tempo_voo_minutos?: number | null
           minutos_pos_corte?: number
+          nivel_alerta_jornada?: string
           numero_jornada: number
           observacoes?: string | null
           solicitacao_id: string
@@ -5961,7 +6087,10 @@ export type Database = {
           fim_em?: string | null
           id?: string
           inicio_em?: string | null
+          limite_jornada_minutos?: number | null
+          limite_tempo_voo_minutos?: number | null
           minutos_pos_corte?: number
+          nivel_alerta_jornada?: string
           numero_jornada?: number
           observacoes?: string | null
           solicitacao_id?: string
@@ -6176,6 +6305,7 @@ export type Database = {
           horas_diurnas: number | null
           horas_noturnas: number | null
           id: string
+          jornada_id: string | null
           litros_combustivel_inicio_voo: number | null
           local_combustivel: string | null
           natureza_voo: string
@@ -6242,6 +6372,7 @@ export type Database = {
           horas_diurnas?: number | null
           horas_noturnas?: number | null
           id?: string
+          jornada_id?: string | null
           litros_combustivel_inicio_voo?: number | null
           local_combustivel?: string | null
           natureza_voo: string
@@ -6308,6 +6439,7 @@ export type Database = {
           horas_diurnas?: number | null
           horas_noturnas?: number | null
           id?: string
+          jornada_id?: string | null
           litros_combustivel_inicio_voo?: number | null
           local_combustivel?: string | null
           natureza_voo?: string
@@ -6353,6 +6485,13 @@ export type Database = {
             columns: ["diario_mes"]
             isOneToOne: false
             referencedRelation: "diario_mes_com_disponivel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_diario_bordo_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas_voo"
             referencedColumns: ["id"]
           },
           {
@@ -6777,6 +6916,30 @@ export type Database = {
           tipo_licenca?: string | null
           url_avatar?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      message_folders: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -10773,6 +10936,10 @@ export type Database = {
           peso_total: number
         }[]
       }
+      can_access_internal_message: {
+        Args: { _message_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_date_availability: {
         Args: { p_aircraft_id: string; p_date: string }
         Returns: boolean
@@ -11143,9 +11310,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [

@@ -439,26 +439,15 @@ function PortalClienteDashboard() {
       .sort((a, b) => b.dias - a.dias);
   }, [uniqueDespesas]);
 
-  const alerts = useMemo(() => {
+const alerts = useMemo(() => {
     const out: { type: "danger" | "warning" | "info"; title: string; desc: string }[] = [];
-    const pending = uniqueDespesas.filter((r) => {
-      const s = statusOf(r);
-      return s.tone === "warning" && isSaida(r.fluxo);
-    });
-    pending.slice(0, 2).forEach((r) => {
-      out.push({
-        type: "warning",
-        title: "Custo não alocado",
-        desc: `${r.descricao_despesa || "—"} · ${r.aeronave_registro || ""} · ${formatBRL(Number(r.valor_rateado) || 0)}`,
-      });
-    });
     out.push({
       type: "info",
       title: "Fechamento pendente",
       desc: `${activeMonths.length ? activeMonths.join(" + ") : "Todos os meses"} ${year} · prazo em 3 dias`,
     });
     return out.slice(0, 4);
-  }, [uniqueDespesas, activeMonths, year, isAllMonths]);
+  }, [activeMonths, year, isAllMonths]);
 
   const clearFilters = () => {
     setSearch("");

@@ -41,7 +41,7 @@ export function InadimplenciaPanel() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="ml-[19px] mr-[30px] mt-[39px] space-y-4 px-[22px] py-[20px] md:space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <div className="rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent p-4 backdrop-blur-md">

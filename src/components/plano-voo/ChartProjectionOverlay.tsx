@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 export interface ChartProjectionItem {
   title: string;
   url?: string;
+  format?: string;
 }
 
 interface Props {
@@ -52,7 +53,7 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
 
   const endDrag = useCallback(() => { dragRef.current = null; resizeRef.current = null; }, []);
 
-  const isPdf = (chart.url || '').toLowerCase().includes('.pdf');
+  const isPdf = chart.format?.toLowerCase() === 'pdf' || (chart.url || '').toLowerCase().includes('.pdf');
 
   return (
     <div

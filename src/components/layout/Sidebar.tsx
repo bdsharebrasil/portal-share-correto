@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Key,
+  Mail,
   Menu,
   Wallet,
   CheckSquare,
@@ -48,6 +49,8 @@ const baseMenuGroups: MenuGroup[] = [
       { title: "Início", icon: Home, href: "/", isMain: true },
       { title: "Documentos", icon: FileText, href: "/documentos" },
       { title: "Senhas", icon: Key, href: "/senhas" },
+      { title: "Mensagens", icon: Mail, href: "/mensagens", badgeKey: "unreadMessages" },
+
       { title: "Minhas Tarefas", icon: CheckSquare, href: "/minhas-tarefas" },
     ],
   },

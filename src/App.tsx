@@ -59,6 +59,7 @@ import GestaoFuncionarios from "./pages/GestaoFuncionarios";
 import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
+import Mensagens from "./pages/Mensagens";
 import GestaoFiscal from "./components/dashboard/gestor/financeiro-share/Index";
 import MasterRelatorios from "./components/dashboard/gestor/master/MasterRelatorios";
 import AprovacoesOrcamentos from "./pages/gestor/AprovacoesOrcamentos";
@@ -272,6 +273,7 @@ const App = () => {
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />
+                          <Route path="/mensagens" element={renderProtected(<Mensagens />)} />
                           <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
                          <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
                          <Route path="/pre-voo/:solicitacaoId" element={renderProtected(<ChecklistPreVoo />)} />

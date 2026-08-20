@@ -18,8 +18,6 @@ import {
   WalletCards,
   Navigation,
   CircleDollarSign,
-  ShieldCheck,
-  MoreHorizontal,
 } from "lucide-react";
 
 import {
@@ -112,12 +110,8 @@ export function FlightCycleDetail({
   onUpdateCycle,
   onDeleteCycle,
 }: FlightCycleDetailProps) {
-  const [expandedExpense, setExpandedExpense] =
-    useState<string | null>(null);
-
-  const [addExpenseOpen, setAddExpenseOpen] =
-    useState(false);
-
+  const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
@@ -143,27 +137,22 @@ export function FlightCycleDetail({
     partner_id: cycle.partner_id || "",
     origin_icao: cycle.origin_icao,
     destination_icao: cycle.destination_icao,
-    flight_duration_hours:
-      cycle.flight_duration_hours?.toString() || "",
+    flight_duration_hours: cycle.flight_duration_hours?.toString() || "",
     pic_name: cycle.pic_name || "",
     sic_name: cycle.sic_name || "",
   });
 
-  const statusConfig =
-    FLIGHT_STATUS_CONFIG[cycle.status];
+  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
 
   const expenses = cycle.expenses || [];
 
-  const completedExpenses = expenses.filter(
-    (expense) =>
-      ["paga", "nao_aplicavel"].includes(expense.status)
+  const completedExpenses = expenses.filter((expense) =>
+    ["paga", "nao_aplicavel"].includes(expense.status)
   ).length;
 
   const completionPercentage =
     expenses.length > 0
-      ? Math.round(
-          (completedExpenses / expenses.length) * 100
-        )
+      ? Math.round((completedExpenses / expenses.length) * 100)
       : 0;
 
   const overdueExpenses = expenses.filter(
@@ -171,10 +160,7 @@ export function FlightCycleDetail({
   );
 
   const pendingExpenses = expenses.filter(
-    (expense) =>
-      !["paga", "nao_aplicavel"].includes(
-        expense.status
-      )
+    (expense) => !["paga", "nao_aplicavel"].includes(expense.status)
   );
 
   const clientName =
@@ -224,20 +210,14 @@ export function FlightCycleDetail({
   }, [editData.client_id]);
 
   const loadEditData = async () => {
-    const [clientsRes, aircraftRes] =
-      await Promise.all([
-        supabase
-          .from("clientes")
-          .select(
-            "id, razao_social, proprietario"
-          )
-          .order("razao_social"),
+    const [clientsRes, aircraftRes] = await Promise.all([
+      supabase
+        .from("clientes")
+        .select("id, razao_social, proprietario")
+        .order("razao_social"),
 
-        supabase
-          .from("aeronave")
-          .select("id, matricula, modelo")
-          .order("matricula"),
-      ]);
+      supabase.from("aeronave").select("id, matricula, modelo").order("matricula"),
+    ]);
 
     if (clientsRes.data) {
       setClients(clientsRes.data as Client[]);
@@ -274,16 +254,11 @@ export function FlightCycleDetail({
         client_id: editData.client_id || null,
         partner_id: editData.partner_id || null,
         partner_name: partnerName,
-        origin_icao:
-          editData.origin_icao?.toUpperCase(),
-        destination_icao:
-          editData.destination_icao?.toUpperCase(),
-        flight_duration_hours:
-          editData.flight_duration_hours
-            ? parseFloat(
-                editData.flight_duration_hours
-              )
-            : null,
+        origin_icao: editData.origin_icao?.toUpperCase(),
+        destination_icao: editData.destination_icao?.toUpperCase(),
+        flight_duration_hours: editData.flight_duration_hours
+          ? parseFloat(editData.flight_duration_hours)
+          : null,
         pic_name: editData.pic_name || null,
         sic_name: editData.sic_name || null,
       });
@@ -299,11 +274,8 @@ export function FlightCycleDetail({
       client_id: cycle.client_id || "",
       partner_id: cycle.partner_id || "",
       origin_icao: cycle.origin_icao,
-      destination_icao:
-        cycle.destination_icao,
-      flight_duration_hours:
-        cycle.flight_duration_hours?.toString() ||
-        "",
+      destination_icao: cycle.destination_icao,
+      flight_duration_hours: cycle.flight_duration_hours?.toString() || "",
       pic_name: cycle.pic_name || "",
       sic_name: cycle.sic_name || "",
     });
@@ -326,16 +298,9 @@ export function FlightCycleDetail({
       return "none";
     }
 
-    const expectedDate = parseISO(
-      expense.expected_date
-    );
-
+    const expectedDate = parseISO(expense.expected_date);
     const today = new Date();
-
-    const daysUntilDue = differenceInDays(
-      expectedDate,
-      today
-    );
+    const daysUntilDue = differenceInDays(expectedDate, today);
 
     if (daysUntilDue < -30) return "purple";
     if (isPast(expectedDate)) return "red";
@@ -366,39 +331,32 @@ export function FlightCycleDetail({
 
   const groupedExpenses = {
     imediata: expenses.filter(
-      (expense) =>
-        expense.expense_category === "imediata"
+      (expense) => expense.expense_category === "imediata"
     ),
 
     relatorio_viagem: expenses.filter(
-      (expense) =>
-        expense.expense_category ===
-        "relatorio_viagem"
+      (expense) => expense.expense_category === "relatorio_viagem"
     ),
 
     regulatoria: expenses.filter(
-      (expense) =>
-        expense.expense_category === "regulatoria"
+      (expense) => expense.expense_category === "regulatoria"
     ),
 
     variavel: expenses.filter(
-      (expense) =>
-        expense.expense_category === "variavel"
+      (expense) => expense.expense_category === "variavel"
     ),
   };
 
   const categoryLabels = {
     imediata: "Despesas imediatas",
-    relatorio_viagem:
-      "Relatório de viagem",
+    relatorio_viagem: "Relatório de viagem",
     regulatoria: "Regulatórias",
     variavel: "Variáveis",
   };
 
   const totalExpenseAmount = useMemo(() => {
     return expenses.reduce(
-      (total, expense) =>
-        total + Number(expense.amount || 0),
+      (total, expense) => total + Number(expense.amount || 0),
       0
     );
   }, [expenses]);
@@ -409,7 +367,7 @@ export function FlightCycleDetail({
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[17px] border border-[rgba(20,31,54,1)] bg-[rgba(4,7,20,1)] px-4 py-4 text-[rgba(192,206,240,1)] sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[28px] border border-border/60 bg-background px-4 py-4 text-foreground sm:px-6 lg:px-8 lg:py-6">
         {/* ====================================================
             TOP NAV
         ===================================================== */}
@@ -425,9 +383,7 @@ export function FlightCycleDetail({
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>Operações</span>
-
             <span>/</span>
-
             <span className="font-medium text-foreground">
               {cycle.aircraft?.matricula || "N/A"}
             </span>
@@ -439,7 +395,6 @@ export function FlightCycleDetail({
         ===================================================== */}
         <section className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-[0_20px_70px_-30px_rgba(15,23,42,0.55)] sm:p-8">
           <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
-
           <div className="pointer-events-none absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
 
           <div className="relative z-10">
@@ -454,8 +409,7 @@ export function FlightCycleDetail({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                          {cycle.aircraft?.matricula ||
-                            "N/A"}
+                          {cycle.aircraft?.matricula || "N/A"}
                         </h1>
 
                         <Badge
@@ -486,15 +440,9 @@ export function FlightCycleDetail({
                           icon={CalendarDays}
                           value={
                             cycle.flight_date
-                              ? format(
-                                  new Date(
-                                    cycle.flight_date
-                                  ),
-                                  "dd/MM/yyyy",
-                                  {
-                                    locale: ptBR,
-                                  }
-                                )
+                              ? format(new Date(cycle.flight_date), "dd/MM/yyyy", {
+                                  locale: ptBR,
+                                })
                               : "--/--/----"
                           }
                         />
@@ -528,8 +476,7 @@ export function FlightCycleDetail({
                     </p>
 
                     <p className="mt-1 text-xs text-slate-400">
-                      {completedExpenses} de{" "}
-                      {expenses.length} despesas
+                      {completedExpenses} de {expenses.length} despesas
                     </p>
                   </div>
                 </div>
@@ -545,55 +492,36 @@ export function FlightCycleDetail({
                   <DarkInfo
                     icon={Navigation}
                     label="Destino"
-                    value={
-                      cycle.destination_icao ||
-                      "Não definido"
-                    }
+                    value={cycle.destination_icao || "Não definido"}
                   />
 
                   <DarkInfo
                     icon={UserRound}
                     label="PIC"
-                    value={
-                      cycle.pic_name ||
-                      "Não informado"
-                    }
+                    value={cycle.pic_name || "Não informado"}
                   />
 
                   {cycle.sic_name && (
-                    <DarkInfo
-                      icon={UserRound}
-                      label="SIC"
-                      value={cycle.sic_name}
-                    />
+                    <DarkInfo icon={UserRound} label="SIC" value={cycle.sic_name} />
                   )}
 
                   {cycle.return_date && (
                     <DarkInfo
                       icon={CalendarDays}
                       label="Retorno"
-                      value={format(
-                        new Date(
-                          cycle.return_date
-                        ),
-                        "dd/MM/yyyy",
-                        {
-                          locale: ptBR,
-                        }
-                      )}
+                      value={format(new Date(cycle.return_date), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })}
                     />
                   )}
 
                   <DarkInfo
                     icon={WalletCards}
                     label="Total de despesas"
-                    value={new Intl.NumberFormat(
-                      "pt-BR",
-                      {
-                        style: "currency",
-                        currency: "BRL",
-                      }
-                    ).format(totalExpenseAmount)}
+                    value={new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }).format(totalExpenseAmount)}
                   />
                 </div>
               </>
@@ -633,9 +561,7 @@ export function FlightCycleDetail({
                           "Tem certeza que deseja excluir este ciclo de voo? Todas as despesas associadas também serão excluídas."
                         )
                       ) {
-                        onDeleteCycle(cycle.id).then(
-                          () => onBack()
-                        );
+                        onDeleteCycle(cycle.id).then(() => onBack());
                       }
                     }}
                     className="h-10 rounded-xl text-red-300 hover:bg-red-500/10 hover:text-red-200"
@@ -649,12 +575,7 @@ export function FlightCycleDetail({
                   {cycle.status === "confirmado" && (
                     <Button
                       size="sm"
-                      onClick={() =>
-                        onUpdateCycleStatus(
-                          cycle.id,
-                          "em_execucao"
-                        )
-                      }
+                      onClick={() => onUpdateCycleStatus(cycle.id, "em_execucao")}
                       className="h-10 rounded-xl bg-amber-500 font-semibold text-black hover:bg-amber-400"
                     >
                       <Plane className="mr-2 h-4 w-4" />
@@ -666,10 +587,7 @@ export function FlightCycleDetail({
                     <Button
                       size="sm"
                       onClick={() =>
-                        onUpdateCycleStatus(
-                          cycle.id,
-                          "aguardando_despesas"
-                        )
+                        onUpdateCycleStatus(cycle.id, "aguardando_despesas")
                       }
                       className="h-10 rounded-xl bg-cyan-500 font-semibold text-black hover:bg-cyan-400"
                     >
@@ -677,18 +595,14 @@ export function FlightCycleDetail({
                     </Button>
                   )}
 
-                  {[
-                    "aguardando_despesas",
-                    "em_cobranca",
-                  ].includes(cycle.status) &&
+                  {["aguardando_despesas", "em_cobranca"].includes(
+                    cycle.status
+                  ) &&
                     completionPercentage === 100 && (
                       <Button
                         size="sm"
                         onClick={() =>
-                          onUpdateCycleStatus(
-                            cycle.id,
-                            "finalizado"
-                          )
+                          onUpdateCycleStatus(cycle.id, "finalizado")
                         }
                         className="h-10 rounded-xl bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
                       >
@@ -705,9 +619,7 @@ export function FlightCycleDetail({
                     disabled={savingEdit}
                     className="h-10 rounded-xl bg-emerald-500 px-5 font-semibold text-black hover:bg-emerald-400"
                   >
-                    {savingEdit
-                      ? "Salvando..."
-                      : "Salvar alterações"}
+                    {savingEdit ? "Salvando..." : "Salvar alterações"}
                   </Button>
 
                   <Button
@@ -729,11 +641,7 @@ export function FlightCycleDetail({
             KPI STRIP
         ===================================================== */}
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MetricCard
-            icon={WalletCards}
-            label="Despesas"
-            value={expenses.length}
-          />
+          <MetricCard icon={WalletCards} label="Despesas" value={expenses.length} />
 
           <MetricCard
             icon={CheckCircle2}
@@ -777,16 +685,12 @@ export function FlightCycleDetail({
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Controle prazos, valores e status de cada
-                  despesa.
+                  Controle prazos, valores e status de cada despesa.
                 </p>
               </div>
             </div>
 
-            <Button
-              onClick={() => setAddExpenseOpen(true)}
-              className="h-11 rounded-xl"
-            >
+            <Button onClick={() => setAddExpenseOpen(true)} className="h-11 rounded-xl">
               <Plus className="mr-2 h-4 w-4" />
               Adicionar despesa
             </Button>
@@ -803,119 +707,73 @@ export function FlightCycleDetail({
                     <Clock3 className="h-4 w-4 text-muted-foreground" />
                   )}
 
-                  <span className="text-sm font-semibold">
-                    Progresso financeiro
-                  </span>
+                  <span className="text-sm font-semibold">Progresso financeiro</span>
                 </div>
 
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {completedExpenses} de{" "}
-                  {expenses.length} itens concluídos
+                  {completedExpenses} de {expenses.length} itens concluídos
                 </p>
               </div>
 
-              <span className="text-2xl font-bold">
-                {completionPercentage}%
-              </span>
+              <span className="text-2xl font-bold">{completionPercentage}%</span>
             </div>
 
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
-                  completionPercentage === 100
-                    ? "bg-emerald-500"
-                    : "bg-primary"
+                  completionPercentage === 100 ? "bg-emerald-500" : "bg-primary"
                 )}
-                style={{
-                  width: `${completionPercentage}%`,
-                }}
+                style={{ width: `${completionPercentage}%` }}
               />
             </div>
           </div>
 
           {/* Expenses */}
           <div className="mt-8 space-y-8">
-            {Object.entries(groupedExpenses).map(
-              ([category, categoryExpenses]) => {
-                if (categoryExpenses.length === 0) {
-                  return null;
-                }
-
-                return (
-                  <div
-                    key={category}
-                    className="space-y-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-px flex-1 bg-border" />
-
-                      <h3 className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                        {
-                          categoryLabels[
-                            category as keyof typeof categoryLabels
-                          ]
-                        }
-                      </h3>
-
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-
-                    <div className="space-y-2">
-                      {categoryExpenses.map(
-                        (expense) => {
-                          const alertLevel =
-                            getExpenseAlertLevel(
-                              expense
-                            );
-
-                          const expenseStatusConfig =
-                            EXPENSE_STATUS_CONFIG[
-                              expense.status
-                            ];
-
-                          const isExpanded =
-                            expandedExpense ===
-                            expense.id;
-
-                          return (
-                            <ExpenseItem
-                              key={expense.id}
-                              expense={expense}
-                              alertLevel={alertLevel}
-                              alertStyles={getAlertStyles(
-                                alertLevel
-                              )}
-                              expenseStatusConfig={
-                                expenseStatusConfig
-                              }
-                              isExpanded={
-                                isExpanded
-                              }
-                              setExpanded={
-                                setExpandedExpense
-                              }
-                              expenseEdits={
-                                expenseEdits
-                              }
-                              setExpenseEdits={
-                                setExpenseEdits
-                              }
-                              onUpdateExpenseStatus={
-                                onUpdateExpenseStatus
-                              }
-                              onDeleteExpense={
-                                onDeleteExpense
-                              }
-                            />
-                          );
-                        }
-                      )}
-                    </div>
-                  </div>
-                );
+            {Object.entries(groupedExpenses).map(([category, categoryExpenses]) => {
+              if (categoryExpenses.length === 0) {
+                return null;
               }
-            )}
+
+              return (
+                <div key={category} className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border" />
+
+                    <h3 className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      {categoryLabels[category as keyof typeof categoryLabels]}
+                    </h3>
+
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+
+                  <div className="space-y-2">
+                    {categoryExpenses.map((expense) => {
+                      const alertLevel = getExpenseAlertLevel(expense);
+                      const expenseStatusConfig = EXPENSE_STATUS_CONFIG[expense.status];
+                      const isExpanded = expandedExpense === expense.id;
+
+                      return (
+                        <ExpenseItem
+                          key={expense.id}
+                          expense={expense}
+                          alertLevel={alertLevel}
+                          alertStyles={getAlertStyles(alertLevel)}
+                          expenseStatusConfig={expenseStatusConfig}
+                          isExpanded={isExpanded}
+                          setExpanded={setExpandedExpense}
+                          expenseEdits={expenseEdits}
+                          setExpenseEdits={setExpenseEdits}
+                          onUpdateExpenseStatus={onUpdateExpenseStatus}
+                          onDeleteExpense={onDeleteExpense}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
 
             {expenses.length === 0 && (
               <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-border bg-muted/10 px-6 py-12">
@@ -929,17 +787,14 @@ export function FlightCycleDetail({
                   </h3>
 
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Comece adicionando a primeira despesa
-                    deste ciclo.
+                    Comece adicionando a primeira despesa deste ciclo.
                   </p>
 
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-4 rounded-xl"
-                    onClick={() =>
-                      setAddExpenseOpen(true)
-                    }
+                    onClick={() => setAddExpenseOpen(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Adicionar despesa
@@ -953,9 +808,7 @@ export function FlightCycleDetail({
         <AddExpenseDialog
           open={addExpenseOpen}
           onOpenChange={setAddExpenseOpen}
-          onAdd={(expense) =>
-            onAddExpense(cycle.id, expense)
-          }
+          onAdd={(expense) => onAddExpense(cycle.id, expense)}
         />
       </div>
     </div>
@@ -966,13 +819,7 @@ export function FlightCycleDetail({
    HERO META
 ================================================================ */
 
-function HeroMeta({
-  icon: Icon,
-  value,
-}: {
-  icon: React.ElementType;
-  value: string;
-}) {
+function HeroMeta({ icon: Icon, value }: { icon: React.ElementType; value: string }) {
   return (
     <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
       <Icon className="h-3.5 w-3.5 text-slate-400" />
@@ -1005,9 +852,7 @@ function DarkInfo({
           {label}
         </p>
 
-        <p className="mt-0.5 truncate text-xs font-semibold text-slate-200">
-          {value}
-        </p>
+        <p className="mt-0.5 truncate text-xs font-semibold text-slate-200">{value}</p>
       </div>
     </div>
   );
@@ -1057,9 +902,7 @@ function MetricCard({
             {label}
           </p>
 
-          <p className="mt-0.5 text-2xl font-bold tracking-tight">
-            {value}
-          </p>
+          <p className="mt-0.5 text-2xl font-bold tracking-tight">{value}</p>
         </div>
       </div>
     </div>
@@ -1085,11 +928,7 @@ function ExpenseItem({
   return (
     <Collapsible
       open={isExpanded}
-      onOpenChange={() =>
-        setExpanded(
-          isExpanded ? null : expense.id
-        )
-      }
+      onOpenChange={() => setExpanded(isExpanded ? null : expense.id)}
     >
       <div
         className={cn(
@@ -1118,25 +957,16 @@ function ExpenseItem({
                   {expense.expected_date && (
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <CalendarDays className="h-3 w-3" />
-
-                      {format(
-                        new Date(
-                          expense.expected_date
-                        ),
-                        "dd/MM/yyyy"
-                      )}
+                      {format(new Date(expense.expected_date), "dd/MM/yyyy")}
                     </span>
                   )}
 
                   {expense.amount != null && (
                     <span className="text-[11px] font-semibold text-foreground">
-                      {new Intl.NumberFormat(
-                        "pt-BR",
-                        {
-                          style: "currency",
-                          currency: "BRL",
-                        }
-                      ).format(expense.amount)}
+                      {new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(expense.amount)}
                     </span>
                   )}
                 </div>
@@ -1152,8 +982,7 @@ function ExpenseItem({
                   expenseStatusConfig.color
                 )}
               >
-                {expenseStatusConfig.icon}{" "}
-                {expenseStatusConfig.label}
+                {expenseStatusConfig.icon} {expenseStatusConfig.label}
               </Badge>
 
               {isExpanded ? (
@@ -1169,29 +998,19 @@ function ExpenseItem({
           <div className="border-t border-border/60 bg-muted/10 p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_auto_auto] lg:items-end">
               <div className="space-y-2">
-                <Label className="text-xs">
-                  Status
-                </Label>
+                <Label className="text-xs">Status</Label>
 
                 <Select
-                  value={
-                    expenseEdits[expense.id]?.status ||
-                    expense.status
-                  }
+                  value={expenseEdits[expense.id]?.status || expense.status}
                   onValueChange={(value) =>
-                    setExpenseEdits(
-                      (prev: any) => ({
-                        ...prev,
-                        [expense.id]: {
-                          ...prev[expense.id],
-                          amount:
-                            prev[expense.id]?.amount ??
-                            expense.amount,
-                          status:
-                            value as ExpenseStatus,
-                        },
-                      })
-                    )
+                    setExpenseEdits((prev: any) => ({
+                      ...prev,
+                      [expense.id]: {
+                        ...prev[expense.id],
+                        amount: prev[expense.id]?.amount ?? expense.amount,
+                        status: value as ExpenseStatus,
+                      },
+                    }))
                   }
                 >
                   <SelectTrigger className="h-11 rounded-xl bg-background">
@@ -1199,16 +1018,10 @@ function ExpenseItem({
                   </SelectTrigger>
 
                   <SelectContent>
-                    {Object.entries(
-                      EXPENSE_STATUS_CONFIG
-                    ).map(
+                    {Object.entries(EXPENSE_STATUS_CONFIG).map(
                       ([key, config]: any) => (
-                        <SelectItem
-                          key={key}
-                          value={key}
-                        >
-                          {config.icon}{" "}
-                          {config.label}
+                        <SelectItem key={key} value={key}>
+                          {config.icon} {config.label}
                         </SelectItem>
                       )
                     )}
@@ -1217,38 +1030,24 @@ function ExpenseItem({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs">
-                  Valor
-                </Label>
+                <Label className="text-xs">Valor</Label>
 
                 <Input
                   type="number"
                   placeholder="0,00"
                   className="h-11 rounded-xl bg-background"
-                  value={
-                    expenseEdits[expense.id]
-                      ?.amount ??
-                    expense.amount ??
-                    ""
-                  }
+                  value={expenseEdits[expense.id]?.amount ?? expense.amount ?? ""}
                   onChange={(event) =>
-                    setExpenseEdits(
-                      (prev: any) => ({
-                        ...prev,
-                        [expense.id]: {
-                          ...prev[expense.id],
-                          amount:
-                            event.target.value
-                              ? parseFloat(
-                                  event.target.value
-                                )
-                              : null,
-                          status:
-                            prev[expense.id]?.status ??
-                            expense.status,
-                        },
-                      })
-                    )
+                    setExpenseEdits((prev: any) => ({
+                      ...prev,
+                      [expense.id]: {
+                        ...prev[expense.id],
+                        amount: event.target.value
+                          ? parseFloat(event.target.value)
+                          : null,
+                        status: prev[expense.id]?.status ?? expense.status,
+                      },
+                    }))
                   }
                 />
               </div>
@@ -1257,33 +1056,20 @@ function ExpenseItem({
                 className="h-11 rounded-xl"
                 onClick={() => {
                   const newStatus =
-                    expenseEdits[expense.id]?.status ||
-                    expense.status;
+                    expenseEdits[expense.id]?.status || expense.status;
 
                   const newAmount =
-                    expenseEdits[expense.id]
-                      ?.amount ??
-                    expense.amount;
+                    expenseEdits[expense.id]?.amount ?? expense.amount;
 
-                  onUpdateExpenseStatus(
-                    expense.id,
-                    newStatus,
-                    {
-                      amount: newAmount,
-                    }
-                  );
+                  onUpdateExpenseStatus(expense.id, newStatus, {
+                    amount: newAmount,
+                  });
 
-                  setExpenseEdits(
-                    (prev: any) => {
-                      const updated = {
-                        ...prev,
-                      };
-
-                      delete updated[expense.id];
-
-                      return updated;
-                    }
-                  );
+                  setExpenseEdits((prev: any) => {
+                    const updated = { ...prev };
+                    delete updated[expense.id];
+                    return updated;
+                  });
                 }}
               >
                 Salvar
@@ -1295,13 +1081,9 @@ function ExpenseItem({
                 onClick={() => {
                   if (
                     onDeleteExpense &&
-                    window.confirm(
-                      "Tem certeza que deseja excluir esta despesa?"
-                    )
+                    window.confirm("Tem certeza que deseja excluir esta despesa?")
                   ) {
-                    onDeleteExpense(
-                      expense.id
-                    );
+                    onDeleteExpense(expense.id);
                   }
                 }}
               >
@@ -1314,19 +1096,15 @@ function ExpenseItem({
               <div
                 className={cn(
                   "mt-4 flex items-start gap-3 rounded-xl border p-3",
-                  alertLevel === "yellow" &&
-                    "border-amber-500/20 bg-amber-500/5",
-                  alertLevel === "red" &&
-                    "border-red-500/20 bg-red-500/5",
-                  alertLevel === "purple" &&
-                    "border-purple-500/20 bg-purple-500/5"
+                  alertLevel === "yellow" && "border-amber-500/20 bg-amber-500/5",
+                  alertLevel === "red" && "border-red-500/20 bg-red-500/5",
+                  alertLevel === "purple" && "border-purple-500/20 bg-purple-500/5"
                 )}
               >
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
 
                 <p className="text-xs text-muted-foreground">
-                  Esta despesa requer atenção devido ao
-                  prazo informado.
+                  Esta despesa requer atenção devido ao prazo informado.
                 </p>
               </div>
             )}
@@ -1341,13 +1119,7 @@ function ExpenseItem({
    EDIT PANEL
 ================================================================ */
 
-function EditPanel({
-  editData,
-  setEditData,
-  clients,
-  partners,
-  crewMembers,
-}: any) {
+function EditPanel({ editData, setEditData, clients, partners, crewMembers }: any) {
   return (
     <div className="space-y-6">
       <div>
@@ -1355,24 +1127,17 @@ function EditPanel({
           Configuração do ciclo
         </p>
 
-        <h2 className="mt-1 text-2xl font-bold">
-          Editar informações
-        </h2>
+        <h2 className="mt-1 text-2xl font-bold">Editar informações</h2>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-2">
-          <Label className="text-slate-300">
-            Cliente
-          </Label>
+          <Label className="text-slate-300">Cliente</Label>
 
           <Select
             value={editData.client_id}
             onValueChange={(value) =>
-              setEditData((prev: any) => ({
-                ...prev,
-                client_id: value,
-              }))
+              setEditData((prev: any) => ({ ...prev, client_id: value }))
             }
           >
             <SelectTrigger className="h-11 rounded-xl border-white/10 bg-white/5 text-white">
@@ -1381,13 +1146,8 @@ function EditPanel({
 
             <SelectContent>
               {clients.map((client: any) => (
-                <SelectItem
-                  key={client.id}
-                  value={client.id}
-                >
-                  {client.razao_social ||
-                    client.proprietario ||
-                    "Sem nome"}
+                <SelectItem key={client.id} value={client.id}>
+                  {client.razao_social || client.proprietario || "Sem nome"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1395,9 +1155,7 @@ function EditPanel({
         </div>
 
         <FlightDurationInput
-          value={
-            editData.flight_duration_hours
-          }
+          value={editData.flight_duration_hours}
           onChange={(value) =>
             setEditData((prev: any) => ({
               ...prev,
@@ -1409,17 +1167,12 @@ function EditPanel({
 
       {partners.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-slate-300">
-            Sócio / Partner
-          </Label>
+          <Label className="text-slate-300">Sócio / Partner</Label>
 
           <Select
             value={editData.partner_id}
             onValueChange={(value) =>
-              setEditData((prev: any) => ({
-                ...prev,
-                partner_id: value,
-              }))
+              setEditData((prev: any) => ({ ...prev, partner_id: value }))
             }
           >
             <SelectTrigger className="h-11 rounded-xl border-white/10 bg-white/5 text-white">
@@ -1428,10 +1181,7 @@ function EditPanel({
 
             <SelectContent>
               {partners.map((partner: any) => (
-                <SelectItem
-                  key={partner.id}
-                  value={partner.id}
-                >
+                <SelectItem key={partner.id} value={partner.id}>
                   {partner.nome}
                 </SelectItem>
               ))}
@@ -1442,17 +1192,14 @@ function EditPanel({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label className="text-slate-300">
-            Origem · ICAO
-          </Label>
+          <Label className="text-slate-300">Origem · ICAO</Label>
 
           <Input
             value={editData.origin_icao}
             onChange={(event) =>
               setEditData((prev: any) => ({
                 ...prev,
-                origin_icao:
-                  event.target.value.toUpperCase(),
+                origin_icao: event.target.value.toUpperCase(),
               }))
             }
             maxLength={4}
@@ -1462,17 +1209,14 @@ function EditPanel({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-slate-300">
-            Destino · ICAO
-          </Label>
+          <Label className="text-slate-300">Destino · ICAO</Label>
 
           <Input
             value={editData.destination_icao}
             onChange={(event) =>
               setEditData((prev: any) => ({
                 ...prev,
-                destination_icao:
-                  event.target.value.toUpperCase(),
+                destination_icao: event.target.value.toUpperCase(),
               }))
             }
             maxLength={4}
@@ -1488,10 +1232,7 @@ function EditPanel({
           value={editData.pic_name}
           members={crewMembers}
           onChange={(value: string) =>
-            setEditData((prev: any) => ({
-              ...prev,
-              pic_name: value,
-            }))
+            setEditData((prev: any) => ({ ...prev, pic_name: value }))
           }
         />
 
@@ -1500,10 +1241,7 @@ function EditPanel({
           value={editData.sic_name}
           members={crewMembers}
           onChange={(value: string) =>
-            setEditData((prev: any) => ({
-              ...prev,
-              sic_name: value,
-            }))
+            setEditData((prev: any) => ({ ...prev, sic_name: value }))
           }
         />
       </div>
@@ -1515,17 +1253,10 @@ function EditPanel({
    CREW SELECT
 ================================================================ */
 
-function CrewSelect({
-  label,
-  value,
-  members,
-  onChange,
-}: any) {
+function CrewSelect({ label, value, members, onChange }: any) {
   return (
     <div className="space-y-2">
-      <Label className="text-slate-300">
-        {label}
-      </Label>
+      <Label className="text-slate-300">{label}</Label>
 
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-11 rounded-xl border-white/10 bg-white/5 text-white">
@@ -1534,13 +1265,9 @@ function CrewSelect({
 
         <SelectContent>
           {members.map((member: any) => (
-            <SelectItem
-              key={member.id}
-              value={member.full_name}
-            >
+            <SelectItem key={member.id} value={member.full_name}>
               <div className="flex items-center gap-2">
                 <span>{member.full_name}</span>
-
                 <span className="text-xs text-muted-foreground">
                   ({member.canac})
                 </span>

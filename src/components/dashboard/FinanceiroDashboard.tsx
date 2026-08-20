@@ -4,7 +4,7 @@ import {
   Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause,
   ArrowUpRight, CalendarDays, CheckCircle2, Timer,
   Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send, Mail,
-  Fuel, ChevronDown, ChevronUp // Novos ícones adicionados aqui
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 import TravelReportsTracking from "@/components/dashboard/financeiro/TravelReportsTracking";
@@ -53,8 +53,8 @@ export function FinanceiroDashboard() {
   const [solicitacaoPagamentoOpen, setSolicitacaoPagamentoOpen] = useState(false);
   const [travelReportsOpen, setTravelReportsOpen] = useState(false);
   
-  // Novo estado para controlar a expansão dos abastecimentos (inicia aberto)
-  const [isAbastecimentosExpanded, setIsAbastecimentosExpanded] = useState(true);
+  const [isAbastecimentosExpanded, setIsAbastecimentosExpanded] = useState(false);
+  const [pendingAbastecimentosCount, setPendingAbastecimentosCount] = useState(0);
 
   useEffect(() => {
     loadTodayEntry();
@@ -322,13 +322,13 @@ export function FinanceiroDashboard() {
       {/* Abastecimentos Pendentes - Seção Recolhível */}
       <div className="rounded-xl md:rounded-2xl bg-white/[0.02] border border-white/[0.05] shadow-lg overflow-hidden transition-all duration-300">
         <button
-          onClick={() => setIsAbastecimentosExpanded(!isAbastecimentosExpanded)}
-          className="w-full flex items-center justify-between p-4 bg-white/[0.01] hover:bg-white/[0.03] transition-colors focus:outline-none"
+          type="button"
+          onClick={() => setIsAbastecimentosExpanded((expanded) => !expanded)}
+          aria-expanded={isAbastecimentosExpanded}
+          aria-controls="abastecimentos-pendentes-content"
+          className="w-full flex items-center justify-between overflow-hidden rounded-[3px] border border-[rgba(255,244,89,0.49)] bg-[rgba(182,119,12,0.08)] p-4 text-[rgba(213,225,248,1)] shadow-[1px_1px_3px_0_rgba(236,230,149,1)] hover:bg-[rgba(182,119,12,0.14)] transition-colors focus:outline-none"
         >
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="p-2 md:p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.15)] flex-shrink-0">
-              <Fuel className="h-5 w-5 text-blue-400" />
-            </div>
             <div className="flex flex-col items-start">
               <h3 className="font-semibold text-foreground text-sm md:text-base uppercase tracking-wide">
                 Abastecimentos Pendentes
@@ -338,20 +338,33 @@ export function FinanceiroDashboard() {
               </p>
             </div>
           </div>
-          <div className="p-1 rounded-full hover:bg-white/[0.05] transition-colors">
-            {isAbastecimentosExpanded ? (
-              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-            )}
+          <div className="flex items-center gap-3">
+            <span
+              aria-label={`${pendingAbastecimentosCount} abastecimentos pendentes`}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/15 text-xs font-bold tabular-nums text-amber-300 ring-1 ring-inset ring-amber-400/30"
+            >
+              {pendingAbastecimentosCount}
+            </span>
+            <div className="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-muted-foreground">
+              <span>{isAbastecimentosExpanded ? "Recolher" : "Expandir"}</span>
+              {isAbastecimentosExpanded ? (
+                <ChevronUp className="h-5 w-5" />
+              ) : (
+                <ChevronDown className="h-5 w-5" />
+              )}
+            </div>
           </div>
         </button>
 
-        {isAbastecimentosExpanded && (
-          <div className="p-4 border-t border-white/[0.05] animate-in fade-in slide-in-from-top-2 duration-300">
-            <AbastecimentosPendentesAlert />
-          </div>
-        )}
+        <div
+          id="abastecimentos-pendentes-content"
+          className={isAbastecimentosExpanded ? "p-4 border-t border-white/[0.05] animate-in fade-in slide-in-from-top-2 duration-300" : "hidden"}
+        >
+          <AbastecimentosPendentesAlert
+            isExpanded={isAbastecimentosExpanded}
+            onCountChange={setPendingAbastecimentosCount}
+          />
+        </div>
       </div>
 
       {/* Discordâncias Alert */}

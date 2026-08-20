@@ -38,6 +38,20 @@ function formatNOTAMDate(dateValue: any): string {
   } catch { return 'Data Inválida'; }
 }
 
+// Tokens de um plano ICAO que não são waypoints (regra DCT, e grupos
+// velocidade/nível como "N0120F090" ou "M082F350"). Filtrados antes de
+// tentar resolver os demais tokens como aeródromos.
+const NON_WAYPOINT_TOKEN = /^(DCT|[NMK]\d{4}(F\d{3}|VFR|S\d{4}A\d{5}))?$/i;
+
+function extractRouteTokens(route: string): string[] {
+  if (!route) return [];
+  return route
+    .toUpperCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0 && !NON_WAYPOINT_TOKEN.test(t));
+}
+
 interface FlightCalculations {
   distance: number;
   bearing: number;
@@ -53,7 +67,7 @@ interface FlightCalculations {
 
 export default function PlanoVooPage() {
   const [formData, setFormData] = useState<FlightPlanFormData>({
-    aircraftId: '', aeronaveId: '', registration: '', origin: '', destination: '', alternate: '',
+    aircraftId: '', aeronaveId: '', performanceAeronaveId: '', registration: '', origin: '', destination: '', alternate: '',
     cruiseSpeed: 0, altitude: 5500, fuelOnBoard: 0, route: '', flightRule: 'V', departure: '', picId: '',
   });
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
@@ -86,6 +100,7 @@ export default function PlanoVooPage() {
     formData.destination,
     formData.alternate,
     formData.aeronaveId || null,
+    formData.performanceAeronaveId || null,
     formData.flightRule,
   );
 
@@ -98,24 +113,50 @@ export default function PlanoVooPage() {
     }
   });
 
-  const getAerodromeByCode = useCallback((code: string) => aerodromes.find(a => a.designativo === code), [aerodromes]);
+  const getAerodromeByCode = useCallback((code: string) => aerodromes.find(a => a.designativo === code?.toUpperCase()), [aerodromes]);
 
-  // Route points for map
+  // ── Pontos da rota para o mapa ──────────────────────────────────────────
+  // Antes só incluía origem/destino/alternativa; o texto de "Rota" (DCT,
+  // aerovias, waypoints) era ignorado, então o mapa nunca refletia a rota
+  // calculada — sempre uma reta entre os dois aeródromos.
+  // Agora resolvemos os tokens do campo Rota contra os aeródromos
+  // cadastrados e inserimos os que forem reconhecidos como waypoints
+  // intermediários, na ordem em que aparecem no texto.
+  // Limitação conhecida: só resolve tokens que sejam código ICAO de um
+  // aeródromo cadastrado. Para plotar fixos/aerovias/NAVAIDs de fato seria
+  // necessário uma tabela de waypoints/navaids, que este projeto ainda não
+  // tem — quando ela existir, basta estender addPoint/resolveToken abaixo.
   const routePoints = useMemo((): RoutePoint[] => {
     const points: RoutePoint[] = [];
+    const seen = new Set<string>();
+
     const addPoint = (code: string, type: RoutePoint['type']) => {
       const ad = getAerodromeByCode(code);
       if (!ad) return;
       const coords = parseAerodromeCoordLatLng(ad.coordenadas);
-      if (coords) points.push({ icao: ad.designativo, name: ad.nome, lat: coords.lat, lng: coords.lng, type });
+      if (!coords) return;
+      const key = `${ad.designativo}-${type}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      points.push({ icao: ad.designativo, name: ad.nome, lat: coords.lat, lng: coords.lng, type });
     };
+
     if (formData.origin) addPoint(formData.origin, 'departure');
+
+    const originCode = formData.origin?.toUpperCase();
+    const destinationCode = formData.destination?.toUpperCase();
+    extractRouteTokens(formData.route).forEach((token) => {
+      if (token === originCode || token === destinationCode) return;
+      addPoint(token, 'waypoint');
+    });
+
     if (formData.destination) addPoint(formData.destination, 'arrival');
     if (formData.alternate) addPoint(formData.alternate, 'alternate');
     return points;
-  }, [formData.origin, formData.destination, formData.alternate, getAerodromeByCode]);
+  }, [formData.origin, formData.destination, formData.alternate, formData.route, getAerodromeByCode]);
 
-  // Leg calculations
+  // Leg calculations — agora naturalmente cobre pernas intermediárias, já
+  // que routePoints pode conter waypoints da rota, não só origem/destino.
   const legCalcs = useMemo(() => {
     const legs: Array<{ from: string; to: string; distanceNM: number; bearing: number }> = [];
     const mainPoints = routePoints.filter(p => p.type !== 'alternate');
@@ -129,7 +170,11 @@ export default function PlanoVooPage() {
     const speed = formData.cruiseSpeed || 150;
     const estimatedTimeMinutes = (totalDistanceNM / speed) * 60;
     const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
-    const consumption = aircraft?.fuel_consumption || 50;
+    // A tabela `aeronave` no banco usa `consumo_combustivel`; alguns hooks
+    // podem expor isso já mapeado como `fuel_consumption`. Aceitamos os
+    // dois nomes para não silenciosamente cair no valor padrão de 50L/h
+    // quando o dado real existe só com o nome "cru" da coluna do banco.
+    const consumption = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 50;
     const fuelBurnLiters = (totalDistanceNM / speed) * consumption;
     return { totalDistanceNM, estimatedTimeMinutes, fuelBurnLiters, legs };
   }, [routePoints, formData.cruiseSpeed, formData.aeronaveId, aeronaves]);
@@ -190,11 +235,15 @@ export default function PlanoVooPage() {
 
     setIsValidating(true);
     try {
-      const distance = calculateDistance(oc.lat, oc.lng, dc.lat, dc.lng);
-      const bearing = calculateMagneticHeading(oc.lat, oc.lng, dc.lat, dc.lng);
+      // Usa a mesma distância/pernas já calculadas para o mapa (legCalcs),
+      // que agora considera waypoints intermediários da rota — evita que o
+      // resumo do briefing mostre uma distância diferente do que está
+      // desenhado no mapa.
+      const distance = legCalcs.totalDistanceNM || calculateDistance(oc.lat, oc.lng, dc.lat, dc.lng);
+      const bearing = legCalcs.legs[0]?.bearing ?? calculateMagneticHeading(oc.lat, oc.lng, dc.lat, dc.lng);
       const speed = formData.cruiseSpeed || 150;
       const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
-      const fuelCons = aircraft?.fuel_consumption || 50;
+      const fuelCons = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 50;
       const timeHours = distance / speed;
       const fuelReq = timeHours * fuelCons;
       const fuelRes = fuelReq * 0.45;
@@ -206,7 +255,7 @@ export default function PlanoVooPage() {
 
       const flSuggestion = suggestFlightLevel(bearing, formData.flightRule);
       const altData = {
-        suggested: flSuggestion.label,
+        suggested: flightIntelligence.suggestedAltitudeLabel ?? flSuggestion.label,
         warnings: (vResult?.restrictions as any[])?.map((r) => String(r)) || [],
         alternatives: flSuggestion.alternatives.map((a) => a.label),
       };
@@ -223,7 +272,7 @@ export default function PlanoVooPage() {
     } catch (err) {
       toast.error('Erro ao calcular plano');
     } finally { setIsValidating(false); }
-  }, [formData, getAerodromeByCode, aeronaves, validateFlightPlan]);
+  }, [formData, getAerodromeByCode, aeronaves, validateFlightPlan, legCalcs, flightIntelligence.suggestedAltitudeLabel]);
 
   // Save plan
   const handleSavePlan = useCallback(async () => {
@@ -248,7 +297,7 @@ export default function PlanoVooPage() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100vh-4rem)] -mt-5 -mb-5 -ml-[19px] -mr-[19px] overflow-hidden">
         {/* Sidebar */}
         <div className={isSidebarOpen ? 'w-80' : 'w-0'}>
           {isSidebarOpen && (
@@ -266,6 +315,11 @@ export default function PlanoVooPage() {
               isCalculating={isValidating}
               crewMembers={crewMembers}
               onCollapse={toggleSidebar}
+              altitudeSuggestionFt={flightIntelligence.suggestedAltitudeFt}
+              altitudeSuggestionLabel={flightIntelligence.suggestedAltitudeLabel}
+              altitudeSource={flightIntelligence.altitudeSource}
+              altitudeLoading={flightIntelligence.loading}
+              altitudeError={flightIntelligence.error}
             />
           )}
         </div>
@@ -291,6 +345,9 @@ export default function PlanoVooPage() {
             destWeather={destWeather}
             loadingWeather={isLoadingWeather}
             weatherError={aiswebError}
+            charts={flightIntelligence.charts}
+            chartsLoading={isLoadingCharts}
+            chartsError={aiswebError}
           />
         </div>
       </div>
@@ -481,7 +538,7 @@ export default function PlanoVooPage() {
                     <h3 className="font-semibold mb-3 flex items-center gap-2"><Radio className="w-4 h-4 text-primary" /> {icao}</h3>
                     {r ? (
                       <div className="space-y-3 text-sm">
-                        <div><span className="text-muted-foreground">Nome:</span> {r.nome}</div>
+                        <div><span className="text-muted-foreground">Nome:</span> {r.name}</div>
                         <div><span className="text-muted-foreground">Elevação:</span> {r.elevation}ft</div>
                         <div><span className="text-muted-foreground">Coord:</span> {r.coordinates ? `${r.coordinates.lat.toFixed(2)}°, ${r.coordinates.lng.toFixed(2)}°` : '—'}</div>
                         {solar?.day && (
@@ -503,7 +560,7 @@ export default function PlanoVooPage() {
                           <div>
                             <h4 className="font-semibold mb-1">Frequências:</h4>
                             {r.frequencies.map((f, i) => (
-                              <div key={i} className="ml-4 text-xs"><span className="text-muted-foreground">{f.tipo}:</span> {f.frequency} MHz</div>
+                              <div key={i} className="ml-4 text-xs"><span className="text-muted-foreground">{f.type}:</span> {f.frequency} MHz</div>
                             ))}
                           </div>
                         )}

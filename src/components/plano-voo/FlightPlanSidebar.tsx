@@ -23,6 +23,7 @@ interface LegCalc {
 export interface FlightPlanFormData {
   aircraftId: string;
   aeronaveId: string;
+  performanceAeronaveId: string;
   registration: string;
   origin: string;
   destination: string;
@@ -57,6 +58,17 @@ interface FlightPlanSidebarProps {
   isCalculating: boolean;
   crewMembers: Array<{ id: string; full_name: string; canac: string }>;
   onCollapse?: () => void;
+  /**
+   * Nível de voo sugerido pela RPC `calcular_nivel_voo` (via useFlightIntelligence,
+   * calculado a partir da aeronave selecionada). Esta é a fonte "oficial" —
+   * o heurístico local (regra semicircular) só entra como complemento/fallback
+   * quando ainda não há aeronave/rota suficiente para a RPC responder.
+   */
+  altitudeSuggestionFt?: number | null;
+  altitudeSuggestionLabel?: string | null;
+  altitudeSource?: 'performance' | 'rpc' | 'heuristic' | null;
+  altitudeLoading?: boolean;
+  altitudeError?: string | null;
 }
 
 const formatTime = (minutes: number) => {
@@ -96,22 +108,35 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   isCalculating,
   crewMembers,
   onCollapse,
+  altitudeSuggestionFt = null,
+  altitudeSuggestionLabel = null,
+  altitudeSource = null,
+  altitudeLoading = false,
+  altitudeError = null,
 }) => {
   const [autoAltitude, setAutoAltitude] = useState(true);
 
-  // Auto-fill speed when aircraft changes
+  // Auto-fill de velocidade quando a aeronave muda.
+  // IMPORTANTE: `cruiseSpeed` guarda sempre o valor numérico em nós (kt),
+  // usado nos cálculos de tempo/combustível — nunca o código ICAO formatado
+  // (ex.: "N0120"), que antes era gravado aqui por engano e quebrava o campo
+  // numérico (o <input type="number"> rejeita string não-numérica) e todo o
+  // cálculo de ETE/combustível a jusante (divisão por string vira NaN).
   const handleAircraftChange = useCallback((aircraftId: string) => {
     const ac = aeronaves.find(a => a.id === aircraftId);
-    if (ac) {
-      const speedCode = formatSpeedCode((ac as any).performance_aeronave?.velocidade_cruzeiro_kt);
-      onFormChange({
-        aircraftId,
-        aeronaveId: aircraftId,
-        registration: ac.matricula,
-        cruiseSpeed: speedCode as any,
-        fuelOnBoard: 0,
-      });
-    }
+    if (!ac) return;
+    const linkedPerformance = Array.isArray((ac as any).performance_aeronave)
+      ? (ac as any).performance_aeronave[0]
+      : (ac as any).performance_aeronave;
+    const cruiseKt = Number(linkedPerformance?.velocidade_cruzeiro_kt ?? ac.velocidade_cruzeiro) || 0;
+    onFormChange({
+      aircraftId,
+      aeronaveId: aircraftId,
+      performanceAeronaveId: ac.performance_aeronave_id || '',
+      registration: ac.matricula,
+      cruiseSpeed: cruiseKt,
+      fuelOnBoard: 0,
+    });
   }, [aeronaves, onFormChange]);
 
   const step1Ok = !!formData.aeronaveId && !!formData.picId;
@@ -120,32 +145,45 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   // Proa magnética da perna principal
   const mainBearing = calcs.legs.length > 0 ? calcs.legs[0].bearing : null;
 
-  // Sugestão automática de nível conforme regra semicircular
-  const suggestion = useMemo(() => {
+  // Heurístico local (regra semicircular) — usado para as alternativas de FL
+  // e como texto de justificativa. Não é mais a fonte que decide o valor
+  // aplicado automaticamente em formData.altitude (ver officialAltitudeFt).
+  const localHeuristic = useMemo(() => {
     if (mainBearing == null) return null;
     return suggestFlightLevel(mainBearing, formData.flightRule);
   }, [mainBearing, formData.flightRule]);
 
-  // Aplica automaticamente o FL sugerido
+  // Fonte única de verdade para o nível "oficial": preferimos o valor vindo
+  // da RPC (aeronave real, via props), com o heurístico só como fallback
+  // enquanto não há aeronave/rota suficiente. Isso evita ter dois efeitos
+  // (um aqui, outro em PlanoVoo.tsx) brigando para setar formData.altitude.
+  const officialAltitudeFt = altitudeSuggestionFt ?? localHeuristic?.altitudeFt ?? null;
+  const officialAltitudeLabel = altitudeSuggestionLabel ?? localHeuristic?.label ?? null;
+  const officialSource: 'performance' | 'rpc' | 'heuristic' | null = altitudeSuggestionFt != null
+    ? (altitudeSource ?? 'rpc')
+    : (localHeuristic ? 'heuristic' : null);
+
+  // Aplica automaticamente o FL sugerido (única fonte: officialAltitudeFt).
   useEffect(() => {
-    if (!autoAltitude || !suggestion) return;
-    if (formData.altitude !== suggestion.altitudeFt) {
-      onFormChange({ altitude: suggestion.altitudeFt });
+    if (!autoAltitude || officialAltitudeFt == null) return;
+    if (formData.altitude !== officialAltitudeFt) {
+      onFormChange({ altitude: officialAltitudeFt });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestion?.altitudeFt, autoAltitude]);
+  }, [officialAltitudeFt, autoAltitude]);
 
-  // Sugere rota padrão quando ainda vazia
+  // Sugere rota padrão quando ainda vazia (mantém o heurístico aqui, pois é
+  // a única fonte que calcula uma rota sugerida).
   useEffect(() => {
-    if (!suggestion || formData.route) return;
-    onFormChange({ route: suggestion.suggestedRoute });
+    if (!localHeuristic || formData.route) return;
+    onFormChange({ route: localHeuristic.suggestedRoute });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestion?.suggestedRoute]);
+  }, [localHeuristic?.suggestedRoute]);
 
   return (
-    <div className="w-80 bg-card/95 backdrop-blur-xl border-r border-border flex flex-col h-full overflow-hidden">
+    <div className="w-80 bg-card border-r border-border flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-border bg-background/50">
+      <div className="p-4 border-b border-border bg-background">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Plane className="w-5 h-5 text-primary" />
@@ -210,7 +248,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
         </div>
 
         {/* ── ETAPA 2: Origem e Destino ──────────────────────────── */}
-        <div className={cn('space-y-4 pt-2 border-t border-border/60', !step1Ok && 'opacity-60')}>
+        <div className="space-y-4 pt-2 border-t border-border/60">
           <SectionHeader step={2} title="Origem e Destino" icon={<MapPin className="w-3 h-3" />} done={step2Ok} />
 
           <div className="space-y-2">
@@ -266,38 +304,48 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
         </div>
 
         {/* ── ETAPA 3: Performance, Nível e Rota ─────────────────── */}
-        <div className={cn('space-y-4 pt-2 border-t border-border/60', !step2Ok && 'opacity-60')}>
+        <div className="space-y-4 pt-2 border-t border-border/60">
           <SectionHeader step={3} title="Velocidade, Nível e Rota" icon={<Gauge className="w-3 h-3" />} done={!!formData.cruiseSpeed && !!formData.altitude} />
 
-          {/* Sugestão automática de FL - usando NivelVooSugerido */}
-          {suggestion && (
+          {/* Sugestão automática de FL — fonte única: RPC da aeronave (com
+              fallback heurístico), evitando os dois efeitos conflitantes de antes. */}
+          {officialAltitudeFt != null && (
             <>
-              <NivelVooSugerido 
-                nivelSugeridoFt={suggestion.altitudeFt}
+              <NivelVooSugerido
+                nivelSugeridoFt={officialAltitudeFt}
                 rumo={mainBearing}
-                carregando={false}
-                erro={null}
+                carregando={altitudeLoading}
+                erro={altitudeError}
               />
               <div className="rounded-md border border-primary/40 bg-primary/10 p-2 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
                     <Wand2 className="w-3 h-3" /> Nível sugerido
                   </span>
-                  <span className="font-mono font-bold text-primary">{suggestion.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[9px] h-4">
+                      {officialSource === 'performance' ? 'Performance' : officialSource === 'rpc' ? 'Aeronave' : 'Heurístico'}
+                    </Badge>
+                    <span className="font-mono font-bold text-primary">{officialAltitudeLabel}</span>
+                  </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground leading-tight">{suggestion.rationale}</p>
-                <div className="flex flex-wrap gap-1">
-                  {suggestion.alternatives.map((alt) => (
-                    <button
-                      key={alt.altitudeFt}
-                      type="button"
-                      onClick={() => { setAutoAltitude(false); onFormChange({ altitude: alt.altitudeFt }); }}
-                      className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted/40 hover:bg-muted text-foreground"
-                    >
-                      {alt.label}
-                    </button>
-                  ))}
-                </div>
+                {localHeuristic && (
+                  <p className="text-[10px] text-muted-foreground leading-tight">{localHeuristic.rationale}</p>
+                )}
+                {localHeuristic && localHeuristic.alternatives.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {localHeuristic.alternatives.map((alt) => (
+                      <button
+                        key={alt.altitudeFt}
+                        type="button"
+                        onClick={() => { setAutoAltitude(false); onFormChange({ altitude: alt.altitudeFt }); }}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted/40 hover:bg-muted text-foreground"
+                      >
+                        {alt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
                   <input
                     type="checkbox"
@@ -320,6 +368,11 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                 onChange={(e) => onFormChange({ cruiseSpeed: Number(e.target.value) })}
                 className="bg-background border-border text-foreground font-mono h-8 text-center"
               />
+              {formData.cruiseSpeed > 0 && (
+                <p className="text-[9px] text-muted-foreground mt-0.5 font-mono text-center">
+                  {formatSpeedCode(formData.cruiseSpeed)}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider block mb-1">Alt (ft)</label>
@@ -350,6 +403,9 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               placeholder="DCT ou via pontos"
               className="bg-background border-border text-foreground font-mono h-8 text-xs"
             />
+            <p className="text-[9px] text-muted-foreground leading-tight">
+              Códigos ICAO de aeródromo digitados aqui são plotados no mapa como waypoints da rota.
+            </p>
           </div>
 
           {(preferredRoutes.length > 0 || loadingRoutes) && (
@@ -394,7 +450,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
       </div>
 
       {/* Calculations Summary */}
-      <div className="border-t border-border p-4 bg-background/50">
+      <div className="border-t border-border px-[11px] py-[23px] -mt-6 -mb-6 -ml-[3px] -mr-[3px] bg-background min-h-0 text-[rgba(179,195,230,1)] leading-[13px] font-light text-[9px]">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <div className="text-[10px] uppercase text-muted-foreground">Distance</div>
@@ -438,7 +494,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
           </div>
         )}
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-[13px] mb-[6px] flex gap-[9px] min-h-0 max-w-[5px]">
           <Button
             className="flex-1 bg-primary hover:bg-primary/90"
             onClick={onCalculate}

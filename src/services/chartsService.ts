@@ -54,31 +54,31 @@ function parseChartsData(rawData: any): ChartData[] {
 
       // Mapear tipo da carta usando campos da API DECEA
       let type: ChartData['type'] = 'AIRPORT';
-      const tipoAPI = (chart.tipo || '').toUpperCase();
+      const tipoAPI = String(chart.tipo || chart.type || '').toUpperCase();
 
-      if (tipoAPI === 'SID') {
+      if (tipoAPI === 'SID' || tipoAPI.includes('SAÍDA') || tipoAPI.includes('SAIDA')) {
         type = 'SID';
-      } else if (tipoAPI === 'STAR') {
+      } else if (tipoAPI === 'STAR' || tipoAPI.includes('CHEGADA')) {
         type = 'STAR';
-      } else if (tipoAPI === 'IAC') {
-        type = 'APPROACH'; // IAC = Carta de Aproximação por Instrumentos
+      } else if (tipoAPI === 'IAC' || tipoAPI.includes('APROXIMAÇÃO') || tipoAPI.includes('APROXIMACAO')) {
+        type = 'APPROACH';
       } else if (tipoAPI.includes('IFR') || tipoAPI.includes('INSTRUMENT')) {
         type = 'IFR';
       } else if (tipoAPI.includes('VFR') || tipoAPI.includes('VISUAL')) {
         type = 'VFR';
-      } else if (tipoAPI.includes('DEP')) {
+      } else if (tipoAPI.includes('DEP') || tipoAPI.includes('PARTIDA')) {
         type = 'DEPARTURE';
       }
 
       // Extrair título e descrição
-      const title = chart.nome || chart.title || chart.nome || chart.designator || 'Sem título';
+      const title = chart.titulo || chart.nome || chart.title || chart.designator || 'Sem título';
       const description = chart.tipo_descr || chart.descricao || tipoAPI || '';
 
       const parsedChart: ChartData = {
         type,
         title,
         description,
-        url: chart.link || chart.url || undefined,
+        url: chart.url || chart.link || undefined,
         format: chart.format || (chart.arquivo ? 'PDF' : undefined),
         scale: chart.scale || undefined,
         edition: chart.amdt || chart.edition || undefined,
@@ -103,4 +103,3 @@ function parseChartsData(rawData: any): ChartData[] {
       return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
     });
 }
-

@@ -23,10 +23,10 @@ export const isEntrada = (m: any) => {
   return ["entrada", "estorno", "receita", "credito", "deposito", "recebido"].includes(f);
 };
 
-export const isDga = (m: any) =>
-  norm(m?.tipo_caixa) === "dga" ||
-  String(m?.clientes_id || "") === CLIENTE_DGA_ID ||
-  norm(m?.conta_bancaria).includes("dga");
+export const isDga = (m: any) => {
+  const tipoCaixa = norm(m?.tipo_caixa);
+  return tipoCaixa === "dga" || (tipoCaixa === "cliente" && String(m?.clientes_id || "") === CLIENTE_DGA_ID);
+};
 
 export const isShare = (m: any) => !isDga(m) && norm(m?.tipo_caixa) === "share";
 export const isCliente = (m: any) => !isDga(m) && norm(m?.tipo_caixa) === "cliente";

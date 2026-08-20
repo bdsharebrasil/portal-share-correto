@@ -11,12 +11,11 @@ import {
   Plane,
   FileText,
   Filter,
-  ChevronDown,
+  Search,
+  X,
   Activity,
   Clock3,
   AlertTriangle,
-  WalletCards,
-  ArrowUpRight,
 } from "lucide-react";
 import {
   Select,
@@ -25,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useFlightCycles } from "@/hooks/useFlightCycles";
 import { FlightCycleStats } from "./FlightCycleStats";
 import { FlightCycleCard } from "./FlightCycleCard";
@@ -36,6 +36,34 @@ import {
   FLIGHT_STATUS_CONFIG,
 } from "@/types/flightCycle";
 import { Skeleton } from "@/components/ui/skeleton";
+
+/* ===============================================================
+   HELPERS
+================================================================ */
+
+function getClientName(cycle: FlightCycle) {
+  return (
+    cycle.partner_name ||
+    cycle.client?.company_name ||
+    cycle.client?.proprietario ||
+    "Cliente não definido"
+  );
+}
+
+function getAircraftLabel(cycle: FlightCycle) {
+  return cycle.aircraft?.matricula || "N/A";
+}
+
+/** Alguns projetos ainda não têm um campo dedicado de número de voo.
+ *  Usamos ele se existir, e caímos para os últimos dígitos do ID como
+ *  identificador estável. */
+function getFlightNumber(cycle: FlightCycle) {
+  const explicit = (cycle as any).flight_number as string | undefined;
+  if (explicit) return explicit;
+  return cycle.id ? cycle.id.slice(0, 8).toUpperCase() : "—";
+}
+
+const ALL_VALUE = "__all__";
 
 export function FlightCycleDashboard() {
   const {
@@ -56,27 +84,86 @@ export function FlightCycleDashboard() {
   const [statusFilter, setStatusFilter] = useState<
     FlightCycleStatus | "all"
   >("all");
+  const [aircraftFilter, setAircraftFilter] = useState<string>("all");
+  const [clientFilter, setClientFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("active");
 
   const stats = getStatistics();
 
+  /* -----------------------------------------------------------
+     Opções de filtro derivadas dos ciclos existentes
+  ------------------------------------------------------------ */
+  const aircraftOptions = useMemo(() => {
+    const set = new Map<string, string>();
+    cycles.forEach((cycle) => {
+      const label = getAircraftLabel(cycle);
+      if (label && label !== "N/A") set.set(label, label);
+    });
+    return Array.from(set.values()).sort();
+  }, [cycles]);
+
+  const clientOptions = useMemo(() => {
+    const set = new Set<string>();
+    cycles.forEach((cycle) => set.add(getClientName(cycle)));
+    return Array.from(set.values()).sort();
+  }, [cycles]);
+
+  /* -----------------------------------------------------------
+     Filtragem
+  ------------------------------------------------------------ */
   const filteredCycles = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
     return cycles
+      .filter((cycle) =>
+        activeTab === "active"
+          ? cycle.status !== "finalizado"
+          : cycle.status === "finalizado"
+      )
+      .filter((cycle) =>
+        statusFilter === "all" ? true : cycle.status === statusFilter
+      )
+      .filter((cycle) =>
+        aircraftFilter === "all"
+          ? true
+          : getAircraftLabel(cycle) === aircraftFilter
+      )
+      .filter((cycle) =>
+        clientFilter === "all" ? true : getClientName(cycle) === clientFilter
+      )
       .filter((cycle) => {
-        if (activeTab === "active") {
-          return cycle.status !== "finalizado";
-        }
+        if (!query) return true;
 
-        return cycle.status === "finalizado";
-      })
-      .filter((cycle) => {
-        if (statusFilter === "all") return true;
+        const haystack = [
+          getFlightNumber(cycle),
+          getAircraftLabel(cycle),
+          getClientName(cycle),
+          cycle.origin_icao,
+          cycle.destination_icao,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-        return cycle.status === statusFilter;
+        return haystack.includes(query);
       });
-  }, [cycles, activeTab, statusFilter]);
+  }, [cycles, activeTab, statusFilter, aircraftFilter, clientFilter, searchQuery]);
 
   const currentTabCount = filteredCycles.length;
+
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    aircraftFilter !== "all" ||
+    clientFilter !== "all" ||
+    searchQuery.trim().length > 0;
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setAircraftFilter("all");
+    setClientFilter("all");
+    setSearchQuery("");
+  };
 
   if (selectedCycle) {
     const currentCycle =
@@ -98,7 +185,7 @@ export function FlightCycleDashboard() {
 
   return (
     <div className="min-h-full w-full overflow-hidden rounded-[31px] bg-background">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[30px] border-2 border-[rgba(45,52,67,0.22)] bg-[rgba(0,10,24,0.96)] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 overflow-hidden rounded-[30px] border border-border/60 bg-background px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         {/* =========================================================
             HERO / HEADER
         ========================================================== */}
@@ -178,7 +265,8 @@ export function FlightCycleDashboard() {
               </h2>
             </div>
 
-            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-[rgba(172,236,187,1)] sm:flex">
+            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-emerald-500 sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Atualização em tempo real
             </div>
           </div>
@@ -196,8 +284,8 @@ export function FlightCycleDashboard() {
         {/* =========================================================
             CONTENT
         ========================================================== */}
-        <section className="rounded-[28px] border border-border/70 bg-[rgba(5,41,83,0)] p-4 shadow-sm backdrop-blur-xl sm:p-5 lg:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-[rgba(2,34,73,0)]">
+        <section className="rounded-[28px] border border-border/70 bg-card p-4 shadow-sm sm:p-5 lg:p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             {/* Top bar */}
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0">
@@ -220,74 +308,125 @@ export function FlightCycleDashboard() {
                 </div>
               </div>
 
-              {/* Desktop controls */}
-              <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto">
-                <TabsList className="h-11 w-full rounded-xl border border-border bg-muted/60 p-1 sm:w-auto">
-                  <TabsTrigger
-                    value="active"
-                    className="h-9 flex-1 rounded-lg px-4 text-xs font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:flex-none"
-                  >
-                    <Plane className="mr-2 h-3.5 w-3.5" />
-                    Ativos
-                  </TabsTrigger>
+              <TabsList className="h-11 w-full rounded-xl border border-border bg-muted/60 p-1 xl:w-auto">
+                <TabsTrigger
+                  value="active"
+                  className="h-9 flex-1 rounded-lg px-4 text-xs font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm xl:flex-none"
+                >
+                  <Plane className="mr-2 h-3.5 w-3.5" />
+                  Ativos
+                </TabsTrigger>
 
-                  <TabsTrigger
-                    value="completed"
-                    className="h-9 flex-1 rounded-lg px-4 text-xs font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm sm:flex-none"
-                  >
-                    <FileText className="mr-2 h-3.5 w-3.5" />
-                    Finalizados
-                  </TabsTrigger>
-                </TabsList>
+                <TabsTrigger
+                  value="completed"
+                  className="h-9 flex-1 rounded-lg px-4 text-xs font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm xl:flex-none"
+                >
+                  <FileText className="mr-2 h-3.5 w-3.5" />
+                  Finalizados
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-                <div className="flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-3">
-                  <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {/* =====================================================
+                FILTER BAR
+            ====================================================== */}
+            <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-muted/20 p-3 lg:flex-row lg:items-center">
+              <div className="relative flex-1 lg:min-w-[220px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Buscar por nº do voo, aeronave, cliente ou rota..."
+                  className="h-10 rounded-xl border-border bg-background pl-9 text-sm"
+                />
+              </div>
 
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(value) =>
-                      setStatusFilter(
-                        value as FlightCycleStatus | "all"
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-9 min-w-[180px] border-0 bg-transparent p-0 text-xs font-medium shadow-none focus:ring-0">
-                      <SelectValue placeholder="Filtrar por status" />
-                    </SelectTrigger>
+              <div className="grid grid-cols-2 gap-2 lg:flex lg:shrink-0 lg:items-center">
+                <Select value={aircraftFilter} onValueChange={setAircraftFilter}>
+                  <SelectTrigger className="h-10 w-full rounded-xl border-border bg-background text-xs font-medium lg:w-[160px]">
+                    <Plane className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Aeronave" />
+                  </SelectTrigger>
 
-                    <SelectContent>
-                      <SelectItem value="all">
-                        Todos os status
+                  <SelectContent>
+                    <SelectItem value="all">Todas as aeronaves</SelectItem>
+                    {aircraftOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
                       </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                      {Object.entries(FLIGHT_STATUS_CONFIG).map(
-                        ([key, config]) => (
-                          <SelectItem key={key} value={key}>
-                            {config.label}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={clientFilter} onValueChange={setClientFilter}>
+                  <SelectTrigger className="h-10 w-full rounded-xl border-border bg-background text-xs font-medium lg:w-[180px]">
+                    <Filter className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Cliente" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="all">Todos os clientes</SelectItem>
+                    {clientOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                    setStatusFilter(value as FlightCycleStatus | "all")
+                  }
+                >
+                  <SelectTrigger className="h-10 w-full rounded-xl border-border bg-background text-xs font-medium lg:w-[170px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    {Object.entries(FLIGHT_STATUS_CONFIG).map(
+                      ([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.label}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearFilters}
+                    className="h-10 rounded-xl px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="mr-1.5 h-3.5 w-3.5" />
+                    Limpar
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* =====================================================
                 ACTIVE
             ====================================================== */}
-            <TabsContent
-              value="active"
-              className="mt-6 bg-[rgba(191,198,226,1)] focus-visible:outline-none"
-            >
+            <TabsContent value="active" className="mt-6 focus-visible:outline-none">
               <CycleGrid
                 loading={loading}
                 cycles={filteredCycles}
                 emptyIcon={<Plane className="h-6 w-6" />}
-                emptyTitle="Nenhum voo ativo"
-                emptyDescription="Não existem ciclos ativos para os filtros selecionados."
-                actionLabel="Criar primeiro ciclo"
-                onCreate={() => setCreateDialogOpen(true)}
+                emptyTitle={
+                  hasActiveFilters ? "Nenhum resultado" : "Nenhum voo ativo"
+                }
+                emptyDescription={
+                  hasActiveFilters
+                    ? "Nenhum ciclo corresponde aos filtros selecionados."
+                    : "Não existem ciclos ativos no momento."
+                }
+                actionLabel={hasActiveFilters ? "Limpar filtros" : "Criar primeiro ciclo"}
+                onCreate={hasActiveFilters ? clearFilters : () => setCreateDialogOpen(true)}
                 onSelect={setSelectedCycle}
               />
             </TabsContent>
@@ -295,18 +434,21 @@ export function FlightCycleDashboard() {
             {/* =====================================================
                 COMPLETED
             ====================================================== */}
-            <TabsContent
-              value="completed"
-              className="mt-6 bg-[rgba(8,11,25,1)] focus-visible:outline-none"
-            >
+            <TabsContent value="completed" className="mt-6 focus-visible:outline-none">
               <CycleGrid
                 loading={loading}
                 cycles={filteredCycles}
                 emptyIcon={<FileText className="h-6 w-6" />}
-                emptyTitle="Nenhum voo finalizado"
-                emptyDescription="Os ciclos concluídos aparecerão aqui."
-                actionLabel=""
-                onCreate={() => setCreateDialogOpen(true)}
+                emptyTitle={
+                  hasActiveFilters ? "Nenhum resultado" : "Nenhum voo finalizado"
+                }
+                emptyDescription={
+                  hasActiveFilters
+                    ? "Nenhum ciclo corresponde aos filtros selecionados."
+                    : "Os ciclos concluídos aparecerão aqui."
+                }
+                actionLabel={hasActiveFilters ? "Limpar filtros" : ""}
+                onCreate={clearFilters}
                 onSelect={setSelectedCycle}
               />
             </TabsContent>
@@ -399,28 +541,24 @@ function CycleGrid({
 }: CycleGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-        {[1, 2, 3, 4, 5, 6].map((item) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
           <div
             key={item}
-            className="overflow-hidden rounded-[22px] border border-border bg-background p-4"
+            className="overflow-hidden rounded-2xl border border-border bg-background p-4"
           >
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <Skeleton className="h-11 w-11 rounded-xl" />
+                <Skeleton className="h-9 w-9 rounded-lg" />
 
                 <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3.5 w-2/3" />
                   <Skeleton className="h-3 w-1/3" />
                 </div>
               </div>
 
-              <Skeleton className="h-20 w-full rounded-xl" />
-
-              <div className="grid grid-cols-2 gap-2">
-                <Skeleton className="h-12 rounded-xl" />
-                <Skeleton className="h-12 rounded-xl" />
-              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-3 w-1/2" />
             </div>
           </div>
         ))}
@@ -430,7 +568,7 @@ function CycleGrid({
 
   if (cycles.length === 0) {
     return (
-      <div className="flex min-h-[360px] items-center justify-center rounded-[24px] border border-dashed border-border bg-muted/20 px-6 py-12">
+      <div className="flex min-h-[320px] items-center justify-center rounded-[24px] border border-dashed border-border bg-muted/20 px-6 py-12">
         <div className="mx-auto max-w-md text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background shadow-sm">
             <div className="text-muted-foreground">{emptyIcon}</div>
@@ -458,22 +596,13 @@ function CycleGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 bg-[rgba(5,8,19,1)] text-[rgba(206,215,235,1)] md:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {cycles.map((cycle) => (
-        <div
+        <FlightCycleCard
           key={cycle.id}
-          className="group relative min-w-0 transition-transform duration-200 hover:-translate-y-1"
-        >
-          {/* Glow */}
-          <div className="pointer-events-none absolute inset-x-5 -bottom-2 h-10 rounded-full bg-primary/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
-
-          <div className="relative bg-[rgba(233,217,217,0)]">
-            <FlightCycleCard
-              cycle={cycle}
-              onClick={() => onSelect(cycle)}
-            />
-          </div>
-        </div>
+          cycle={cycle}
+          onClick={() => onSelect(cycle)}
+        />
       ))}
     </div>
   );

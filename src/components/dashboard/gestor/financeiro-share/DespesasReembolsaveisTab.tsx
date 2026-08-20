@@ -12,6 +12,7 @@ interface ReembolsavelRow {
   id: string;
   mesIdx: number;
   mes: string;
+  cliente: string;
   categoria: string;
   banco: string;
   descricao: string;
@@ -32,11 +33,11 @@ export default function DespesasReembolsaveisTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["share-despesas-reembolsaveis", ano],
     queryFn: async () => {
-      const [movRes, catRes] = await Promise.all([
+      const [movRes, catRes, clientesRes] = await Promise.all([
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria, grupo_categoria",
+            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria, grupo_categoria, clientes_id, clientes_nome",
           )
           .neq("status", "cancelado")
           .order("criado_em", { ascending: false })
@@ -44,8 +45,18 @@ export default function DespesasReembolsaveisTab() {
         supabase
           .from("categorias_movimentacao")
           .select("id, grupo_categoria, tipo_despesa"),
+        supabase
+          .from("clientes")
+          .select("id, razao_social, proprietario"),
       ]);
       if (movRes.error) throw movRes.error;
+      if (clientesRes.error) throw clientesRes.error;
+      const clientesMap = new Map(
+        (clientesRes.data || []).map((cliente: any) => [
+          cliente.id,
+          cliente.razao_social || cliente.proprietario || "Cliente sem nome",
+        ]),
+      );
       const catMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
       (catRes.data || []).forEach((c: any) => {
         catMap.set(c.id, {
@@ -64,6 +75,7 @@ export default function DespesasReembolsaveisTab() {
           const grupo = m.grupo_categoria || catMap.get(m.categoria_id)?.grupo || "";
           return {
             ...m,
+            cliente: m.clientes_nome || clientesMap.get(m.clientes_id) || "Cliente não identificado",
             grupo_categoria: grupo,
             data_emissao: dataReferencia ? dataReferencia.slice(0, 10) : "",
           };
@@ -137,6 +149,7 @@ function DetalhamentoReembolsaveisGrid({
           id: m.id,
           mesIdx,
           mes: MESES[mesIdx] ?? "-",
+          cliente: (m.cliente || "Cliente não identificado").trim(),
           categoria: (m.categoria_nome || "Sem categoria").trim(),
           banco: (m.conta_bancaria || "-").trim(),
           descricao: (m.descricao || "-").trim(),
@@ -181,6 +194,7 @@ function DetalhamentoReembolsaveisGrid({
 
   const columns = useMemo(
     () => [
+      { key: "cliente", headerText: "Cliente", sort: true, filter: true, width: "240px" },
       { key: "categoria", headerText: "Categoria", sort: true, filter: true },
       { key: "banco", headerText: "Banco", sort: true, filter: true, width: "180px" },
       { key: "descricao", headerText: "Descrição", sort: true, filter: true, width: "260px" },
