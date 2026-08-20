@@ -1,4 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { X, GripHorizontal, ExternalLink, Contrast, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -26,7 +27,7 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
   const [pos, setPos] = useState({ x: 120, y: 80 });
   const [size, setSize] = useState({ w: 620, h: 460 });
   const [opacity, setOpacity] = useState(90);
-  const [blend, setBlend] = useState<BlendMode>('multiply');
+  const [blend, setBlend] = useState<BlendMode>('normal');
   const [invert, setInvert] = useState(false);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const resizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -54,6 +55,39 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
   const endDrag = useCallback(() => { dragRef.current = null; resizeRef.current = null; }, []);
 
   const isPdf = chart.format?.toLowerCase() === 'pdf' || (chart.url || '').toLowerCase().includes('.pdf');
+  const [pdfImage, setPdfImage] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPdf || !chart.url) {
+      setPdfImage(null);
+      setPdfError(null);
+      return;
+    }
+    let active = true;
+    setPdfLoading(true);
+    setPdfError(null);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    pdfjsLib.getDocument({ url: chart.url, withCredentials: false }).promise
+      .then(async (pdf) => {
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas indisponível');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport, canvas }).promise;
+        if (active) setPdfImage(canvas.toDataURL('image/png'));
+      })
+      .catch((error) => {
+        console.error('[ChartProjectionOverlay] PDF indisponível para visualização inline', error);
+        if (active) setPdfError('Não foi possível renderizar esta carta no mapa.');
+      })
+      .finally(() => { if (active) setPdfLoading(false); });
+    return () => { active = false; };
+  }, [chart.url, isPdf]);
 
   return (
     <div
@@ -75,9 +109,9 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
           <Slider value={[opacity]} min={10} max={100} step={5} onValueChange={(v) => setOpacity(v[0])} />
         </div>
 
-        <Button
+          <Button
           size="icon"
-          variant={blend === 'multiply' ? 'default' : 'ghost'}
+          variant={blend !== 'normal' ? 'default' : 'ghost'}
           className="h-6 w-6"
           title="Remover fundo (projeção)"
           onClick={() => setBlend((b) => (b === 'multiply' ? 'normal' : 'multiply'))}
@@ -106,16 +140,11 @@ export const ChartProjectionOverlay: React.FC<Props> = ({ chart, onClose }) => {
       {/* Conteúdo da carta — sem fundo, projetado sobre o mapa */}
       <div
         className={cn('relative border-x border-b border-border rounded-b-lg overflow-hidden')}
-        style={{ height: size.h, background: blend === 'normal' ? 'hsl(var(--card))' : 'transparent' }}
+        style={{ height: size.h, background: 'hsl(var(--card))' }}
       >
         {chart.url ? (
           isPdf ? (
-            <iframe
-              src={`${chart.url}#toolbar=0&navpanes=0&view=FitH`}
-              title={chart.title}
-              className="w-full h-full"
-              style={{ opacity: opacity / 100, mixBlendMode: blend, filter: invert ? 'invert(1) hue-rotate(180deg)' : undefined }}
-            />
+            pdfLoading ? <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Renderizando carta...</div> : pdfImage ? <img src={pdfImage} alt={chart.title} className="h-full w-full object-contain" style={{ opacity: opacity / 100, mixBlendMode: blend, filter: invert ? 'invert(1) hue-rotate(180deg)' : undefined }} /> : <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-muted-foreground"><span>{pdfError || 'Carta PDF indisponível para visualização.'}</span><a href={chart.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Abrir carta em nova aba</a></div>
           ) : (
             <img
               src={chart.url}

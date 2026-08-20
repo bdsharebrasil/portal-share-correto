@@ -157,6 +157,8 @@ export default function PlanoVooPage() {
 
   // Leg calculations — agora naturalmente cobre pernas intermediárias, já
   // que routePoints pode conter waypoints da rota, não só origem/destino.
+  const routeFlightPoints = useMemo(() => routePoints.filter((point) => point.type !== 'alternate').map((point) => ({ lat: point.lat, lng: point.lng, icao: point.icao })), [routePoints]);
+
   const legCalcs = useMemo(() => {
     const legs: Array<{ from: string; to: string; distanceNM: number; bearing: number }> = [];
     const mainPoints = routePoints.filter(p => p.type !== 'alternate');
@@ -167,17 +169,28 @@ export default function PlanoVooPage() {
       legs.push({ from: from.icao, to: to.icao, distanceNM: dist, bearing: brg });
     }
     const totalDistanceNM = legs.reduce((s, l) => s + l.distanceNM, 0);
-    const speed = formData.cruiseSpeed || 150;
-    const estimatedTimeMinutes = (totalDistanceNM / speed) * 60;
+    const speed = Number(formData.cruiseSpeed) || 0;
+    const winds = [originWeather, destWeather]
+      .map((weather) => ({ direction: Number(weather?.wdir), speed: Number(weather?.wspd) }))
+      .filter((wind) => Number.isFinite(wind.direction) && Number.isFinite(wind.speed) && wind.speed >= 0);
+    const averageWind = winds.length ? winds.reduce((sum, wind) => sum + wind.speed, 0) / winds.length : 0;
+    const averageWindDirection = winds.length ? winds.reduce((sum, wind) => sum + wind.direction, 0) / winds.length : 0;
+    const estimatedTimeHours = speed > 0 ? legs.reduce((sum, leg) => {
+      const relativeWind = (averageWindDirection - leg.bearing) * Math.PI / 180;
+      const headwind = averageWind * Math.cos(relativeWind);
+      const groundSpeed = Math.max(30, speed - headwind);
+      return sum + leg.distanceNM / groundSpeed;
+    }, 0) : 0;
+    const estimatedTimeMinutes = estimatedTimeHours * 60;
     const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
     // A tabela `aeronave` no banco usa `consumo_combustivel`; alguns hooks
     // podem expor isso já mapeado como `fuel_consumption`. Aceitamos os
     // dois nomes para não silenciosamente cair no valor padrão de 50L/h
     // quando o dado real existe só com o nome "cru" da coluna do banco.
-    const consumption = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 50;
-    const fuelBurnLiters = (totalDistanceNM / speed) * consumption;
+    const consumption = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 0;
+    const fuelBurnLiters = estimatedTimeHours > 0 && consumption > 0 ? estimatedTimeHours * consumption : 0;
     return { totalDistanceNM, estimatedTimeMinutes, fuelBurnLiters, legs };
-  }, [routePoints, formData.cruiseSpeed, formData.aeronaveId, aeronaves]);
+  }, [routePoints, formData.cruiseSpeed, formData.aeronaveId, aeronaves, originWeather, destWeather]);
 
   useEffect(() => {
     setOriginWeather(flightIntelligence.weather[formData.origin.toUpperCase()] ?? null);
@@ -191,17 +204,17 @@ export default function PlanoVooPage() {
 
   useEffect(() => {
     if (!flightIntelligence.suggestedRoute) return;
-    setFormData((current) => current.route === flightIntelligence.suggestedRoute
+    setFormData((current) => current.route.trim()
       ? current
       : { ...current, route: flightIntelligence.suggestedRoute });
   }, [flightIntelligence.suggestedRoute]);
 
   useEffect(() => {
-    if (!flightIntelligence.suggestedAltitudeFt) return;
+    if (!flightIntelligence.suggestedAltitudeFt || (flightIntelligence.altitudeSource !== 'performance' && flightIntelligence.altitudeSource !== 'rpc')) return;
     setFormData((current) => current.altitude === flightIntelligence.suggestedAltitudeFt
       ? current
       : { ...current, altitude: flightIntelligence.suggestedAltitudeFt });
-  }, [flightIntelligence.suggestedAltitudeFt]);
+  }, [flightIntelligence.suggestedAltitudeFt, flightIntelligence.altitudeSource]);
 
   // Auto-fetch ROTAER
   useEffect(() => {
@@ -241,16 +254,17 @@ export default function PlanoVooPage() {
       // desenhado no mapa.
       const distance = legCalcs.totalDistanceNM || calculateDistance(oc.lat, oc.lng, dc.lat, dc.lng);
       const bearing = legCalcs.legs[0]?.bearing ?? calculateMagneticHeading(oc.lat, oc.lng, dc.lat, dc.lng);
-      const speed = formData.cruiseSpeed || 150;
+      const speed = Number(formData.cruiseSpeed) || 0;
       const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
-      const fuelCons = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 50;
-      const timeHours = distance / speed;
-      const fuelReq = timeHours * fuelCons;
+      const fuelCons = Number(aircraft?.fuel_consumption ?? aircraft?.consumo_combustivel) || 0;
+      if (speed <= 0 || fuelCons <= 0) { toast.error('Cadastre velocidade de cruzeiro e consumo da aeronave antes de calcular'); return; }
+      const timeHours = legCalcs.estimatedTimeMinutes > 0 ? legCalcs.estimatedTimeMinutes / 60 : distance / speed;
+      const fuelReq = legCalcs.fuelBurnLiters > 0 ? legCalcs.fuelBurnLiters : timeHours * fuelCons;
       const fuelRes = fuelReq * 0.45;
 
       // Validate
       const altitude = formData.altitude || 5500;
-      const vResult = await validateFlightPlan(formData.origin, formData.destination, [oc, dc], altitude);
+      const vResult = await validateFlightPlan(formData.origin, formData.destination, routeFlightPoints.length > 1 ? routeFlightPoints : [oc, dc], altitude, speed, fuelCons, 45);
       setValidation(vResult);
 
       const flSuggestion = suggestFlightLevel(bearing, formData.flightRule);
@@ -264,7 +278,7 @@ export default function PlanoVooPage() {
         distance: Math.round(distance), bearing: Math.round(bearing), time: timeHours,
         fuelRequired: Math.round(fuelReq), fuelReserve: Math.round(fuelRes), totalFuel: Math.round(fuelReq + fuelRes),
         suggestedAlt: altData.suggested, altitudeWarnings: altData.warnings, alternatives: altData.alternatives,
-        ete: `${Math.floor(timeHours)}h ${Math.round(timeHours % 1 * 60)}min`,
+        ete: `${Math.floor(Math.round(timeHours * 60) / 60)}h ${Math.round(timeHours * 60) % 60}min`,
       });
 
       setShowBriefing(true);
@@ -272,7 +286,7 @@ export default function PlanoVooPage() {
     } catch (err) {
       toast.error('Erro ao calcular plano');
     } finally { setIsValidating(false); }
-  }, [formData, getAerodromeByCode, aeronaves, validateFlightPlan, legCalcs, flightIntelligence.suggestedAltitudeLabel]);
+  }, [formData, getAerodromeByCode, aeronaves, validateFlightPlan, legCalcs, routeFlightPoints, flightIntelligence.suggestedAltitudeLabel]);
 
   // Save plan
   const handleSavePlan = useCallback(async () => {

@@ -123,7 +123,7 @@ export function useFlightIntelligence(
           aeronaveId
             ? (supabase as any)
                 .from('aeronave')
-                .select('consumo_combustivel, performance_aeronave_id, performance_aeronave(categoria, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, aprovado_rvsm, velocidade_cruzeiro_kt)')
+                .select('consumo_combustivel, velocidade_cruzeiro, performance_aeronave_id, performance_aeronave(categoria, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, aprovado_rvsm, velocidade_cruzeiro_kt)')
                 .eq('id', aeronaveId)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
@@ -160,12 +160,10 @@ export function useFlightIntelligence(
         let altitudeLabel = heuristic.label;
         let altitudeSource: FlightIntelligence['altitudeSource'] = 'heuristic';
 
-        if (performance && linkedPerformanceId) {
-          const minimumFt = Number(performance.nivel_cruzeiro_min_ft);
-          const maximumFt = Math.min(
-            Number(performance.nivel_cruzeiro_max_ft),
-            Number(performance.teto_servico_ft),
-          );
+        const minimumFt = Number(performance?.nivel_cruzeiro_min_ft);
+        const maximumFt = Math.min(Number(performance?.nivel_cruzeiro_max_ft), Number(performance?.teto_servico_ft));
+        const performanceIsValid = Boolean(performance && linkedPerformanceId && Number.isFinite(minimumFt) && Number.isFinite(maximumFt) && minimumFt > 0 && maximumFt >= minimumFt);
+        if (performanceIsValid) {
           altitudeFt = Math.max(minimumFt, Math.min(maximumFt, altitudeFt));
           altitudeLabel = isIFR
             ? `FL${String(Math.round(altitudeFt / 100)).padStart(3, '0')}`
@@ -176,14 +174,14 @@ export function useFlightIntelligence(
             p_aeronave_id: aeronaveId,
             p_rumo_magnetico: magneticCourse,
           });
-          if (typeof rpcAltitude === 'number') {
+          if (typeof rpcAltitude === 'number' && Number.isFinite(rpcAltitude) && rpcAltitude > 0) {
             altitudeFt = rpcAltitude;
             altitudeLabel = isIFR ? `FL${String(Math.round(rpcAltitude / 100)).padStart(3, '0')}` : `${rpcAltitude} ft`;
             altitudeSource = 'rpc';
           }
         }
 
-        const speedKt = Number(performance?.velocidade_cruzeiro_kt ?? 0);
+        const speedKt = Number(performance?.velocidade_cruzeiro_kt ?? aircraft?.velocidade_cruzeiro ?? 0);
         const burnLph = Number(aircraft?.consumo_combustivel ?? 0);
         const estimatedTimeMinutes = speedKt > 0 ? (distanceNm / speedKt) * 60 : 0;
         const reserveMinutes = isIFR || isNight ? 45 : 30;

@@ -73,8 +73,9 @@ interface FlightPlanSidebarProps {
 
 const formatTime = (minutes: number) => {
   if (!minutes || minutes <= 0) return '0:00';
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  const roundedMinutes = Math.round(minutes);
+  const h = Math.floor(roundedMinutes / 60);
+  const m = roundedMinutes % 60;
   return `${h}:${m.toString().padStart(2, '0')}`;
 };
 
@@ -165,12 +166,12 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
 
   // Aplica automaticamente o FL sugerido (única fonte: officialAltitudeFt).
   useEffect(() => {
-    if (!autoAltitude || officialAltitudeFt == null) return;
+    if (!autoAltitude || officialAltitudeFt == null || (officialSource !== 'performance' && officialSource !== 'rpc')) return;
     if (formData.altitude !== officialAltitudeFt) {
       onFormChange({ altitude: officialAltitudeFt });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [officialAltitudeFt, autoAltitude]);
+  }, [officialAltitudeFt, officialSource, autoAltitude]);
 
   // Sugere rota padrão quando ainda vazia (mantém o heurístico aqui, pois é
   // a única fonte que calcula uma rota sugerida).

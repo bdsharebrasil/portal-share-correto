@@ -6,7 +6,7 @@ import { calculateDistance } from '@/lib/geo'
 import { isAerodromeOperational } from '@/lib/aviation'
 import type { NOTAMData, RouteValidation } from '@/types/aisweb'
 
-interface FlightPoint { lat: number; lng: number }
+interface FlightPoint { lat: number; lng: number; icao?: string }
 
 type ValidationResult = RouteValidation & {
   distanceNm: number
@@ -193,8 +193,11 @@ export function useAISWeb() {
 
   // ── Helpers locais ────────────────────────────────────────────────────────────
 
-  const calculateFuel = useCallback((distanceNm: number, burnPerHour: number, reserveMin: number) => {
-    const timeH        = distanceNm / 120
+  const calculateFuel = useCallback((distanceNm: number, speedKts: number, burnPerHour: number, reserveMin: number) => {
+    if (!Number.isFinite(distanceNm) || distanceNm <= 0 || !Number.isFinite(speedKts) || speedKts <= 0 || !Number.isFinite(burnPerHour) || burnPerHour <= 0) {
+      return { fuelRequired: 0, totalFuel: 0 }
+    }
+    const timeH        = distanceNm / speedKts
     const fuelRequired = timeH * burnPerHour
     const totalFuel    = fuelRequired + (reserveMin / 60) * burnPerHour
     return { fuelRequired, totalFuel }
@@ -227,6 +230,7 @@ export function useAISWeb() {
     destination:   string,
     routePoints:   FlightPoint[] = [],
     _cruiseAlt     = 5000,
+    speedKts       = 120,
     burnPerHour    = 32,
     reserveMinutes = 45,
   ): Promise<ValidationResult> => {
@@ -236,22 +240,27 @@ export function useAISWeb() {
       const destLat = routePoints[routePoints.length - 1]?.lat ?? 0
       const destLon = routePoints[routePoints.length - 1]?.lng ?? 0
 
-      const [originNotam, destNotam, , alternates] = await Promise.all([
-        getNOTAMs(origin),
-        getNOTAMs(destination),
+      const routeIcaos = Array.from(new Set([origin, destination, ...routePoints.map((point) => point.icao ?? '')].filter(Boolean).map((icao) => icao.toUpperCase())))
+      const [routeNotams, , alternates] = await Promise.all([
+        getMultipleNOTAMs(routeIcaos),
         fetchPreferentialRoutes(origin, destination),
         fetchAlternates(destLat, destLon),
       ])
+      const originNotam = routeNotams[origin.toUpperCase()] ?? []
+      const destNotam = routeNotams[destination.toUpperCase()] ?? []
 
       const originLat  = routePoints[0]?.lat ?? 0
       const originLon  = routePoints[0]?.lng ?? 0
-      const distanceNm = calculateDistance(originLat, originLon, destLat, destLon)
-      const { fuelRequired, totalFuel } = calculateFuel(distanceNm, burnPerHour, reserveMinutes)
+      const distanceNm = routePoints.length > 1
+        ? routePoints.slice(1).reduce((total, point, index) => total + calculateDistance(routePoints[index].lat, routePoints[index].lng, point.lat, point.lng), 0)
+        : calculateDistance(originLat, originLon, destLat, destLon)
+      const { fuelRequired, totalFuel } = calculateFuel(distanceNm, speedKts, burnPerHour, reserveMinutes)
       const originStatus = isAerodromeOperational(originNotam as NOTAMData[])
       const destinationStatus = isAerodromeOperational(destNotam as NOTAMData[])
-      const allNotams = [...originNotam, ...destNotam] as NOTAMData[]
+      const allNotams = Object.values(routeNotams).flat() as NOTAMData[]
       const highPriorityCount = allNotams.filter((notam) => notam.priority === 'high').length
-      const routeStatus = !originStatus.operational || !destinationStatus.operational || originStatus.criticalNOTAMs.length + destinationStatus.criticalNOTAMs.length > 0
+      const criticalCount = allNotams.filter((notam) => notam.priority === 'critical').length
+      const routeStatus = !originStatus.operational || !destinationStatus.operational || criticalCount > 0
         ? 'danger'
         : highPriorityCount > 0
           ? 'warning'
@@ -261,9 +270,9 @@ export function useAISWeb() {
       const warnings = [originStatus.reason, destinationStatus.reason].filter((warning): warning is string => Boolean(warning))
 
       return {
-        valid: originStatus.operational && destinationStatus.operational,
+        valid: originStatus.operational && destinationStatus.operational && routeStatus !== 'danger',
         warnings,
-        notams: { [origin]: originNotam, [destination]: destNotam },
+        notams: routeNotams,
         originStatus: originStatus as unknown as { operational: boolean; reason: string; criticalNOTAMs: NOTAMData[]; warnings?: string[] },
         destinationStatus: destinationStatus as unknown as { operational: boolean; reason: string; criticalNOTAMs: NOTAMData[]; warnings?: string[] },
 
@@ -295,7 +304,7 @@ export function useAISWeb() {
     } finally {
       setLoading(false)
     }
-  }, [getNOTAMs, fetchPreferentialRoutes, fetchAlternates, calculateFuel])
+  }, [getMultipleNOTAMs, fetchPreferentialRoutes, fetchAlternates, calculateFuel])
 
   // ── Cache utils ───────────────────────────────────────────────────────────────
 
