@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { FileText, Plus, Eye, Calendar, Clock, ChevronRight, Paperclip, X, Save, Loader2, Pencil } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { FileText, Plus, Eye, Calendar, Clock, ChevronRight, Paperclip, X, Save, Loader2, Pencil, Search, FolderOpen, Wrench, CheckCircle2, ListFilter } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -11,6 +11,8 @@ export function OASTab({ aircraftId }: OASTabProps) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [openYears, setOpenYears] = useState<Record<string, boolean>>({});
 
   async function loadOAS() {
     setLoading(true);
@@ -32,74 +34,69 @@ export function OASTab({ aircraftId }: OASTabProps) {
       return;
     }
 
-    setList(data ?? []);
+    const rows = data ?? [];
+    setList(rows);
+    const years = [...new Set(rows.map((oas: any) => getOASYear(oas)))];
+    setOpenYears((current) => Object.fromEntries(years.map((year) => [year, current[year] ?? true])));
     setLoading(false);
   }
 
   useEffect(() => { loadOAS(); }, [aircraftId]);
 
+  const filteredList = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return list;
+    return list.filter((oas: any) => [oas.numero, oas.tipo_manutencao, oas.periodo, oas.objetivo, oas.oficina_nome, oas.mecanico_responsavel]
+      .filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
+  }, [list, search]);
+
+  const groupedByYear = useMemo(() => filteredList.reduce<Record<string, any[]>>((groups, oas: any) => {
+    const year = getOASYear(oas);
+    (groups[year] ||= []).push(oas);
+    return groups;
+  }, {}), [filteredList]);
+  const years = Object.keys(groupedByYear).sort((a, b) => Number(b) - Number(a));
+  const totalConcluidas = list.filter((oas: any) => String(oas.status || '').toLowerCase().includes('conclu')).length;
+
   if (loading) return <LoadingSpinner />;
   if (selected) return <OASDetail oas={selected} onBack={() => { setSelected(null); loadOAS(); }} aircraftId={aircraftId} />;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="section-accent">
-          <h2 className="text-lg font-semibold">Ordens de Acompanhamento de Serviço</h2>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/60 p-5 shadow-xl md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-ctm-teal"><Wrench className="h-4 w-4" /> Centro de manutenção</div>
+          <h2 className="text-2xl font-bold tracking-tight">Ordens de Acompanhamento de Serviço</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Organize os lançamentos por ano e acompanhe a execução de cada serviço.</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[#45d1b5] bg-transparent px-4 py-1.5 text-sm font-medium text-[#45d1b5] transition-colors hover:bg-[#45d1b5]/10"
-        >
-          <Plus className="h-4 w-4" /> Nova OAS
-        </button>
+        <button onClick={() => setShowForm(true)} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-ctm-teal px-4 py-2.5 text-sm font-semibold text-[hsl(var(--ctm-navy))] shadow-lg shadow-ctm-teal/10 transition hover:bg-ctm-teal-light active:scale-[0.98]"><Plus className="h-4 w-4" /> Nova OAS</button>
       </div>
 
-      {showForm && (
-        <NovaOASForm aircraftId={aircraftId} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); loadOAS(); }} />
-      )}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard icon={FileText} label="Total de OAS" value={String(list.length)} />
+        <MetricCard icon={CheckCircle2} label="Concluídas" value={String(totalConcluidas)} tone="emerald" />
+        <MetricCard icon={FolderOpen} label="Pastas anuais" value={String(Object.keys(groupedByYearFromList(list)).length)} tone="blue" />
+      </div>
 
-      {list.length === 0 && !showForm ? (
-        <EmptySection icon={FileText} text="Nenhuma OAS registrada" />
-      ) : (
-        <div className="space-y-3">
-          {list.map(oas => {
-            const totalServicos = oas.total_mao_obra ?? 0;
-            const totalPecas = oas.total_pecas ?? 0;
-            const total = (oas.total_geral ?? (totalServicos + totalPecas)) as number;
-            return (
-              <div key={oas.id} onClick={() => setSelected(oas)} className="ctm-card-hover p-5 group">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[hsl(var(--ctm-teal)/0.1)] border border-[hsl(var(--ctm-teal)/0.2)] shrink-0">
-                    <span className="text-sm font-bold teal-text">#{oas.numero}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold">{oas.tipo_manutencao || 'Manutenção'}</p>
-                      {oas.periodo && <span className="badge-teal">{oas.periodo}</span>}
-                      <OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} />
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
-                      {oas.data_entrada && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(oas.data_entrada)}</span>}
-                      {oas.data_saida && <span>→ {formatDate(oas.data_saida)}</span>}
-                      {oas.mecanico_responsavel && <span>Mecânico: {oas.mecanico_responsavel}</span>}
-                      {oas.oficina_nome && <span>Oficina: {oas.oficina_nome}</span>}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-white">
-                      {total > 0 ? `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                    </p>
-                    {total > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        MO: {totalServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' })}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-ctm-teal transition-colors shrink-0" />
-                </div>
-              </div>
-            );
+      {showForm && <NovaOASForm aircraftId={aircraftId} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); loadOAS(); }} />}
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/50 p-3 md:flex-row md:items-center">
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} className="ctm-input w-full pl-9" placeholder="Buscar por número, tipo, oficina, mecânico ou objetivo..." /></div>
+        <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground"><ListFilter className="h-4 w-4" /> {filteredList.length} lançamento(s)</div>
+      </div>
+
+      {list.length === 0 && !showForm ? <EmptySection icon={FileText} text="Nenhuma OAS registrada" /> : years.length === 0 ? <EmptySection icon={Search} text="Nenhuma OAS encontrada para essa busca" /> : (
+        <div className="space-y-4">
+          {years.map((year) => {
+            const opened = openYears[year] ?? true;
+            return <section key={year} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-lg">
+              <button onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))} className="flex w-full items-center gap-4 border-b border-white/10 bg-gradient-to-r from-blue-950/80 to-slate-900/70 px-5 py-4 text-left transition hover:from-blue-900/80">
+                <FolderOpen className="h-8 w-8 shrink-0 text-blue-300" />
+                <span className="flex-1"><span className="block text-lg font-bold">{year}</span><span className="text-xs text-muted-foreground">{groupedByYear[year].length} lançamento(s) neste arquivo</span></span>
+                <ChevronRight className={cn('h-5 w-5 text-blue-200 transition-transform', opened && 'rotate-90')} />
+              </button>
+              {opened && <div className="space-y-3 p-3 md:p-4">{groupedByYear[year].map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => setSelected(oas)} />)}</div>}
+            </section>;
           })}
         </div>
       )}
@@ -112,11 +109,29 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
   aircraftId: string; onClose: () => void; onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [programItems, setProgramItems] = useState<any[]>([]);
   const [form, setForm] = useState({
+    programa_manutencao_id: '',
     tipo_manutencao: 'CORRETIVA', periodo: '', periodo_inicio: '', periodo_fim: '',
     tipo_rateio: 'horas', oficina_nome: '', os_oficina: '', horas_celula: '', dias_previstos: '',
     data_entrada: '', data_saida: '', mecanico_responsavel: '', objetivo: '', observacoes: '',
   });
+
+  useEffect(() => {
+    supabase.from('ctm_programa_manutencao').select('*').eq('aeronave_id', aircraftId).eq('status', 'ativo').order('item', { ascending: true })
+      .then(({ data }) => setProgramItems(data ?? []));
+  }, [aircraftId]);
+
+  function selecionarPrograma(id: string) {
+    const item = programItems.find((candidate) => candidate.id === id);
+    setForm((current) => ({
+      ...current,
+      programa_manutencao_id: id,
+      tipo_manutencao: item ? mapProgramaTipo(item.categoria) : current.tipo_manutencao,
+      periodo: item ? item.item : current.periodo,
+      objetivo: item ? item.item : current.objetivo,
+    }));
+  }
 
   async function save() {
     if (!form.tipo_manutencao || !form.data_entrada) { toast.error('Tipo e data de entrada são obrigatórios'); return; }
@@ -136,6 +151,7 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
     const { error } = await (supabase.from('ctm_ordem_acompanhamento_servico') as any).insert({
       aeronave_id: aircraftId,
       numero: nextNum,
+      programa_manutencao_id: form.programa_manutencao_id || null,
       tipo_manutencao: form.tipo_manutencao,
       periodo: form.periodo,
       periodo_inicio: form.periodo_inicio || null,
@@ -165,6 +181,14 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold teal-text">Nova OAS</h3>
         <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+      </div>
+      <div className="mb-4 rounded-xl border border-blue-400/20 bg-blue-500/5 p-3">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-blue-200">Item do Programa de Manutenção</label>
+        <select className="ctm-input w-full" value={form.programa_manutencao_id} onChange={(e) => selecionarPrograma(e.target.value)}>
+          <option value="">OAS avulsa — não vincular ao programa</option>
+          {programItems.map((item) => <option key={item.id} value={item.id}>{item.item}{item.grupo ? ` · ${item.grupo}` : ''}</option>)}
+        </select>
+        <p className="mt-1 text-[11px] text-muted-foreground">Ao finalizar esta OAS, os dados de execução serão gravados automaticamente no item selecionado.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         <div>
@@ -302,6 +326,7 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
               <div>
                 <h2 className="text-xl font-bold">OAS #{oas.numero}</h2>
                 <p className="text-muted-foreground">{oas.tipo_manutencao} {oas.periodo && `· ${oas.periodo}`}</p>
+                {(oas as any).programa_manutencao_id && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-200"><FolderOpen className="h-3 w-3" /> Vinculada ao Programa de Manutenção</span>}
               </div>
               <div className="flex items-center gap-3">
                 <OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} />
@@ -344,6 +369,7 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
           {editando && (
             <EditarOASForm
               oas={oas}
+              aircraftId={aircraftId}
               onClose={() => setEditando(false)}
               onSaved={async () => { await recarregar(); setEditando(false); }}
             />
@@ -499,7 +525,7 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
 }
 
 // ── Editar OAS ───────────────────────────────────────────────────────────────
-function EditarOASForm({ oas, onClose, onSaved }: { oas: any; onClose: () => void; onSaved: () => void }) {
+function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircraftId: string; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     numero: oas.numero ?? '',
@@ -564,8 +590,27 @@ function EditarOASForm({ oas, onClose, onSaved }: { oas: any; onClose: () => voi
       } as any)
       .eq('id', oas.id);
 
-    if (error) toast.error('Erro ao salvar: ' + error.message);
-    else { toast.success('OAS atualizada!'); onSaved(); }
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message);
+      setSaving(false);
+      return;
+    }
+
+    if (String(form.status).toLowerCase().includes('conclu') && oas.programa_manutencao_id) {
+      await sincronizarProgramaComOAS({
+        aircraftId,
+        programaId: oas.programa_manutencao_id,
+        oasId: oas.id,
+        dataExecucao: form.data_saida || new Date().toISOString().slice(0, 10),
+        horasCelula: num(form.horas_celula),
+        pousos: null,
+        oficina: form.oficina_nome || null,
+        observacoes: `Execução concluída na OAS #${form.numero || oas.numero}${form.objetivo ? ` — ${form.objetivo}` : ''}`,
+      });
+    }
+
+    toast.success('OAS atualizada!');
+    onSaved();
     setSaving(false);
   }
 
@@ -681,6 +726,87 @@ function EditarOASForm({ oas, onClose, onSaved }: { oas: any; onClose: () => voi
       </div>
     </div>
   );
+}
+
+function getOASYear(oas: any) {
+  const raw = oas?.data_entrada || oas?.created_at;
+  return raw ? String(raw).slice(0, 4) : 'Sem data';
+}
+
+function groupedByYearFromList(rows: any[]) {
+  return rows.reduce<Record<string, any[]>>((groups, oas) => {
+    const year = getOASYear(oas);
+    (groups[year] ||= []).push(oas);
+    return groups;
+  }, {});
+}
+
+function mapProgramaTipo(categoria?: string) {
+  if (categoria === 'PREVENTIVA_PROGRAMADA') return 'PROGRAMADA';
+  if (categoria === 'REGULATORIO_ANAC' || categoria === 'EMERGENCIA') return 'PREVENTIVA';
+  return 'CORRETIVA';
+}
+
+async function sincronizarProgramaComOAS({
+  aircraftId, programaId, oasId, dataExecucao, horasCelula, pousos, oficina, observacoes,
+}: {
+  aircraftId: string; programaId: string; oasId: string; dataExecucao: string;
+  horasCelula: number | null; pousos: number | null; oficina: string | null; observacoes: string;
+}) {
+  const { data: programa, error: programaError } = await supabase
+    .from('ctm_programa_manutencao').select('id, item').eq('id', programaId).eq('aeronave_id', aircraftId).maybeSingle();
+  if (programaError || !programa) {
+    toast.warning('OAS concluída, mas o item do Programa de Manutenção não foi encontrado para sincronização.');
+    return;
+  }
+
+  const baseline: Record<string, any> = { ultima_execucao_data: dataExecucao, status: 'ativo' };
+  if (horasCelula !== null && Number.isFinite(horasCelula)) baseline.ultima_execucao_horas = horasCelula;
+  if (pousos !== null && Number.isFinite(pousos)) baseline.ultima_execucao_pousos = pousos;
+  const { error: updateError } = await (supabase.from('ctm_programa_manutencao') as any).update(baseline).eq('id', programaId);
+  if (updateError) {
+    toast.warning('OAS concluída, mas o Programa de Manutenção não pôde ser atualizado.');
+    return;
+  }
+
+  let { data: itemAeronave } = await supabase.from('ctm_itens_aeronave').select('id').eq('aeronave_id', aircraftId).eq('nome_item_override', programa.item).limit(1);
+  let itemAeronaveId = itemAeronave?.[0]?.id;
+  if (!itemAeronaveId) {
+    const { data: created } = await supabase.from('ctm_itens_aeronave').insert({ aeronave_id: aircraftId, modelo_item_id: null, nome_item_override: programa.item, ativo: true }).select('id');
+    itemAeronaveId = created?.[0]?.id;
+  }
+
+  if (itemAeronaveId) {
+    const { data: existingExecution } = await supabase.from('ctm_execucoes').select('id').eq('ordem_servico', oasId).limit(1);
+    if (!existingExecution?.length) {
+      await supabase.from('ctm_execucoes').insert({
+        item_aeronave_id: itemAeronaveId,
+        data_execucao: dataExecucao,
+        horas_aeronave_na_execucao: horasCelula,
+        pousos_aeronave_na_execucao: pousos,
+        oficina,
+        ordem_servico: oasId,
+        observacoes,
+      });
+    }
+  }
+  toast.success(`Programa atualizado: ${programa.item}`);
+}
+
+function MetricCard({ icon: Icon, label, value, tone = 'teal' }: { icon: any; label: string; value: string; tone?: 'teal' | 'emerald' | 'blue' }) {
+  const colors = { teal: 'text-ctm-teal bg-ctm-teal/10', emerald: 'text-emerald-300 bg-emerald-500/10', blue: 'text-blue-300 bg-blue-500/10' };
+  return <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-4 shadow-lg"><div className="flex items-center gap-3"><div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colors[tone])}><Icon className="h-5 w-5" /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></div></div>;
+}
+
+function OASListCard({ oas, onClick }: { oas: any; onClick: () => void }) {
+  const totalServicos = Number(oas.total_mao_obra ?? 0);
+  const totalPecas = Number(oas.total_pecas ?? 0);
+  const total = Number(oas.total_geral ?? totalServicos + totalPecas);
+  return <button type="button" onClick={onClick} className="ctm-card-hover group flex w-full items-center gap-4 p-4 text-left md:p-5">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-500/10"><span className="text-sm font-bold text-blue-200">#{oas.numero || '—'}</span></div>
+    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{oas.tipo_manutencao || 'Manutenção'}</p>{oas.periodo && <span className="badge-teal">{oas.periodo}</span>}<OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} /></div><div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">{oas.data_entrada && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(oas.data_entrada)}</span>}{oas.data_saida && <span>→ {formatDate(oas.data_saida)}</span>}{oas.oficina_nome && <span>{oas.oficina_nome}</span>}{oas.programa_manutencao_id && <span className="text-blue-300">Programa vinculado</span>}</div></div>
+    <div className="hidden text-right sm:block"><p className="font-bold">{total > 0 ? total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</p>{total > 0 && <p className="text-xs text-muted-foreground">MO {totalServicos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}</div><ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-ctm-teal" />
+  </button>;
 }
 
 function AprovBadge({ status, small }: { status?: string; small?: boolean }) {

@@ -3137,6 +3137,7 @@ export type Database = {
       ctm_ordem_acompanhamento_servico: {
         Row: {
           aeronave_id: string
+          programa_manutencao_id: string | null
           created_at: string
           data_entrada: string | null
           data_saida: string | null
@@ -3169,6 +3170,7 @@ export type Database = {
         }
         Insert: {
           aeronave_id: string
+          programa_manutencao_id?: string | null
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
@@ -3201,6 +3203,7 @@ export type Database = {
         }
         Update: {
           aeronave_id?: string
+          programa_manutencao_id?: string | null
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
@@ -3232,6 +3235,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ctm_oas_programa_manutencao_id_fkey"
+            columns: ["programa_manutencao_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_programa_manutencao"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
             columns: ["aeronave_id"]
