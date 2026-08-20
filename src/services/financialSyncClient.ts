@@ -33,11 +33,11 @@ const toNumber = (value: unknown): number => {
 const COMPONENT_LABELS: Array<{ key: keyof SalaryPaymentComponents; label: string; categoria: string }> = [
   { key: "salary_net", label: "Salário líquido (holerite)", categoria: "SALARIOS HOLERITE" },
   { key: "base_salary_holerite", label: "Salário (holerite)", categoria: "SALARIOS HOLERITE" },
-  { key: "horas_voo", label: "Horas de voo", categoria: "PAGAMENTO DE HORAS DE VOO " },
+  { key: "horas_voo", label: "Valor horas de voo", categoria: "PAGAMENTO DE HORAS DE VOO " },
   { key: "benefit_card", label: "Cartão alimentação", categoria: "CARTÃO BENEFICIO CAJU" },
   { key: "benefit_other", label: "Outros benefícios", categoria: "BENEFÍCIOS" },
   { key: "benefit", label: "Benefício", categoria: "CARTÃO BENEFICIO CAJU" },
-  { key: "extra", label: "Extras", categoria: "SALARIOS HOLERITE" },
+  { key: "extra", label: "Bonificação/Extra", categoria: "SALARIOS HOLERITE" },
   { key: "ferias", label: "Férias", categoria: "PAGAMENTO DE FÉRIAS" },
   { key: "decimo_terceiro_parcela1", label: "13º salário (1ª parcela)", categoria: "DÉCIMO TERCEIRO SALÁRIO" },
   { key: "decimo_terceiro_parcela2", label: "13º salário (2ª parcela)", categoria: "DÉCIMO TERCEIRO SALÁRIO" },

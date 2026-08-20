@@ -49,6 +49,8 @@ interface PagamentoSalario {
   salario_holerite: number | string | null;
   salario_bruto?: number | string | null;
   salario_liquido?: number | string | null;
+  valor_horas_voo?: number | string | null;
+  bonificacao_extra?: number | string | null;
   descontos_detalhes?: unknown;
   beneficios_detalhes?: unknown;
   custo_total_empresa?: number | string | null;
@@ -98,6 +100,7 @@ interface FormState {
   benefit_card: string;
   benefit_other: string;
   horas_voo: string;
+  valor_horas_voo: string;
   extra: string;
   decimo_terceiro_parcela1: string;
   decimo_terceiro_parcela2: string;
@@ -122,6 +125,7 @@ const emptyForm: FormState = {
   benefit_card: "",
   benefit_other: "",
   horas_voo: "",
+  valor_horas_voo: "",
   extra: "",
   decimo_terceiro_parcela1: "",
   decimo_terceiro_parcela2: "",
@@ -419,7 +423,8 @@ export default function SalariosTab() {
             benefit_card: beneficioPorTipo("Cartão alimentação") || (p.beneficios && !Number.isNaN(Number(p.beneficios)) ? p.beneficios : ""),
             benefit_other: beneficioPorTipo("Outros benefícios"),
             horas_voo: p.horas_voadas ?? "",
-            extra: p.adicionais ?? "",
+            valor_horas_voo: p.valor_horas_voo != null ? String(p.valor_horas_voo) : "",
+            extra: p.bonificacao_extra != null ? String(p.bonificacao_extra) : String(p.adicionais ?? ""),
             decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? String(p.decimo_terceiro_parcela1) : "",
             decimo_terceiro_parcela2: p.decimo_terceiro_parcela2 != null ? String(p.decimo_terceiro_parcela2) : "",
             ferias: p.ferias != null ? String(p.ferias) : "",
@@ -511,9 +516,11 @@ export default function SalariosTab() {
       { tipo: "Outros benefícios", valor: num(f.benefit_other) },
     ].filter((item) => item.valor > 0);
     const totalBeneficios = beneficios.reduce((sum, item) => sum + item.valor, 0);
-    const adicionais = num(f.extra) + (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) + (f.showFerias ? num(f.ferias) : 0);
-    const custoTotal = liquido + totalBeneficios + adicionais;
-    return { bruto, descontos, totalDescontos, liquido, beneficios, totalBeneficios, adicionais, custoTotal };
+    const valorHorasVoo = num(f.valor_horas_voo);
+    const bonificacaoExtra = num(f.extra);
+    const adicionais = bonificacaoExtra + (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) + (f.showFerias ? num(f.ferias) : 0);
+    const custoTotal = liquido + totalBeneficios + valorHorasVoo + adicionais;
+    return { bruto, descontos, totalDescontos, liquido, beneficios, totalBeneficios, valorHorasVoo, bonificacaoExtra, adicionais, custoTotal };
   }, [forms]);
 
   const saveRow = async (userId: string) => {
@@ -534,6 +541,7 @@ export default function SalariosTab() {
         : f.horas_voo.trim() || null;
 
       const resumo = resumoFolha(userId);
+      const valorHorasVoo = resumo.valorHorasVoo;
       if (resumo.bruto <= 0) throw new Error("Informe o salário bruto do holerite.");
       if (resumo.liquido <= 0) throw new Error("Informe o salário líquido ou preencha descontos válidos.");
       if (resumo.liquido > resumo.bruto && resumo.totalDescontos > 0) throw new Error("O líquido não pode ser maior que o bruto quando existem descontos.");
@@ -549,6 +557,8 @@ export default function SalariosTab() {
         valor_total: resumo.custoTotal,
         beneficios: resumo.beneficios.length > 0 ? resumo.beneficios.map((item) => `${item.tipo}: ${formatBRL(item.valor)}`).join("; ") : f.benefit.trim() || null,
         horas_voadas: horasVoadasTexto,
+        valor_horas_voo: valorHorasVoo || null,
+        bonificacao_extra: num(f.extra) || null,
         adicionais: f.extra.trim() || null,
         decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
         decimo_terceiro_parcela2: f.show13 && f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
@@ -586,6 +596,7 @@ export default function SalariosTab() {
         userId,
         {
           salary_net: resumo.liquido,
+          horas_voo: valorHorasVoo,
           benefit_card: num(f.benefit_card),
           benefit_other: num(f.benefit_other),
           extra: num(f.extra),
@@ -855,7 +866,18 @@ export default function SalariosTab() {
                         />
                       </div>
                       <div>
-                        <label className={labelCls}>Adicional</label>
+                        <label className={labelCls}>Valor horas de voo</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls + " border-cyan-500/40"}
+                          placeholder="Ex.: 1.250,00"
+                          value={f.valor_horas_voo}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, valor_horas_voo: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Bonificação/Extra</label>
                         <input
                           type="number"
                           step="0.01"
@@ -897,11 +919,12 @@ export default function SalariosTab() {
                     {(() => {
                       const resumo = resumoFolha(u.id);
                       return (
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
                           <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Bruto</span><strong className="text-sm text-slate-200">{formatBRL(resumo.bruto)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Descontos</span><strong className="text-sm text-rose-300">− {formatBRL(resumo.totalDescontos)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Líquido</span><strong className="text-sm text-emerald-300">{formatBRL(resumo.liquido)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Benefícios</span><strong className="text-sm text-amber-300">+ {formatBRL(resumo.totalBeneficios)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Horas de voo</span><strong className="text-sm text-cyan-300">+ {formatBRL(resumo.valorHorasVoo)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Custo empresa</span><strong className="text-sm text-cyan-300">{formatBRL(resumo.custoTotal)}</strong></div>
                         </div>
                       );
@@ -920,12 +943,12 @@ export default function SalariosTab() {
                             onClick={() =>
                               setForms((prev) => ({
                                 ...prev,
-                                [u.id]: { ...f, extra: horasTotal.toFixed(2) },
+                                [u.id]: { ...f, valor_horas_voo: horasTotal.toFixed(2) },
                               }))
                             }
                             className="text-[11px] bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 px-2 py-1 rounded-lg border border-cyan-500/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           >
-                            Usar {formatBRL(horasTotal)} como Adicional
+                            Usar {formatBRL(horasTotal)} como Valor horas de voo
                           </button>
                         </div>
 
@@ -953,7 +976,7 @@ export default function SalariosTab() {
                               </div>
                             ))}
                             <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-slate-800">
-                              <span className="font-semibold text-slate-200">Total Horas de Voo</span>
+                              <span className="font-semibold text-slate-200">Valor horas de voo</span>
                               <span className="text-cyan-300 font-bold">{formatBRL(horasTotal)}</span>
                             </div>
                           </div>
