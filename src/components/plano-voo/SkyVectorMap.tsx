@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents, LayersControl, WMSTileLayer } from 'react-leaflet';
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProject
 import { DECEA_WMS_URL, WAC_LAYERS, REA_LAYERS, ARC_LAYERS, CNAV_LAYERS, AIRSPACE_LAYERS } from './deceaLayers';
 import type { ChartData } from '@/services/chartsService';
 import type { AISWebMETARData } from '@/services/aiswebWeather';
-import { fetchOpenWeatherPointDirect, openWeatherTileUrl, type OpenWeatherPoint } from '@/services/openweatherMap';
+import { fetchOpenWeatherPointDirect, openWeatherTileUrl, type OpenWeatherLayer, type OpenWeatherPoint } from '@/services/openweatherMap';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet default icons
@@ -158,6 +158,65 @@ const WeatherMapClick: React.FC<{ onSelect: (point: { lat: number; lon: number }
   return null;
 };
 
+const WEATHER_LAYERS: Array<{ id: OpenWeatherLayer; label: string; color: string }> = [
+  { id: 'wind_new', label: 'Vento', color: '#38bdf8' },
+  { id: 'precipitation_new', label: 'Precipitação', color: '#60a5fa' },
+  { id: 'clouds_new', label: 'Nuvens', color: '#c4b5fd' },
+  { id: 'temp_new', label: 'Temperatura', color: '#fb923c' },
+  { id: 'pressure_new', label: 'Pressão', color: '#facc15' },
+];
+
+const WeatherLayersControl: React.FC = () => {
+  const map = useMap();
+  const layersRef = useRef<Partial<Record<OpenWeatherLayer, L.TileLayer>>>({});
+  const [activeLayers, setActiveLayers] = useState<OpenWeatherLayer[]>(['wind_new', 'precipitation_new', 'clouds_new']);
+
+  useEffect(() => {
+    const next = new Set(activeLayers);
+    for (const option of WEATHER_LAYERS) {
+      const existing = layersRef.current[option.id];
+      if (next.has(option.id) && !existing) {
+        const layer = L.tileLayer(openWeatherTileUrl(option.id), {
+          opacity: option.id === 'wind_new' ? 0.62 : option.id === 'precipitation_new' ? 0.58 : option.id === 'clouds_new' ? 0.48 : 0.42,
+          zIndex: 450 + WEATHER_LAYERS.findIndex((item) => item.id === option.id),
+          attribution: '&copy; OpenWeather',
+          crossOrigin: true,
+        });
+        layer.on('tileerror', (event: any) => console.warn(`[OpenWeather] Falha no tile ${option.id}`, event?.error ?? event));
+        layer.addTo(map);
+        layersRef.current[option.id] = layer;
+      } else if (!next.has(option.id) && existing) {
+        existing.removeFrom(map);
+        delete layersRef.current[option.id];
+      }
+    }
+  }, [activeLayers, map]);
+
+  useEffect(() => () => {
+    Object.values(layersRef.current).forEach((layer) => layer?.removeFrom(map));
+    layersRef.current = {};
+  }, [map]);
+
+  const toggleLayer = (layer: OpenWeatherLayer) => {
+    setActiveLayers((current) => current.includes(layer) ? current.filter((item) => item !== layer) : [...current, layer]);
+  };
+
+  return (
+    <div className="absolute right-2 top-2 z-[1000] min-w-[12rem] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm">
+      <div className="border-b border-slate-200 px-3 py-2 font-semibold">Meteorologia — OpenWeather</div>
+      <div className="space-y-1 p-2">
+        {WEATHER_LAYERS.map((option) => (
+          <label key={option.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100">
+            <input type="checkbox" checked={activeLayers.includes(option.id)} onChange={() => toggleLayer(option.id)} className="h-3.5 w-3.5 accent-sky-600" />
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const weatherNumber = (value: number | undefined, digits = 0) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
 
 const WeatherPointCard: React.FC<{
@@ -292,22 +351,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
     <div className="relative w-full h-full">
       <MapContainerAny center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
         <WeatherMapClick onSelect={loadWeatherPoint} />
+        <WeatherLayersControl />
         <LayersControlAny position="topright">
-          <LayersControl.Overlay checked name="Vento — OpenWeather">
-            <TileLayerAny url={openWeatherTileUrl('wind_new')} opacity={0.62} zIndex={450} attribution="&copy; OpenWeather" />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Precipitação — OpenWeather">
-            <TileLayerAny url={openWeatherTileUrl('precipitation_new')} opacity={0.58} zIndex={451} attribution="&copy; OpenWeather" />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Nuvens — OpenWeather">
-            <TileLayerAny url={openWeatherTileUrl('clouds_new')} opacity={0.48} zIndex={452} attribution="&copy; OpenWeather" />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Temperatura — OpenWeather">
-            <TileLayerAny url={openWeatherTileUrl('temp_new')} opacity={0.42} zIndex={453} attribution="&copy; OpenWeather" />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Pressão — OpenWeather">
-            <TileLayerAny url={openWeatherTileUrl('pressure_new')} opacity={0.38} zIndex={454} attribution="&copy; OpenWeather" />
-          </LayersControl.Overlay>
           <LayersControl.BaseLayer checked name="CartoDB Dark">
             <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" />
           </LayersControl.BaseLayer>
