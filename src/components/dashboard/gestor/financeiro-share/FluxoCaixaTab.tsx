@@ -31,7 +31,7 @@ import EditLancamentoModal from "@/components/dashboard/gestor/financeiro-share/
 import AttachmentViewerModal from "@/components/dashboard/gestor/financeiro-share/AttachmentViewerModal";
 import NovaDespesaShareForm from "@/components/dashboard/gestor/financeiro-share/NovaDespesaShareForm";
 import NovaDespesaClienteForm from "@/components/dashboard/gestor/financeiro-share/NovaDespesaClienteForm";
-import FinanceiroResumo from "@/components/dashboard/gestor/financeiro-share/FinanceiroResumo";
+import ContasPagarFluxoTab from "@/components/dashboard/gestor/financeiro-share/ContasPagarFluxoTab";
 import ClienteSituacao from "@/components/dashboard/gestor/financeiro-share/ClienteSituacao";
 import DgaSituacao from "@/components/dashboard/gestor/financeiro-share/DgaSituacao";
 import { useInadimplencia } from "@/hooks/useInadimplencia";
@@ -48,7 +48,7 @@ export default function FluxoCaixaTab() {
   const [data, setData] = useState<any>({ movimentacoes: [], rateios: [], clientes: [], socios: [], categorias: [] });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [aba, setAba] = useState<"visao" | "caixa" | "reembolsaveis" | "clientes" | "dga">("visao");
+  const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("visao");
   
   // Filtros
   const [busca, setBusca] = useState("");
@@ -254,11 +254,9 @@ export default function FluxoCaixaTab() {
         </div>
       </div>
 
-      <FinanceiroResumo resumo={resumo} />
-      
       {/* TABS */}
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
-        {([["visao", "Visão Geral"], ["caixa", "Caixa"], ["reembolsaveis", "Despesas Reembolsáveis"], ["clientes", "Caixa Clientes"], ["dga", "DGA"]] as const).map(([k, l]) => (
+        {([["visao", "Visão Geral"], ["caixa", "Caixa"], ["contas-pagar", "Contas a Pagar"], ["reembolsaveis", "Despesas Reembolsáveis"], ["clientes", "Caixa Clientes"], ["dga", "DGA"]] as const).map(([k, l]) => (
           <button 
             key={k} 
             onClick={() => { setAba(k); setSelecionados([]); }} 
@@ -412,6 +410,7 @@ export default function FluxoCaixaTab() {
         </div>
       )}
 
+      {aba === "contas-pagar" && <ContasPagarFluxoTab />}
       {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 
       {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} />}
 
