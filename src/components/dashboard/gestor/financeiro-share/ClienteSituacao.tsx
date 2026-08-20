@@ -31,9 +31,11 @@ import EditCaixaClienteModal from "@/components/dashboard/gestor/financeiro-shar
 export default function ClienteSituacao({
   clientes,
   movimentacoes,
+  onRefresh,
 }: {
   clientes: any[];
   movimentacoes: any[];
+  onRefresh?: () => Promise<void> | void;
 }) {
   const [clienteId, setClienteId] = useState<string>("");
   const [mes, setMes] = useState("");
@@ -104,7 +106,7 @@ export default function ClienteSituacao({
       const { error } = await supabase.from("movimentacoes").delete().eq("id", id);
       if (error) throw error;
       alert("Lançamento excluído com sucesso!");
-      window.location.reload(); // Recarrega para buscar as props atualizadas
+      await onRefresh?.();
     } catch (err: any) {
       alert("Erro ao excluir: " + err.message);
     }
@@ -426,10 +428,9 @@ export default function ClienteSituacao({
           movId={editMov.id}
           mov={editMov}
           onClose={() => setEditMov(null)}
-          onSaved={(patch) => {
+          onSaved={async () => {
             setEditMov(null);
-            // Opção ideal se você não refaz as queries via react-query ou SWR no parent:
-            window.location.reload(); 
+            await onRefresh?.();
           }}
         />
       )}

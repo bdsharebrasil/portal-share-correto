@@ -280,7 +280,7 @@ export default function FluxoCaixaTab() {
       )}
 
       {aba === "contas-pagar" && <ContasPagarFluxoTab />}
-      {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} />} 
+      {aba === "clientes" && <ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} onRefresh={load} />}
       {aba === "dga" && <DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} />}
 
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
