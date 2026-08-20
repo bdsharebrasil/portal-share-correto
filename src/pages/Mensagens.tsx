@@ -161,16 +161,16 @@ export default function Mensagens() {
         <div className="pointer-events-none absolute -top-32 left-1/4 h-72 w-72 rounded-full bg-primary/20 blur-[120px]" />
         <div className="pointer-events-none absolute bottom-0 right-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
 
-        <div className="relative flex h-[calc(100vh-73px)] flex-col p-4 md:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex h-[calc(100vh-73px)] min-h-[680px] flex-col gap-5 p-4 md:p-6 lg:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
-                <span className="rounded-xl bg-primary/15 p-2 ring-1 ring-primary/25">
-                  <Mail className="h-5 w-5 text-primary" />
+              <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-foreground">
+                <span className="rounded-xl bg-cyan-500/10 p-2.5 ring-1 ring-cyan-400/25 shadow-[0_8px_24px_rgba(34,211,238,0.08)]">
+                  <Mail className="h-5 w-5 text-cyan-300" />
                 </span>
                 Mensagens
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground/80">
                 Comunicação interna privada entre os usuários do sistema
               </p>
             </div>
@@ -179,18 +179,18 @@ export default function Mensagens() {
                 setReplyTo(null);
                 setComposeOpen(true);
               }}
-              className="bg-[rgba(103,221,217,1)] shadow-lg shadow-primary/25"
+              className="h-10 rounded-xl bg-cyan-300 px-4 font-semibold text-slate-950 shadow-[0_10px_28px_rgba(103,221,217,0.18)] transition-transform hover:bg-cyan-200 active:scale-[0.98]"
             >
               <PenSquare className="mr-2 h-4 w-4" /> Nova mensagem
             </Button>
           </div>
 
           {/* 2 colunas: lista + leitor */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[350px_minmax(0,1fr)]">
             {/* LISTA (estilo caixa de e-mail) */}
-            <section className="portal-card mt-[-12px] mb-[-12px] ml-[-17px] mr-[-17px] flex min-h-0 flex-col overflow-hidden pt-[3px] pb-[3px] pl-0 pr-0">
+            <section className="portal-card flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-0 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
               {/* Busca */}
-              <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
+              <div className="flex items-center gap-2 border-b border-border/50 bg-muted/15 px-4 py-3.5">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
                   value={search}
@@ -201,13 +201,13 @@ export default function Mensagens() {
               </div>
 
               {/* Título + contagem, igual "Inbox / 743 messages, 2 unread" */}
-              <div className="flex items-center justify-between px-4 pb-2 pt-3">
-                <h2 className="text-lg font-bold">
+              <div className="flex items-center justify-between px-5 pb-1 pt-5">
+                  <h2 className="text-base font-semibold tracking-tight">
                   {navTabs.find((t) => t.key === view)?.label || "Inbox"}
                 </h2>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground">
+                      <button className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground">
                       <FolderIcon className="h-3.5 w-3.5" />
                       Pastas
                       <ChevronDown className="h-3 w-3" />
@@ -232,12 +232,12 @@ export default function Mensagens() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <p className="mx-[3px] mt-[8px] mb-[8px] px-4 pt-0 pb-[19px] text-[13px] font-light leading-[5px] text-muted-foreground">
+              <p className="px-5 pb-4 pt-1 text-xs text-muted-foreground/75">
                 {items.length} mensagens, {unreadCount} não lidas
               </p>
 
               {/* Abas compactas (Inbox / Unread / Starred / Sent / Archived / Trash) */}
-              <div className="mt-[-9px] mb-[-9px] ml-[-3px] mr-[-3px] flex min-h-0 items-center gap-[5px] overflow-x-auto border-b border-border/50 px-3 pb-2 text-[8px] font-light leading-[14px] no-scrollbar">
+              <div className="flex min-h-0 items-center gap-1 overflow-x-auto border-b border-border/50 px-4 pb-3 no-scrollbar">
                 {navTabs.map((n) => {
                   const active = view === n.key;
                   return (
@@ -248,12 +248,12 @@ export default function Mensagens() {
                         setSelectedId(null);
                       }}
                       className={`my-1 flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                        active
-                          ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
+                          active
+                          ? "bg-cyan-400/10 text-cyan-200 ring-1 ring-cyan-400/25"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                       }`}
                     >
-                      <n.icon className={`h-3.5 w-3.5 ${active ? "text-primary" : ""}`} />
+                          <n.icon className={`h-3.5 w-3.5 ${active ? "text-cyan-300" : ""}`} />
                       {n.label}
                       {!!n.badge && (
                         <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
@@ -265,7 +265,7 @@ export default function Mensagens() {
                 })}
               </div>
 
-              <ScrollArea className="flex-1 ctm-scroll">
+              <ScrollArea className="min-h-0 flex-1 ctm-scroll">
                 {loading ? (
                   <p className="p-6 text-center text-sm text-muted-foreground">Carregando...</p>
                 ) : list.length === 0 ? (
@@ -284,7 +284,11 @@ export default function Mensagens() {
                           key={item.message.id}
                           onClick={() => openMessage(item)}
                           className={`relative flex w-full gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors ${
-                            active ? "bg-primary/15" : unread ? "bg-white/[0.02] hover:bg-muted/40" : "hover:bg-muted/30"
+                            active
+                              ? "bg-cyan-400/10 shadow-[inset_3px_0_0_rgba(103,221,217,0.9)]"
+                              : unread
+                              ? "bg-white/[0.025] hover:bg-muted/40"
+                              : "hover:bg-muted/30"
                           }`}
                         >
                           <Avatar className="h-10 w-10 shrink-0">
@@ -339,23 +343,23 @@ export default function Mensagens() {
             </section>
 
             {/* LEITOR */}
-            <section className="portal-card flex min-h-0 flex-col overflow-hidden">
+            <section className="portal-card flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
               {!selected ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-muted-foreground">
-                  <div className="rounded-2xl bg-primary/10 p-5 ring-1 ring-primary/20">
-                    <Mail className="h-8 w-8 text-primary" />
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-muted-foreground">
+                  <div className="rounded-2xl bg-cyan-400/10 p-5 ring-1 ring-cyan-400/20 shadow-[0_12px_32px_rgba(34,211,238,0.08)]">
+                    <Mail className="h-8 w-8 text-cyan-300" />
                   </div>
-                  <p className="text-sm">Selecione uma mensagem para ler</p>
+                  <p className="text-sm text-muted-foreground/80">Selecione uma mensagem para ler</p>
                 </div>
               ) : (
                 <>
                   {/* Toolbar: Delete · Spam · Archive · Favorite · Reply */}
-                  <div className="flex items-center gap-1 border-b border-border/60 px-4 py-2.5">
+                  <div className="flex flex-wrap items-center gap-1 border-b border-border/60 bg-muted/10 px-5 py-3">
                     {selected.myRow && (
                       <>
                         <ToolbarButton
                           icon={Trash2}
-                          label="Delete"
+                          label="Excluir"
                           danger={!selected.myRow.is_deleted}
                           activeIcon={selected.myRow.is_deleted ? RotateCcw : undefined}
                           onClick={async () => {
@@ -366,12 +370,12 @@ export default function Mensagens() {
                         <ToolbarButton icon={AlertOctagon} label="Spam" onClick={() => toast.info("Em breve")} />
                         <ToolbarButton
                           icon={Archive}
-                          label={selected.myRow.is_archived ? "Unarchive" : "Archive"}
+                          label={selected.myRow.is_archived ? "Retirar do arquivo" : "Arquivar"}
                           onClick={() => updateMyRow(selected, { is_archived: !selected.myRow!.is_archived } as any)}
                         />
                         <ToolbarButton
                           icon={Star}
-                          label="Favorite"
+                          label="Favoritar"
                           active={selected.myRow.is_starred}
                           onClick={() => updateMyRow(selected, { is_starred: !selected.myRow!.is_starred } as any)}
                         />
@@ -422,7 +426,7 @@ export default function Mensagens() {
                         onClick={handleReply}
                         className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                       >
-                        <SendIcon className="h-3.5 w-3.5" /> Reply
+                          <SendIcon className="h-3.5 w-3.5" /> Responder
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -439,9 +443,9 @@ export default function Mensagens() {
                     </div>
                   </div>
 
-                  <ScrollArea className="flex-1 ctm-scroll">
-                    <div className="px-6 pt-5">
-                      <h2 className="text-xl font-bold leading-tight">
+                  <ScrollArea className="min-h-0 flex-1 ctm-scroll">
+                    <div className="px-6 pb-1 pt-7 md:px-8">
+                      <h2 className="text-2xl font-semibold leading-tight tracking-tight">
                         {selected.message.subject || "(sem assunto)"}
                       </h2>
 
@@ -474,18 +478,18 @@ export default function Mensagens() {
                             )}
                           </p>
                         </div>
-                        <span className="shrink-0 text-xs text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground/75">
                           {format(new Date(selected.message.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                         </span>
                       </div>
                     </div>
 
-                    <div className="whitespace-pre-wrap px-6 py-5 text-sm leading-relaxed text-foreground/90">
+                    <div className="whitespace-pre-wrap px-6 py-6 text-sm leading-7 text-foreground/90 md:px-8">
                       {selected.message.body}
                     </div>
 
                     {selected.attachments.some((a) => a.file_type?.startsWith("image/")) && (
-                      <div className="space-y-3 px-6 pb-4">
+                      <div className="space-y-3 px-6 pb-6 md:px-8">
                         {selected.attachments
                           .filter((a) => a.file_type?.startsWith("image/"))
                           .map((a) => (
@@ -495,7 +499,7 @@ export default function Mensagens() {
                               className="block w-full overflow-hidden rounded-xl border border-border/60"
                             >
                               {inlineImages[a.id] ? (
-                                <img src={inlineImages[a.id]} alt={a.file_name} className="max-h-96 w-full object-cover" />
+                                <img src={inlineImages[a.id]} alt={a.file_name}                                 className="max-h-[28rem] w-full object-cover" />
                               ) : (
                                 <div className="skeleton h-48 w-full" />
                               )}
@@ -505,7 +509,7 @@ export default function Mensagens() {
                     )}
 
                     {selected.attachments.some((a) => !a.file_type?.startsWith("image/")) && (
-                      <div className="px-6 pb-6">
+                      <div className="px-6 pb-7 md:px-8">
                         <p className="portal-section-label mb-2">Anexos</p>
                         <div className="flex flex-wrap gap-2">
                           {selected.attachments
@@ -526,12 +530,12 @@ export default function Mensagens() {
                   </ScrollArea>
 
                   {/* Rodapé: Reply / Forward, igual ao botão azul + cinza da screenshot */}
-                  <div className="flex items-center gap-2 border-t border-border/60 bg-muted/10 px-6 py-3">
+                  <div className="flex items-center gap-2 border-t border-border/60 bg-muted/10 px-6 py-4 md:px-8">
                     <Button size="sm" onClick={handleReply} className="shadow-lg shadow-primary/20">
-                      <SendIcon className="mr-2 h-4 w-4" /> Reply
+                      <SendIcon className="mr-2 h-4 w-4" /> Responder
                     </Button>
                     <Button size="sm" variant="secondary" onClick={handleForward}>
-                      <Forward className="mr-2 h-4 w-4" /> Forward
+                      <Forward className="mr-2 h-4 w-4" /> Encaminhar
                     </Button>
                   </div>
                 </>
