@@ -525,8 +525,18 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
 }
 
 // ── Editar OAS ───────────────────────────────────────────────────────────────
+function OASField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground block mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircraftId: string; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
+  const [cotistas, setCotistas] = useState<any[]>([]);
   const [form, setForm] = useState({
     numero: oas.numero ?? '',
     os_oficina: oas.os_oficina ?? '',
@@ -553,7 +563,41 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
     observacoes: oas.observacoes ?? '',
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from('cotistas_aeronave')
+        .select('id_clientes, socios_id, percentual_sociedade, clientes:clientes(razao_social, proprietario), socios:socios(nome)')
+        .eq('id_aeronave', aircraftId);
+      if (!cancelled && !error) setCotistas(data ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, [aircraftId]);
+
   const f = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
+  const nomeCotista = (cotista: any) => cotista?.socios?.nome || cotista?.clientes?.razao_social || cotista?.clientes?.proprietario || 'Cotista';
+  const percentualCotista = (cotista: any) => Number(cotista?.percentual_sociedade) || 0;
+  const aplicarRateioPercentual = (rows = cotistas) => {
+    if (rows.length === 0) return false;
+    const linhas = rows.map((cotista) => `${nomeCotista(cotista)} ${percentualCotista(cotista).toFixed(2)}`).join(' / ');
+    const percentuais = rows.map((cotista) => percentualCotista(cotista).toFixed(2)).join(' / ');
+    setForm((current) => ({ ...current, tipo_rateio: 'percentual', total_voado_porcentagem: linhas, porcentagem_rateio: percentuais }));
+    return true;
+  };
+  useEffect(() => {
+    if (form.tipo_rateio === 'percentual' && cotistas.length > 0 && !String(form.porcentagem_rateio || '').trim()) {
+      aplicarRateioPercentual(cotistas);
+    }
+  }, [cotistas, form.tipo_rateio]);
+  const selecionarTipoRateio = (tipo: string) => {
+    if (tipo === 'percentual') {
+      setForm((current) => ({ ...current, tipo_rateio: tipo }));
+      aplicarRateioPercentual(cotistas);
+    } else {
+      setForm((current) => ({ ...current, tipo_rateio: tipo }));
+    }
+  };
   const num = (v: any) => (v === '' || v === null || v === undefined ? null : Number(v));
 
   async function save() {
@@ -614,13 +658,6 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
     setSaving(false);
   }
 
-  const Field = ({ label, children }: { label: string; children: any }) => (
-    <div>
-      <label className="text-xs text-muted-foreground block mb-1">{label}</label>
-      {children}
-    </div>
-  );
-
   return (
     <div className="ctm-card p-5 border-[hsl(var(--ctm-teal)/0.3)]">
       <div className="flex items-center justify-between mb-4">
@@ -629,88 +666,89 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-        <Field label="Nº OAS">
+        <OASField label="Nº OAS">
           <input className="ctm-input w-full" value={form.numero} onChange={e => f('numero', e.target.value)} />
-        </Field>
-        <Field label="O.S Oficina">
+        </OASField>
+        <OASField label="O.S Oficina">
           <input className="ctm-input w-full" placeholder="008-2025" value={form.os_oficina} onChange={e => f('os_oficina', e.target.value)} />
-        </Field>
-        <Field label="Horas de célula">
+        </OASField>
+        <OASField label="Horas de célula">
           <input type="number" step="0.1" className="ctm-input w-full" value={form.horas_celula} onChange={e => f('horas_celula', e.target.value)} />
-        </Field>
-        <Field label="Tipo de manutenção">
+        </OASField>
+        <OASField label="Tipo de manutenção">
           <select className="ctm-input w-full" value={form.tipo_manutencao} onChange={e => f('tipo_manutencao', e.target.value)}>
             <option value="CORRETIVA">Corretiva</option>
             <option value="PREVENTIVA">Preventiva</option>
             <option value="PROGRAMADA">Programada</option>
             <option value="C.V.A">C.V.A</option>
           </select>
-        </Field>
-        <Field label="Período">
+        </OASField>
+        <OASField label="Período">
           <input className="ctm-input w-full" placeholder="50 HORAS" value={form.periodo} onChange={e => f('periodo', e.target.value)} />
-        </Field>
-        <Field label="Objetivo da manutenção">
+        </OASField>
+        <OASField label="Objetivo da manutenção">
           <input className="ctm-input w-full" placeholder="SUBS. FARÓIS" value={form.objetivo} onChange={e => f('objetivo', e.target.value)} />
-        </Field>
-        <Field label="Dias previstos MNT">
+        </OASField>
+        <OASField label="Dias previstos MNT">
           <input type="number" className="ctm-input w-full" value={form.dias_previstos} onChange={e => f('dias_previstos', e.target.value)} />
-        </Field>
-        <Field label="Dias efetivos MNT">
+        </OASField>
+        <OASField label="Dias efetivos MNT">
           <input type="number" className="ctm-input w-full" value={form.dias_efetivos} onChange={e => f('dias_efetivos', e.target.value)} />
-        </Field>
-        <Field label="Status">
+        </OASField>
+        <OASField label="Status">
           <select className="ctm-input w-full" value={form.status} onChange={e => f('status', e.target.value)}>
             <option value="aberto">Aberto</option>
             <option value="em_andamento">Em andamento</option>
             <option value="concluido">Concluída</option>
             <option value="cancelado">Cancelada</option>
           </select>
-        </Field>
-        <Field label="Data de entrada">
+        </OASField>
+        <OASField label="Data de entrada">
           <input type="date" className="ctm-input w-full" value={form.data_entrada} onChange={e => f('data_entrada', e.target.value)} />
-        </Field>
-        <Field label="Data de saída">
+        </OASField>
+        <OASField label="Data de saída">
           <input type="date" className="ctm-input w-full" value={form.data_saida} onChange={e => f('data_saida', e.target.value)} />
-        </Field>
-        <Field label="Início do período">
+        </OASField>
+        <OASField label="Início do período">
           <input type="date" className="ctm-input w-full" value={form.periodo_inicio} onChange={e => f('periodo_inicio', e.target.value)} />
-        </Field>
-        <Field label="Fim do período">
+        </OASField>
+        <OASField label="Fim do período">
           <input type="date" className="ctm-input w-full" value={form.periodo_fim} onChange={e => f('periodo_fim', e.target.value)} />
-        </Field>
-        <Field label="Relatório de voo de">
+        </OASField>
+        <OASField label="Relatório de voo de">
           <input className="ctm-input w-full" value={form.relatorio_voo_de} onChange={e => f('relatorio_voo_de', e.target.value)} />
-        </Field>
-        <Field label="Relatório de voo até">
+        </OASField>
+        <OASField label="Relatório de voo até">
           <input className="ctm-input w-full" value={form.relatorio_voo_ate} onChange={e => f('relatorio_voo_ate', e.target.value)} />
-        </Field>
-        <Field label="Oficina">
+        </OASField>
+        <OASField label="Oficina">
           <input className="ctm-input w-full" value={form.oficina_nome} onChange={e => f('oficina_nome', e.target.value)} />
-        </Field>
-        <Field label="Mecânico responsável">
+        </OASField>
+        <OASField label="Mecânico responsável">
           <input className="ctm-input w-full" value={form.mecanico_responsavel} onChange={e => f('mecanico_responsavel', e.target.value)} />
-        </Field>
-        <Field label="Tipo de rateio">
-          <select className="ctm-input w-full" value={form.tipo_rateio} onChange={e => f('tipo_rateio', e.target.value)}>
+        </OASField>
+        <OASField label="Tipo de rateio">
+          <select className="ctm-input w-full" value={form.tipo_rateio} onChange={e => selecionarTipoRateio(e.target.value)}>
             <option value="horas">Horas</option>
-            <option value="percentual">Percentual</option>
+            <option value="percentual">Percentual — cotistas da aeronave</option>
           </select>
-        </Field>
-        <Field label="Total mão de obra (R$)">
+          {form.tipo_rateio === 'percentual' && <p className="mt-1 text-[11px] text-emerald-300">Rateio preenchido automaticamente com os percentuais cadastrados para a aeronave. Você pode ajustar os valores antes de salvar.</p>}
+        </OASField>
+        <OASField label="Total mão de obra (R$)">
           <input type="number" step="0.01" className="ctm-input w-full" value={form.total_mao_obra} onChange={e => f('total_mao_obra', e.target.value)} />
-        </Field>
-        <Field label="Total peças (R$)">
+        </OASField>
+        <OASField label="Total peças (R$)">
           <input type="number" step="0.01" className="ctm-input w-full" value={form.total_pecas} onChange={e => f('total_pecas', e.target.value)} />
-        </Field>
-        <Field label="Total da OS (R$)">
+        </OASField>
+        <OASField label="Total da OS (R$)">
           <input className="ctm-input w-full opacity-70" readOnly value={((num(form.total_mao_obra) ?? 0) + (num(form.total_pecas) ?? 0)).toFixed(2)} />
-        </Field>
-        <Field label="Total voado em % (por cotista)">
+        </OASField>
+        <OASField label="Total voado em % (por cotista)">
           <input className="ctm-input w-full" placeholder="CARVALIMA 50 / WATT 50" value={form.total_voado_porcentagem} onChange={e => f('total_voado_porcentagem', e.target.value)} />
-        </Field>
-        <Field label="Para rateio (%)">
+        </OASField>
+        <OASField label="Para rateio (%)">
           <input className="ctm-input w-full" placeholder="50.00 / 50.00" value={form.porcentagem_rateio} onChange={e => f('porcentagem_rateio', e.target.value)} />
-        </Field>
+        </OASField>
         <div className="md:col-span-2 lg:col-span-3">
           <label className="text-xs text-muted-foreground block mb-1">Observações</label>
           <textarea className="ctm-input w-full h-20 resize-none" value={form.observacoes} onChange={e => f('observacoes', e.target.value)} />
