@@ -1,4 +1,4 @@
-import { X, Download, ExternalLink } from "lucide-react";
+import { X, Download } from "lucide-react";
 
 interface Props {
   url: string;
@@ -23,15 +23,6 @@ export default function AttachmentViewerModal({ url, title, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-900/60">
           <span className="text-sm font-bold text-slate-100 truncate">{title || "Anexo"}</span>
           <div className="flex items-center gap-2">
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-              title="Abrir em nova aba"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
             <a
               href={url}
               download

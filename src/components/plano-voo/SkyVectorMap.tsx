@@ -318,8 +318,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
         </div>
       )}
 
-      {/* Painéis flutuantes arrastáveis — abertos por padrão quando há dados,
-          para não passarem despercebidos (recolhem em ícone se preciso). */}
+      {/* Painéis flutuantes arrastáveis. As cartas começam recolhidas para não
+          ocupar o mapa automaticamente; o usuário expande pelo ícone. */}
       {departure && (
         <>
           <FloatingPanel
@@ -336,7 +336,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`Cartas ${departure.icao}`}
             icon={<FileText className="w-5 h-5 text-green-400" />}
             defaultPosition={{ x: 16, y: 76 }}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
             width={280}
           >
             <ChartsList icao={departure.icao} {...departureCharts} onProject={setProjectedChart} />
@@ -359,7 +359,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`Cartas ${arrival.icao}`}
             icon={<FileText className="w-5 h-5 text-red-400" />}
             defaultPosition={{ x: 76, y: 76 }}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
             width={280}
           >
             <ChartsList icao={arrival.icao} {...arrivalCharts} onProject={setProjectedChart} />

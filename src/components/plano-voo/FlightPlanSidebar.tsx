@@ -2,6 +2,7 @@ import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { Plane, MapPin, Navigation, Route, FolderOpen, Save, FileText, Loader2, PanelLeftClose, Wand2, User, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AerodromeCombobox } from './AerodromeCombobox';
@@ -127,6 +128,11 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
 }) => {
   const [autoAltitude, setAutoAltitude] = useState(true);
 
+  const scheduleItems = scheduleMatches.map((schedule) => ({
+    id: schedule.id,
+    label: `${schedule.numero_voo} · ${schedule.origem || '—'} → ${schedule.destino || '—'} · ${schedule.data_agendada || 'sem data'}`,
+  }));
+
   // Auto-fill de velocidade quando a aeronave muda.
   // IMPORTANTE: `cruiseSpeed` guarda sempre o valor numérico em nós (kt),
   // usado nos cálculos de tempo/combustível — nunca o código ICAO formatado
@@ -192,9 +198,9 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   }, [localHeuristic?.suggestedRoute]);
 
   return (
-    <div className="w-80 bg-card border-r border-border flex flex-col h-full overflow-hidden">
+    <aside className="flex h-full w-full flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-2xl shadow-black/20 backdrop-blur-xl">
       {/* Header */}
-      <div className="p-4 border-b border-border bg-background">
+      <div className="shrink-0 border-b border-border/70 bg-background/80 px-4 py-3.5 backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Plane className="w-5 h-5 text-primary" />
@@ -217,34 +223,25 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 scrollbar-thin scrollbar-thumb-muted-foreground/20">
         <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
           <label className="text-[10px] uppercase text-primary font-bold tracking-wider flex items-center gap-1">
             <FileText className="w-3 h-3" /> Número do agendamento
           </label>
-          <Input
-            value={formData.flightNumber}
-            onChange={(e) => onFlightNumberChange(e.target.value.toUpperCase())}
-            placeholder="Ex.: VOO-1024"
-            className="bg-background border-border text-foreground font-mono h-9"
+          <SearchableCombobox
+            items={scheduleItems}
+            value={formData.scheduleId}
+            onChange={(scheduleId) => {
+              const schedule = scheduleMatches.find((item) => item.id === scheduleId);
+              if (schedule) onSelectSchedule(schedule);
+            }}
+            placeholder="Selecione o número do voo"
+            searchPlaceholder="Buscar número, rota ou data..."
+            emptyMessage={scheduleLoading ? "Carregando agendamentos..." : "Nenhum agendamento encontrado."}
+            icon={<FileText className="h-3.5 w-3.5" />}
           />
-          <p className="text-[9px] leading-tight text-muted-foreground">Informe o número do voo para carregar aeronave, rota, data e PIC.</p>
-          {scheduleLoading && <p className="text-[10px] text-muted-foreground">Buscando agendamentos...</p>}
-          {scheduleMatches.length > 0 && (
-            <div className="space-y-1 rounded-md border border-border bg-background p-1 shadow-lg">
-              {scheduleMatches.map((schedule) => (
-                <button
-                  key={schedule.id}
-                  type="button"
-                  onClick={() => onSelectSchedule(schedule)}
-                  className="w-full rounded px-2 py-2 text-left text-xs transition-colors hover:bg-primary/10"
-                >
-                  <span className="font-mono font-bold text-primary">{schedule.numero_voo}</span>
-                  <span className="ml-2 text-muted-foreground">{schedule.origem || '—'} → {schedule.destino || '—'} · {schedule.data_agendada}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <p className="text-[9px] leading-tight text-muted-foreground">Selecione um agendamento para preencher aeronave, rota, data e PIC automaticamente.</p>
+          {scheduleLoading && <p className="text-[10px] text-muted-foreground">Carregando agendamentos...</p>}
         </div>
 
         {/* ── ETAPA 1: Aeronave e Piloto ─────────────────────────── */}
@@ -490,7 +487,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
       </div>
 
       {/* Calculations Summary */}
-      <div className="border-t border-border px-[11px] py-[23px] -mt-6 -mb-6 -ml-[3px] -mr-[3px] bg-background min-h-0 text-[rgba(179,195,230,1)] leading-[13px] font-light text-[9px]">
+      <div className="shrink-0 border-t border-border/70 bg-background/95 px-4 py-4 text-[rgba(179,195,230,1)] backdrop-blur-xl">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <div className="text-[10px] uppercase text-muted-foreground">Distance</div>
@@ -534,7 +531,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
           </div>
         )}
 
-        <div className="mt-[13px] mb-[6px] flex gap-[9px] min-h-0 max-w-[5px]">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <Button
             className="flex-1 bg-primary hover:bg-primary/90"
             onClick={onCalculate}
@@ -549,6 +546,6 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 };

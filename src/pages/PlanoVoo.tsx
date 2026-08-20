@@ -111,15 +111,13 @@ export default function PlanoVooPage() {
 
   // Crew members
   const { data: scheduleMatches = [], isFetching: scheduleLoading } = useQuery({
-    queryKey: ['flight-schedule-search', scheduleSearch],
-    enabled: scheduleSearch.trim().length >= 2,
+    queryKey: ['flight-schedules'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('solicitacoes_reserva_voo')
         .select('id, numero_voo, origem, destino, data_agendada, horario_previsto_agendamento, aeronave_id, piloto_id')
-        .ilike('numero_voo', `%${scheduleSearch.trim()}%`)
         .order('data_agendada', { ascending: false })
-        .limit(8);
+        .limit(500);
       if (error) throw error;
       return (data || []).filter((item: any) => item.numero_voo);
     },
@@ -135,6 +133,21 @@ export default function PlanoVooPage() {
 
   const getAerodromeByCode = useCallback((code: string) => aerodromes.find(a => a.designativo === code?.toUpperCase()), [aerodromes]);
 
+  const filteredScheduleMatches = useMemo(() => {
+    const query = scheduleSearch.trim().toLowerCase();
+    return scheduleMatches.filter((schedule: any) => {
+      if (!query) return true;
+      return [schedule.numero_voo, schedule.origem, schedule.destino, schedule.data_agendada]
+        .filter(Boolean)
+        .some((value: any) => String(value).toLowerCase().includes(query));
+    });
+  }, [scheduleMatches, scheduleSearch]);
+
+  const scheduleItems = useMemo(() => filteredScheduleMatches.map((schedule: any) => ({
+    id: schedule.id,
+    label: `${schedule.numero_voo} · ${schedule.origem || '—'} → ${schedule.destino || '—'} · ${schedule.data_agendada || 'sem data'}`,
+  })), [filteredScheduleMatches]);
+
   const selectSchedule = useCallback((schedule: any) => {
     const aircraft = aeronaves.find((item) => item.id === schedule.aeronave_id);
     const linkedPerformance = Array.isArray((aircraft as any)?.performance_aeronave)
@@ -149,7 +162,7 @@ export default function PlanoVooPage() {
       scheduleId: schedule.id,
       aeronaveId: schedule.aeronave_id || '',
       aircraftId: schedule.aeronave_id || '',
-      performanceAeronaveId: (aircraft as any)?.performance_aeronave_id || '',
+      performanceAeronaveId: linkedPerformance?.id || (aircraft as any)?.performance_aeronave_id || '',
       registration: (aircraft as any)?.matricula || '',
       cruiseSpeed: cruiseKt,
       origin: schedule.origem || '',
@@ -396,9 +409,9 @@ export default function PlanoVooPage() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-4rem)] -mt-5 -mb-5 -ml-[19px] -mr-[19px] overflow-hidden">
+      <div className="flex h-[calc(100vh-4rem)] min-h-0 w-full overflow-hidden rounded-2xl border border-border/60 bg-background/50 shadow-xl">
         {/* Sidebar */}
-        <div className={isSidebarOpen ? 'w-80' : 'w-0'}>
+        <div className={isSidebarOpen ? 'w-[22rem] max-w-[calc(100vw-1rem)] shrink-0' : 'w-0 shrink-0'}>
           {isSidebarOpen && (
             <FlightPlanSidebar
               aerodromes={aerodromes}
@@ -425,13 +438,13 @@ export default function PlanoVooPage() {
               altitudeSuggestionLabel={flightIntelligence.suggestedAltitudeLabel}
               altitudeSource={flightIntelligence.altitudeSource}
               altitudeLoading={flightIntelligence.loading}
-              altitudeError={flightIntelligence.error}
+              altitudeError={flightIntelligence.altitudeError}
             />
           )}
         </div>
 
         {/* Map */}
-        <div className="flex-1 relative">
+          <div className="relative min-w-0 flex-1">
           {!isSidebarOpen && (
             <button
               type="button"

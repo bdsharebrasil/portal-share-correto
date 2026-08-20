@@ -20,7 +20,7 @@ export const useAeronaves = () => {
       try {
         const { data, error: supabaseError } = await supabase
           .from('aeronave')
-          .select('*, performance_aeronave(categoria, modelo, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, aprovado_rvsm, velocidade_cruzeiro_kt)')
+          .select('*, performance_aeronave(id, categoria, modelo, teto_servico_ft, nivel_cruzeiro_min_ft, nivel_cruzeiro_max_ft, aprovado_rvsm, velocidade_cruzeiro_kt)')
           .order('matricula', { ascending: true });
 
         if (supabaseError) {

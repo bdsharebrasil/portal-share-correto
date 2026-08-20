@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Search,
   WalletCards,
   Edit2,
@@ -10,7 +11,9 @@ import {
   ArrowUpDown,
   Filter,
   CheckSquare,
-  Calculator
+  Calculator,
+  Paperclip,
+  Eye,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
 import {
@@ -27,25 +30,32 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Importação do Modal conforme solicitado
 import EditCaixaClienteModal from "@/components/dashboard/gestor/financeiro-share/EditCaixaClienteModal";
+import AttachmentViewerModal from "@/components/dashboard/gestor/financeiro-share/AttachmentViewerModal";
 
 export default function ClienteSituacao({
   clientes,
   movimentacoes,
+  rateios = [],
   onRefresh,
 }: {
   clientes: any[];
   movimentacoes: any[];
+  rateios?: any[];
   onRefresh?: () => Promise<void> | void;
 }) {
-  const [clienteId, setClienteId] = useState<string>("");
+  const [clienteId, setClienteId] = useState<string>(() => {
+    try { return sessionStorage.getItem("financeiro-share:caixa-cliente") || ""; } catch { return ""; }
+  });
   const [mes, setMes] = useState("");
   const [busca, setBusca] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [sortField, setSortField] = useState<"data" | "valor">("data");
+  const [sortField, setSortField] = useState<"data" | "valor" | "descricao" | "fornecedor" | "status">("data");
   const [showEvolucao, setShowEvolucao] = useState(false);
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [editMov, setEditMov] = useState<any>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [attachment, setAttachment] = useState<{ url: string; title: string } | null>(null);
 
   const { movimentos, mensal, resumo } = useClienteFinanceiro(
     movimentacoes,
@@ -53,11 +63,66 @@ export default function ClienteSituacao({
   );
   
   const cliente = clientes.find((c) => c.id === clienteId);
+
+  useEffect(() => {
+    try {
+      if (clienteId) sessionStorage.setItem("financeiro-share:caixa-cliente", clienteId);
+      else sessionStorage.removeItem("financeiro-share:caixa-cliente");
+    } catch { /* storage indisponível não deve impedir o uso do caixa */ }
+  }, [clienteId]);
+
+  const alterarCliente = (value: string) => {
+    setClienteId(value);
+    setSelecionados([]);
+    setExpandidos(new Set());
+  };
   const meses = useMemo(() => Array.from(new Set(mensal.map((m) => m.periodo))).sort().reverse(), [mensal]);
   
   const categorias = useMemo(() => {
     return Array.from(new Set(movimentos.map((m) => m.categoria_nome).filter(Boolean))).sort();
   }, [movimentos]);
+
+  const rateiosPorDespesa = useMemo(() => {
+    const map = new Map<string, any[]>();
+    rateios.forEach((rateio: any) => {
+      const key = rateio.despesa_id || rateio.movimentacao_id;
+      if (!key) return;
+      map.set(key, [...(map.get(key) || []), rateio]);
+    });
+    return map;
+  }, [rateios]);
+
+  const anexosDe = (m: any) => {
+    const anexos = [
+      [m.comprovante_url, "Comprovante"],
+      [m.nf_url, m.numero_nf ? `Nota fiscal ${m.numero_nf}` : "Nota fiscal"],
+      [m.boleto_url, m.numero_boleto ? `Boleto ${m.numero_boleto}` : "Boleto"],
+      [m.recibo_url, m.numero_recibo ? `Recibo ${m.numero_recibo}` : "Recibo"],
+      [m.comanda_url, "Comanda"],
+    ]
+      .filter(([url]) => Boolean(url))
+      .map(([url, title]) => ({ url: String(url), title: String(title) }));
+    if (Array.isArray(m.anexos)) {
+      m.anexos.forEach((item: any, index: number) => {
+        const url = typeof item === "string" ? item : item?.url;
+        if (url) anexos.push({ url, title: item?.nome || item?.name || `Anexo ${index + 1}` });
+      });
+    }
+    return anexos;
+  };
+
+  const ordenarPor = (field: typeof sortField) => {
+    if (sortField === field) setSortOrder((current) => current === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortOrder("asc"); }
+  };
+
+  const alternarExpandido = (id: string) => {
+    setExpandidos((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const lista = useMemo(() => {
     let filtrado = movimentos
@@ -70,9 +135,18 @@ export default function ClienteSituacao({
       if (sortField === "data") {
         valA = a.data_pagamento || a.data_vencimento || dateOf(a) || "";
         valB = b.data_pagamento || b.data_vencimento || dateOf(b) || "";
-      } else {
+      } else if (sortField === "valor") {
         valA = valueOf(a);
         valB = valueOf(b);
+      } else if (sortField === "descricao") {
+        valA = String(a.descricao || "").toLowerCase();
+        valB = String(b.descricao || "").toLowerCase();
+      } else if (sortField === "fornecedor") {
+        valA = String(a.fornecedor_nome || "").toLowerCase();
+        valB = String(b.fornecedor_nome || "").toLowerCase();
+      } else {
+        valA = String(fornecedorStatus(a) || "").toLowerCase();
+        valB = String(fornecedorStatus(b) || "").toLowerCase();
       }
 
       if (valA < valB) return sortOrder === "asc" ? -1 : 1;
@@ -139,7 +213,7 @@ export default function ClienteSituacao({
         <div className="mx-auto mt-6 max-w-md">
           <select
             value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
+            onChange={(e) => alterarCliente(e.target.value)}
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20"
           >
             <option value="">Selecione um cliente...</option>
@@ -166,7 +240,7 @@ export default function ClienteSituacao({
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
+            onChange={(e) => alterarCliente(e.target.value)}
             className="rounded-xl border border-slate-700/80 bg-slate-950 px-4 py-2.5 text-sm text-slate-200 shadow-sm outline-none focus:border-cyan-500"
           >
             <option value="">Trocar cliente</option>
@@ -325,90 +399,111 @@ export default function ClienteSituacao({
         <div className="overflow-x-auto bg-slate-950/30">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
-                <th className="px-5 py-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selecionados.length === lista.length && lista.length > 0}
-                    onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
-                  />
-                </th>
-                <th className="text-left px-5 py-4">Data</th>
-                <th className="text-left px-5 py-4">Descrição / Categoria</th>
-                <th className="text-left px-5 py-4">Fornecedor</th>
-                <th className="text-right px-5 py-4">Valor</th>
-                <th className="text-center px-5 py-4">Fluxo Cliente</th>
-                <th className="text-center px-5 py-4">Status Fornecedor</th>
-                <th className="text-right px-5 py-4">Ações</th>
+              <tr className="border-b border-slate-800 bg-slate-950/60 text-[10px] uppercase tracking-wider text-slate-400">
+                <th className="w-10 px-4 py-4"><input type="checkbox" checked={selecionados.length === lista.length && lista.length > 0} onChange={handleSelectAll} className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500" aria-label="Selecionar todos" /></th>
+                <th className="w-8 px-1 py-4"></th>
+                <SortableHeader label="Data" active={sortField === "data"} order={sortOrder} onClick={() => ordenarPor("data")} />
+                <SortableHeader label="Descrição" active={sortField === "descricao"} order={sortOrder} onClick={() => ordenarPor("descricao")} />
+                <SortableHeader label="Fornecedor" active={sortField === "fornecedor"} order={sortOrder} onClick={() => ordenarPor("fornecedor")} />
+                <SortableHeader label="Valor" active={sortField === "valor"} order={sortOrder} onClick={() => ordenarPor("valor")} align="right" />
+                <th className="px-4 py-4 text-center">Fluxo Cliente</th>
+                <SortableHeader label="Status" active={sortField === "status"} order={sortOrder} onClick={() => ordenarPor("status")} align="center" />
+                <th className="px-4 py-4 text-center">Anexos</th>
+                <th className="px-4 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               {lista.map((m) => {
                 const isSelected = selecionados.includes(m.id);
+                const expandido = expandidos.has(m.id);
+                const rateioItens = rateiosPorDespesa.get(m.id) || [];
+                const anexos = anexosDe(m);
                 return (
-                  <tr
-                    key={m.id}
-                    className={`border-b border-slate-800/50 transition ${
-                      isSelected ? "bg-cyan-500/10" : "hover:bg-slate-800/20"
-                    }`}
-                  >
-                    <td className="px-5 py-3.5">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSelect(m.id)}
-                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
-                      />
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">{renderData(m)}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="font-medium text-slate-200">{m.descricao || "—"}</div>
-                      <div className="text-[10px] text-slate-500 uppercase mt-0.5">{m.categoria_nome || "Sem Categoria"}</div>
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-300">{m.fornecedor_nome || "—"}</td>
-                    <td className="px-5 py-3.5 text-right font-bold text-slate-100">
-                      {formatBRL(valueOf(m))}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                          paidByShareForClient(m)
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                        }`}
-                      >
-                        {clienteDividaLabel(m)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                          fornecedorStatus(m) === "pago"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                        }`}
-                      >
-                        {fornecedorStatus(m)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setEditMov(m)}
-                        className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition mr-1"
-                        title="Editar lançamento"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(m.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                        title="Excluir lançamento"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={m.id}>
+                    <tr
+                      onClick={() => alternarExpandido(m.id)}
+                      className={`cursor-pointer border-b border-slate-800/50 transition ${
+                        isSelected ? "bg-cyan-500/10" : expandido ? "bg-slate-800/35" : "hover:bg-slate-800/20"
+                      }`}
+                    >
+                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelect(m.id)}
+                          className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
+                        />
+                      </td>
+                      <td className="px-1 py-3.5 text-slate-500">
+                        {expandido ? <ChevronDown className="h-4 w-4 text-cyan-400" /> : <ChevronRight className="h-4 w-4" />}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5">{renderData(m)}</td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-slate-200">{m.descricao || "—"}</div>
+                        <div className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-500">{m.categoria_nome || "Sem Categoria"}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-300">{m.fornecedor_nome || "—"}</td>
+                      <td className="px-4 py-3.5 text-right font-bold tabular-nums text-slate-100">{formatBRL(valueOf(m))}</td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${paidByShareForClient(m) ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>
+                          {clienteDividaLabel(m)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${fornecedorStatus(m) === "pago" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-rose-500/20 bg-rose-500/10 text-rose-400"}`}>
+                          {fornecedorStatus(m)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        {anexos.length > 0 ? (
+                          <button onClick={() => setAttachment(anexos[0])} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-cyan-300 hover:bg-cyan-500/10" title="Abrir anexo no modal">
+                            <Paperclip className="h-3.5 w-3.5" /><span className="text-[10px] font-semibold">{anexos.length}</span>
+                          </button>
+                        ) : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setEditMov(m)} className="mr-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-cyan-500/10 hover:text-cyan-400" title="Editar lançamento"><Edit2 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDelete(m.id)} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-400" title="Excluir lançamento"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                    {expandido && (
+                      <tr className="border-b border-slate-800/50 bg-slate-950/45">
+                        <td colSpan={10} className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-400">Detalhamento da despesa</div>
+                              <div className="mt-1 text-xs text-slate-400">Todas as informações registradas para este lançamento.</div>
+                            </div>
+                            {anexos.length > 0 && <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-semibold text-cyan-300"><Paperclip className="h-3 w-3" /> {anexos.length} anexo(s)</span>}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+                            <DetailItem label="Valor lançado" value={formatBRL(valueOf(m))} strong />
+                            <DetailItem label="Valor rateado" value={m.valor_rateado != null ? formatBRL(Number(m.valor_rateado)) : "—"} />
+                            <DetailItem label="Valor pago real" value={m.valor_pago_real != null ? formatBRL(Number(m.valor_pago_real)) : "—"} />
+                            <DetailItem label="Valor total" value={m.valor_total != null ? formatBRL(Number(m.valor_total)) : "—"} />
+                            <DetailItem label="Quem pagou" value={m.pago_por || m.socios_nome || "—"} />
+                            <DetailItem label="Tipo de rateio" value={m.tipo_rateio || "—"} />
+                            <DetailItem label="Periodicidade" value={m.periodicidade || "—"} />
+                            <DetailItem label="Percentual de uso" value={m.percentual_uso != null ? `${m.percentual_uso}%` : "—"} />
+                            <DetailItem label="Percentual sociedade" value={m.percentual_sociedade != null ? `${m.percentual_sociedade}%` : "—"} />
+                            <DetailItem label="Forma de pagamento" value={m.forma_pagamento || "—"} />
+                            <DetailItem label="Número do documento" value={m.numero_doc || m.numero_nf || m.numero_boleto || "—"} />
+                            <DetailItem label="Vencimento" value={m.data_vencimento ? new Date(`${m.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR") : "—"} />
+                            <DetailItem label="Pagamento" value={m.data_pagamento ? new Date(`${m.data_pagamento}T00:00:00`).toLocaleDateString("pt-BR") : "—"} />
+                            <DetailItem label="Status" value={m.status || fornecedorStatus(m)} />
+                            <DetailItem label="Observações" value={m.observacoes || m.observacao || "—"} />
+                          </div>
+                          {rateioItens.length > 0 && (
+                            <div className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/45">
+                              <div className="border-b border-slate-800 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-cyan-300">Composição do rateio</div>
+                              <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-500"><th className="px-4 py-2.5">Cotista / referência</th><th className="px-4 py-2.5">Tipo</th><th className="px-4 py-2.5 text-right">Percentual</th><th className="px-4 py-2.5 text-right">Valor</th><th className="px-4 py-2.5">Status</th></tr></thead><tbody>{rateioItens.map((rateio: any, index: number) => <tr key={rateio.id || index} className="border-b border-slate-800/50 last:border-0"><td className="px-4 py-2.5 text-slate-200">{rateio.socio_nome || rateio.socios_nome || rateio.nome_socio || rateio.socio_id || "Rateio"}</td><td className="px-4 py-2.5 text-slate-400">{rateio.tipo_rateio || rateio.periodicidade || "—"}</td><td className="px-4 py-2.5 text-right text-slate-300">{rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual != null ? `${rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual}%` : "—"}</td><td className="px-4 py-2.5 text-right font-semibold text-slate-100">{rateio.valor_rateado != null ? formatBRL(Number(rateio.valor_rateado)) : rateio.valor != null ? formatBRL(Number(rateio.valor)) : "—"}</td><td className="px-4 py-2.5 text-slate-400">{rateio.status || "—"}</td></tr>)}</tbody></table></div>
+                            </div>
+                          )}
+                          {anexos.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{anexos.map((anexo) => <button key={anexo.url} onClick={() => setAttachment(anexo)} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 transition hover:border-cyan-500/50 hover:bg-cyan-500/10"><Eye className="h-3.5 w-3.5 text-cyan-300" />{anexo.title}</button>)}</div>}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -434,6 +529,28 @@ export default function ClienteSituacao({
           }}
         />
       )}
+      {attachment && <AttachmentViewerModal url={attachment.url} title={attachment.title} onClose={() => setAttachment(null)} />}
+    </div>
+  );
+}
+
+function SortableHeader({ label, active, order, onClick, align = "left" }: { label: string; active: boolean; order: "asc" | "desc"; onClick: () => void; align?: "left" | "center" | "right" }) {
+  return (
+    <th className={`px-4 py-4 ${align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"}`}>
+      <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 font-black transition hover:text-cyan-300">
+        {label}
+        <ArrowUpDown className={`h-3.5 w-3.5 ${active ? "text-cyan-400" : "text-slate-600"}`} />
+        {active && <span className="sr-only">Ordenação {order === "asc" ? "crescente" : "decrescente"}</span>}
+      </button>
+    </th>
+  );
+}
+
+function DetailItem({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="min-h-[58px] rounded-xl border border-slate-800 bg-slate-900/55 px-3 py-2.5">
+      <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</div>
+      <div className={`mt-1 break-words text-xs ${strong ? "font-black text-cyan-300" : "font-medium text-slate-200"}`}>{value}</div>
     </div>
   );
 }

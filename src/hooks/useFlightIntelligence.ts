@@ -31,6 +31,7 @@ export interface FlightIntelligence {
   suggestedAltitudeFt: number | null;
   suggestedAltitudeLabel: string | null;
   altitudeSource: 'performance' | 'rpc' | 'heuristic' | null;
+  altitudeError: string | null;
   fuelRequiredL: number | null;
   totalFuelL: number | null;
   minimumEnduranceHHMM: string | null;
@@ -101,6 +102,7 @@ export function useFlightIntelligence(
     suggestedAltitudeFt: null,
     suggestedAltitudeLabel: null,
     altitudeSource: null,
+    altitudeError: null,
     fuelRequiredL: null,
     totalFuelL: null,
     minimumEnduranceHHMM: null,
@@ -159,6 +161,7 @@ export function useFlightIntelligence(
         let altitudeFt = heuristic.altitudeFt;
         let altitudeLabel = heuristic.label;
         let altitudeSource: FlightIntelligence['altitudeSource'] = 'heuristic';
+        let altitudeError: string | null = null;
 
         const minimumFt = Number(performance?.nivel_cruzeiro_min_ft);
         const maximumFt = Math.min(Number(performance?.nivel_cruzeiro_max_ft), Number(performance?.teto_servico_ft));
@@ -170,10 +173,11 @@ export function useFlightIntelligence(
             : `${altitudeFt} ft`;
           altitudeSource = 'performance';
         } else if (aeronaveId) {
-          const { data: rpcAltitude } = await supabase.rpc('calcular_nivel_voo', {
+          const { data: rpcAltitude, error: rpcError } = await supabase.rpc('calcular_nivel_voo', {
             p_aeronave_id: aeronaveId,
             p_rumo_magnetico: magneticCourse,
           });
+          if (rpcError) altitudeError = 'Nível oficial indisponível; foi usado o nível heurístico da regra semicircular.';
           if (typeof rpcAltitude === 'number' && Number.isFinite(rpcAltitude) && rpcAltitude > 0) {
             altitudeFt = rpcAltitude;
             altitudeLabel = isIFR ? `FL${String(Math.round(rpcAltitude / 100)).padStart(3, '0')}` : `${rpcAltitude} ft`;
@@ -207,6 +211,7 @@ export function useFlightIntelligence(
           suggestedAltitudeFt: altitudeFt,
           suggestedAltitudeLabel: altitudeLabel,
           altitudeSource,
+          altitudeError,
           fuelRequiredL,
           totalFuelL,
           minimumEnduranceHHMM,
