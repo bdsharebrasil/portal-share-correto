@@ -42,7 +42,7 @@ export default function FluxoCaixaTab() {
   const [data, setData] = useState<any>({ movimentacoes: [], rateios: [], clientes: [], socios: [], categorias: [] });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("caixa");
+  const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("visao");
   
   // Filtros
   const [busca, setBusca] = useState("");
@@ -238,7 +238,7 @@ export default function FluxoCaixaTab() {
 
       <nav className="flex min-h-10 items-center gap-1 overflow-x-auto border-b border-[rgba(13,30,56,0.9)] bg-slate-950/25 px-1 shadow-[1px_1px_3px_0_rgba(0,0,0,1)]">
         {([["visao", "Visão Geral"], ["caixa", "Caixa"], ["contas-pagar", "Contas a Pagar"], ["reembolsaveis", "Despesas Reembolsáveis"], ["clientes", "Caixa Clientes"], ["dga", "DGA"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => { setAba(k); setSelecionados([]); }} className={`relative flex h-9 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[10px] font-black uppercase tracking-wide transition ${aba === k ? `border-cyan-400 ${k === "caixa" ? "text-[#d1e0ff]" : "text-cyan-300"}` : k === "visao" ? "overflow-hidden rounded-[14px] border-[rgba(6,28,42,0)] bg-[rgba(38,187,117,1)] text-[rgba(8,10,12,1)] shadow-[1px_1px_3px_0_rgba(14,34,46,1)]" : "border-transparent text-slate-500 hover:border-slate-700 hover:text-slate-300"}`}>{l}</button>
+          <button key={k} onClick={() => { setAba(k); setSelecionados([]); }} className={`relative flex h-9 shrink-0 items-center gap-1.5 rounded-[14px] border-2 px-3 text-[10px] font-black uppercase tracking-wide transition ${aba === k ? "border-[rgba(38,187,117,1)] bg-[rgba(38,187,117,1)] text-[rgba(8,10,12,1)] shadow-[1px_1px_3px_0_rgba(14,34,46,1)]" : "border-transparent bg-transparent text-slate-500 hover:border-slate-700 hover:text-slate-300"}`}>{l}</button>
         ))}
       </nav>
 
