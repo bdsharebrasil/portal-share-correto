@@ -14,8 +14,12 @@ const dataLocal = (value: string | null | undefined) => {
   try { return parseISO(value); } catch { return null; }
 };
 const contaEhReembolso = (conta: any) => Boolean(conta.cliente_id) || normalizar(conta.categoria).includes("reembols");
+const contaEstaPaga = (conta: any) => {
+  const status = normalizar(conta.status);
+  return ["paga", "pago", "quitada", "liquidada", "recebida", "recebido"].includes(status) || Boolean(conta.data_pagamento);
+};
 const contaEstaVencida = (conta: any) => {
-  if (["paga", "cancelada"].includes(normalizar(conta.status))) return false;
+  if (contaEstaPaga(conta) || normalizar(conta.status) === "cancelada") return false;
   const vencimento = dataLocal(conta.data_vencimento);
   if (!vencimento) return false;
   const hoje = new Date();
@@ -52,8 +56,8 @@ export default function ContasPagarFluxoTab() {
   const filtradas = useMemo(() => contas.filter((conta) => {
     if ((subAba === "reembolso") !== contaEhReembolso(conta)) return false;
     const contaStatus = normalizar(conta.status);
-    if (status === "abertas" && ["paga", "cancelada"].includes(contaStatus)) return false;
-    if (status === "paga" && contaStatus !== "paga") return false;
+    if (status === "abertas" && (contaEstaPaga(conta) || contaStatus === "cancelada")) return false;
+    if (status === "paga" && !contaEstaPaga(conta)) return false;
     if (status === "cancelada" && contaStatus !== "cancelada") return false;
     if (status === "vencida" && !contaEstaVencida(conta)) return false;
     if (mes && String(conta.data_vencimento || "").slice(0, 7) !== mes) return false;
@@ -70,9 +74,9 @@ export default function ContasPagarFluxoTab() {
     const soma = (items: any[]) => items.reduce((sum, conta) => sum + Number(conta.valor || 0), 0);
     return {
       total: soma(base),
-      aberto: soma(base.filter((conta) => !["paga", "cancelada"].includes(normalizar(conta.status)))),
+      aberto: soma(base.filter((conta) => !contaEstaPaga(conta) && normalizar(conta.status) !== "cancelada")),
       vencido: soma(base.filter(contaEstaVencida)),
-      pago: soma(base.filter((conta) => normalizar(conta.status) === "paga").map((conta) => ({ ...conta, valor: conta.valor_pago || conta.valor }))),
+      pago: soma(base.filter(contaEstaPaga).map((conta) => ({ ...conta, valor: conta.valor_pago || conta.valor }))),
     };
   }, [contas, subAba]);
 
@@ -106,8 +110,8 @@ export default function ContasPagarFluxoTab() {
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 text-xs text-slate-500"><span>{filtradas.length} lançamento(s) encontrado(s)</span><span className="font-bold text-slate-300">Filtrado: {formatBRL(filtradas.reduce((sum, conta) => sum + Number(conta.valor || 0), 0))}</span></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-900/90 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="w-10 px-4 py-3" /><th className="px-4 py-3 text-left">Fornecedor / lançamento</th><th className="px-4 py-3 text-left">Vencimento</th><th className="px-4 py-3 text-left">Categoria / cliente</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3 text-center">Status</th></tr></thead><tbody className="divide-y divide-slate-800/80">
           {carregando ? <tr><td colSpan={6} className="py-16 text-center text-slate-500">Carregando contas a pagar...</td></tr> : filtradas.length === 0 ? <tr><td colSpan={6} className="py-16 text-center text-slate-500">Nenhum lançamento encontrado para estes filtros.</td></tr> : filtradas.map((conta) => {
-            const vencida = contaEstaVencida(conta); const aberto = expandida === conta.id; const cliente = conta.clientes?.razao_social || conta.clientes?.proprietario; const titulo = conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || conta.descricao || "Lançamento sem fornecedor";
-            return <>{<tr key={conta.id} onClick={() => setExpandida(aberto ? null : conta.id)} className={`cursor-pointer text-slate-300 transition hover:bg-cyan-500/[0.04] ${vencida ? "bg-rose-500/[0.04]" : ""}`}><td className="px-4 py-4 text-slate-500">{aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td><td className="px-4 py-4"><div className="font-semibold text-slate-100">{titulo}</div><div className="mt-1 text-xs text-slate-500">{conta.descricao || "Sem descrição"} · {conta.numero_doc || conta.nf_numero || "Sem documento"}</div></td><td className={`px-4 py-4 font-medium ${vencida ? "text-rose-300" : "text-slate-300"}`}>{dataLocal(conta.data_vencimento) ? format(dataLocal(conta.data_vencimento)!, "dd/MM/yyyy") : "-"}</td><td className="px-4 py-4"><div className="text-slate-300">{conta.categoria || "Sem categoria"}</div><div className="mt-1 text-xs text-slate-500">{cliente || "Caixa Share"}</div></td><td className="px-4 py-4 text-right font-bold text-slate-100">{formatBRL(Number(conta.valor || 0))}</td><td className="px-4 py-4 text-center"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${vencida ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : normalizar(conta.status) === "paga" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>{vencida ? "Vencida" : conta.status || "Agendada"}</span></td></tr>}{aberto && <tr key={`${conta.id}-details`}><td colSpan={6} className="border-b border-slate-800 p-0"><ContaPagarExpandedDetails conta={conta} /></td></tr>}</>;
+            const vencida = contaEstaVencida(conta); const paga = contaEstaPaga(conta); const aberto = expandida === conta.id; const cliente = conta.clientes?.razao_social || conta.clientes?.proprietario; const titulo = conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || conta.descricao || "Lançamento sem fornecedor";
+            return <>{<tr key={conta.id} onClick={() => setExpandida(aberto ? null : conta.id)} className={`cursor-pointer text-slate-300 transition hover:bg-cyan-500/[0.04] ${vencida ? "bg-rose-500/[0.04]" : ""}`}><td className="px-4 py-4 text-slate-500">{aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td><td className="px-4 py-4"><div className="font-semibold text-slate-100">{titulo}</div><div className="mt-1 text-xs text-slate-500">{conta.descricao || "Sem descrição"} · {conta.numero_doc || conta.nf_numero || "Sem documento"}</div></td><td className={`px-4 py-4 font-medium ${vencida ? "text-rose-300" : "text-slate-300"}`}>{dataLocal(conta.data_vencimento) ? format(dataLocal(conta.data_vencimento)!, "dd/MM/yyyy") : "-"}</td><td className="px-4 py-4"><div className="text-slate-300">{conta.categoria || "Sem categoria"}</div><div className="mt-1 text-xs text-slate-500">{cliente || "Caixa Share"}</div></td><td className="px-4 py-4 text-right font-bold text-slate-100">{formatBRL(Number(conta.valor || 0))}</td><td className="px-4 py-4 text-center"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${vencida ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : paga ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>{paga ? "Paga" : vencida ? "Vencida" : conta.status || "Agendada"}</span></td></tr>}{aberto && <tr key={`${conta.id}-details`}><td colSpan={6} className="border-b border-slate-800 p-0"><ContaPagarExpandedDetails conta={conta} /></td></tr>}</>;
           })}
         </tbody></table></div>
       </div>
