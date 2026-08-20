@@ -1,28 +1,4 @@
-import { convertPdfToImageBlob } from "@/lib/pdfToImage";
-
-type TesseractApi = {
-  createWorker: (language: string, oem?: number, options?: { logger?: (message: { status?: string; progress?: number }) => void }) => Promise<{
-    recognize: (input: Blob) => Promise<{ data: { text: string; confidence?: number } }>;
-    terminate: () => Promise<void>;
-  }>;
-};
-
-let tesseractPromise: Promise<TesseractApi> | null = null;
-
-const loadTesseract = (): Promise<TesseractApi> => {
-  if (typeof window === "undefined") return Promise.reject(new Error("OCR disponível apenas no navegador."));
-  if ((window as any).Tesseract) return Promise.resolve((window as any).Tesseract as TesseractApi);
-  if (tesseractPromise) return tesseractPromise;
-  tesseractPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js";
-    script.async = true;
-    script.onload = () => (window as any).Tesseract ? resolve((window as any).Tesseract as TesseractApi) : reject(new Error("OCR não foi carregado."));
-    script.onerror = () => reject(new Error("Não foi possível carregar o mecanismo OCR."));
-    document.head.appendChild(script);
-  });
-  return tesseractPromise;
-};
+import { supabase } from "@/integrations/supabase/client";
 
 export interface HoleriteExtraction {
   rawText: string;
@@ -57,21 +33,19 @@ const parseBRL = (value: string | undefined): number | null => {
 };
 
 const amountAfterLabel = (text: string, labels: string[]): number | null => {
-  const label = labels.join("|");
-  const labelPattern = new RegExp(`(?:${label})`, "i");
+  const labelPattern = new RegExp(`(?:${labels.join("|")})`, "i");
   const labelMatch = labelPattern.exec(text);
   if (!labelMatch || labelMatch.index < 0) return null;
   const tail = text
     .slice(labelMatch.index + labelMatch[0].length, labelMatch.index + labelMatch[0].length + 120)
     .split("\n", 1)[0];
   const amounts = tail.match(/(?:R\$\s*)?\d{1,3}(?:[. ]\d{3})*(?:,\d{2})|(?:R\$\s*)?\d+(?:,\d{2})/g) ?? [];
-  // Em holerites, a coluna Referência aparece antes de Vencimentos/Descontos.
-  // O último valor da janela é normalmente o valor monetário efetivo.
   return parseBRL(amounts.at(-1));
 };
 
 const firstPositive = (...values: Array<number | null>) => values.find((value) => value != null && value > 0) ?? null;
 
+/** Parser de apoio para texto retornado pelo Gemini ou para testes unitários. */
 export function parseHoleriteText(rawText: string, confidence: number | null = null): HoleriteExtraction {
   const text = normalizeText(rawText);
   const descontoInss = amountAfterLabel(text, ["INSS"]);
@@ -100,25 +74,49 @@ export function parseHoleriteText(rawText: string, confidence: number | null = n
   };
 }
 
-export async function readHolerite(file: File, onProgress?: (value: number) => void): Promise<HoleriteExtraction> {
-  const input: Blob = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-    ? await convertPdfToImageBlob(file, 2.5)
-    : file;
+const fileToBase64 = async (file: File): Promise<string> => {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+};
 
-  const tesseract = await loadTesseract();
-  const worker = await tesseract.createWorker("por", 1, {
-    logger: (message) => {
-      if (message.status === "recognizing text" && typeof message.progress === "number") {
-        onProgress?.(Math.round(message.progress * 100));
-      }
+export async function readHolerite(file: File, onProgress?: (value: number) => void): Promise<HoleriteExtraction> {
+  onProgress?.(5);
+  const fileBase64 = await fileToBase64(file);
+  onProgress?.(20);
+
+  const { data, error } = await supabase.functions.invoke("holerite-ocr", {
+    body: {
+      fileBase64,
+      mimeType: file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/png"),
     },
   });
 
-  try {
-    const result = await worker.recognize(input);
-    const confidence = Number.isFinite(result.data.confidence) ? result.data.confidence : null;
-    return parseHoleriteText(result.data.text, confidence);
-  } finally {
-    await worker.terminate();
+  if (error) {
+    let detail = error.message || "Não foi possível ler o holerite com o Gemini.";
+    try {
+      const context = await (error as any).context?.json?.();
+      if (context?.error) detail = context.error;
+    } catch {
+      // Mantém a mensagem original quando a resposta não for JSON.
+    }
+    throw new Error(detail);
   }
+
+  onProgress?.(100);
+  if (!data || typeof data !== "object") throw new Error("O Gemini não retornou dados válidos para este holerite.");
+  return {
+    rawText: String((data as any).rawText || ""),
+    salarioBruto: typeof (data as any).salarioBruto === "number" ? (data as any).salarioBruto : null,
+    salarioLiquido: typeof (data as any).salarioLiquido === "number" ? (data as any).salarioLiquido : null,
+    descontoInss: typeof (data as any).descontoInss === "number" ? (data as any).descontoInss : null,
+    descontoIrrf: typeof (data as any).descontoIrrf === "number" ? (data as any).descontoIrrf : null,
+    outrosDescontos: typeof (data as any).outrosDescontos === "number" ? (data as any).outrosDescontos : null,
+    totalDescontos: typeof (data as any).totalDescontos === "number" ? (data as any).totalDescontos : null,
+    confidence: typeof (data as any).confidence === "number" ? (data as any).confidence : null,
+  };
 }
