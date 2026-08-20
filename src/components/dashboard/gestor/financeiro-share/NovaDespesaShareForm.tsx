@@ -65,7 +65,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
-  const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [pagadoresMaster, setPagadoresMaster] = useState<any[]>([]);
   const [relatoriosViagem, setRelatoriosViagem] = useState<any[]>([]);
   const [loadingRelatorios, setLoadingRelatorios] = useState(false);
   const [grupoCategoriaSelecionado, setGrupoCategoriaSelecionado] = useState("");
@@ -105,11 +105,23 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
       .order("banco")
       .then(({ data }) => setBancos(data ?? []));
 
-    supabase
-      .from("user_profiles")
-      .select("id,full_name,email")
-      .order("full_name")
-      .then(({ data }) => setColaboradores(data ?? []));
+    (async () => {
+      const { data: roles } = await (supabase as any)
+        .from("user_roles")
+        .select("user_id,role")
+        .in("role", ["gestor_master", "financeiro_master"]);
+      const ids = Array.from(new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean)));
+      if (ids.length === 0) {
+        setPagadoresMaster([]);
+        return;
+      }
+      const { data: profiles } = await (supabase as any)
+        .from("user_profiles")
+        .select("id,full_name,email")
+        .in("id", ids)
+        .order("full_name");
+      setPagadoresMaster(profiles ?? []);
+    })();
 
   }, []);
 
@@ -146,9 +158,12 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     [bancos],
   );
 
-  const colaboradorItems = useMemo(
-    () => colaboradores.map((u: any) => ({ id: u.full_name || u.email || u.id, label: u.full_name || u.email || "—" })),
-    [colaboradores],
+  const pagadorMasterItems = useMemo(
+    () => pagadoresMaster.map((u: any) => ({
+      id: u.full_name || u.email || u.id,
+      label: u.full_name || u.email || "—",
+    })),
+    [pagadoresMaster],
   );
 
   const categoriaNome = useMemo(() => {
@@ -488,13 +503,15 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
-            <Label>Colaborador (opcional)</Label>
+            <Label>Pago por (gestor/financeiro master)</Label>
             <SearchableCombobox
-              items={colaboradorItems}
+              items={pagadorMasterItems}
               value={form.colaborador}
               onChange={(id) => set({ colaborador: id })}
-              placeholder="Selecione o colaborador"
-              searchPlaceholder="Buscar colaborador..."
+              placeholder={pagadorMasterItems.length ? "Selecione quem fez o pagamento" : "Nenhum master encontrado"}
+              searchPlaceholder="Buscar gestor ou financeiro..."
+              emptyMessage="Nenhum gestor/financeiro master encontrado."
+              disabled={pagadorMasterItems.length === 0}
             />
           </div>
           <div className="lg:col-span-2">

@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { syncSalaryPaymentToFinancial } from "@/services/financialSyncClient";
+import { readHolerite } from "@/lib/holeriteOCR";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -194,6 +195,7 @@ export default function SalariosTab() {
   const [forms, setForms] = useState<Record<string, FormState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
+  const [readingHolerite, setReadingHolerite] = useState<string | null>(null);
 
   const [aeronaves, setAeronaves] = useState<AeronaveInfo[]>([]);
   const [taxasHora, setTaxasHora] = useState<TaxaHoraRow[]>([]);
@@ -231,19 +233,43 @@ export default function SalariosTab() {
   const handleFileUpload = async (userId: string, field: "holerite" | "comprovante", file: File) => {
     try {
       setUploadingField({ userId, field });
+      let extractionMessage = "";
+      if (field === "holerite") {
+        setReadingHolerite(userId);
+        const extraction = await readHolerite(file);
+        setForms((prev) => {
+          const current = prev[userId] ?? emptyForm;
+          return {
+            ...prev,
+            [userId]: {
+              ...current,
+              salario_bruto: extraction.salarioBruto != null ? String(extraction.salarioBruto) : current.salario_bruto,
+              base_salary_holerite: extraction.salarioBruto != null ? String(extraction.salarioBruto) : current.base_salary_holerite,
+              salario_liquido: extraction.salarioLiquido != null ? String(extraction.salarioLiquido) : current.salario_liquido,
+              desconto_inss: extraction.descontoInss != null ? String(extraction.descontoInss) : current.desconto_inss,
+              desconto_irrf: extraction.descontoIrrf != null ? String(extraction.descontoIrrf) : current.desconto_irrf,
+              desconto_outros: extraction.outrosDescontos != null ? String(extraction.outrosDescontos) : current.desconto_outros,
+            },
+          };
+        });
+        extractionMessage = extraction.salarioBruto || extraction.salarioLiquido
+          ? ` Leitura automática concluída (${extraction.confidence != null ? `${Math.round(extraction.confidence)}% de confiança` : "confira os valores"}).`
+          : " Não encontrei valores com segurança; confira os campos manualmente.";
+      }
       const publicUrl = await uploadFileToStorage(file, field);
       setForms((prev) => ({
         ...prev,
         [userId]: {
-          ...prev[userId],
+          ...(prev[userId] ?? emptyForm),
           [field === "holerite" ? "holerite_url" : "comprovante_url"]: publicUrl,
         },
       }));
-      setToast({ type: "ok", text: `${field === "holerite" ? "Holerite" : "Comprovante"} enviado com sucesso!` });
+      setToast({ type: "ok", text: `${field === "holerite" ? "Holerite" : "Comprovante"} enviado com sucesso!${extractionMessage}` });
     } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao realizar upload." });
+      setToast({ type: "err", text: e.message || "Erro ao realizar upload ou ler o holerite." });
     } finally {
       setUploadingField(null);
+      setReadingHolerite(null);
     }
   };
 
@@ -1066,17 +1092,17 @@ export default function SalariosTab() {
                           </div>
                         ) : (
                           <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-700 hover:border-cyan-400/50 bg-slate-950/40 rounded-lg cursor-pointer text-xs text-slate-400 transition-colors">
-                            {uploadingField?.userId === u.id && uploadingField?.field === "holerite" ? (
+                            {readingHolerite === u.id || (uploadingField?.userId === u.id && uploadingField?.field === "holerite") ? (
                               <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                             ) : (
                               <Upload className="h-4 w-4 text-cyan-400" />
                             )}
-                            <span>Anexar Holerite</span>
+                            <span>{readingHolerite === u.id ? "Lendo campos do holerite..." : "Anexar holerite e ler campos"}</span>
                             <input
                               type="file"
                               accept="image/*,application/pdf"
                               className="hidden"
-                              disabled={uploadingField !== null}
+                              disabled={uploadingField !== null || readingHolerite !== null}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) handleFileUpload(u.id, "holerite", file);

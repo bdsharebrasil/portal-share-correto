@@ -22,8 +22,12 @@ export interface SalaryPaymentComponents {
 
 const toNumber = (value: unknown): number => {
   if (value === null || value === undefined || value === "") return 0;
-  const parsed = Number(String(value).replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : Number(value) || 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const text = String(value).trim().replace(/\s/g, "");
+  if (!text) return 0;
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const COMPONENT_LABELS: Array<{ key: keyof SalaryPaymentComponents; label: string; categoria: string }> = [

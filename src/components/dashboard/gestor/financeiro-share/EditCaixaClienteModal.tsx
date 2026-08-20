@@ -32,6 +32,11 @@ const STATUS_RATEIO = [
   { id: "aguardando_reembolso", label: "Aguardando reembolso" },
 ];
 
+const MODOS_PAGAMENTO_CLIENTE = [
+  { id: "direto", label: "Pago diretamente pelo cotista" },
+  { id: "reembolso", label: "Pago pela Share — aguardando reembolso" },
+];
+
 
 
 interface Props {
@@ -103,6 +108,8 @@ function anexosToPatch(anexos: AnexoLinha[]) {
   return patch;
 }
 
+type ModoPagamentoCliente = "direto" | "reembolso";
+
 interface RateioLinha {
   id?: string;
   cliente_id: string | null;
@@ -114,6 +121,7 @@ interface RateioLinha {
   valor_pago_real: number | null;
   pago_por: string | null;
   pago_diretamente: boolean;
+  modo_pagamento: ModoPagamentoCliente;
   status: string | null;
   _new?: boolean;
 }
@@ -121,7 +129,7 @@ interface RateioLinha {
 const novaLinha = (): RateioLinha => ({
   cliente_id: null, clientes_nome: null, socio_id: null, socios_nome: null,
   percentual_uso: null, valor_rateado: null, valor_pago_real: null,
-  pago_por: null, pago_diretamente: false, status: "pendente", _new: true,
+  pago_por: null, pago_diretamente: false, modo_pagamento: "reembolso", status: "pendente", _new: true,
 });
 
 export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, onSaved }: Props) {
@@ -164,6 +172,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           valor_pago_real: r.valor_pago_real ?? null,
           pago_por: r.pago_por ?? null,
           pago_diretamente: !!r.pago_diretamente,
+          modo_pagamento: !!r.pago_diretamente ? "direto" : "reembolso",
           status: r.status ?? null,
         }))
       );
@@ -193,19 +202,24 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       "Sem nome",
   }));
 
-  // Quem pagou: nomes reais dos cotistas/clientes/sócios + a própria Share Brasil
+  // Prioriza os cotistas vinculados à aeronave; Share e valores legados ficam depois.
   const pagadorOptions = useMemo(() => {
-    const nomes = new Set<string>([SHARE_BRASIL]);
-    cotistas.forEach((c) => {
-      const n = c.socios?.nome || c.clientes?.razao_social || c.clientes?.proprietario;
-      if (n) nomes.add(String(n));
-    });
+    const options = cotistas
+      .map((c) => c.socios?.nome || c.clientes?.razao_social || c.clientes?.proprietario || "")
+      .filter(Boolean)
+      .filter((nome, index, all) => all.indexOf(nome) === index)
+      .map((nome) => ({ id: String(nome), label: `${nome} (cotista da aeronave)` }));
+    const nomes = new Set<string>(options.map((option) => option.id));
+    nomes.add(SHARE_BRASIL);
     linhas.forEach((l) => {
       if (l.socios_nome) nomes.add(l.socios_nome);
       if (l.clientes_nome) nomes.add(l.clientes_nome);
       if (l.pago_por) nomes.add(l.pago_por);
     });
-    return Array.from(nomes).map((n) => ({ id: n, label: n === SHARE_BRASIL ? "SHARE BRASIL (caixa da empresa)" : n }));
+    const extras = Array.from(nomes)
+      .filter((nome) => !options.some((option) => option.id === nome))
+      .map((nome) => ({ id: nome, label: nome === SHARE_BRASIL ? "SHARE BRASIL (caixa da empresa)" : nome }));
+    return [...options, ...extras];
   }, [cotistas, linhas]);
 
   // Abastecimentos da aeronave para vincular ao rateio
@@ -270,6 +284,19 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const setLinha = (idx: number, patch: Partial<RateioLinha>) =>
     setLinhas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
+  const setLinhaModo = (idx: number, modo: ModoPagamentoCliente) => {
+    const linha = linhas[idx];
+    if (!linha) return;
+    const direto = modo === "direto";
+    setLinha(idx, {
+      modo_pagamento: modo,
+      pago_diretamente: direto,
+      pago_por: direto ? (linha.socios_nome || linha.clientes_nome || linha.pago_por || null) : SHARE_BRASIL,
+      valor_pago_real: direto ? (linha.valor_pago_real ?? linha.valor_rateado ?? null) : null,
+      status: direto && String(linha.status || "").toLowerCase() === "aguardando_reembolso" ? "pago" : direto ? linha.status : "aguardando_reembolso",
+    });
+  };
+
   const setLinhaStatus = (idx: number, status: string) =>
     setLinhas((ls) => {
       const next = ls.map((l, i) => (i === idx ? { ...l, status } : l));
@@ -300,6 +327,12 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
     setSaving(true); setErr(null);
     try {
       const allRateiosPending = linhas.length > 0 && linhas.every((l) => String(l.status || "").trim().toLowerCase() === "pendente");
+      const hasReembolso = linhas.some((l) => l.modo_pagamento === "reembolso");
+      const statusAtual = String(mov.status || "").trim().toLowerCase();
+      const statusMov = hasReembolso
+        ? "aguardando_reembolso"
+        : statusAtual === "aguardando_reembolso" ? "pago" : (mov.status || "pendente");
+      const pagadores = Array.from(new Set(linhas.map((l) => l.pago_por).filter(Boolean)));
       const patch: any = {
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
@@ -308,6 +341,12 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         data_pagamento: allRateiosPending ? null : mov.data_pagamento || null,
         forma_pagamento: mov.forma_pagamento,
         valor_rateado: numOrNull(mov.valor_rateado),
+        valor_pago_real: hasReembolso ? null : numOrNull(mov.valor_rateado ?? mov.valor),
+        status: statusMov,
+        pago_por: pagadores.length > 0 ? pagadores.join(", ") : null,
+        pago_diretamente: !hasReembolso,
+        reembolsavel: hasReembolso,
+        reembolso_quitado: false,
         observacoes: mov.observacoes || null,
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
         tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
@@ -349,10 +388,10 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           socios_nome: l.socios_nome,
           percentual_uso: numOrNull(l.percentual_uso),
           valor_rateado: numOrNull(l.valor_rateado),
-          valor_pago_real: numOrNull(l.valor_pago_real),
-          pago_por: l.pago_por || null,
-          pago_diretamente: !!l.pago_diretamente,
-          status: l.status || "pendente",
+          valor_pago_real: l.modo_pagamento === "reembolso" ? null : numOrNull(l.valor_pago_real ?? l.valor_rateado),
+          pago_por: l.modo_pagamento === "reembolso" ? SHARE_BRASIL : (l.pago_por || l.socios_nome || l.clientes_nome || null),
+          pago_diretamente: l.modo_pagamento === "direto",
+          status: l.modo_pagamento === "reembolso" ? "aguardando_reembolso" : (l.status || "pago"),
           atualizado_em: new Date().toISOString(),
         };
         if (l.id) {
@@ -495,12 +534,27 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Quem pagou</label>
+                      <label className={labelCls}>Pagamento</label>
+                      <SearchableCombobox
+                        items={MODOS_PAGAMENTO_CLIENTE}
+                        value={l.modo_pagamento}
+                        onChange={(v) => setLinhaModo(idx, v as ModoPagamentoCliente)}
+                        placeholder="Como foi pago?"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Pago por</label>
                       <SearchableCombobox
                         items={pagadorOptions}
                         value={l.pago_por || ""}
-                        onChange={(v) => setLinha(idx, { pago_por: v })}
-                        placeholder="Pagador"
+                        onChange={(v) => {
+                          const modo = v === SHARE_BRASIL ? "reembolso" : "direto";
+                          setLinhaModo(idx, modo);
+                          setLinha(idx, { pago_por: v });
+                        }}
+                        placeholder="Selecione o cotista pagador"
+                        searchPlaceholder="Buscar cotista da aeronave..."
+                        emptyMessage="Nenhum cotista encontrado para esta aeronave."
                         allowFreeText
                       />
                     </div>
@@ -516,15 +570,11 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-center gap-2 text-[11px] text-slate-400">
-                      <input
-                        type="checkbox"
-                        className="h-3.5 w-3.5 accent-emerald-500"
-                        checked={!!l.pago_diretamente}
-                        onChange={(e) => setLinha(idx, { pago_diretamente: e.target.checked })}
-                      />
-                      Pago diretamente pelo cotista
-                    </label>
+                    <div className="text-[10.5px] text-slate-500">
+                      {l.modo_pagamento === "reembolso"
+                        ? "A Share pagou esta despesa e ela ficará aguardando o reembolso do cliente."
+                        : "O cotista pagou diretamente; a despesa não fica pendente de reembolso da Share."}
+                    </div>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pago real</span>
