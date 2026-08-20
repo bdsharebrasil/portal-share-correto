@@ -108,24 +108,28 @@ function AircraftCGIndicator({ calc }: { calc: any }) {
 
   return (
     <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5">
-      <h3 className="mb-3 text-sm font-semibold text-slate-200">Situação do carregamento</h3>
+      <div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-slate-200">Situação do carregamento</h3><span className="rounded-full border border-slate-700 bg-slate-900/70 px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500">CG em tempo real</span></div>
 
       <div className="flex items-center justify-center py-4">
-        <svg width="220" height="140" viewBox="0 0 220 140">
-          {/* linha de referência (horizonte) */}
-          <line x1="10" y1="90" x2="210" y2="90" stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
-
-          <g transform={`rotate(${tiltDeg} 110 80)`} style={{ transition: 'transform 300ms ease-out' }}>
-            {/* fuselagem */}
-            <ellipse cx="110" cy="80" rx="75" ry="10" fill={bodyColor} opacity="0.9" />
-            {/* nariz (indica a frente do avião) */}
-            <polygon points="180,80 210,80 180,72 180,88" fill={bodyColor} />
-            {/* asa */}
-            <polygon points="95,80 60,50 75,80 60,110 95,80" fill={bodyColor} opacity="0.6" />
-            {/* empenagem (cauda) */}
-            <polygon points="38,80 10,62 25,80 10,98 38,80" fill={bodyColor} opacity="0.6" />
-            {/* marcador do CG */}
-            <circle cx={110 - (pos - 0.5) * 100} cy="80" r="5" fill="#0f172a" stroke="#fff" strokeWidth="1.5" />
+        <svg width="280" height="160" viewBox="0 0 280 160" role="img" aria-label="Avião indicando o centro de gravidade">
+          <defs>
+            <linearGradient id="aircraftBody" x1="0" x2="1"><stop offset="0" stopColor={bodyColor} stopOpacity="0.72" /><stop offset="0.55" stopColor={bodyColor} /><stop offset="1" stopColor={bodyColor} stopOpacity="0.82" /></linearGradient>
+            <filter id="aircraftGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          </defs>
+          <line x1="14" y1="98" x2="266" y2="98" stroke="#334155" strokeWidth="1" strokeDasharray="5 5" />
+          <g transform={`rotate(${tiltDeg} 140 84)`} style={{ transition: 'transform 300ms ease-out' }} filter="url(#aircraftGlow)">
+            {/* avião em vista lateral: nariz à direita */}
+            <path d="M34 84 C55 78 70 77 92 77 L205 77 C224 77 240 80 255 84 C240 88 224 91 205 91 L92 91 C70 91 55 90 34 84Z" fill="url(#aircraftBody)" />
+            <path d="M187 77 L226 48 L239 48 L215 79Z" fill={bodyColor} opacity="0.88" />
+            <path d="M187 91 L226 120 L239 120 L215 89Z" fill={bodyColor} opacity="0.62" />
+            <path d="M78 78 L53 55 L62 54 L104 78Z" fill={bodyColor} opacity="0.7" />
+            <path d="M78 90 L53 113 L62 114 L104 90Z" fill={bodyColor} opacity="0.52" />
+            <path d="M38 82 L18 66 L24 84 L18 102 L38 86Z" fill={bodyColor} opacity="0.72" />
+            <path d="M220 78 L250 84 L220 90Z" fill={bodyColor} />
+            <path d="M132 78 L142 78 L139 89 L129 89Z" fill="#dbeafe" opacity="0.85" />
+            <path d="M145 78 L155 78 L152 89 L142 89Z" fill="#dbeafe" opacity="0.62" />
+            <circle cx={140 - (pos - 0.5) * 120} cy="84" r="7" fill="#0f172a" stroke="#fff" strokeWidth="2" />
+            <circle cx={140 - (pos - 0.5) * 120} cy="84" r="2.5" fill={bodyColor} />
           </g>
         </svg>
       </div>

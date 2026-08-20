@@ -112,21 +112,25 @@ function SimulatorInner() {
   return (
     <div className="min-h-full bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--muted)/0.35))]">
       <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 sm:p-6 lg:p-8">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-black/20 sm:p-7">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
+          <div className="relative flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-2xl">
+              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_12px_hsl(var(--primary))]" /> Intelligence operacional</div>
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Simulador de custos de voo</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">Transforme rota, aeronave e premissas em uma decisão financeira clara — com leitura rápida para operação e gestão.</p>
+            </div>
+            <div className="grid min-w-[250px] grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Status</p><p className="mt-1 text-sm font-semibold text-emerald-300">{costs ? "Simulação pronta" : "Aguardando dados"}</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Modo</p><p className="mt-1 text-sm font-semibold text-white">Por trecho</p></div></div>
+          </div>
+        </section>
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <Button variant="outline" size="icon" onClick={() => navigate(-1)} aria-label="Voltar">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1">
-                  <Calculator className="h-3.5 w-3.5" /> Operações e custos
-                </Badge>
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Simulador de custos de voo</h1>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Compare o custo estimado de uma rota com base na aeronave, nos aeródromos e nas premissas operacionais.
-              </p>
+              <div className="mb-2 flex items-center gap-2"><Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1"><Calculator className="h-3.5 w-3.5" /> Configuração da simulação</Badge></div>
+              <p className="max-w-2xl text-sm text-muted-foreground">Defina os parâmetros abaixo para atualizar a estimativa em tempo real.</p>
             </div>
           </div>
           <Button variant="ghost" onClick={reset} className="gap-2 text-muted-foreground hover:text-foreground">
@@ -263,12 +267,12 @@ function SimulatorInner() {
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-6">
-            <Card className="overflow-hidden border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
+            <Card className="overflow-hidden rounded-3xl border-primary/30 bg-gradient-to-br from-primary/15 via-slate-950 to-slate-950 shadow-xl shadow-primary/5">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Estimativa da rota</p>
-                    <CardTitle className="mt-1 text-3xl">{costs ? formatBRL(costs.grandTotal) : "—"}</CardTitle>
+                    <CardTitle className="mt-1 text-4xl font-semibold tracking-tight text-white">{costs ? formatBRL(costs.grandTotal) : "—"}</CardTitle>
                   </div>
                   <div className="rounded-2xl bg-primary/15 p-3 text-primary">
                     <TrendingUp className="h-6 w-6" />
@@ -362,7 +366,7 @@ function NumberField({
 
 function SummaryMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3 transition-colors hover:border-primary/30">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="text-primary">{icon}</span>{label}
       </div>

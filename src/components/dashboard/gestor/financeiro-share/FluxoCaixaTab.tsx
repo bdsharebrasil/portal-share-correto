@@ -10,6 +10,7 @@ import {
   Edit3,
   Filter,
   HandCoins,
+  Wallet,
   Plus,
   RefreshCw,
   Search,

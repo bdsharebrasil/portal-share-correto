@@ -484,7 +484,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button type="button" onClick={salvar} disabled={saving}>
+          <Button type="button" onClick={() => salvar()} disabled={saving}>
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando..." : "Salvar lançamento"}
           </Button>

@@ -3,6 +3,7 @@ import { Package, Plus, ChevronRight, Users, Check, X, Save, Loader2, AlertCircl
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import FornecedorPickerCombo from '@/components/dashboard/gestor/financeiro-share/FornecedorPickerCombo';
 
 interface OrcamentosTabProps { aircraftId: string; }
 
@@ -18,7 +19,8 @@ export function OrcamentosTab({ aircraftId }: OrcamentosTabProps) {
       .select(`
         *,
         ctm_itens_orcamento(*),
-        ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao)
+        ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao),
+        oas:ctm_ordem_acompanhamento_servico(id, numero, tipo_manutencao)
       `)
       .eq('aeronave_id', aircraftId)
       .order('criado_em', { ascending: false });
@@ -67,8 +69,9 @@ export function OrcamentosTab({ aircraftId }: OrcamentosTabProps) {
       {list.length === 0 && !showForm ? (
         <EmptySection icon={Package} text="Nenhum orçamento registrado" />
       ) : (
-        <div className="space-y-3">
+                <div className="space-y-3">
           {list.map(orc => {
+
             const items = orc.ctm_itens_orcamento || [];
             const total = orc.valor_total || items.reduce((s: number, i: any) => s + Number(i.subtotal || 0), 0);
             const aprovacao = orc.ctm_aprovacoes_ordem_servico?.[0];
@@ -84,7 +87,9 @@ export function OrcamentosTab({ aircraftId }: OrcamentosTabProps) {
                       <AprovBadge status={orc.status_aprovacao || aprovacao?.status} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {orc.nome_fornecedor || 'Fornecedor não informado'} · {items.length} item(s)
+                                            {orc.nome_fornecedor || 'Fornecedor não informado'} · {items.length} item(s)
+                      {orc.oas?.numero && ` · OAS #${orc.oas.numero}`}
+
                       {orc.submetido_em && ` · ${new Date(orc.submetido_em).toLocaleDateString('pt-BR')}`}
                     </p>
                   </div>
@@ -108,9 +113,15 @@ export function OrcamentosTab({ aircraftId }: OrcamentosTabProps) {
 function NovoOrcamentoForm({ aircraftId, onClose, onSaved }: {
   aircraftId: string; onClose: () => void; onSaved: () => void;
 }) {
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ descricao: '', nome_fornecedor: '', tipo_fornecedor: 'serviço', notas: '' });
+    const [saving, setSaving] = useState(false);
+  const [oasList, setOasList] = useState<any[]>([]);
+  const [form, setForm] = useState({ descricao: '', nome_fornecedor: '', tipo_fornecedor: 'serviço', notas: '', oas_id: '', tipo_rateio: 'igual' });
+
   const [items, setItems] = useState([{ descricao: '', quantidade: 1, valor_unitario: 0 }]);
+
+  useEffect(() => {
+    supabase.from('ctm_ordem_acompanhamento_servico').select('id, numero, tipo_manutencao, data_entrada').eq('aeronave_id', aircraftId).order('created_at', { ascending: false }).then(({ data }) => setOasList(data ?? []));
+  }, [aircraftId]);
 
   function addItem() {
     setItems(prev => [...prev, { descricao: '', quantidade: 1, valor_unitario: 0 }]);
@@ -135,9 +146,12 @@ function NovoOrcamentoForm({ aircraftId, onClose, onSaved }: {
       .insert({
         aeronave_id: aircraftId,
         descricao: form.descricao,
-        nome_fornecedor: form.nome_fornecedor,
+                nome_fornecedor: form.nome_fornecedor,
         tipo_fornecedor: form.tipo_fornecedor,
+        itens_servico_id: form.oas_id || null,
+        detalhes_orcamento: { tipo_rateio: form.tipo_rateio },
         notas: form.notas,
+
         valor_total: total,
         status: 'draft',
         status_aprovacao: 'pendente',
@@ -190,17 +204,28 @@ function NovoOrcamentoForm({ aircraftId, onClose, onSaved }: {
             onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
           />
         </div>
+                <div>
+          <label className="text-xs text-muted-foreground block mb-1">Fornecedor favorito</label>
+          <FornecedorPickerCombo value={form.nome_fornecedor} onChange={(nome_fornecedor) => setForm(f => ({ ...f, nome_fornecedor }))} />
+        </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Fornecedor</label>
-          <input
-            className="ctm-input w-full"
-            placeholder="Nome do fornecedor"
-            value={form.nome_fornecedor}
-            onChange={e => setForm(f => ({ ...f, nome_fornecedor: e.target.value }))}
-          />
+          <label className="text-xs text-muted-foreground block mb-1">Vincular à OAS</label>
+          <select className="ctm-input w-full" value={form.oas_id} onChange={e => setForm(f => ({ ...f, oas_id: e.target.value }))}>
+            <option value="">Sem OAS vinculada</option>
+            {oasList.map((oas) => <option key={oas.id} value={oas.id}>OAS #{oas.numero} · {oas.tipo_manutencao || 'Manutenção'}</option>)}
+          </select>
+        </div>
+
+                <div>
+          <label className="text-xs text-muted-foreground block mb-1">Rateio padrão</label>
+          <select className="ctm-input w-full" value={form.tipo_rateio} onChange={e => setForm(f => ({ ...f, tipo_rateio: e.target.value }))}>
+            <option value="igual">Igualitário entre cotistas</option>
+            <option value="horas">Proporcional às horas voadas</option>
+          </select>
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Tipo</label>
+
           <select
             className="ctm-input w-full"
             value={form.tipo_fornecedor}
@@ -296,7 +321,8 @@ function OrcamentoDetail({ orcamento, onBack, aircraftId, onRefresh }: {
   orcamento: any; onBack: () => void; aircraftId: string; onRefresh: () => void;
 }) {
   const [cotistas, setCotistas] = useState<any[]>([]);
-  const [splitType, setSplitType] = useState<'horas' | 'igual'>('igual');
+    const [splitType, setSplitType] = useState<'horas' | 'igual'>(orcamento.detalhes_orcamento?.tipo_rateio === 'horas' ? 'horas' : 'igual');
+
   const [periodoInicio, setPeriodoInicio] = useState('');
   const [periodoFim, setPeriodoFim] = useState('');
   const [horasVoadas, setHorasVoadas] = useState<Record<string, number>>({});
@@ -436,7 +462,9 @@ function OrcamentoDetail({ orcamento, onBack, aircraftId, onRefresh }: {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-xl font-bold">OA #{orcamento.numero_orcamento}</h2>
-                <p className="text-muted-foreground">{orcamento.descricao}</p>
+                                <p className="text-muted-foreground">{orcamento.descricao}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground"><span className="rounded-full bg-secondary px-2 py-1">{orcamento.oas?.numero ? `OAS #${orcamento.oas.numero}` : 'Sem OAS vinculada'}</span><span className="rounded-full bg-secondary px-2 py-1">Rateio: {orcamento.detalhes_orcamento?.tipo_rateio === 'horas' ? 'por horas' : 'igualitário'}</span></div>
+
                 {orcamento.nome_fornecedor && <p className="text-sm text-muted-foreground mt-1">Fornecedor: {orcamento.nome_fornecedor}</p>}
               </div>
               <AprovBadge status={orcamento.status_aprovacao} />

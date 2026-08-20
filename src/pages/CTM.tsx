@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   Plane, Clock, RotateCcw, Wrench, FileText, Package, AlertTriangle,
   BookOpen, BarChart3, Droplets, ArrowLeft, Map, ShieldCheck, DollarSign,
+  CalendarClock, PlaneLanding, CheckCircle2, ShieldAlert, Timer,
 } from "lucide-react";
 import { Gauge } from 'lucide-react';
 import { ControleManutencaoTab } from "@/components/dashboard/operador/ctm/ControleManutencaoTab";
@@ -24,6 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import {
+  calcularStatusItem,
+  ordenarPorCriticidade,
+  NIVEL_STYLE,
+  type ItemPrograma,
+  type StatusPrograma,
+} from "@/lib/ctm-programa-manutencao";
 
 type TabId = "visao" | "programa" | "medias" | "oas" | "ras" | "orcamentos" | "componentes" | "rastreamento" | "oleo" | "diretrizes" | "pecas" | "peso" | "documentos";
 
@@ -103,6 +111,55 @@ function StatusBadge({ status }: { status?: string | null }) {
         ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
         : "border-border/60 bg-muted/30 text-muted-foreground";
   return <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize", cls)}>{status}</span>;
+}
+
+function ForecastIcon({ tipo }: { tipo?: string }) {
+  if (tipo === "pousos") return <PlaneLanding className="h-4 w-4" />;
+  if (tipo === "calendario") return <CalendarClock className="h-4 w-4" />;
+  return <Timer className="h-4 w-4" />;
+}
+
+function MaintenanceForecast({ statuses }: { statuses: StatusPrograma[] }) {
+  const critical = statuses.filter((status) => status.nivel !== "ok" && status.nivel !== "sem_controle").slice(0, 6);
+  const upcoming = statuses.filter((status) => status.nivel === "ok" && status.critica).slice(0, 4);
+  const items = [...critical, ...upcoming].slice(0, 8);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Radar de manutenção</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Próximas ações da aeronave</h2>
+          <p className="mt-1 text-sm text-slate-400">Acompanhe primeiro o que precisa ser feito, antes de navegar pelos registros.</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Cálculo baseado no uso registrado</div>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-sm text-emerald-200"><CheckCircle2 className="mb-2 h-5 w-5" />Nenhum item com previsão configurada para exibir.</div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((status) => {
+            const style = NIVEL_STYLE[status.nivel];
+            const dimension = status.critica;
+            return (
+              <div key={status.item.id} className={cn("group rounded-2xl border bg-slate-950/70 p-4 shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900", style.border)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className={cn("rounded-xl p-2", style.bg, style.text)}><ForecastIcon tipo={dimension?.tipo} /></div>
+                  <span className={cn("rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider", style.border, style.bg, style.text)}>{style.label}</span>
+                </div>
+                <h3 className="mt-4 text-sm font-semibold leading-snug text-white">{status.item.item}</h3>
+                <p className={cn("mt-1 text-lg font-bold tracking-tight", style.text)}>{dimension?.restanteLabel ?? status.resumo}</p>
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-500"><span>Próximo marco</span><span className="font-medium text-slate-300">{dimension?.proximo ?? "—"}</span></div>
+                {status.previsaoData && <div className="mt-1 flex items-center justify-between text-xs text-slate-500"><span>Previsão por uso</span><span className="font-medium text-slate-300">{dt(status.previsaoData)}</span></div>}
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/5"><div className={cn("h-full rounded-full transition-all", style.bar)} style={{ width: `${Math.max(5, Math.min(100, dimension?.progresso ?? 0))}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ---------------- Aircraft list ---------------- */
@@ -224,6 +281,58 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       return data as any;
     },
   });
+
+  const programa = useQuery({
+    queryKey: ["ctm", "programa", aircraftId],
+    enabled: !!aircraftId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("ctm_programa_manutencao")
+        .select("*")
+        .eq("aeronave_id", aircraftId);
+      if (error) throw error;
+      return (data ?? []) as ItemPrograma[];
+    },
+  });
+
+  const logsUso = useQuery({
+    queryKey: ["ctm", "logs-uso", aircraftId],
+    enabled: !!aircraftId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("lancamentos_diario_bordo")
+        .select("data_registro, tempo_total, tempo_voo, pousos_total")
+        .eq("aeronave_id", aircraftId)
+        .order("data_registro", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const documentos = useQuery({
+    queryKey: ["ctm", "seguro", aircraftId],
+    enabled: !!aircraftId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("documentos_voo")
+        .select("id, tipo_documento, nome, data_validade")
+        .eq("aeronave_id", aircraftId)
+        .not("data_validade", "is", null)
+        .order("data_validade", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const maintenanceStatuses = useMemo(() => {
+    const entries = logsUso.data ?? [];
+    const horas = Math.max(Number(aircraft?.horas_celula_atual || 0), ...entries.map((entry: any) => Number(entry.tempo_total || entry.tempo_voo || 0)), 0);
+    const pousos = entries.reduce((total: number, entry: any) => total + Number(entry.pousos_total || 0), 0);
+    const months = new Set(entries.map((entry: any) => String(entry.data_registro || "").slice(0, 7)).filter(Boolean)).size || 1;
+    return ordenarPorCriticidade((programa.data ?? []).map((item) => calcularStatusItem(item, { horas, pousos, ciclos: pousos }, horas / months, pousos / months)));
+  }, [programa.data, logsUso.data, aircraft?.horas_celula_atual]);
+
+  const insurance = useMemo(() => (documentos.data ?? []).find((documento: any) => String(documento.tipo_documento || "").toLowerCase().includes("seguro") || String(documento.nome || "").toLowerCase().includes("seguro")), [documentos.data]);
 
   // Horas de célula reais (maior célula lançada no diário de bordo)
   const celulaDiario = useQuery({
@@ -359,7 +468,18 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       {/* Conteúdo das Abas */}
       <div className="space-y-3 transition-all duration-300">
         {tab === "visao" && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-5">
+            <Card className="overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-slate-950/80 to-slate-950 shadow-2xl shadow-primary/5">
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="max-w-xl"><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Visão operacional</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Antecipe o próximo serviço</h2><p className="mt-2 text-sm leading-6 text-slate-400">A aeronave está sendo monitorada por horas, pousos, ciclos e validade documental para priorizar a rotina da equipe.</p></div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Itens no radar</p><p className="mt-1 text-2xl font-bold text-white">{maintenanceStatuses.length}</p></div><div className="rounded-2xl border border-red-400/20 bg-red-400/5 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Críticos</p><p className="mt-1 text-2xl font-bold text-red-300">{maintenanceStatuses.filter((item) => item.nivel === "vencido" || item.nivel === "critico").length}</p></div><div className="hidden rounded-2xl border border-white/10 bg-black/10 px-4 py-3 sm:block"><p className="text-[10px] uppercase tracking-wider text-slate-500">Seguro</p><p className="mt-1 text-2xl font-bold text-white">{insurance?.data_validade ? `${Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))}d` : "—"}</p></div></div>
+                </div>
+              </CardContent>
+            </Card>
+            <MaintenanceForecast statuses={maintenanceStatuses} />
+            {insurance && <Card className="rounded-2xl border border-amber-400/25 bg-amber-400/5"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-amber-400/10 p-2.5 text-amber-300"><ShieldAlert className="h-5 w-5" /></div><div><p className="text-sm font-semibold text-white">Seguro da aeronave</p><p className="text-xs text-slate-400">Validade em {dt(insurance.data_validade)} · {insurance.nome || insurance.tipo_documento}</p></div></div><Badge className="w-fit border-amber-400/30 bg-amber-400/10 text-amber-200">{Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))} dias restantes</Badge></CardContent></Card>}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="rounded-2xl border border-slate-800/70 bg-slate-950/60 backdrop-blur-sm shadow-md">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center justify-between pb-1">
@@ -385,6 +505,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
                 {!(ras.data ?? []).length && <EmptyState text="Nenhum RAS registrado" />}
               </CardContent>
             </Card>
+            </div>
           </div>
         )}
 
