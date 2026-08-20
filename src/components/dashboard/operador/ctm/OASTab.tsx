@@ -13,13 +13,26 @@ export function OASTab({ aircraftId }: OASTabProps) {
   const [showForm, setShowForm] = useState(false);
 
   async function loadOAS() {
+    setLoading(true);
+    // OBS: status_aprovacao já é uma coluna própria de ctm_ordem_acompanhamento_servico.
+    // Não existe FK entre esta tabela e ctm_aprovacoes_ordem_servico (aquela tabela se
+    // relaciona com ctm_orcamentos), então não tentamos mais fazer o embed do Supabase
+    // aqui — isso derrubava a query inteira silenciosamente.
     const { data, error } = await supabase
       .from('ctm_ordem_acompanhamento_servico')
-      .select(`*, ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao)`)
+      .select('*')
       .eq('aeronave_id', aircraftId)
       .order('created_at', { ascending: false });
-    console.log('OAS:', data, error);
-    if (data) setList(data);
+
+    if (error) {
+      console.error('Erro ao carregar OAS:', error);
+      toast.error('Erro ao carregar OAS: ' + error.message);
+      setList([]);
+      setLoading(false);
+      return;
+    }
+
+    setList(data ?? []);
     setLoading(false);
   }
 
@@ -54,7 +67,6 @@ export function OASTab({ aircraftId }: OASTabProps) {
             const totalServicos = oas.total_mao_obra ?? 0;
             const totalPecas = oas.total_pecas ?? 0;
             const total = (oas.total_geral ?? (totalServicos + totalPecas)) as number;
-            const aprovacao = oas.ctm_aprovacoes_ordem_servico?.[0];
             return (
               <div key={oas.id} onClick={() => setSelected(oas)} className="ctm-card-hover p-5 group">
                 <div className="flex items-center gap-4">
@@ -65,7 +77,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold">{oas.tipo_manutencao || 'Manutenção'}</p>
                       {oas.periodo && <span className="badge-teal">{oas.periodo}</span>}
-                      <OASStatusBadge status={oas.status} aprovStatus={aprovacao?.status || oas.status_aprovacao} />
+                      <OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} />
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
                       {oas.data_entrada && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(oas.data_entrada)}</span>}
@@ -259,17 +271,22 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
   }, [oas.id]);
 
   async function recarregar() {
-    const { data } = await supabase
+    // Sem embed de ctm_aprovacoes_ordem_servico — ver nota em loadOAS() acima.
+    const { data, error } = await supabase
       .from('ctm_ordem_acompanhamento_servico')
-      .select('*, ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao)')
+      .select('*')
       .eq('id', oas.id)
       .maybeSingle();
+    if (error) {
+      console.error('Erro ao recarregar OAS:', error);
+      toast.error('Erro ao recarregar OAS: ' + error.message);
+      return;
+    }
     if (data) setOas(data);
   }
 
   const totalServicos = oas.total_mao_obra ?? (execucoes.reduce((s: number, i: any) => s + Number(i.valor || 0), 0) as number);
   const totalPecas = oas.total_pecas ?? (pecas.reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0) as number);
-  const aprovacao = oas.ctm_aprovacoes_ordem_servico?.[0];
 
   return (
     <div>
@@ -287,7 +304,7 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
                 <p className="text-muted-foreground">{oas.tipo_manutencao} {oas.periodo && `· ${oas.periodo}`}</p>
               </div>
               <div className="flex items-center gap-3">
-                <OASStatusBadge status={oas.status} aprovStatus={aprovacao?.status || oas.status_aprovacao} />
+                <OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} />
                 <button
                   onClick={() => setEditando(v => !v)}
                   className="flex items-center gap-1.5 rounded-full border border-[#45d1b5] px-3 py-1 text-xs font-medium text-[#45d1b5] hover:bg-[#45d1b5]/10 transition-colors"
@@ -463,34 +480,15 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
             </div>
           )}
 
-          {/* Approval */}
-          {aprovacao && (
+          {/* Aprovação (status é uma coluna direta da OAS: status_aprovacao) */}
+          {oas.status_aprovacao && (
             <div className="ctm-card p-5">
               <h3 className="font-semibold mb-3 teal-text">Aprovação</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status</span>
-                  <span className={aprovacao.status === 'approved' ? 'text-emerald-400' : aprovacao.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'}>
-                    {aprovacao.status === 'approved' ? 'Aprovado' : aprovacao.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
-                  </span>
+                  <AprovBadge status={oas.status_aprovacao} />
                 </div>
-                {aprovacao.submetido_em && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Submetido</span>
-                    <span>{formatDate(aprovacao.submetido_em)}</span>
-                  </div>
-                )}
-                {aprovacao.revisado_em && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Revisado</span>
-                    <span>{formatDate(aprovacao.revisado_em)}</span>
-                  </div>
-                )}
-                {aprovacao.motivo_rejeicao && (
-                  <div className="mt-2 pt-2 border-t border-border">
-                    <p className="text-xs text-red-400">{aprovacao.motivo_rejeicao}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}
