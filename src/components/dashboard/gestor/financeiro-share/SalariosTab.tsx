@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
+import { syncSalaryPaymentToFinancial } from "@/services/financialSyncClient";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -45,6 +46,12 @@ interface PagamentoSalario {
   id: string;
   id_usuario: string | null;
   salario_holerite: number | string | null;
+  salario_bruto?: number | string | null;
+  salario_liquido?: number | string | null;
+  descontos_detalhes?: unknown;
+  beneficios_detalhes?: unknown;
+  custo_total_empresa?: number | string | null;
+  valor_total?: number | string | null;
   beneficios: string | null;
   horas_voadas: string | null;
   decimo_terceiro_parcela1: number | string | null;
@@ -81,7 +88,14 @@ interface TaxaHoraRow {
 
 interface FormState {
   base_salary_holerite: string;
+  salario_bruto: string;
+  salario_liquido: string;
+  desconto_inss: string;
+  desconto_irrf: string;
+  desconto_outros: string;
   benefit: string;
+  benefit_card: string;
+  benefit_other: string;
   horas_voo: string;
   extra: string;
   decimo_terceiro_parcela1: string;
@@ -98,7 +112,14 @@ interface FormState {
 
 const emptyForm: FormState = {
   base_salary_holerite: "",
+  salario_bruto: "",
+  salario_liquido: "",
+  desconto_inss: "",
+  desconto_irrf: "",
+  desconto_outros: "",
   benefit: "",
+  benefit_card: "",
+  benefit_other: "",
   horas_voo: "",
   extra: "",
   decimo_terceiro_parcela1: "",
@@ -131,6 +152,17 @@ const MESES = [
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
+
+const parseJsonArray = (value: unknown): Array<{ tipo?: string; valor?: number | string }> => {
+  if (Array.isArray(value)) return value as Array<{ tipo?: string; valor?: number | string }>;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 const isCrewDepartamento = (departamento: string | null | undefined) => {
   const d = (departamento || "").toUpperCase();
@@ -341,12 +373,25 @@ export default function SalariosTab() {
         const salVigente = salariosMap[u.id];
 
         if (p) {
+          const descontos = parseJsonArray(p.descontos_detalhes);
+          const beneficiosDetalhados = parseJsonArray(p.beneficios_detalhes);
+          const descontoPorTipo = (tipo: string) => String(descontos.find((d) => d.tipo === tipo)?.valor ?? "");
+          const beneficioPorTipo = (tipo: string) => String(beneficiosDetalhados.find((d) => d.tipo === tipo)?.valor ?? "");
+          const bruto = p.salario_bruto ?? p.salario_holerite ?? salVigente?.salario_bruto ?? "";
+          const liquido = p.salario_liquido ?? p.valor_total ?? (num(bruto) - descontos.reduce((sum, d) => sum + num(d.valor), 0));
           const has13 = Boolean(p.decimo_terceiro_parcela1 || p.decimo_terceiro_parcela2);
           const hasFerias = Boolean(p.ferias);
 
           formMap[u.id] = {
-            base_salary_holerite: p.salario_holerite != null ? String(p.salario_holerite) : (salVigente?.salario_bruto ? String(salVigente.salario_bruto) : ""),
+            base_salary_holerite: String(bruto),
+            salario_bruto: String(bruto),
+            salario_liquido: String(liquido),
+            desconto_inss: descontoPorTipo("INSS"),
+            desconto_irrf: descontoPorTipo("IRRF"),
+            desconto_outros: descontoPorTipo("Outros descontos"),
             benefit: p.beneficios ?? (salVigente?.beneficios ?? ""),
+            benefit_card: beneficioPorTipo("Cartão alimentação") || (p.beneficios && !Number.isNaN(Number(p.beneficios)) ? p.beneficios : ""),
+            benefit_other: beneficioPorTipo("Outros benefícios"),
             horas_voo: p.horas_voadas ?? "",
             extra: p.adicionais ?? "",
             decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? String(p.decimo_terceiro_parcela1) : "",
@@ -364,6 +409,8 @@ export default function SalariosTab() {
           formMap[u.id] = {
             ...emptyForm,
             base_salary_holerite: salVigente?.salario_bruto ? String(salVigente.salario_bruto) : "",
+            salario_bruto: salVigente?.salario_bruto ? String(salVigente.salario_bruto) : "",
+            salario_liquido: salVigente?.salario_liquido ? String(salVigente.salario_liquido) : "",
             benefit: salVigente?.beneficios ?? "",
           };
         }
@@ -423,6 +470,26 @@ export default function SalariosTab() {
     [horasVooPorUsuario, aeronaves, taxaParaAeronave]
   );
 
+  const resumoFolha = useCallback((userId: string) => {
+    const f = forms[userId] ?? emptyForm;
+    const bruto = num(f.salario_bruto || f.base_salary_holerite);
+    const descontos = [
+      { tipo: "INSS", valor: num(f.desconto_inss) },
+      { tipo: "IRRF", valor: num(f.desconto_irrf) },
+      { tipo: "Outros descontos", valor: num(f.desconto_outros) },
+    ].filter((item) => item.valor > 0);
+    const totalDescontos = descontos.reduce((sum, item) => sum + item.valor, 0);
+    const liquido = f.salario_liquido.trim() ? num(f.salario_liquido) : Math.max(0, bruto - totalDescontos);
+    const beneficios = [
+      { tipo: "Cartão alimentação", valor: num(f.benefit_card) },
+      { tipo: "Outros benefícios", valor: num(f.benefit_other) },
+    ].filter((item) => item.valor > 0);
+    const totalBeneficios = beneficios.reduce((sum, item) => sum + item.valor, 0);
+    const adicionais = num(f.extra) + (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) + (f.showFerias ? num(f.ferias) : 0);
+    const custoTotal = liquido + totalBeneficios + adicionais;
+    return { bruto, descontos, totalDescontos, liquido, beneficios, totalBeneficios, adicionais, custoTotal };
+  }, [forms]);
+
   const saveRow = async (userId: string) => {
     const f = forms[userId];
     if (!f) return;
@@ -440,10 +507,21 @@ export default function SalariosTab() {
           })()
         : f.horas_voo.trim() || null;
 
+      const resumo = resumoFolha(userId);
+      if (resumo.bruto <= 0) throw new Error("Informe o salário bruto do holerite.");
+      if (resumo.liquido <= 0) throw new Error("Informe o salário líquido ou preencha descontos válidos.");
+      if (resumo.liquido > resumo.bruto && resumo.totalDescontos > 0) throw new Error("O líquido não pode ser maior que o bruto quando existem descontos.");
+
       const payload = {
         id_usuario: userId,
-        salario_holerite: f.base_salary_holerite ? Number(f.base_salary_holerite) : null,
-        beneficios: f.benefit.trim() || null,
+        salario_holerite: resumo.bruto,
+        salario_bruto: resumo.bruto,
+        salario_liquido: resumo.liquido,
+        descontos_detalhes: resumo.descontos,
+        beneficios_detalhes: resumo.beneficios,
+        custo_total_empresa: resumo.custoTotal,
+        valor_total: resumo.custoTotal,
+        beneficios: resumo.beneficios.length > 0 ? resumo.beneficios.map((item) => `${item.tipo}: ${formatBRL(item.valor)}`).join("; ") : f.benefit.trim() || null,
         horas_voadas: horasVoadasTexto,
         adicionais: f.extra.trim() || null,
         decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
@@ -457,6 +535,7 @@ export default function SalariosTab() {
       };
 
       const existing = pagamentos[userId];
+      let paymentId = existing?.id;
       if (existing?.id) {
         const { error } = await (supabase as any)
           .from("historico_pagamentos_funcionarios")
@@ -470,9 +549,31 @@ export default function SalariosTab() {
           .select("*")
           .single();
         if (error) throw error;
+        paymentId = data.id;
         setPagamentos((prev) => ({ ...prev, [userId]: data as PagamentoSalario }));
       }
-      setToast({ type: "ok", text: "Pagamento salvo com sucesso." });
+
+      const syncResult = await syncSalaryPaymentToFinancial(
+        paymentId!,
+        userId,
+        user?.full_name || "Colaborador",
+        userId,
+        {
+          salary_net: resumo.liquido,
+          benefit_card: num(f.benefit_card),
+          benefit_other: num(f.benefit_other),
+          extra: num(f.extra),
+          ferias: f.showFerias ? num(f.ferias) : 0,
+          decimo_terceiro_parcela1: f.show13 ? num(f.decimo_terceiro_parcela1) : 0,
+          decimo_terceiro_parcela2: f.show13 ? num(f.decimo_terceiro_parcela2) : 0,
+          comprovante_url: f.comprovante_url || null,
+          obs: `${f.obs.trim()}${f.obs.trim() ? " · " : ""}Bruto: ${formatBRL(resumo.bruto)} · Descontos: ${formatBRL(resumo.totalDescontos)}`,
+          banco: f.banco || null,
+          data_pagamento: f.data_pagamento || null,
+        },
+      );
+      if (!syncResult.success) throw new Error(syncResult.error || "Pagamento salvo, mas não foi sincronizado no Financeiro Share.");
+      setToast({ type: "ok", text: `Pagamento salvo. Líquido: ${formatBRL(resumo.liquido)} · Custo total: ${formatBRL(resumo.custoTotal)}.` });
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao salvar pagamento." });
     } finally {
@@ -480,16 +581,7 @@ export default function SalariosTab() {
     }
   };
 
-  const totalFuncionario = (userId: string) => {
-    const f = forms[userId];
-    if (!f) return 0;
-    return (
-      num(f.base_salary_holerite) +
-      num(f.extra) +
-      (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) +
-      (f.showFerias ? num(f.ferias) : 0)
-    );
-  };
+  const totalFuncionario = (userId: string) => resumoFolha(userId).custoTotal;
 
   const inputCls =
     "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
@@ -661,38 +753,89 @@ export default function SalariosTab() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className={labelCls}>Salário Base (Holerite)</label>
+                        <label className={labelCls}>Salário bruto do holerite</label>
                         <input
                           type="number"
                           step="0.01"
                           className={inputCls}
-                          value={f.base_salary_holerite}
+                          placeholder="Ex.: 1.621,00"
+                          value={f.salario_bruto}
                           onChange={(e) =>
-                            setForms((prev) => ({
-                              ...prev,
-                              [u.id]: { ...f, base_salary_holerite: e.target.value },
-                            }))
+                            setForms((prev) => ({ ...prev, [u.id]: { ...f, salario_bruto: e.target.value, base_salary_holerite: e.target.value } }))
                           }
                         />
                       </div>
                       <div>
-                        <label className={labelCls}>Benefício</label>
+                        <label className={labelCls}>Desconto INSS</label>
                         <input
+                          type="number"
+                          step="0.01"
                           className={inputCls}
-                          value={f.benefit}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, benefit: e.target.value } }))
-                          }
+                          placeholder="Ex.: 121,57"
+                          value={f.desconto_inss}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_inss: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Desconto IRRF</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls}
+                          value={f.desconto_irrf}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_irrf: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Outros descontos</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls}
+                          value={f.desconto_outros}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_outros: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Salário líquido a pagar</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls + " border-emerald-500/50"}
+                          placeholder="Calculado pelo bruto − descontos"
+                          value={f.salario_liquido}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, salario_liquido: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Cartão alimentação</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls}
+                          placeholder="Ex.: 300,00"
+                          value={f.benefit_card}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, benefit_card: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Outros benefícios</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={inputCls}
+                          value={f.benefit_other}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, benefit_other: e.target.value } }))}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Adicional</label>
                         <input
+                          type="number"
+                          step="0.01"
                           className={inputCls}
                           value={f.extra}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, extra: e.target.value } }))
-                          }
+                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, extra: e.target.value } }))}
                         />
                       </div>
                       <div>
@@ -724,6 +867,19 @@ export default function SalariosTab() {
                         />
                       </div>
                     </div>
+
+                    {(() => {
+                      const resumo = resumoFolha(u.id);
+                      return (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Bruto</span><strong className="text-sm text-slate-200">{formatBRL(resumo.bruto)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Descontos</span><strong className="text-sm text-rose-300">− {formatBRL(resumo.totalDescontos)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Líquido</span><strong className="text-sm text-emerald-300">{formatBRL(resumo.liquido)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Benefícios</span><strong className="text-sm text-amber-300">+ {formatBRL(resumo.totalBeneficios)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Custo empresa</span><strong className="text-sm text-cyan-300">{formatBRL(resumo.custoTotal)}</strong></div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Calculadora de Horas de Voo — apenas Tripulante / Piloto Chefe */}
                     {crew && (

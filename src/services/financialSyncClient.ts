@@ -2,9 +2,14 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SalaryPaymentComponents {
+  /** Fluxo novo: valor líquido efetivamente pago do holerite. */
+  salary_net?: number | string | null;
+  /** Fluxo legado: valor do salário/holerite. */
   base_salary_holerite?: number | string | null;
   horas_voo?: number | string | null;
   benefit?: number | string | null;
+  benefit_card?: number | string | null;
+  benefit_other?: number | string | null;
   extra?: number | string | null;
   ferias?: number | string | null;
   decimo_terceiro_parcela1?: number | string | null;
@@ -22,8 +27,11 @@ const toNumber = (value: unknown): number => {
 };
 
 const COMPONENT_LABELS: Array<{ key: keyof SalaryPaymentComponents; label: string; categoria: string }> = [
+  { key: "salary_net", label: "Salário líquido (holerite)", categoria: "SALARIOS HOLERITE" },
   { key: "base_salary_holerite", label: "Salário (holerite)", categoria: "SALARIOS HOLERITE" },
   { key: "horas_voo", label: "Horas de voo", categoria: "PAGAMENTO DE HORAS DE VOO " },
+  { key: "benefit_card", label: "Cartão alimentação", categoria: "CARTÃO BENEFICIO CAJU" },
+  { key: "benefit_other", label: "Outros benefícios", categoria: "BENEFÍCIOS" },
   { key: "benefit", label: "Benefício", categoria: "CARTÃO BENEFICIO CAJU" },
   { key: "extra", label: "Extras", categoria: "SALARIOS HOLERITE" },
   { key: "ferias", label: "Férias", categoria: "PAGAMENTO DE FÉRIAS" },
