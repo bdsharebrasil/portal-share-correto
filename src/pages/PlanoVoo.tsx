@@ -66,6 +66,16 @@ interface FlightCalculations {
   alternatives: string[];
 }
 
+function displayAiswebValue(value: any): string {
+  if (value == null || value === '') return '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function aiswebLabel(key: string): string {
+  return key.replace(/^@_/, '').replaceAll('_', ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function PlanoVooPage() {
   const [formData, setFormData] = useState<FlightPlanFormData>({
     aircraftId: '', aeronaveId: '', performanceAeronaveId: '', registration: '', origin: '', destination: '', alternate: '',
@@ -384,6 +394,9 @@ export default function PlanoVooPage() {
     } finally { setIsValidating(false); }
   }, [formData, getAerodromeByCode, aeronaves, validateFlightPlan, legCalcs, routeFlightPoints, flightIntelligence.suggestedAltitudeLabel]);
 
+  const originBriefingName = originROTAER?.name || getAerodromeByCode(formData.origin)?.nome || 'Nome não retornado pela AISWEB';
+  const destinationBriefingName = destROTAER?.name || getAerodromeByCode(formData.destination)?.nome || 'Nome não retornado pela AISWEB';
+
   // Save plan
   const handleSavePlan = useCallback(async () => {
     if (!calculations || !user) { toast.error('Calcule o plano primeiro'); return; }
@@ -518,7 +531,7 @@ export default function PlanoVooPage() {
                       <div className="text-center">
                         <MapPin className="w-5 h-5 text-green-400 mx-auto mb-1" />
                         <p className="text-xl font-bold">{formData.origin}</p>
-                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.origin)?.nome}</p>
+                        <p className="text-xs text-muted-foreground">{originBriefingName}</p>
                       </div>
                       <div className="flex-1 mx-4 border-t border-dashed border-primary/50 relative">
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3">
@@ -528,7 +541,7 @@ export default function PlanoVooPage() {
                       <div className="text-center">
                         <MapPin className="w-5 h-5 text-red-400 mx-auto mb-1" />
                         <p className="text-xl font-bold">{formData.destination}</p>
-                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.destination)?.nome}</p>
+                        <p className="text-xs text-muted-foreground">{destinationBriefingName}</p>
                       </div>
                     </div>
                   </Card>
@@ -607,14 +620,24 @@ export default function PlanoVooPage() {
                       {w && <Badge variant="outline">{w.flightCategory}</Badge>}
                     </div>
                     {w ? (
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Temp:</span><span className="font-mono">{w.temp}°C / {w.dewp}°C</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Vento:</span><span className="font-mono">{w.wdir}° {w.wspd}kt{w.wgst ? ` G${w.wgst}` : ''}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Visib:</span><span className="font-mono">{w.visib}</span></div>
-                        {w.rawOb && <div className="mt-3 pt-3 border-t"><p className="text-xs font-mono break-all text-muted-foreground">{w.rawOb}</p></div>}
-                        {w.taf && <div className="mt-2 pt-2 border-t"><p className="text-xs text-muted-foreground mb-1 font-semibold">TAF:</p><p className="text-xs font-mono break-all text-muted-foreground">{w.taf}</p></div>}
+                      <div className="space-y-3 text-sm">
+                        {w.availabilityMessage && (
+                          <Alert className="border-amber-500/40 bg-amber-500/10">
+                            <Info className="h-4 w-4 text-amber-300" />
+                            <AlertDescription className="text-xs text-amber-100">{w.availabilityMessage}</AlertDescription>
+                          </Alert>
+                        )}
+                        {(w.metarAvailable || w.tafAvailable) ? (
+                          <>
+                            {w.metarAvailable && <div className="flex justify-between"><span className="text-muted-foreground">Temp:</span><span className="font-mono">{w.temp ?? '—'}°C / {w.dewp ?? '—'}°C</span></div>}
+                            {w.metarAvailable && <div className="flex justify-between"><span className="text-muted-foreground">Vento:</span><span className="font-mono">{w.wdir ?? '—'} {w.wspd ?? '—'}kt{w.wgst ? ` G${w.wgst}` : ''}</span></div>}
+                            {w.metarAvailable && <div className="flex justify-between"><span className="text-muted-foreground">Visibilidade:</span><span className="font-mono">{w.visib ?? '—'}</span></div>}
+                            {w.rawOb && <div className="mt-3 border-t pt-3"><p className="mb-1 text-xs font-semibold text-muted-foreground">METAR</p><p className="break-all font-mono text-xs text-muted-foreground">{w.rawOb}</p></div>}
+                            {w.taf && <div className="mt-2 border-t pt-2"><p className="mb-1 text-xs font-semibold text-muted-foreground">TAF</p><p className="break-all font-mono text-xs text-muted-foreground">{w.taf}</p></div>}
+                          </>
+                        ) : <p className="text-xs text-muted-foreground">Nenhum produto meteorológico foi publicado para este aeródromo. Os dados ROTAER continuam disponíveis na aba correspondente.</p>}
                       </div>
-                    ) : <p className="text-sm text-muted-foreground">Aguardando dados...</p>}
+                    ) : <p className="text-sm text-muted-foreground">Aguardando consulta AISWEB...</p>}
                   </Card>
                 ))}
               </div>
@@ -650,64 +673,42 @@ export default function PlanoVooPage() {
 
             {/* ROTAER */}
             <TabsContent value="rotaer" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Alert className="border-sky-500/40 bg-sky-500/10">
+                <Info className="h-4 w-4 text-sky-300" />
+                <AlertDescription className="text-xs">Esta ficha reúne os dados que a AISWEB/DECEA publicou para cada aeródromo. A ausência de METAR ou TAF não significa ausência de ROTAER.</AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {[{ r: originROTAER, icao: formData.origin, solar: originSolar },
-                  { r: destROTAER, icao: formData.destination, solar: destSolar }].map(({ r, icao, solar }) => (
-                  <Card key={icao} className="p-4">
-                    <h3 className="font-semibold mb-3 flex items-center gap-2"><Radio className="w-4 h-4 text-primary" /> {icao}</h3>
-                    {r ? (
-                      <div className="space-y-3 text-sm">
-                        <div><span className="text-muted-foreground">Nome:</span> {r.name}</div>
-                        <div><span className="text-muted-foreground">Elevação:</span> {r.elevation}ft</div>
-                        <div><span className="text-muted-foreground">Coord:</span> {r.coordinates ? `${r.coordinates.lat.toFixed(2)}°, ${r.coordinates.lng.toFixed(2)}°` : '—'}</div>
-                        {solar?.day && (
-                          <div className="bg-orange-500/10 border border-orange-500/30 rounded p-2 text-xs">
-                            Nascer: {solar.day.sunrise} | Pôr: {solar.day.sunset}
+                  { r: destROTAER, icao: formData.destination, solar: destSolar }].map(({ r, icao, solar }) => {
+                    const rawData = (r as any)?.raw_data ?? {};
+                    const additionalFields = Object.entries(rawData).filter(([key, value]) => !['id', 'type', 'AeroCode', 'IcaoCode', 'icao', 'name', 'nome', 'city', 'cidade', 'uf', 'state', 'lat', 'lng', 'latitude', 'longitude'].includes(key) && value != null && value !== '');
+                    return (
+                      <Card key={icao} className="overflow-hidden p-0">
+                        <div className="border-b border-border/60 bg-primary/5 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div><h3 className="flex items-center gap-2 font-semibold"><Radio className="h-4 w-4 text-primary" /> {icao}</h3><p className="mt-1 text-sm text-muted-foreground">{r?.name || 'Aeródromo identificado, nome não retornado'}</p></div>
+                            <Badge variant="outline" className="shrink-0">{r ? 'ROTAER disponível' : 'Sem resposta'}</Badge>
                           </div>
-                        )}
-                        {r.runways?.length > 0 && (
-                          <div>
-                            <h4 className="font-semibold mb-1 flex items-center gap-1"><Navigation className="w-3 h-3 text-primary" /> Pistas:</h4>
-                            {r.runways.map((rwy, i) => (
-                              <div key={i} className="ml-4 mb-1">
-                                <span className="font-mono font-bold text-primary">{rwy.designator}</span> {rwy.length}m × {rwy.width}m ({rwy.surface})
-                              </div>
-                            ))}
+                        </div>
+                        {r ? (
+                          <div className="space-y-4 p-4 text-sm">
+                            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3">
+                              <div><p className="text-xs text-muted-foreground">Cidade / UF</p><p className="font-medium">{r.city || '—'}{r.state ? ` / ${r.state}` : ''}</p></div>
+                              <div><p className="text-xs text-muted-foreground">Elevação</p><p className="font-medium">{r.elevation != null ? `${r.elevation} ft` : 'Não informada'}</p></div>
+                              <div className="col-span-2"><p className="text-xs text-muted-foreground">Coordenadas</p><p className="font-mono text-xs">{r.coordinates ? `${Number(r.coordinates.lat).toFixed(6)}°, ${Number(r.coordinates.lng).toFixed(6)}°` : 'Não informadas'}</p></div>
+                            </div>
+                            {solar?.day && <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3 text-xs"><span className="font-semibold">Nascer / Pôr do Sol:</span> {solar.day.sunrise} / {solar.day.sunset}</div>}
+                            {r.contact && (r.contact.phone || r.contact.email) && <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs"><p className="mb-1 font-semibold text-cyan-200">Contatos AISWEB</p>{r.contact.phone && <p>Telefone: {r.contact.phone}</p>}{r.contact.email && <p>E-mail: {r.contact.email}</p>}</div>}
+                            {r.runways?.length > 0 && <div><h4 className="mb-2 flex items-center gap-1 font-semibold"><Navigation className="h-3 w-3 text-primary" /> Pistas</h4><div className="space-y-1">{r.runways.map((rwy: any, i: number) => <div key={i} className="rounded border bg-muted/20 p-2 text-xs"><span className="font-mono font-bold text-primary">{rwy.designator ?? rwy.pista ?? rwy.ident ?? rwy.name ?? 'Pista'}</span> · {rwy.length ?? rwy.comprimento ?? '—'}m × {rwy.width ?? rwy.largura ?? '—'}m · {rwy.surface ?? rwy.pavimento ?? rwy.tipo ?? 'superfície não informada'}</div>)}</div></div>}
+                            {r.frequencies?.length > 0 && <div><h4 className="mb-2 font-semibold">Frequências e telefones</h4><div className="space-y-1">{r.frequencies.map((f: any, i: number) => <div key={i} className="rounded border bg-muted/20 p-2 text-xs"><span className="text-muted-foreground">{f.type ?? f.tipo ?? f.servico ?? 'Serviço'}:</span> {f.frequency ?? f.frequencia ?? f.valor ?? displayAiswebValue(f)}</div>)}</div></div>}
+                            {r.services && <div className="flex flex-wrap gap-1">{Object.entries(r.services).filter(([, value]) => Boolean(value)).map(([key]) => <Badge key={key} variant="outline" className="bg-green-500/10 text-xs">{aiswebLabel(key)}</Badge>)}</div>}
+                            {r.restrictions?.length > 0 && <div><h4 className="mb-2 font-semibold text-red-400">Restrições e observações</h4><div className="space-y-1">{r.restrictions.slice(0, 5).map((rest: any, i: number) => <p key={i} className="border-l-2 border-red-500 pl-2 text-xs">{displayAiswebValue(rest)}</p>)}</div>{r.restrictions.length > 5 && <button onClick={() => setRestrictionsModal({ icao: r.icao || icao, restrictions: r.restrictions.map((rest: any) => displayAiswebValue(rest)) })} className="mt-2 flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><ChevronRight className="h-3 w-3" /> Ver todas as {r.restrictions.length} observações</button>}</div>}
+                            {additionalFields.length > 0 && <details className="rounded-lg border bg-muted/10 p-3"><summary className="cursor-pointer text-xs font-semibold">Ver dados adicionais retornados pela AISWEB</summary><div className="mt-3 space-y-2">{additionalFields.map(([key, value]) => <div key={key} className="border-b border-border/40 pb-2 text-xs last:border-0"><span className="text-muted-foreground">{aiswebLabel(key)}:</span> <span className="break-words">{displayAiswebValue(value)}</span></div>)}</div></details>}
                           </div>
-                        )}
-                        {r.frequencies?.length > 0 && (
-                          <div>
-                            <h4 className="font-semibold mb-1">Frequências:</h4>
-                            {r.frequencies.map((f, i) => (
-                              <div key={i} className="ml-4 text-xs"><span className="text-muted-foreground">{f.type}:</span> {f.frequency} MHz</div>
-                            ))}
-                          </div>
-                        )}
-                        {r.services && (
-                          <div className="flex flex-wrap gap-1">
-                            {r.services.fuel && <Badge variant="outline" className="text-xs bg-green-500/20">Combustível</Badge>}
-                            {r.services.maintenance && <Badge variant="outline" className="text-xs bg-orange-500/20">Manutenção</Badge>}
-                            {r.services.hangar && <Badge variant="outline" className="text-xs bg-blue-500/20">Hangar</Badge>}
-                          </div>
-                        )}
-                        {r.restrictions?.length > 0 && (
-                          <div>
-                            <h4 className="font-semibold text-red-400 mb-1">Restrições:</h4>
-                            {r.restrictions.slice(0, 3).map((rest, i) => (
-                              <p key={i} className="text-xs ml-4 border-l-2 border-red-500 pl-2 py-1">{rest}</p>
-                            ))}
-                            {r.restrictions.length > 3 && (
-                              <button onClick={() => setRestrictionsModal({ icao: r.icao, restrictions: r.restrictions })}
-                                className="text-xs text-red-400 hover:text-red-300 ml-4 mt-1 flex items-center gap-1">
-                                <ChevronRight className="w-3 h-3" /> Ver mais {r.restrictions.length - 3}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : <p className="text-sm text-muted-foreground">Dados ROTAER não disponíveis</p>}
-                  </Card>
-                ))}
+                        ) : <div className="p-5 text-sm text-muted-foreground">A AISWEB não retornou ficha ROTAER para {icao}. Verifique o ICAO; a meteorologia, quando inexistente, é informada separadamente na aba Meteo.</div>}
+                      </Card>
+                    );
+                  })}
               </div>
             </TabsContent>
 

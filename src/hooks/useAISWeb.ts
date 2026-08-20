@@ -72,6 +72,32 @@ const normalizeNotam = (raw: any, fallbackIcao: string): NOTAMData => {
 
 const normalizeNotams = (raw: any, icao: string): NOTAMData[] => asNotamArray(raw).map((entry) => normalizeNotam(entry, icao));
 
+const normalizeRotaer = (raw: any, fallbackIcao: string): any => {
+  const item = raw?.airport ?? raw?.aerodrome ?? raw?.item?.[0] ?? raw?.item ?? raw?.data?.item?.[0] ?? raw?.data ?? raw;
+  const source = item?.aerodrome ?? item?.airport ?? item?.rotaer ?? item ?? {};
+  const coordinateSource = source.coordinates ?? source.coordenadas;
+  const lat = coordinateSource?.lat ?? coordinateSource?.latitude ?? source.latitude ?? source.lat;
+  const lng = coordinateSource?.lng ?? coordinateSource?.lon ?? coordinateSource?.longitude ?? source.longitude ?? source.lng ?? source.lon;
+  const toArray = (value: any) => Array.isArray(value) ? value : value ? [value] : [];
+  return {
+    ...source,
+    icao: String(source.icao ?? source.AeroCode ?? source.IcaoCode ?? source.icaoCode ?? fallbackIcao).toUpperCase(),
+    name: source.name ?? source.nome ?? source.designacao ?? fallbackIcao,
+    city: source.city ?? source.cidade ?? source.municipio,
+    state: source.state ?? source.uf ?? source.estado,
+    elevation: source.elevation ?? source.elevacao ?? source.altitude ?? source.Elev ?? null,
+    coordinates: lat != null && lng != null ? { lat: Number(lat), lng: Number(lng) } : null,
+    runways: toArray(source.runways ?? source.pistas ?? source.runway),
+    frequencies: toArray(source.frequencies ?? source.frequencias ?? source.frequency),
+    restrictions: toArray(source.restrictions ?? source.restricoes ?? source.observacoes),
+    contact: source.contact ?? source.contato ?? {
+      phone: source.phone ?? source.telefone ?? source.tel,
+      email: source.email,
+    },
+    raw_data: source,
+  };
+};
+
 type ValidationResult = RouteValidation & {
   distanceNm: number
   fuelRequired: number
@@ -183,7 +209,7 @@ export function useAISWeb() {
   // ── ROTAER ──────────────────────────────────────────────────────────────────
 
   const getROTAER = useCallback(async (icao: string, forceRefresh = false) =>
-    withCache(CACHE_KEYS.ROTAER(icao), () => apiClient.getAerodrome(icao), forceRefresh),
+    withCache(CACHE_KEYS.ROTAER(icao), async () => normalizeRotaer(await apiClient.getAerodrome(icao), icao), forceRefresh),
   [withCache])
 
   // ── Rotas preferenciais ──────────────────────────────────────────────────────

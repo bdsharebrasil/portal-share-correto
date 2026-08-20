@@ -26,6 +26,10 @@ export interface AISWebMETARData {
   flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
   updatedTime?:   string;
   taf?:           string;
+  metarAvailable: boolean;
+  tafAvailable: boolean;
+  availabilityMessage?: string;
+  sourceError?: string;
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -159,6 +163,11 @@ export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData =
     flightCategory: determineFlightCategory(catRaw, parsed.visib),
     updatedTime:    data.data ?? new Date().toISOString(),
     taf:            tafRaw || undefined,
+    metarAvailable: metarRaw.length > 0,
+    tafAvailable: tafRaw.length > 0,
+    availabilityMessage: metarRaw || tafRaw
+      ? undefined
+      : `A AISWEB não possui METAR nem TAF publicados para ${loc}; consulte os dados ROTAER deste aeródromo.`,
   };
 };
 
@@ -173,10 +182,21 @@ export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | 
     const data = await apiClient.getWeather(icao);
     if (!data) return null;
     return transformAISWebMETAR(data, icao);
-  } catch (error) {
-    // Log apenas como debug já que o fallback para mock data é esperado
-    console.debug(`[AISWeb] Falha ao buscar METAR para ${icao}, usando fallback`);
-    return null;
+  } catch (error: any) {
+    const message = String(error?.message ?? 'Falha desconhecida ao consultar meteorologia');
+    const invalidIcao = /ICAO inválido|não encontrado|not found/i.test(message);
+    console.debug(`[AISWeb] Falha ao buscar METAR para ${icao}: ${message}`);
+    return {
+      icao: icao.toUpperCase(),
+      rawOb: '', temp: null, dewp: null, wdir: null, wspd: null, wgst: null, visib: null,
+      flightCategory: 'UNKNOWN',
+      metarAvailable: false,
+      tafAvailable: false,
+      availabilityMessage: invalidIcao
+        ? `O código ${icao.toUpperCase()} não foi reconhecido pela AISWEB. Os demais dados do plano continuam sendo exibidos quando disponíveis.`
+        : `A AISWEB não retornou METAR/TAF para ${icao.toUpperCase()}. Isso não significa que o aeródromo não tenha dados ROTAER.`,
+      sourceError: message,
+    };
   }
 }
 

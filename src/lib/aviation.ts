@@ -110,6 +110,7 @@ export interface ROTAERData {
     phone?: string;
     email?: string;
   };
+  raw_data?: Record<string, unknown>;
 }
 
 // Validar se aeródromo está operacional
