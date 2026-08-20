@@ -62,7 +62,9 @@ export default function GestaoFiscal() {
                 onClick={() => setActiveTab(t.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                   active
-                    ? "bg-primary text-primary-foreground border-primary shadow-md"
+                    ? t.key === "fluxo"
+                      ? "bg-[rgba(38,181,217,0.19)] text-[rgba(215,219,228,1)] border-[rgba(40,108,126,1)] shadow-md"
+                      : "bg-primary text-primary-foreground border-primary shadow-md"
                     : "bg-card/50 text-muted-foreground border-border/60 hover:text-foreground hover:bg-card/80"
                 }`}
               >
@@ -74,7 +76,7 @@ export default function GestaoFiscal() {
         </div>
 
         {/* Tab content */}
-        <div className="!mt-[2px] !mr-[1px] w-full ml-[-1px] rounded-[5px] border border-[#05080e] bg-[rgba(3,10,22,1)] px-[10px] py-[18px] shadow-[1px_1px_3px_1px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="!mt-[2px] mr-0 w-full ml-[-5px] rounded-[5px] border border-[#05080e] bg-[rgba(3,10,22,1)] px-[8px] py-[18px] text-[15px] shadow-[1px_1px_3px_1px_rgba(0,0,0,1)] overflow-hidden">
           {activeTab === "fluxo" && <FluxoCaixaTab />}
           {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}
           {activeTab === "salarios" && <SalariosTab />}

@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Search,
   Trash2,
-  Wallet,
 } from "lucide-react";
 import { addDays, format } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -223,13 +222,12 @@ export default function FluxoCaixaTab() {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="ml-[-3px] mr-[-3px] space-y-3">
       {erro && <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{erro}</div>}
 
       <header className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800/90 bg-slate-950/35 px-1 pb-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-cyan-500/25 bg-cyan-500/10 text-cyan-400"><Wallet className="h-3.5 w-3.5" /></div>
-          <div className="min-w-0"><h2 className="truncate text-sm font-black uppercase tracking-[0.16em] text-slate-100">Fluxo de Caixa</h2><p className="hidden text-[10px] text-slate-500 sm:block">Visão consolidada de Share, clientes e DGA</p></div>
+          <div className="min-w-0"><h2 className="mx-[9px] truncate text-sm font-black uppercase tracking-[0.16em] text-slate-100">Fluxo de Caixa</h2><p className="mx-[8px] hidden text-[10px] text-slate-500 sm:block">Visão consolidada de Share, clientes e DGA</p></div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button onClick={() => load()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950 px-2.5 text-[10px] font-bold text-slate-300 transition hover:border-slate-700 hover:bg-slate-900"><RefreshCw className="h-3 w-3" /> Atualizar</button>
