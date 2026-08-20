@@ -59,7 +59,11 @@ interface PagamentoSalario {
   horas_voadas: string | null;
   decimo_terceiro_parcela1: number | string | null;
   decimo_terceiro_parcela2: number | string | null;
+  decimo_terceiro_referencia?: string | null;
   ferias: number | string | null;
+  ferias_referencia?: string | null;
+  ferias_modalidade?: string | null;
+  ferias_dias_comprados?: number | string | null;
   adicionais: string | null;
   observacoes: string | null;
   banco_pagamento: string | null;
@@ -104,7 +108,11 @@ interface FormState {
   extra: string;
   decimo_terceiro_parcela1: string;
   decimo_terceiro_parcela2: string;
+  decimo_terceiro_referencia: string;
   ferias: string;
+  ferias_referencia: string;
+  ferias_modalidade: string;
+  ferias_dias_comprados: string;
   banco: string;
   data_pagamento: string;
   obs: string;
@@ -129,7 +137,11 @@ const emptyForm: FormState = {
   extra: "",
   decimo_terceiro_parcela1: "",
   decimo_terceiro_parcela2: "",
+  decimo_terceiro_referencia: "",
   ferias: "",
+  ferias_referencia: "",
+  ferias_modalidade: "",
+  ferias_dias_comprados: "",
   banco: "",
   data_pagamento: "",
   obs: "",
@@ -156,7 +168,22 @@ const MESES = [
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
-const num = (v: string | number | null | undefined) => Number(v) || 0;
+const parseMoney = (value: string | number | null | undefined): number => {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const text = String(value).trim().replace(/R\$/gi, "").replace(/\s/g, "");
+  if (!text) return 0;
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const num = (v: string | number | null | undefined) => parseMoney(v);
+
+const moneyInput = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  return formatBRL(parseMoney(value));
+};
 
 const parseJsonArray = (value: unknown): Array<{ tipo?: string; valor?: number | string }> => {
   if (Array.isArray(value)) return value as Array<{ tipo?: string; valor?: number | string }>;
@@ -200,6 +227,13 @@ export default function SalariosTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
   const [readingHolerite, setReadingHolerite] = useState<string | null>(null);
+
+  const setMoneyField = (userId: string, field: keyof FormState, value: string) => {
+    setForms((prev) => ({
+      ...prev,
+      [userId]: { ...(prev[userId] ?? emptyForm), [field]: moneyInput(value) },
+    }));
+  };
 
   const [aeronaves, setAeronaves] = useState<AeronaveInfo[]>([]);
   const [taxasHora, setTaxasHora] = useState<TaxaHoraRow[]>([]);
@@ -425,9 +459,13 @@ export default function SalariosTab() {
             horas_voo: p.horas_voadas ?? "",
             valor_horas_voo: p.valor_horas_voo != null ? String(p.valor_horas_voo) : "",
             extra: p.bonificacao_extra != null ? String(p.bonificacao_extra) : String(p.adicionais ?? ""),
-            decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? String(p.decimo_terceiro_parcela1) : "",
-            decimo_terceiro_parcela2: p.decimo_terceiro_parcela2 != null ? String(p.decimo_terceiro_parcela2) : "",
-            ferias: p.ferias != null ? String(p.ferias) : "",
+            decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? moneyInput(p.decimo_terceiro_parcela1) : "",
+            decimo_terceiro_parcela2: p.decimo_terceiro_parcela2 != null ? moneyInput(p.decimo_terceiro_parcela2) : "",
+            decimo_terceiro_referencia: p.decimo_terceiro_referencia ?? "",
+            ferias: p.ferias != null ? moneyInput(p.ferias) : "",
+            ferias_referencia: p.ferias_referencia ?? "",
+            ferias_modalidade: p.ferias_modalidade ?? "",
+            ferias_dias_comprados: p.ferias_dias_comprados != null ? String(p.ferias_dias_comprados) : "",
             banco: p.banco_pagamento ?? "",
             data_pagamento: p.data_pagamento ?? "",
             obs: p.observacoes ?? "",
@@ -560,9 +598,13 @@ export default function SalariosTab() {
         valor_horas_voo: valorHorasVoo || null,
         bonificacao_extra: num(f.extra) || null,
         adicionais: f.extra.trim() || null,
-        decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
-        decimo_terceiro_parcela2: f.show13 && f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
-        ferias: f.showFerias && f.ferias ? Number(f.ferias) : null,
+        decimo_terceiro_parcela1: f.show13 && f.decimo_terceiro_parcela1 ? num(f.decimo_terceiro_parcela1) : null,
+        decimo_terceiro_parcela2: f.show13 && f.decimo_terceiro_parcela2 ? num(f.decimo_terceiro_parcela2) : null,
+        decimo_terceiro_referencia: f.show13 ? f.decimo_terceiro_referencia.trim() || null : null,
+        ferias: f.showFerias && f.ferias ? num(f.ferias) : null,
+        ferias_referencia: f.showFerias ? f.ferias_referencia.trim() || null : null,
+        ferias_modalidade: f.showFerias ? f.ferias_modalidade || null : null,
+        ferias_dias_comprados: f.showFerias && f.ferias_dias_comprados ? Number(f.ferias_dias_comprados) : null,
         banco_pagamento: f.banco || null,
         data_pagamento: f.data_pagamento || null,
         observacoes: f.obs.trim() || null,
@@ -792,98 +834,99 @@ export default function SalariosTab() {
                       <div>
                         <label className={labelCls}>Salário bruto do holerite</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           placeholder="Ex.: 1.621,00"
                           value={f.salario_bruto}
-                          onChange={(e) =>
-                            setForms((prev) => ({ ...prev, [u.id]: { ...f, salario_bruto: e.target.value, base_salary_holerite: e.target.value } }))
-                          }
+                          onChange={(e) => {
+                            const value = moneyInput(e.target.value);
+                            setForms((prev) => ({ ...prev, [u.id]: { ...f, salario_bruto: value, base_salary_holerite: value } }));
+                          }}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Desconto INSS</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           placeholder="Ex.: 121,57"
                           value={f.desconto_inss}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_inss: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "desconto_inss", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Desconto IRRF</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           value={f.desconto_irrf}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_irrf: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "desconto_irrf", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Outros descontos</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           value={f.desconto_outros}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, desconto_outros: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "desconto_outros", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Salário líquido a pagar</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls + " border-emerald-500/50"}
                           placeholder="Calculado pelo bruto − descontos"
                           value={f.salario_liquido}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, salario_liquido: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "salario_liquido", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Cartão alimentação</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           placeholder="Ex.: 300,00"
                           value={f.benefit_card}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, benefit_card: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "benefit_card", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Outros benefícios</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           value={f.benefit_other}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, benefit_other: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "benefit_other", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Valor horas de voo</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls + " border-cyan-500/40"}
                           placeholder="Ex.: 1.250,00"
                           value={f.valor_horas_voo}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, valor_horas_voo: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "valor_horas_voo", e.target.value)}
                         />
                       </div>
                       <div>
                         <label className={labelCls}>Bonificação/Extra</label>
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           step="0.01"
                           className={inputCls}
                           value={f.extra}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, extra: e.target.value } }))}
+                          onChange={(e) => setMoneyField(u.id, "extra", e.target.value)}
                         />
                       </div>
                       <div>
@@ -1000,7 +1043,7 @@ export default function SalariosTab() {
                           onClick={() =>
                             setForms((prev) => ({
                               ...prev,
-                              [u.id]: { ...f, show13: false, decimo_terceiro_parcela1: "", decimo_terceiro_parcela2: "" },
+                              [u.id]: { ...f, show13: false, decimo_terceiro_parcela1: "", decimo_terceiro_parcela2: "", decimo_terceiro_referencia: "" },
                             }))
                           }
                           className="text-xs bg-red-950/40 hover:bg-red-900/60 text-red-300 px-3 py-1.5 rounded-lg border border-red-800/50 flex items-center gap-1.5 transition-colors"
@@ -1023,7 +1066,7 @@ export default function SalariosTab() {
                           onClick={() =>
                             setForms((prev) => ({
                               ...prev,
-                              [u.id]: { ...f, showFerias: false, ferias: "" },
+                              [u.id]: { ...f, showFerias: false, ferias: "", ferias_referencia: "", ferias_modalidade: "", ferias_dias_comprados: "" },
                             }))
                           }
                           className="text-xs bg-red-950/40 hover:bg-red-900/60 text-red-300 px-3 py-1.5 rounded-lg border border-red-800/50 flex items-center gap-1.5 transition-colors"
@@ -1039,50 +1082,85 @@ export default function SalariosTab() {
                         {f.show13 && (
                           <>
                             <div>
+                              <label className={labelCls}>Referência do 13º</label>
+                              <input
+                                type="text"
+                                className={inputCls}
+                                placeholder="Ex.: ano-base 2026"
+                                value={f.decimo_terceiro_referencia}
+                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, decimo_terceiro_referencia: e.target.value } }))}
+                              />
+                            </div>
+                            <div>
                               <label className={labelCls}>13º Parcela 1</label>
                               <input
-                                type="number"
-                                step="0.01"
+                                type="text" inputMode="decimal"
                                 className={inputCls}
+                                placeholder="R$ 0,00"
                                 value={f.decimo_terceiro_parcela1}
-                                onChange={(e) =>
-                                  setForms((prev) => ({
-                                    ...prev,
-                                    [u.id]: { ...f, decimo_terceiro_parcela1: e.target.value },
-                                  }))
-                                }
+                                onChange={(e) => setMoneyField(u.id, "decimo_terceiro_parcela1", e.target.value)}
                               />
                             </div>
                             <div>
                               <label className={labelCls}>13º Parcela 2</label>
                               <input
-                                type="number"
-                                step="0.01"
+                                type="text" inputMode="decimal"
                                 className={inputCls}
+                                placeholder="R$ 0,00"
                                 value={f.decimo_terceiro_parcela2}
-                                onChange={(e) =>
-                                  setForms((prev) => ({
-                                    ...prev,
-                                    [u.id]: { ...f, decimo_terceiro_parcela2: e.target.value },
-                                  }))
-                                }
+                                onChange={(e) => setMoneyField(u.id, "decimo_terceiro_parcela2", e.target.value)}
                               />
                             </div>
                           </>
                         )}
                         {f.showFerias && (
-                          <div>
-                            <label className={labelCls}>Férias</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className={inputCls}
-                              value={f.ferias}
-                              onChange={(e) =>
-                                setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias: e.target.value } }))
-                              }
-                            />
-                          </div>
+                          <>
+                            <div>
+                              <label className={labelCls}>Referência das férias</label>
+                              <input
+                                type="text"
+                                className={inputCls}
+                                placeholder="Ex.: período aquisitivo 2025/2026"
+                                value={f.ferias_referencia}
+                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_referencia: e.target.value } }))}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Modalidade das férias</label>
+                              <select
+                                className={inputCls + " cursor-pointer"}
+                                value={f.ferias_modalidade}
+                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_modalidade: e.target.value, ferias_dias_comprados: e.target.value === "compra_10_dias" ? (f.ferias_dias_comprados || "10") : f.ferias_dias_comprados } }))}
+                              >
+                                <option value="">Selecione</option>
+                                <option value="gozo_integral">Gozo integral</option>
+                                <option value="gozo_parcial">Gozo parcial</option>
+                                <option value="compra_10_dias">Compra de 10 dias (abono pecuniário)</option>
+                                <option value="compra_outros_dias">Compra de outros dias</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>Dias comprados</label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                className={inputCls}
+                                placeholder="Ex.: 10"
+                                value={f.ferias_dias_comprados}
+                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_dias_comprados: e.target.value.replace(/\\D/g, "").slice(0, 2) } }))}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Valor das férias</label>
+                              <input
+                                type="text" inputMode="decimal"
+                                className={inputCls}
+                                placeholder="R$ 0,00"
+                                value={f.ferias}
+                                onChange={(e) => setMoneyField(u.id, "ferias", e.target.value)}
+                              />
+                            </div>
+                          </>
                         )}
                       </div>
                     )}
