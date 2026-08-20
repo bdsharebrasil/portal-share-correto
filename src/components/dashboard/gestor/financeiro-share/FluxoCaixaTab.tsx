@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Banknote,
   ArrowDown,
   ArrowUp,
   Calculator,
-  CircleDollarSign,
   CheckSquare,
   ChevronDown,
   Clock3,
@@ -13,10 +11,6 @@ import {
   Filter,
   HandCoins,
   Plus,
-  ReceiptText,
-  TrendingDown,
-  TrendingUp,
-  Users,
   RefreshCw,
   Search,
   Trash2,
@@ -48,7 +42,7 @@ export default function FluxoCaixaTab() {
   const [data, setData] = useState<any>({ movimentacoes: [], rateios: [], clientes: [], socios: [], categorias: [] });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("visao");
+  const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("caixa");
   
   // Filtros
   const [busca, setBusca] = useState("");
@@ -229,47 +223,25 @@ export default function FluxoCaixaTab() {
   );
 
   return (
-    <div className="space-y-6">
-      {erro && <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{erro}</div>}
-      
-      {/* HEADER */}
-      <div className="flex flex-col xl:flex-row xl:items-center gap-4 justify-between rounded-2xl bg-slate-900/40 p-5 border border-white/5">
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-500/80 mb-1">Financeiro</div>
-          <h2 className="text-2xl font-bold text-slate-100">Fluxo de Caixa</h2>
-          <p className="text-sm text-slate-400 mt-1">Share, clientes e DGA com regras financeiras separadas.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={() => load()} className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-slate-800 transition flex items-center gap-2">
-            <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-          </button>
-          {(aba === "caixa" || aba === "clientes") && (
-            <button 
-              onClick={() => { setNewCaixa(aba === "clientes" ? "cliente" : "share"); setShowNew(true); }} 
-              className="rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:from-cyan-500 hover:to-cyan-400 transition flex items-center gap-2"
-            >
-              <Plus className="h-3.5 w-3.5" /> Nova movimentação
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-3">
+      {erro && <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{erro}</div>}
 
-      {/* TABS */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+      <header className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800/90 bg-slate-950/35 px-1 pb-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-cyan-500/25 bg-cyan-500/10 text-cyan-400"><Wallet className="h-3.5 w-3.5" /></div>
+          <div className="min-w-0"><h2 className="truncate text-sm font-black uppercase tracking-[0.16em] text-slate-100">Fluxo de Caixa</h2><p className="hidden text-[10px] text-slate-500 sm:block">Visão consolidada de Share, clientes e DGA</p></div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button onClick={() => load()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950 px-2.5 text-[10px] font-bold text-slate-300 transition hover:border-slate-700 hover:bg-slate-900"><RefreshCw className="h-3 w-3" /> Atualizar</button>
+          {(aba === "caixa" || aba === "clientes") && <button onClick={() => { setNewCaixa(aba === "clientes" ? "cliente" : "share"); setShowNew(true); }} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-cyan-500 px-2.5 text-[10px] font-black text-slate-950 transition hover:bg-cyan-400"><Plus className="h-3 w-3" /> Nova movimentação</button>}
+        </div>
+      </header>
+
+      <nav className="flex min-h-10 items-center gap-1 overflow-x-auto border-b border-slate-800/90 bg-slate-950/25 px-1">
         {([["visao", "Visão Geral"], ["caixa", "Caixa"], ["contas-pagar", "Contas a Pagar"], ["reembolsaveis", "Despesas Reembolsáveis"], ["clientes", "Caixa Clientes"], ["dga", "DGA"]] as const).map(([k, l]) => (
-          <button 
-            key={k} 
-            onClick={() => { setAba(k); setSelecionados([]); }} 
-            className={`rounded-lg border px-4 py-2 text-sm font-bold transition-all ${
-              aba === k 
-                ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400" 
-                : "border-slate-800 bg-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
-            }`}
-          >
-            {l}
-          </button>
+          <button key={k} onClick={() => { setAba(k); setSelecionados([]); }} className={`relative flex h-9 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[10px] font-black uppercase tracking-wide transition ${aba === k ? "border-cyan-400 text-cyan-300" : "border-transparent text-slate-500 hover:border-slate-700 hover:text-slate-300"}`}>{l}</button>
         ))}
-      </div>
+      </nav>
 
       {showNew && ((aba === "caixa" && newCaixa === "share") || (aba === "clientes" && newCaixa === "cliente")) && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg backdrop-blur-sm">
@@ -283,129 +255,27 @@ export default function FluxoCaixaTab() {
 
       {/* ABA VISÃO GERAL */}
       {aba === "visao" && (
-        <div className="space-y-6 overflow-hidden rounded-[9px] border border-[rgba(78,93,126,0.1)] px-[10px] ml-0 mr-0">
-          {/* RESUMO PRINCIPAL */}
-          <section className="relative overflow-hidden rounded-3xl border border-slate-800/90 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-5 shadow-2xl">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
-
-            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between mt-[7px] mb-[7px]">
-              <div>
-                <div className="mb-1 text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400/80">Visão financeira</div>
-                <h3 className="text-xl font-black tracking-tight text-white">O que está acontecendo com o caixa?</h3>
-                <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  Entradas e saídas mostram o caixa realizado. Contas a pagar representam compromissos da empresa; inadimplência representa dinheiro que deveria entrar dos clientes.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-800 bg-black/20 px-4 py-3 text-right">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Saldo atual</div>
-                <div className={`mt-1 text-2xl font-black ${resumo.saldo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {formatBRL(resumo.saldo)}
-                </div>
-              </div>
+        <div className="space-y-3">
+          <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/45">
+            <div className="flex flex-col gap-2 border-b border-slate-800/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-400">Resumo do caixa</div><h3 className="mt-0.5 text-sm font-black text-slate-100">Posição financeira consolidada</h3></div>
+              <div className="flex items-baseline gap-2"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Saldo atual</span><strong className={`text-base font-black ${resumo.saldo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatBRL(resumo.saldo)}</strong></div>
             </div>
-
-            <div className="relative mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <FluxoMetric
-                icon={<TrendingUp className="h-4 w-4" />}
-                label="Entradas realizadas"
-                value={formatBRL(resumo.entradas)}
-                helper="Dinheiro que efetivamente entrou"
-                tone="green"
-              />
-              <FluxoMetric
-                icon={<TrendingDown className="h-4 w-4" />}
-                label="Saídas realizadas"
-                value={formatBRL(resumo.saidas)}
-                helper="Despesas já registradas no caixa"
-                tone="red"
-              />
-              <FluxoMetric
-                icon={<CircleDollarSign className="h-4 w-4" />}
-                label="Dívidas de clientes"
-                value={formatBRL(resumo.aReceber)}
-                helper="Valores antecipados pela Share"
-                tone="amber"
-              />
+            <div className="grid grid-cols-2 divide-x divide-y divide-slate-800/90 md:grid-cols-4 md:divide-y-0">
+              <ResumoKpi label="Entradas realizadas" value={formatBRL(resumo.entradas)} tone="green" note="Caixa recebido" />
+              <ResumoKpi label="Saídas realizadas" value={formatBRL(resumo.saidas)} tone="red" note="Despesas registradas" />
+              <ResumoKpi label="A receber da Share" value={formatBRL(resumo.aReceber)} tone="amber" note="Antecipações" />
+              <ResumoKpi label="Saldo DGA" value={formatBRL(resumo.dgaSaldo)} tone="violet" note="Movimento DGA" />
             </div>
           </section>
 
-          {/* O QUE SAI X O QUE DEVERIA ENTRAR */}
-          <div className="grid gap-5 xl:grid-cols-2">
-            <CaixaAlertaCard
-              tone="payable"
-              icon={<ReceiptText className="h-5 w-5" />}
-              eyebrow="COMPROMISSO DO CAIXA"
-              title="O que eu preciso pagar"
-              value={formatBRL(visaoGeral.contasTotal)}
-              count={contasAPagar.length}
-              countLabel="contas em aberto nos próximos 5 dias"
-              description={`Vencimentos de hoje até ${format(addDays(new Date(), 5), "dd/MM")}.`}
-              loading={contasAPagarLoading}
-              error={contasAPagarError}
-            />
-
-            <CaixaAlertaCard
-              tone="default"
-              icon={<Users className="h-5 w-5" />}
-              eyebrow="DINHEIRO A RECEBER"
-              title="O que o cliente está devendo"
-              value={formatBRL(visaoGeral.inadimplenciaTotal)}
-              count={inadimplencias.length}
-              countLabel="clientes com atraso superior a 5 dias"
-              description={visaoGeral.diasMaxAtraso > 0 ? `Maior atraso identificado: ${visaoGeral.diasMaxAtraso} dias.` : "Sem atrasos críticos identificados."}
-              loading={inadimplenciasLoading}
-              error={inadimplenciasError}
-            />
-          </div>
-
-         
-
-          {/* LISTAS DETALHADAS */}
-          <div className="grid gap-6 xl:grid-cols-2">
-            <ResumoLista
-              icon={<ReceiptText className="h-5 w-5 text-orange-300" />}
-              title="Contas a pagar"
-              description="Compromissos da empresa que precisam ser pagos."
-              count={contasAPagar.length}
-              loading={contasAPagarLoading}
-              error={contasAPagarError}
-              empty="Nenhuma conta a pagar com vencimento nos próximos 5 dias."
-              tone="payable"
-              total={visaoGeral.contasTotal}
-            >
-              {contasAPagar.map((conta) => (
-                <ResumoItem
-                  key={conta.id}
-                  title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"}
-                  detail={`${conta.categoria || "Sem categoria"} · vence em ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`}
-                  value={formatBRL(Number(conta.valor))}
-                  tone="orange"
-                />
-              ))}
-            </ResumoLista>
-
-            <ResumoLista
-              icon={<AlertTriangle className="h-5 w-5 text-rose-300" />}
-              title="Inadimplência de clientes"
-              description="Dinheiro que deveria entrar, mas está atrasado."
-              count={inadimplencias.length}
-              loading={inadimplenciasLoading}
-              error={inadimplenciasError}
-              empty="Nenhum cliente com atraso superior a 5 dias."
-              tone="overdue"
-              total={visaoGeral.inadimplenciaTotal}
-            >
-              {inadimplencias.map((item) => (
-                <ResumoItem
-                  key={`${item.origem}-${item.id}`}
-                  title={item.cliente_nome}
-                  detail={`${item.descricao} · ${item.dias_atraso} dias em atraso`}
-                  value={formatBRL(item.valor)}
-                  tone="rose"
-                />
-              ))}
-            </ResumoLista>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <ResumoListaCompacta title="Contas a pagar" subtitle={`Próximos 5 dias · ${contasAPagar.length} lançamento(s)`} total={formatBRL(visaoGeral.contasTotal)} tone="orange" loading={contasAPagarLoading} error={contasAPagarError} empty="Nenhuma conta a pagar no período.">
+              {contasAPagar.slice(0, 6).map((conta) => <ResumoLinha key={conta.id} title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"} detail={`${conta.categoria || "Sem categoria"} · ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`} value={formatBRL(Number(conta.valor))} tone="orange" />)}
+            </ResumoListaCompacta>
+            <ResumoListaCompacta title="Inadimplência de clientes" subtitle={`Atrasos superiores a 5 dias · ${inadimplencias.length} cliente(s)`} total={formatBRL(visaoGeral.inadimplenciaTotal)} tone="rose" loading={inadimplenciasLoading} error={inadimplenciasError} empty="Nenhum atraso crítico identificado.">
+              {inadimplencias.slice(0, 6).map((item) => <ResumoLinha key={`${item.origem}-${item.id}`} title={item.cliente_nome} detail={`${item.descricao} · ${item.dias_atraso} dias`} value={formatBRL(item.valor)} tone="rose" />)}
+            </ResumoListaCompacta>
           </div>
         </div>
       )}
@@ -417,10 +287,10 @@ export default function FluxoCaixaTab() {
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
       {(aba === "caixa" || aba === "reembolsaveis") && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-slate-900/40 p-4 border border-white/5">
+          <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-800 bg-slate-950/55 p-2.5">
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <span>Caixa</span>
-              <select value={caixa} onChange={e => setCaixa(e.target.value as any)} className="h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-200 outline-none focus:border-cyan-500">
+              <select value={caixa} onChange={e => setCaixa(e.target.value as any)} className="h-8 rounded-lg border border-slate-800 bg-slate-900 px-2.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500">
                 <option value="todos">Todos os caixas</option>
                 <option value="share">Caixa Share</option>
                 <option value="cliente">Caixas Cliente</option>
@@ -430,7 +300,7 @@ export default function FluxoCaixaTab() {
             
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <span>Mês e ano</span>
-              <select value={mes} onChange={e => setMes(e.target.value)} className="h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm font-normal text-slate-200 normal-case outline-none focus:border-cyan-500">
+              <select value={mes} onChange={e => setMes(e.target.value)} className="h-8 rounded-lg border border-slate-800 bg-slate-900 px-2.5 text-[11px] font-normal text-slate-200 normal-case outline-none focus:border-cyan-500">
                 <option value="">Todos os meses</option>
                 {Array.from(new Set(data.movimentacoes.map((m: any) => String(getDisplayDate(m) || '').slice(0, 7)).filter(Boolean))).sort().reverse().map((x: any) => <option key={x} value={x}>{formatMesAno(x)}</option>)}
               </select>
@@ -440,7 +310,7 @@ export default function FluxoCaixaTab() {
               <span>Grupo categoria</span>
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                <select value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)} className="h-10 rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-3 text-sm font-normal text-slate-200 normal-case outline-none focus:border-cyan-500 appearance-none">
+                <select value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)} className="h-8 rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-2.5 text-[11px] font-normal text-slate-200 normal-case outline-none focus:border-cyan-500 appearance-none">
                   <option value="">Todos os grupos</option>
                   {grupos.map((g: string) => <option key={g} value={g}>{g}</option>)}
                 </select>
@@ -449,13 +319,13 @@ export default function FluxoCaixaTab() {
 
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <span>Coluna Data</span>
-              <div className="flex h-10 rounded-xl border border-slate-700 overflow-hidden bg-slate-950 p-1">
+              <div className="flex h-8 rounded-lg border border-slate-800 overflow-hidden bg-slate-900 p-1">
                 <button type="button" onClick={() => setTipoData("vencimento")} className={`px-3 text-xs font-bold rounded-lg transition ${tipoData === "vencimento" ? "bg-cyan-500/20 text-cyan-400" : "text-slate-400 hover:text-slate-200"}`}>Vencimento</button>
                 <button type="button" onClick={() => setTipoData("pagamento")} className={`px-3 text-xs font-bold rounded-lg transition ${tipoData === "pagamento" ? "bg-cyan-500/20 text-cyan-400" : "text-slate-400 hover:text-slate-200"}`}>Pagamento</button>
               </div>
             </label>
             
-            <button type="button" onClick={() => setOrdem(o => o === "asc" ? "desc" : "asc")} className="h-10 rounded-xl border border-slate-700 bg-slate-950 px-4 text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-2">
+            <button type="button" onClick={() => setOrdem(o => o === "asc" ? "desc" : "asc")} className="h-8 rounded-lg border border-slate-800 bg-slate-900 px-2.5 text-[10px] font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-2">
               {ordem === "asc" ? <ArrowUp className="h-4 w-4 text-cyan-400" /> : <ArrowDown className="h-4 w-4 text-cyan-400" />}
               {ordem === "asc" ? "Crescente" : "Decrescente"}
             </button>
@@ -463,13 +333,13 @@ export default function FluxoCaixaTab() {
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-3 text-sm text-slate-200 outline-none focus:border-cyan-500" />
+                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="h-8 w-full rounded-lg border border-slate-800 bg-slate-900 pl-8 pr-2.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500" />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="p-5 border-b border-slate-800 font-bold text-slate-200 flex items-center justify-between">
+          <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/45 shadow-lg backdrop-blur-sm">
+            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2.5 text-xs font-bold text-slate-300">
               <div>Lançamentos ({movs.length})</div>
             </div>
 
@@ -490,10 +360,10 @@ export default function FluxoCaixaTab() {
             )}
 
             <div className="overflow-x-auto bg-slate-950/30">
-              <table className="w-full text-sm">
+              <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
-                    <th className="px-5 py-4 w-10">
+                    <th className="w-10 px-3 py-2.5">
                       <input
                         type="checkbox"
                         checked={selecionados.length === movs.length && movs.length > 0}
@@ -501,19 +371,19 @@ export default function FluxoCaixaTab() {
                         className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
                       />
                     </th>
-                    <th className="text-left px-5 py-4 cursor-pointer select-none hover:text-cyan-400 transition" onClick={() => setOrdem(o => o === "asc" ? "desc" : "asc")}>
+                    <th className="px-3 py-2.5 text-left cursor-pointer select-none hover:text-cyan-400 transition" onClick={() => setOrdem(o => o === "asc" ? "desc" : "asc")}>
                       <div className="flex items-center gap-1.5">
                         Data ({tipoData === "pagamento" ? "Pgto." : "Venc."})
                         {ordem === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
                       </div>
                     </th>
-                    <th className="text-left px-5 py-4">Descrição</th>
-                    <th className="text-left px-5 py-4">Cliente</th>
-                    <th className="text-left px-5 py-4">Caixa</th>
-                    <th className="text-left px-5 py-4">Pago por</th>
-                    <th className="text-right px-5 py-4">Valor</th>
-                    <th className="text-left px-5 py-4">Status</th>
-                    <th className="px-5 py-4"></th>
+                    <th className="px-3 py-2.5 text-left">Descrição</th>
+                    <th className="px-3 py-2.5 text-left">Cliente</th>
+                    <th className="px-3 py-2.5 text-left">Caixa</th>
+                    <th className="px-3 py-2.5 text-left">Pago por</th>
+                    <th className="px-3 py-2.5 text-right">Valor</th>
+                    <th className="px-3 py-2.5 text-left">Status</th>
+                    <th className="px-3 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -523,7 +393,7 @@ export default function FluxoCaixaTab() {
                     
                     return (
                     <tr key={m.id} className={`border-b border-slate-800/50 transition ${isSelected ? "bg-cyan-500/10" : "hover:bg-slate-800/20"}`}>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-2.5">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -531,7 +401,7 @@ export default function FluxoCaixaTab() {
                           className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
                         />
                       </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {getDisplayDate(m) ? (
                           <div className="flex flex-col">
                             <span className="font-medium text-slate-200">{new Date(getDisplayDate(m) + "T00:00:00").toLocaleDateString("pt-BR")}</span>
@@ -539,21 +409,21 @@ export default function FluxoCaixaTab() {
                           </div>
                         ) : "—"}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-2.5">
                         <div className="font-bold text-slate-200">{m.descricao || "—"}</div>
                         <div className="text-[10px] text-slate-500 uppercase mt-0.5">{grupoDe(m)}{m.categoria_nome ? ` · ${m.categoria_nome}` : ""}</div>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-300">{data.clientes.find((c: any) => c.id === m.clientes_id)?.nome || "—"}</td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-2.5 text-slate-300">{data.clientes.find((c: any) => c.id === m.clientes_id)?.nome || "—"}</td>
+                      <td className="px-3 py-2.5">
                         <span className="inline-flex items-center rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold text-slate-300">
                           {isDga(m) ? "DGA" : isShare(m) ? "Share" : "Cliente"}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-300">{m.pago_por || "—"}</td>
-                      <td className={`px-5 py-3.5 text-right font-black ${isEntr ? 'text-emerald-400' : 'text-slate-100'}`}>
+                      <td className="px-3 py-2.5 text-slate-300">{m.pago_por || "—"}</td>
+                      <td className={`px-3 py-2.5 text-right font-black ${isEntr ? 'text-emerald-400' : 'text-slate-100'}`}>
                         {isEntr ? '+' : ''}{formatBRL(valueOf(m))}
                       </td>
-                      <td className="px-5 py-3.5 text-center">
+                      <td className="px-3 py-2.5 text-center">
                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
                             fornecedorStatus(m) === "pago"
                               ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
@@ -562,7 +432,7 @@ export default function FluxoCaixaTab() {
                             {fornecedorStatus(m)}
                          </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           {deveMostrarBotaoBaixa(m) && <button title="Dar baixa" onClick={() => setBaixaMov(m)} className="rounded-lg p-1.5 text-emerald-400 hover:bg-emerald-500/10 transition"><HandCoins className="h-4 w-4" /></button>}
                           {m.reembolsavel && !m.reembolso_quitado && <button title="Reembolso" onClick={() => setReembolsoMov(m)} className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-500/10 transition"><Wallet className="h-4 w-4" /></button>}
@@ -781,6 +651,21 @@ function ResumoItem({ title, detail, value, tone }: { title: string; detail: str
       <span className={`shrink-0 text-sm font-black ${isOrange ? "text-orange-300" : "text-rose-300"}`}>{value}</span>
     </div>
   );
+}
+
+function ResumoKpi({ label, value, note, tone }: { label: string; value: string; note: string; tone: "amber" | "green" | "red" | "violet" }) {
+  const cls = { amber: "text-amber-300", green: "text-emerald-300", red: "text-rose-300", violet: "text-violet-300" }[tone];
+  return <div className="min-w-0 px-3 py-2.5"><div className="truncate text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</div><div className={`mt-1 truncate text-sm font-black ${cls}`}>{value}</div><div className="mt-0.5 truncate text-[9px] text-slate-600">{note}</div></div>;
+}
+
+function ResumoListaCompacta({ title, subtitle, total, tone, loading, error, empty, children }: { title: string; subtitle: string; total: string; tone: "orange" | "rose"; loading: boolean; error: unknown; empty: string; children: React.ReactNode }) {
+  const accent = tone === "orange" ? "text-orange-300" : "text-rose-300";
+  return <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40"><div className="flex items-center justify-between gap-3 border-b border-slate-800/90 px-3 py-2.5"><div className="min-w-0"><h3 className={`truncate text-xs font-black ${accent}`}>{title}</h3><p className="mt-0.5 truncate text-[10px] text-slate-500">{subtitle}</p></div><strong className={`shrink-0 text-sm font-black ${accent}`}>{total}</strong></div><div className="divide-y divide-slate-800/70">{loading ? <div className="px-3 py-6 text-center text-xs text-slate-500">Carregando...</div> : error ? <div className="px-3 py-6 text-center text-xs text-rose-300">Não foi possível carregar os dados.</div> : children || <div className="px-3 py-6 text-center text-xs text-slate-600">{empty}</div>}</div></section>;
+}
+
+function ResumoLinha({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "orange" | "rose" }) {
+  const accent = tone === "orange" ? "bg-orange-400 text-orange-300" : "bg-rose-400 text-rose-300";
+  return <div className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-900/70"><div className="flex min-w-0 items-center gap-2"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent.split(" ")[0]}`} /><div className="min-w-0"><div className="truncate text-[11px] font-semibold text-slate-300">{title}</div><div className="truncate text-[10px] text-slate-600">{detail}</div></div></div><span className={`shrink-0 text-[11px] font-black ${accent.split(" ")[1]}`}>{value}</span></div>;
 }
 
 function Card({ title, value, note, tone }: { title: string; value: string; note: string; tone: "amber" | "green" | "red" | "violet" }) {
