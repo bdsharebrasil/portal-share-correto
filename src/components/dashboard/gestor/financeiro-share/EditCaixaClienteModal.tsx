@@ -155,26 +155,50 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         .order("criado_em");
       const list = (rows ?? []) as any[];
       const first = list[0] || null;
-      setRateio(first);
-      if (first?.subcategoria_1) setSubcategoria(first.subcategoria_1 as string);
-      if (first?.tipo_rateio) setTipoRateio(first.tipo_rateio as string);
-      if (first?.periodicidade) setPeriodicidade(first.periodicidade as string);
-      if (first?.abastecimento_id) setAbastecimentoId(first.abastecimento_id as string);
+      const fallback = {
+        cliente_id: movInit?.clientes_id ?? null,
+        clientes_nome: movInit?.clientes_nome ?? null,
+        socio_id: movInit?.socio_id ?? null,
+        socios_nome: movInit?.socios_nome ?? null,
+        percentual_uso: movInit?.percentual_uso ?? null,
+        valor_rateado: movInit?.valor_rateado ?? movInit?.valor ?? null,
+        valor_pago_real: movInit?.valor_pago_real ?? movInit?.valor_rateado ?? movInit?.valor ?? null,
+        pago_por: movInit?.pago_por ?? null,
+        pago_diretamente: !!movInit?.pago_diretamente,
+        modo_pagamento: movInit?.pago_diretamente ? "direto" : "reembolso" as ModoPagamentoCliente,
+        status: movInit?.status ?? "pendente",
+      } satisfies RateioLinha;
+      const hydratedRateio = first || {
+        ...fallback,
+        despesa_id: movId,
+        descricao_despesa: movInit?.descricao ?? null,
+        tipo_rateio: movInit?.tipo_rateio ?? null,
+        periodicidade: movInit?.periodicidade ?? null,
+        categoria_custo: movInit?.categoria_id ?? null,
+        categoria_nome: movInit?.categoria_nome ?? null,
+      };
+      setRateio(hydratedRateio);
+      if (hydratedRateio.subcategoria_1) setSubcategoria(hydratedRateio.subcategoria_1 as string);
+      if (hydratedRateio.tipo_rateio) setTipoRateio(hydratedRateio.tipo_rateio as string);
+      if (hydratedRateio.periodicidade) setPeriodicidade(hydratedRateio.periodicidade as string);
+      if (hydratedRateio.abastecimento_id) setAbastecimentoId(hydratedRateio.abastecimento_id as string);
       setLinhas(
-        list.map((r) => ({
-          id: r.id,
-          cliente_id: r.cliente_id ?? null,
-          clientes_nome: r.clientes_nome ?? null,
-          socio_id: r.socio_id ?? null,
-          socios_nome: r.socios_nome ?? null,
-          percentual_uso: r.percentual_uso ?? null,
-          valor_rateado: r.valor_rateado ?? null,
-          valor_pago_real: r.valor_pago_real ?? null,
-          pago_por: r.pago_por ?? null,
-          pago_diretamente: !!r.pago_diretamente,
-          modo_pagamento: !!r.pago_diretamente ? "direto" : "reembolso",
-          status: r.status ?? null,
-        }))
+        list.length > 0
+          ? list.map((r) => ({
+              id: r.id,
+              cliente_id: r.cliente_id ?? null,
+              clientes_nome: r.clientes_nome ?? null,
+              socio_id: r.socio_id ?? null,
+              socios_nome: r.socios_nome ?? null,
+              percentual_uso: r.percentual_uso ?? null,
+              valor_rateado: r.valor_rateado ?? null,
+              valor_pago_real: r.valor_pago_real ?? null,
+              pago_por: r.pago_por ?? null,
+              pago_diretamente: !!r.pago_diretamente,
+              modo_pagamento: !!r.pago_diretamente ? "direto" : "reembolso",
+              status: r.status ?? null,
+            }))
+          : [fallback]
       );
     })();
   }, [movId]);
@@ -314,7 +338,9 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       return ls.filter((_, i) => i !== idx);
     });
 
-  const valorTotal = Number(mov.valor ?? mov.valor_total_despesa ?? 0) || 0;
+  // Na Caixa Cliente, o valor editável da linha é normalmente valor_rateado;
+  // valor_total é o total original da despesa e não pode substituir o rateio.
+  const valorTotal = Number(mov.valor ?? mov.valor_rateado ?? mov.valor_total_despesa ?? mov.valor_total ?? 0) || 0;
   const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
   const totalPercentual = linhas.reduce((a, l) => a + (Number(l.percentual_uso) || 0), 0);
 
@@ -333,15 +359,20 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         ? "aguardando_reembolso"
         : statusAtual === "aguardando_reembolso" ? "pago" : (mov.status || "pendente");
       const pagadores = Array.from(new Set(linhas.map((l) => l.pago_por).filter(Boolean)));
+      const valorEditado = numOrNull(mov.valor ?? mov.valor_rateado ?? mov.valor_total_despesa);
       const patch: any = {
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
         data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
         data_pagamento: allRateiosPending ? null : mov.data_pagamento || null,
-        forma_pagamento: mov.forma_pagamento,
-        valor_rateado: numOrNull(mov.valor_rateado),
-        valor_pago_real: hasReembolso ? null : numOrNull(mov.valor_rateado ?? mov.valor),
+        forma_pagamento: mov.forma_pagamento || null,
+        categoria_id: mov.categoria_id || categoriaCustoId || null,
+        conta_bancaria: mov.conta_bancaria || null,
+        grupo_categoria: mov.grupo_categoria || null,
+        valor_rateado: valorEditado,
+        valor_total: numOrNull(mov.valor_total ?? mov.valor_total_despesa) ?? valorEditado,
+        valor_pago_real: hasReembolso ? null : numOrNull(mov.valor_pago_real ?? valorEditado),
         status: statusMov,
         pago_por: pagadores.length > 0 ? pagadores.join(", ") : null,
         pago_diretamente: !hasReembolso,
@@ -351,6 +382,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
         tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
         periodicidade: periodicidade || rateio?.periodicidade || null,
+        abastecimento_id: abastecimentoId || null,
         ...anexosToPatch(anexos),
       };
       const { error: e1 } = await supabase.from("movimentacoes").update(patch as any).eq("id", movId);
@@ -369,14 +401,22 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         data_pagamento: mov.data_pagamento || null,
         aeronave_id: mov.aeronave_id ?? null,
         aeronave_registro: mov.aeronave_registro ?? rateio?.aeronave_registro ?? null,
-        valor_total_despesa: valorTotal || null,
-        categoria_custo: categoriaCustoId || rateio?.categoria_custo || null,
+        fluxo: mov.fluxo || "saida",
+        valor_total: (numOrNull(mov.valor_total ?? mov.valor_total_despesa) ?? valorTotal) || null,
+        valor_rateado: valorEditado,
+        valor_pago_real: hasReembolso ? null : valorEditado,
+        categoria_custo: categoriaCustoId || mov.categoria_id || rateio?.categoria_custo || null,
+        categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? rateio?.categoria_nome ?? null,
+        conta_bancaria: mov.conta_bancaria || null,
         subcategoria_1: subcategoria || rateio?.subcategoria_1 || null,
+        pago_por: pagadores.length > 0 ? pagadores.join(", ") : (mov.pago_por || null),
+        pago_diretamente: !hasReembolso,
         ...anexosToPatch(anexos),
       };
 
       if (removidos.length > 0) {
-        await (supabase as any).from("rateio_despesas").delete().in("id", removidos);
+        const { error: deleteRateioError } = await (supabase as any).from("rateio_despesas").delete().in("id", removidos);
+        if (deleteRateioError) throw deleteRateioError;
       }
 
       for (const l of linhas) {
@@ -387,6 +427,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           socio_id: l.socio_id,
           socios_nome: l.socios_nome,
           percentual_uso: numOrNull(l.percentual_uso),
+          percentual_sociedade: numOrNull(l.percentual_uso),
+          valor_total: valorTotal || null,
           valor_rateado: numOrNull(l.valor_rateado),
           valor_pago_real: l.modo_pagamento === "reembolso" ? null : numOrNull(l.valor_pago_real ?? l.valor_rateado),
           pago_por: l.modo_pagamento === "reembolso" ? SHARE_BRASIL : (l.pago_por || l.socios_nome || l.clientes_nome || null),
@@ -395,9 +437,11 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           atualizado_em: new Date().toISOString(),
         };
         if (l.id) {
-          await (supabase as any).from("rateio_despesas").update(payload).eq("id", l.id);
+          const { error: rErr } = await (supabase as any).from("rateio_despesas").update(payload).eq("id", l.id);
+          if (rErr) throw rErr;
         } else {
-          await (supabase as any).from("rateio_despesas").insert(payload);
+          const { error: rErr } = await (supabase as any).from("rateio_despesas").insert(payload);
+          if (rErr) throw rErr;
         }
       }
 
@@ -480,7 +524,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                 <label className={labelCls}>Forma</label>
                 <SearchableCombobox items={FORMAS_PGTO} value={mov.forma_pagamento || ""} onChange={(v) => setM("forma_pagamento", v)} placeholder="Forma" icon={<CreditCard className="h-3.5 w-3.5" />} />
               </div>
-              <div><label className={labelCls}>Valor</label><input type="number" step="0.01" className={inputCls} value={mov.valor ?? ""} onChange={(e) => setM("valor", e.target.value)} /></div>
+              <div><label className={labelCls}>Valor lançado</label><input type="number" step="0.01" className={inputCls} value={mov.valor ?? mov.valor_rateado ?? mov.valor_total ?? ""} onChange={(e) => setM("valor", e.target.value)} /></div>
             </div>
           </Section>
 
