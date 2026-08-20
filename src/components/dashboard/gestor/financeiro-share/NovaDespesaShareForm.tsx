@@ -66,6 +66,8 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [relatoriosViagem, setRelatoriosViagem] = useState<any[]>([]);
+  const [loadingRelatorios, setLoadingRelatorios] = useState(false);
   const [grupoCategoriaSelecionado, setGrupoCategoriaSelecionado] = useState("");
   const [form, setForm] = useState({
     descricao: "",
@@ -84,6 +86,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     quantidade_parcelas: "2",
     numero_parcela: "1",
     observacoes: "",
+    relatorio_viagem_id: "",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -158,6 +161,70 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     return c?.grupo_categoria || null;
   }, [categorias, form.categoria_id]);
 
+  const categoriaFinanceira = `${categoriaNome ?? ""} ${grupoCategoria ?? ""}`.toUpperCase();
+  const isDespesaViagem = !entrada && ["VIAGEM", "HOSPEDAGEM", "HOTEL", "ALIMENTA", "TRANSPORTE TERRESTRE"].some((termo) => categoriaFinanceira.includes(termo));
+  const relatorioSelecionado = relatoriosViagem.find((relatorio) => relatorio.id === form.relatorio_viagem_id) ?? null;
+  const relatorioItems = relatoriosViagem.map((relatorio) => ({
+    id: relatorio.id,
+    label: `${relatorio.numero_relatorio || relatorio.numero_voo || "Sem número"} · saldo ${Number(relatorio.saldo_disponivel || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+  }));
+  const valorInformado = Number(form.valor_original) || 0;
+  const excedeSaldoRelatorio = Boolean(isDespesaViagem && relatorioSelecionado && valorInformado > Number(relatorioSelecionado.saldo_disponivel) + 0.009);
+
+  useEffect(() => {
+    if (!isDespesaViagem) {
+      setRelatoriosViagem([]);
+      if (form.relatorio_viagem_id) set({ relatorio_viagem_id: "" });
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingRelatorios(true);
+    (async () => {
+      const { data: reports, error } = await (supabase as any)
+        .from("travel_expense_reports")
+        .select("id,numero_relatorio,numero_voo,total_valor,total_sharebrasil,data_inicio,data_fim,rota,status")
+        .order("data_inicio", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+
+      const lista = (reports ?? []).filter((report: any) => String(report.status || "").toLowerCase() !== "cancelado");
+      const ids = lista.map((report: any) => report.id);
+      let abatidoPorRelatorio: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: movimentos } = await (supabase as any)
+          .from("movimentacoes")
+          .select("reference_id,valor_total,valor_rateado,status")
+          .in("reference_type", ["relatorio_viagem", "travel_report"])
+          .in("reference_id", ids);
+        (movimentos ?? []).forEach((movimento: any) => {
+          if (String(movimento.status || "").toLowerCase() === "cancelado") return;
+          const valor = Number(movimento.valor_total ?? movimento.valor_rateado ?? 0);
+          abatidoPorRelatorio[movimento.reference_id] = Number(((abatidoPorRelatorio[movimento.reference_id] || 0) + valor).toFixed(2));
+        });
+      }
+
+      const comSaldo = lista.map((report: any) => {
+        const totalShare = Number(report.total_sharebrasil ?? report.total_valor ?? 0);
+        const abatido = Number(abatidoPorRelatorio[report.id] || 0);
+        return { ...report, total_share: totalShare, abatido, saldo_disponivel: Number(Math.max(0, totalShare - abatido).toFixed(2)) };
+      }).filter((report: any) => report.saldo_disponivel > 0.009);
+
+      if (!cancelled) {
+        setRelatoriosViagem(comSaldo);
+        setLoadingRelatorios(false);
+      }
+    })().catch((error: any) => {
+      if (!cancelled) {
+        setRelatoriosViagem([]);
+        setLoadingRelatorios(false);
+        toast.error(error.message || "Não foi possível carregar os relatórios de viagem.");
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [isDespesaViagem]);
+
   const [duplicatas, setDuplicatas] = useState<PossivelDuplicata[]>([]);
   const [checando, setChecando] = useState(false);
 
@@ -166,6 +233,10 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
+    if (isDespesaViagem && !relatorioSelecionado) return toast.error("Selecione o relatório de viagem que será abatido.");
+    if (isDespesaViagem && relatorioSelecionado && valorTotal > Number(relatorioSelecionado.saldo_disponivel) + 0.009) {
+      return toast.error(`O valor excede o saldo disponível do relatório (${Number(relatorioSelecionado.saldo_disponivel).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}).`);
+    }
 
     if (!ignorarDuplicidade) {
       setChecando(true);
@@ -227,6 +298,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           reembolsavel: false,
           reembolso_quitado: false,
           criado_por: criadoPor,
+          ...(relatorioSelecionado ? { reference_type: "relatorio_viagem", reference_id: relatorioSelecionado.id } : {}),
           ...mapAnexosToMovimentacao(anexos),
         };
 
@@ -257,8 +329,8 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               empresa: "SHARE BRASIL",
               observacoes: form.observacoes || null,
               movimentacao_id: (mov as any).id,
-              reference_type: "movimentacao_share",
-              reference_id: (mov as any).id,
+              reference_type: relatorioSelecionado ? "relatorio_viagem" : "movimentacao_share",
+              reference_id: relatorioSelecionado ? relatorioSelecionado.id : (mov as any).id,
               criado_por: criadoPor,
             } as any)
             .select("id")
@@ -284,8 +356,8 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               conta_bancaria: form.conta_bancaria || null,
               metodo_pagamento: form.forma_pagamento || null,
               movimentacao_id: (mov as any).id,
-              reference_type: "movimentacao_share",
-              reference_id: (mov as any).id,
+              reference_type: relatorioSelecionado ? "relatorio_viagem" : "movimentacao_share",
+              reference_id: relatorioSelecionado ? relatorioSelecionado.id : (mov as any).id,
               criado_por: criadoPor,
             } as any)
             .select("id")
@@ -433,6 +505,33 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
               className="w-full"
             />
           </div>
+
+          {isDespesaViagem && (
+            <div className="lg:col-span-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div><Label>Relatório de despesas de viagem *</Label><p className="text-xs text-muted-foreground">O lançamento será abatido do saldo disponível do relatório.</p></div>
+                {loadingRelatorios && <span className="text-xs text-muted-foreground">Carregando relatórios...</span>}
+              </div>
+              <SearchableCombobox
+                items={relatorioItems}
+                value={form.relatorio_viagem_id}
+                onChange={(id) => set({ relatorio_viagem_id: id })}
+                placeholder={loadingRelatorios ? "Carregando..." : "Selecione o relatório correto"}
+                searchPlaceholder="Buscar por número ou voo..."
+                emptyMessage="Nenhum relatório com saldo disponível."
+                disabled={loadingRelatorios || relatorioItems.length === 0}
+              />
+              {relatorioSelecionado && (
+                <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-border bg-background/60 p-3 text-xs sm:grid-cols-3">
+                  <div><span className="text-muted-foreground">Relatório</span><p className="font-semibold">{relatorioSelecionado.numero_relatorio || relatorioSelecionado.numero_voo || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Já abatido</span><p className="font-semibold">{Number(relatorioSelecionado.abatido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></div>
+                  <div><span className="text-muted-foreground">Saldo disponível</span><p className="font-semibold text-emerald-600">{Number(relatorioSelecionado.saldo_disponivel).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></div>
+                </div>
+              )}
+              {excedeSaldoRelatorio && <p className="mt-2 text-xs font-medium text-destructive">O valor informado excede o saldo disponível deste relatório. Reduza o valor ou selecione outro relatório.</p>}
+              {isDespesaViagem && !loadingRelatorios && relatorioItems.length === 0 && <p className="mt-2 text-xs text-destructive">Não há relatório de viagem com saldo disponível para este lançamento.</p>}
+            </div>
+          )}
         </div>
 
         {/* Parcelamento */}
@@ -484,7 +583,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button type="button" onClick={() => salvar()} disabled={saving}>
+          <Button type="button" onClick={() => salvar()} disabled={saving || checando || (isDespesaViagem && (!relatorioSelecionado || excedeSaldoRelatorio))}>
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando..." : "Salvar lançamento"}
           </Button>
