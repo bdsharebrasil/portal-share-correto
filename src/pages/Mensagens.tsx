@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,8 +29,10 @@ import {
   FileText,
   Image as ImageIcon,
   RotateCcw,
-  Users,
   ChevronRight,
+  ChevronDown,
+  Forward,
+  AlertOctagon,
 } from "lucide-react";
 import ComposeMessage from "@/components/mensagens/ComposeMessage";
 import AttachmentViewerModal from "@/components/dashboard/gestor/financeiro-share/AttachmentViewerModal";
@@ -59,8 +61,9 @@ export default function Mensagens() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
-  const [replyTo, setReplyTo] = useState<{ to: string[]; subject: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ to: string[]; subject: string; body?: string } | null>(null);
   const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
+  const [inlineImages, setInlineImages] = useState<Record<string, string>>({});
 
   const list = useMemo(() => {
     const base = filterMailbox(items, view);
@@ -84,6 +87,20 @@ export default function Mensagens() {
       updateMyRow(item, { is_read: true, read_at: new Date().toISOString() } as any);
     }
   };
+
+  // Pré-carrega preview inline das imagens anexadas na mensagem aberta
+  useEffect(() => {
+    if (!selected) return;
+    const imageAttachments = selected.attachments.filter((a) => a.file_type?.startsWith("image/"));
+    imageAttachments.forEach(async (a) => {
+      if (inlineImages[a.id]) return;
+      const { data } = await supabase.storage.from("message-attachments").createSignedUrl(a.file_path, 3600);
+      if (data?.signedUrl) {
+        setInlineImages((prev) => ({ ...prev, [a.id]: data.signedUrl }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.message.id]);
 
   const openAttachment = async (path: string, name: string) => {
     const { data, error } = await supabase.storage
@@ -118,6 +135,32 @@ export default function Mensagens() {
     { key: "trash", label: "Lixeira", icon: Trash2 },
   ];
 
+  const handleReply = () => {
+    if (!selected) return;
+    setReplyTo({
+      to: [selected.message.sender_id],
+      subject: selected.message.subject.startsWith("Re:")
+        ? selected.message.subject
+        : `Re: ${selected.message.subject}`,
+    });
+    setComposeOpen(true);
+  };
+
+  const handleForward = () => {
+    if (!selected) return;
+    setReplyTo({
+      to: [],
+      subject: selected.message.subject.startsWith("Fwd:")
+        ? selected.message.subject
+        : `Fwd: ${selected.message.subject}`,
+      body: `\n\n---------- Mensagem encaminhada ----------\nDe: ${selected.sender?.full_name || "Usuário"}\nData: ${format(
+        new Date(selected.message.created_at),
+        "dd/MM/yyyy 'às' HH:mm"
+      )}\nAssunto: ${selected.message.subject}\n\n${selected.message.body}`,
+    });
+    setComposeOpen(true);
+  };
+
   return (
     <Layout>
       <div className="relative min-h-[calc(100vh-73px)] overflow-hidden">
@@ -148,9 +191,9 @@ export default function Mensagens() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[230px_minmax(280px,340px)_1fr]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_360px_1fr]">
             {/* Pastas */}
-            <aside className="rounded-2xl border border-border/70 bg-card/60 p-3 backdrop-blur-xl">
+            <aside className="portal-card p-3">
               <nav className="space-y-1">
                 {navItems.map((n) => {
                   const active = view === n.key;
@@ -181,9 +224,7 @@ export default function Mensagens() {
 
               <div className="mt-4 border-t border-border/60 pt-3">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    Pastas
-                  </span>
+                  <span className="portal-section-label">Pastas</span>
                   <button onClick={createFolder} className="text-muted-foreground hover:text-primary">
                     <FolderPlus className="h-4 w-4" />
                   </button>
@@ -217,19 +258,19 @@ export default function Mensagens() {
               </div>
             </aside>
 
-            {/* Lista */}
-            <section className="flex max-h-[calc(100vh-200px)] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/60 backdrop-blur-xl">
-              <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+            {/* Lista estilo caixa de e-mail */}
+            <section className="portal-card flex max-h-[calc(100vh-200px)] flex-col overflow-hidden">
+              <div className="portal-card-header flex items-center gap-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar mensagens..."
+                  placeholder="Buscar..."
                   className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
               </div>
 
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 ctm-scroll">
                 {loading ? (
                   <p className="p-6 text-center text-sm text-muted-foreground">Carregando...</p>
                 ) : list.length === 0 ? (
@@ -238,25 +279,23 @@ export default function Mensagens() {
                     <p className="text-sm">Nenhuma mensagem aqui</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border/50">
+                  <div>
                     {list.map((item) => {
                       const unread = !!item.myRow && !item.myRow.is_read;
                       const active = selectedId === item.message.id;
-                      const person = item.outgoing
-                        ? item.recipients[0]?.profile
-                        : item.sender;
+                      const person = item.outgoing ? item.recipients[0]?.profile : item.sender;
                       return (
                         <button
                           key={item.message.id}
                           onClick={() => openMessage(item)}
-                          className={`relative flex w-full gap-3 px-3 py-3 text-left transition-colors ${
-                            active ? "bg-primary/10" : "hover:bg-muted/40"
+                          className={`relative flex w-full gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors ${
+                            active ? "bg-primary/15" : unread ? "bg-white/[0.02] hover:bg-muted/40" : "hover:bg-muted/30"
                           }`}
                         >
-                          {unread && (
-                            <span className="absolute left-0 top-0 h-full w-[3px] bg-primary" />
+                          {unread && !active && (
+                            <span className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary" />
                           )}
-                          <Avatar className="h-9 w-9 shrink-0">
+                          <Avatar className="h-10 w-10 shrink-0">
                             <AvatarImage src={person?.avatar_url || undefined} />
                             <AvatarFallback className="bg-primary/15 text-[11px]">
                               {initials(person?.full_name)}
@@ -265,7 +304,7 @@ export default function Mensagens() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2">
                               <span
-                                className={`truncate text-sm ${unread ? "font-bold text-foreground" : "text-foreground/80"}`}
+                                className={`truncate text-sm ${unread ? "font-bold text-foreground" : "text-foreground/85"}`}
                               >
                                 {item.outgoing
                                   ? `Para: ${item.recipients.map((r) => r.profile?.full_name).filter(Boolean).join(", ") || "—"}`
@@ -278,10 +317,14 @@ export default function Mensagens() {
                                 })}
                               </span>
                             </div>
-                            <p className={`truncate text-[13px] ${unread ? "font-semibold" : "text-muted-foreground"}`}>
+                            <p
+                              className={`truncate text-[13px] ${
+                                unread ? "font-semibold text-foreground/90" : "text-muted-foreground"
+                              }`}
+                            >
                               {item.message.subject || "(sem assunto)"}
                             </p>
-                            <p className="truncate text-xs text-muted-foreground/80">{item.message.body}</p>
+                            <p className="truncate text-xs text-muted-foreground/70">{item.message.body}</p>
                             <div className="mt-1 flex items-center gap-2">
                               {item.attachments.length > 0 && (
                                 <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -300,8 +343,8 @@ export default function Mensagens() {
               </ScrollArea>
             </section>
 
-            {/* Leitor */}
-            <section className="flex max-h-[calc(100vh-200px)] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/60 backdrop-blur-xl">
+            {/* Leitor estilo e-mail */}
+            <section className="portal-card flex max-h-[calc(100vh-200px)] flex-col overflow-hidden">
               {!selected ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-muted-foreground">
                   <div className="rounded-2xl bg-primary/10 p-5 ring-1 ring-primary/20">
@@ -311,171 +354,180 @@ export default function Mensagens() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-start justify-between gap-3 border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent px-5 py-4">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-lg font-bold">
-                        {selected.message.subject || "(sem assunto)"}
-                      </h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {format(new Date(selected.message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {selected.myRow && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Favoritar"
-                            onClick={() => updateMyRow(selected, { is_starred: !selected.myRow!.is_starred } as any)}
-                          >
-                            <Star
-                              className={`h-4 w-4 ${selected.myRow.is_starred ? "fill-amber-400 text-amber-400" : ""}`}
-                            />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={selected.myRow.is_archived ? "Desarquivar" : "Arquivar"}
-                            onClick={() => updateMyRow(selected, { is_archived: !selected.myRow!.is_archived } as any)}
-                          >
-                            <Archive className="h-4 w-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" title="Mover para pasta">
-                                <FolderIcon className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {folders.length === 0 && (
-                                <DropdownMenuItem onClick={createFolder}>
-                                  <FolderPlus className="mr-2 h-4 w-4" /> Criar pasta
-                                </DropdownMenuItem>
-                              )}
-                              {folders.map((f) => (
-                                <DropdownMenuItem key={f.id} onClick={() => moveToFolder(selected, f.id)}>
-                                  <FolderIcon className="mr-2 h-4 w-4" style={{ color: f.color }} />
-                                  {f.name}
-                                </DropdownMenuItem>
-                              ))}
-                              {selected.myRow.folder_id && (
-                                <DropdownMenuItem onClick={() => moveToFolder(selected, null)}>
-                                  <RotateCcw className="mr-2 h-4 w-4" /> Tirar da pasta
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={selected.myRow.is_deleted ? "Restaurar" : "Excluir"}
-                            onClick={async () => {
-                              await updateMyRow(selected, { is_deleted: !selected.myRow!.is_deleted } as any);
-                              setSelectedId(null);
-                            }}
-                          >
-                            {selected.myRow.is_deleted ? (
-                              <RotateCcw className="h-4 w-4" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            )}
-                          </Button>
-                        </>
-                      )}
-                      {selected.outgoing && !selected.myRow && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Excluir dos enviados"
+                  {/* Toolbar de ações */}
+                  <div className="flex flex-wrap items-center gap-1 border-b border-border/60 px-3 py-2">
+                    {selected.myRow && (
+                      <>
+                        <ToolbarButton
+                          icon={Trash2}
+                          label={selected.myRow.is_deleted ? "Restaurar" : "Excluir"}
+                          danger={!selected.myRow.is_deleted}
                           onClick={async () => {
-                            await updateSent(selected, { sender_deleted: true });
+                            await updateMyRow(selected, { is_deleted: !selected.myRow!.is_deleted } as any);
                             setSelectedId(null);
                           }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                        />
+                        <ToolbarButton icon={AlertOctagon} label="Spam" onClick={() => toast.info("Em breve")} />
+                        <ToolbarButton
+                          icon={Archive}
+                          label={selected.myRow.is_archived ? "Desarquivar" : "Arquivar"}
+                          onClick={() => updateMyRow(selected, { is_archived: !selected.myRow!.is_archived } as any)}
+                        />
+                        <ToolbarButton
+                          icon={Star}
+                          label="Favoritar"
+                          active={selected.myRow.is_starred}
+                          onClick={() => updateMyRow(selected, { is_starred: !selected.myRow!.is_starred } as any)}
+                        />
+                        <div className="mx-1 h-5 w-px bg-border/60" />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground">
+                              <FolderIcon className="h-3.5 w-3.5" /> Mover
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {folders.length === 0 && (
+                              <DropdownMenuItem onClick={createFolder}>
+                                <FolderPlus className="mr-2 h-4 w-4" /> Criar pasta
+                              </DropdownMenuItem>
+                            )}
+                            {folders.map((f) => (
+                              <DropdownMenuItem key={f.id} onClick={() => moveToFolder(selected, f.id)}>
+                                <FolderIcon className="mr-2 h-4 w-4" style={{ color: f.color }} />
+                                {f.name}
+                              </DropdownMenuItem>
+                            ))}
+                            {selected.myRow.folder_id && (
+                              <DropdownMenuItem onClick={() => moveToFolder(selected, null)}>
+                                <RotateCcw className="mr-2 h-4 w-4" /> Tirar da pasta
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
+                    {selected.outgoing && !selected.myRow && (
+                      <ToolbarButton
+                        icon={Trash2}
+                        label="Excluir dos enviados"
+                        danger
+                        onClick={async () => {
+                          await updateSent(selected, { sender_deleted: true });
+                          setSelectedId(null);
+                        }}
+                      />
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        onClick={handleReply}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                      >
+                        <SendIcon className="h-3.5 w-3.5" /> Responder
+                      </button>
+                      <button
+                        onClick={handleForward}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                      >
+                        <Forward className="h-3.5 w-3.5" /> Encaminhar
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 border-b border-border/60 px-5 py-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={selected.sender?.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary/15 text-xs">
-                        {initials(selected.sender?.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1 text-sm">
-                      <p className="font-semibold">{selected.sender?.full_name || "Usuário"}</p>
-                      <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        Para:{" "}
-                        {selected.recipients
-                          .filter((r) => r.kind === "to")
-                          .map((r) => r.profile?.full_name)
-                          .filter(Boolean)
-                          .join(", ") || "—"}
-                        {selected.recipients.some((r) => r.kind === "cc") && (
-                          <>
-                            <ChevronRight className="h-3 w-3" />
-                            Cc:{" "}
+                  <ScrollArea className="flex-1 ctm-scroll">
+                    <div className="px-6 pt-5">
+                      <h2 className="text-xl font-bold leading-tight">
+                        {selected.message.subject || "(sem assunto)"}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {format(new Date(selected.message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+
+                      <div className="mt-4 flex items-center gap-3 border-b border-border/50 pb-4">
+                        <Avatar className="h-11 w-11">
+                          <AvatarImage src={selected.sender?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/15 text-xs">
+                            {initials(selected.sender?.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1 text-sm">
+                          <p className="font-semibold">{selected.sender?.full_name || "Usuário"}</p>
+                          <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                            Para:{" "}
                             {selected.recipients
-                              .filter((r) => r.kind === "cc")
+                              .filter((r) => r.kind === "to")
                               .map((r) => r.profile?.full_name)
                               .filter(Boolean)
-                              .join(", ")}
-                          </>
-                        )}
-                      </p>
+                              .join(", ") || "—"}
+                            {selected.recipients.some((r) => r.kind === "cc") && (
+                              <>
+                                <ChevronRight className="h-3 w-3" />
+                                Cc:{" "}
+                                {selected.recipients
+                                  .filter((r) => r.kind === "cc")
+                                  .map((r) => r.profile?.full_name)
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <ScrollArea className="flex-1">
-                    <div className="whitespace-pre-wrap px-5 py-5 text-sm leading-relaxed text-foreground/90">
+                    <div className="whitespace-pre-wrap px-6 py-5 text-sm leading-relaxed text-foreground/90">
                       {selected.message.body}
                     </div>
 
-                    {selected.attachments.length > 0 && (
-                      <div className="px-5 pb-6">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                          Anexos ({selected.attachments.length})
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {selected.attachments.map((a) => (
+                    {/* Preview inline de imagens anexadas */}
+                    {selected.attachments.some((a) => a.file_type?.startsWith("image/")) && (
+                      <div className="space-y-3 px-6 pb-4">
+                        {selected.attachments
+                          .filter((a) => a.file_type?.startsWith("image/"))
+                          .map((a) => (
                             <button
                               key={a.id}
                               onClick={() => openAttachment(a.file_path, a.file_name)}
-                              className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs transition-colors hover:border-primary/50 hover:bg-muted"
+                              className="block w-full overflow-hidden rounded-xl border border-border/60"
                             >
-                              {a.file_type?.startsWith("image/") ? (
-                                <ImageIcon className="h-4 w-4 text-primary" />
+                              {inlineImages[a.id] ? (
+                                <img src={inlineImages[a.id]} alt={a.file_name} className="max-h-96 w-full object-cover" />
                               ) : (
-                                <FileText className="h-4 w-4 text-primary" />
+                                <div className="skeleton h-48 w-full" />
                               )}
-                              <span className="max-w-[200px] truncate">{a.file_name}</span>
                             </button>
                           ))}
+                      </div>
+                    )}
+
+                    {/* Anexos não-imagem */}
+                    {selected.attachments.some((a) => !a.file_type?.startsWith("image/")) && (
+                      <div className="px-6 pb-6">
+                        <p className="portal-section-label mb-2">Anexos</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selected.attachments
+                            .filter((a) => !a.file_type?.startsWith("image/"))
+                            .map((a) => (
+                              <button
+                                key={a.id}
+                                onClick={() => openAttachment(a.file_path, a.file_name)}
+                                className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs transition-colors hover:border-primary/50 hover:bg-muted"
+                              >
+                                <FileText className="h-4 w-4 text-primary" />
+                                <span className="max-w-[200px] truncate">{a.file_name}</span>
+                              </button>
+                            ))}
                         </div>
                       </div>
                     )}
                   </ScrollArea>
 
-                  <div className="border-t border-border/60 bg-muted/20 px-5 py-3">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setReplyTo({
-                          to: [selected.message.sender_id],
-                          subject: selected.message.subject.startsWith("Re:")
-                            ? selected.message.subject
-                            : `Re: ${selected.message.subject}`,
-                        });
-                        setComposeOpen(true);
-                      }}
-                    >
+                  <div className="flex items-center gap-2 border-t border-border/60 bg-muted/10 px-6 py-3">
+                    <Button size="sm" onClick={handleReply} className="shadow-lg shadow-primary/20">
                       <SendIcon className="mr-2 h-4 w-4" /> Responder
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleForward}>
+                      <Forward className="mr-2 h-4 w-4" /> Encaminhar
                     </Button>
                   </div>
                 </>
@@ -487,13 +539,13 @@ export default function Mensagens() {
 
       {composeOpen && (
         <ComposeMessage
-          key={replyTo ? `reply-${replyTo.subject}` : "new"}
+          key={replyTo ? `reply-${replyTo.subject}-${replyTo.to.join(",")}` : "new"}
           open={composeOpen}
           onOpenChange={setComposeOpen}
           profiles={profiles.filter((p) => p.id !== meId)}
           meId={meId}
           onSent={reload}
-          initial={replyTo ? { to: replyTo.to, subject: replyTo.subject } : undefined}
+          initial={replyTo ? { to: replyTo.to, subject: replyTo.subject, body: replyTo.body } : undefined}
         />
       )}
 
@@ -501,5 +553,36 @@ export default function Mensagens() {
         <AttachmentViewerModal url={viewer.url} title={viewer.title} onClose={() => setViewer(null)} />
       )}
     </Layout>
+  );
+}
+
+function ToolbarButton({
+  icon: Icon,
+  label,
+  onClick,
+  active,
+  danger,
+}: {
+  icon: any;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+        active
+          ? "bg-amber-500/15 text-amber-400"
+          : danger
+          ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      }`}
+    >
+      <Icon className={`h-3.5 w-3.5 ${active ? "fill-amber-400" : ""}`} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
