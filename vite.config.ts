@@ -8,7 +8,7 @@ import path from "path";
 export default defineConfig(({ mode }) => {
   // Carregar variáveis de ambiente do .env
   const env = loadEnv(mode, process.cwd(), '');
-  const apiBaseUrl = env.VITE_BACKEND_URL || 'https://api.share-brasil.com';
+  const apiBaseUrl = env.VITE_BACKEND_URL || env.VITE_API_URL || 'https://api.share-brasil.com';
 
   return {
     server: {

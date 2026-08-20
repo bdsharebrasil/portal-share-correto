@@ -9,11 +9,22 @@ import type { NOTAMData, RouteValidation } from '@/types/aisweb'
 interface FlightPoint { lat: number; lng: number; icao?: string }
 
 const asNotamArray = (raw: any): any[] => {
-  if (Array.isArray(raw)) return raw.flatMap((entry) => Array.isArray(entry?.item) ? entry.item : entry);
-  if (Array.isArray(raw?.item)) return raw.item;
-  if (Array.isArray(raw?.notams)) return raw.notams;
-  if (Array.isArray(raw?.data)) return raw.data;
-  return [];
+  const candidates = [
+    raw,
+    raw?.notam,
+    raw?.notams,
+    raw?.aisweb?.notam,
+    raw?.data,
+    raw?.response,
+  ];
+  const flatten = (value: any): any[] => {
+    if (Array.isArray(value)) return value.flatMap(flatten);
+    if (value?.item != null) return flatten(value.item);
+    if (value?.notam != null) return flatten(value.notam);
+    if (value && typeof value === 'object') return [value];
+    return [];
+  };
+  return candidates.flatMap(flatten).filter((entry, index, list) => list.indexOf(entry) === index);
 };
 
 const parseNotamDate = (value: any): string => {

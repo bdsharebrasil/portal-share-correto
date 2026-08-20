@@ -197,6 +197,15 @@ export function useFlightIntelligence(
           : null;
 
         if (cancelled) return;
+        const routeItems = Array.isArray(route?.routes)
+          ? route.routes
+          : Array.isArray(route?.item)
+            ? route.item
+            : Array.isArray(route)
+              ? route
+              : [];
+        const suggestedRoute = route?.route ?? routeItems[0]?.route ?? routeItems[0]?.rota ?? null;
+
         setState({
           loading: false,
           error: null,
@@ -207,7 +216,7 @@ export function useFlightIntelligence(
           criticalCount,
           weather: Object.fromEntries(weatherEntries),
           charts: Object.fromEntries(chartsEntries),
-          suggestedRoute: route?.route ?? route?.[0]?.route ?? null,
+          suggestedRoute,
           suggestedAltitudeFt: altitudeFt,
           suggestedAltitudeLabel: altitudeLabel,
           altitudeSource,
