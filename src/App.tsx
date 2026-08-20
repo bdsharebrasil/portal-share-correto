@@ -43,6 +43,7 @@ import Documentos from "./pages/Documentos";
 import NotFound from "./pages/NotFound";
 import Perfil from "./pages/Perfil";
 import PlanoVoo from "./pages/PlanoVoo";
+import PlanosVooSalvos from "./pages/PlanosVooSalvos";
 import Recados from "./pages/Recados";
 import MinhasTarefas from "./pages/MinhasTarefas";
 import TripulanteDetalhes from "./pages/TripulanteDetalhes";
@@ -278,6 +279,7 @@ const App = () => {
                          <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
                          <Route path="/pre-voo/:solicitacaoId" element={renderProtected(<ChecklistPreVoo />)} />
                           <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
+                          <Route path="/planos-voo-salvos" element={renderProtected(<PlanosVooSalvos />)} />
                           <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />
                           <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
                           <Route path="/financeiro/emails" element={renderProtected(<EmailsPage />)} />

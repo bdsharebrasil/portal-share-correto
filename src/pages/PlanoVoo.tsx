@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -69,6 +70,7 @@ export default function PlanoVooPage() {
   const [formData, setFormData] = useState<FlightPlanFormData>({
     aircraftId: '', aeronaveId: '', performanceAeronaveId: '', registration: '', origin: '', destination: '', alternate: '',
     cruiseSpeed: 0, altitude: 5500, fuelOnBoard: 0, route: '', flightRule: 'V', departure: '', picId: '',
+    flightNumber: '', scheduleId: '',
   });
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
   const [validation, setValidation] = useState<RouteValidation | null>(null);
@@ -86,10 +88,13 @@ export default function PlanoVooPage() {
   const [restrictionsModal, setRestrictionsModal] = useState<{ icao: string; restrictions: string[] } | null>(null);
 
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [scheduleSearch, setScheduleSearch] = useState('');
   const { aerodromes } = useAerodromes();
   const { aeronaves } = useAeronaves();
   const { getROTAER, validateFlightPlan, error: aiswebError } = useAISWeb();
-  const { flightPlans, createFlightPlan, deleteFlightPlan } = useFlightPlans();
+  const { flightPlans, createFlightPlan, deleteFlightPlan, getFlightPlanById } = useFlightPlans();
   const { routes: preferredRoutes, loading: loadingRoutes, fetchRoutes } = usePreferredRoutes();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const toggleSidebar = useCallback(() => setIsSidebarOpen((value) => !value), []);
@@ -105,6 +110,21 @@ export default function PlanoVooPage() {
   );
 
   // Crew members
+  const { data: scheduleMatches = [], isFetching: scheduleLoading } = useQuery({
+    queryKey: ['flight-schedule-search', scheduleSearch],
+    enabled: scheduleSearch.trim().length >= 2,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('solicitacoes_reserva_voo')
+        .select('id, numero_voo, origem, destino, data_agendada, horario_previsto_agendamento, aeronave_id, piloto_id')
+        .ilike('numero_voo', `%${scheduleSearch.trim()}%`)
+        .order('data_agendada', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      return (data || []).filter((item: any) => item.numero_voo);
+    },
+  });
+
   const { data: crewMembers = [] } = useQuery({
     queryKey: ['crew-members-pic'],
     queryFn: async () => {
@@ -114,6 +134,66 @@ export default function PlanoVooPage() {
   });
 
   const getAerodromeByCode = useCallback((code: string) => aerodromes.find(a => a.designativo === code?.toUpperCase()), [aerodromes]);
+
+  const selectSchedule = useCallback((schedule: any) => {
+    const aircraft = aeronaves.find((item) => item.id === schedule.aeronave_id);
+    const linkedPerformance = Array.isArray((aircraft as any)?.performance_aeronave)
+      ? (aircraft as any).performance_aeronave[0]
+      : (aircraft as any)?.performance_aeronave;
+    const cruiseKt = Number(linkedPerformance?.velocidade_cruzeiro_kt ?? (aircraft as any)?.velocidade_cruzeiro) || 0;
+    const time = schedule.horario_previsto_agendamento ? String(schedule.horario_previsto_agendamento).slice(0, 5) : '00:00';
+    setScheduleSearch(schedule.numero_voo || '');
+    setFormData((current) => ({
+      ...current,
+      flightNumber: schedule.numero_voo || '',
+      scheduleId: schedule.id,
+      aeronaveId: schedule.aeronave_id || '',
+      aircraftId: schedule.aeronave_id || '',
+      performanceAeronaveId: (aircraft as any)?.performance_aeronave_id || '',
+      registration: (aircraft as any)?.matricula || '',
+      cruiseSpeed: cruiseKt,
+      origin: schedule.origem || '',
+      destination: schedule.destino || '',
+      departure: schedule.data_agendada ? `${schedule.data_agendada}T${time}` : current.departure,
+      picId: schedule.piloto_id || current.picId,
+    }));
+    toast.success(`Agendamento ${schedule.numero_voo} carregado`);
+  }, [aeronaves]);
+
+  useEffect(() => {
+    const exact = scheduleMatches.find((item: any) => String(item.numero_voo).toUpperCase() === scheduleSearch.trim().toUpperCase());
+    if (exact && formData.scheduleId !== exact.id) selectSchedule(exact);
+  }, [scheduleMatches, scheduleSearch, formData.scheduleId, selectSchedule]);
+
+  useEffect(() => {
+    const savedPlanId = searchParams.get('plano');
+    if (!savedPlanId) return;
+    let cancelled = false;
+    getFlightPlanById(savedPlanId).then((plan) => {
+      if (!plan || cancelled) return;
+      setFormData((current) => ({
+        ...current,
+        flightNumber: plan.numero_voo || '',
+        scheduleId: plan.solicitacao_id || '',
+        aeronaveId: plan.aeronave_id || '',
+        aircraftId: plan.aeronave_id || '',
+        origin: plan.departure_airport || '',
+        destination: plan.arrival_airport || '',
+        alternate: plan.alternate_airport || '',
+        altitude: Number.parseInt(plan.cruise_altitude || '', 10) || current.altitude,
+        route: plan.route || '',
+        flightRule: plan.flight_rule || current.flightRule,
+        picId: crewMembers.find((member) => member.full_name === plan.pilot_in_command)?.id || current.picId,
+        departure: plan.flight_date ? `${plan.flight_date}T00:00` : current.departure,
+      }));
+      setCalculations(plan.calculations || null);
+      setValidation(plan.validation || null);
+      setOriginWeather(plan.weather?.origin || null);
+      setDestWeather(plan.weather?.destination || null);
+      setShowBriefing(true);
+    });
+    return () => { cancelled = true; };
+  }, [searchParams, getFlightPlanById, crewMembers]);
 
   // ── Pontos da rota para o mapa ──────────────────────────────────────────
   // Antes só incluía origem/destino/alternativa; o texto de "Rota" (DCT,
@@ -266,6 +346,9 @@ export default function PlanoVooPage() {
       const altitude = formData.altitude || 5500;
       const vResult = await validateFlightPlan(formData.origin, formData.destination, routeFlightPoints.length > 1 ? routeFlightPoints : [oc, dc], altitude, speed, fuelCons, 45);
       setValidation(vResult);
+      if (!formData.alternate && vResult?.alternate) {
+        setFormData((current) => ({ ...current, alternate: vResult.alternate || '' }));
+      }
 
       const flSuggestion = suggestFlightLevel(bearing, formData.flightRule);
       const altData = {
@@ -296,6 +379,8 @@ export default function PlanoVooPage() {
     await createFlightPlan({
       flight_date: flightDate, departure_airport: formData.origin, arrival_airport: formData.destination,
       aeronave_id: formData.aeronaveId || undefined, pilot_in_command: picName,
+      numero_voo: formData.flightNumber || undefined, solicitacao_id: formData.scheduleId || undefined,
+      flight_rule: formData.flightRule,
       alternate_airport: formData.alternate || undefined, cruise_altitude: String(formData.altitude),
       estimated_time: calculations.ete, fuel_endurance: `${calculations.totalFuel}L`,
       route: formData.route || 'DCT', status: 'draft', calculations, validation,
@@ -306,8 +391,8 @@ export default function PlanoVooPage() {
 
   // Load plan into form
   const handleLoadPlan = useCallback(() => {
-    setShowBriefing(true);
-  }, []);
+    navigate('/planos-voo-salvos');
+  }, [navigate]);
 
   return (
     <Layout>
@@ -329,6 +414,13 @@ export default function PlanoVooPage() {
               isCalculating={isValidating}
               crewMembers={crewMembers}
               onCollapse={toggleSidebar}
+              scheduleMatches={scheduleMatches}
+              scheduleLoading={scheduleLoading}
+              onFlightNumberChange={(value) => {
+                setScheduleSearch(value);
+                setFormData((current) => ({ ...current, flightNumber: value, scheduleId: '' }));
+              }}
+              onSelectSchedule={selectSchedule}
               altitudeSuggestionFt={flightIntelligence.suggestedAltitudeFt}
               altitudeSuggestionLabel={flightIntelligence.suggestedAltitudeLabel}
               altitudeSource={flightIntelligence.altitudeSource}

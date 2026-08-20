@@ -21,6 +21,9 @@ export interface FlightPlan {
   created_at: string;
   updated_at: string;
   flight_schedule_id: string | null;
+  solicitacao_id: string | null;
+  numero_voo: string | null;
+  flight_rule: 'V' | 'I' | 'Y' | 'Z' | null;
   calculations?: any;
   validation?: any;
   weather?: any;
@@ -42,6 +45,9 @@ export interface CreateFlightPlanInput {
   calculations?: any;
   validation?: any;
   weather?: any;
+  solicitacao_id?: string;
+  numero_voo?: string;
+  flight_rule?: 'V' | 'I' | 'Y' | 'Z';
 }
 
 // Table is named `planos_voo` in DB with Portuguese columns.
@@ -66,6 +72,9 @@ function rowToPlan(row: any): FlightPlan {
     created_at: row.criado_em,
     updated_at: row.atualizado_em,
     flight_schedule_id: row.ciclo_voo_id ?? null,
+    solicitacao_id: row.solicitacao_id ?? null,
+    numero_voo: row.numero_voo ?? null,
+    flight_rule: row.regra_voo ?? null,
     calculations: row.calculos ?? undefined,
     validation: row.dados_validacao ?? undefined,
     weather: row.dados_meteorologicos ?? undefined,
@@ -89,6 +98,9 @@ function inputToRow(input: Partial<CreateFlightPlanInput>): Record<string, any> 
   if (input.calculations !== undefined) out.calculos = input.calculations;
   if (input.validation !== undefined) out.dados_validacao = input.validation;
   if (input.weather !== undefined) out.dados_meteorologicos = input.weather;
+  if (input.solicitacao_id !== undefined) out.solicitacao_id = input.solicitacao_id || null;
+  if (input.numero_voo !== undefined) out.numero_voo = input.numero_voo || null;
+  if (input.flight_rule !== undefined) out.regra_voo = input.flight_rule || null;
   return out;
 }
 

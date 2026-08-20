@@ -35,6 +35,8 @@ export interface FlightPlanFormData {
   flightRule: 'V' | 'I' | 'Y' | 'Z';
   departure: string;
   picId: string;
+  flightNumber: string;
+  scheduleId: string;
 }
 
 interface FlightCalcs {
@@ -69,6 +71,10 @@ interface FlightPlanSidebarProps {
   altitudeSource?: 'performance' | 'rpc' | 'heuristic' | null;
   altitudeLoading?: boolean;
   altitudeError?: string | null;
+  scheduleMatches: Array<{ id: string; numero_voo: string; origem: string | null; destino: string | null; data_agendada: string; horario_previsto_agendamento: string | null; aeronave_id: string | null; piloto_id: string | null }>;
+  scheduleLoading?: boolean;
+  onFlightNumberChange: (value: string) => void;
+  onSelectSchedule: (schedule: { id: string; numero_voo: string; origem: string | null; destino: string | null; data_agendada: string; horario_previsto_agendamento: string | null; aeronave_id: string | null; piloto_id: string | null }) => void;
 }
 
 const formatTime = (minutes: number) => {
@@ -114,6 +120,10 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   altitudeSource = null,
   altitudeLoading = false,
   altitudeError = null,
+  scheduleMatches,
+  scheduleLoading = false,
+  onFlightNumberChange,
+  onSelectSchedule,
 }) => {
   const [autoAltitude, setAutoAltitude] = useState(true);
 
@@ -208,6 +218,35 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
 
       {/* Form Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+          <label className="text-[10px] uppercase text-primary font-bold tracking-wider flex items-center gap-1">
+            <FileText className="w-3 h-3" /> Número do agendamento
+          </label>
+          <Input
+            value={formData.flightNumber}
+            onChange={(e) => onFlightNumberChange(e.target.value.toUpperCase())}
+            placeholder="Ex.: VOO-1024"
+            className="bg-background border-border text-foreground font-mono h-9"
+          />
+          <p className="text-[9px] leading-tight text-muted-foreground">Informe o número do voo para carregar aeronave, rota, data e PIC.</p>
+          {scheduleLoading && <p className="text-[10px] text-muted-foreground">Buscando agendamentos...</p>}
+          {scheduleMatches.length > 0 && (
+            <div className="space-y-1 rounded-md border border-border bg-background p-1 shadow-lg">
+              {scheduleMatches.map((schedule) => (
+                <button
+                  key={schedule.id}
+                  type="button"
+                  onClick={() => onSelectSchedule(schedule)}
+                  className="w-full rounded px-2 py-2 text-left text-xs transition-colors hover:bg-primary/10"
+                >
+                  <span className="font-mono font-bold text-primary">{schedule.numero_voo}</span>
+                  <span className="ml-2 text-muted-foreground">{schedule.origem || '—'} → {schedule.destino || '—'} · {schedule.data_agendada}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* ── ETAPA 1: Aeronave e Piloto ─────────────────────────── */}
         <SectionHeader step={1} title="Aeronave e Piloto" icon={<Plane className="w-3 h-3" />} done={step1Ok} />
 
