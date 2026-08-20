@@ -179,7 +179,7 @@ export default function Mensagens() {
                 setReplyTo(null);
                 setComposeOpen(true);
               }}
-              className="shadow-lg shadow-primary/25"
+              className="bg-[rgba(103,221,217,1)] shadow-lg shadow-primary/25"
             >
               <PenSquare className="mr-2 h-4 w-4" /> Nova mensagem
             </Button>
@@ -188,7 +188,7 @@ export default function Mensagens() {
           {/* 2 colunas: lista + leitor */}
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
             {/* LISTA (estilo caixa de e-mail) */}
-            <section className="portal-card flex min-h-0 flex-col overflow-hidden">
+            <section className="portal-card mt-[-12px] mb-[-12px] ml-[-17px] mr-[-17px] flex min-h-0 flex-col overflow-hidden pt-[3px] pb-[3px] pl-0 pr-0">
               {/* Busca */}
               <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
                 <Search className="h-4 w-4 text-muted-foreground" />
@@ -232,12 +232,12 @@ export default function Mensagens() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <p className="px-4 pb-3 text-xs text-muted-foreground">
+              <p className="mx-[3px] mt-[8px] mb-[8px] px-4 pt-0 pb-[19px] text-[13px] font-light leading-[5px] text-muted-foreground">
                 {items.length} mensagens, {unreadCount} não lidas
               </p>
 
               {/* Abas compactas (Inbox / Unread / Starred / Sent / Archived / Trash) */}
-              <div className="flex items-center gap-1 overflow-x-auto border-b border-border/50 px-3 pb-2 no-scrollbar">
+              <div className="mt-[-9px] mb-[-9px] ml-[-3px] mr-[-3px] flex min-h-0 items-center gap-[5px] overflow-x-auto border-b border-border/50 px-3 pb-2 text-[8px] font-light leading-[14px] no-scrollbar">
                 {navTabs.map((n) => {
                   const active = view === n.key;
                   return (
@@ -247,7 +247,7 @@ export default function Mensagens() {
                         setView(n.key);
                         setSelectedId(null);
                       }}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                      className={`my-1 flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
                         active
                           ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
