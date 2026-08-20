@@ -94,7 +94,11 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
       const fim = `${ano}-12-31`;
       const { data } = await supabase.from("rateio_despesas").select("*").eq("aeronave_id", aeronaveId)
         .or(`and(data_pagamento.gte.${inicio},data_pagamento.lte.${fim}),and(data_pagamento.is.null,data_vencimento.gte.${inicio},data_vencimento.lte.${fim})`);
-      setRateios((data || []) as unknown as RateioRow[]);
+      const normalizedRateios = (data || []).map((row: any) => ({
+        ...row,
+        valor_total_despesa: row.valor_total ?? row.valor_total_despesa ?? null,
+      }));
+      setRateios(normalizedRateios as unknown as RateioRow[]);
     };
     const fetchVoos = async () => {
       const { data } = await supabase

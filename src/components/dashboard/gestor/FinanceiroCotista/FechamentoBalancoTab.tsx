@@ -19,6 +19,7 @@ import {
   formatDate,
   num,
   statusOf,
+  totalDespesaOf,
 } from "./balancoTypes";
 
 interface FechamentoBalancoTabProps {
@@ -84,6 +85,23 @@ export function FechamentoBalancoTab({
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
 
+  const expenseGroupKey = (row: RateioRow): string => {
+    const date = row.data_pagamento || row.data_vencimento || row.data_emissao || "";
+    const total = totalDespesaOf(row) || num(row.valor_rateado);
+    const semanticParts = [
+      date,
+      norm(row.fornecedor_nome),
+      norm(row.descricao_despesa),
+      norm(row.numero_nf || row.numero_doc || row.numero_recibo),
+      norm(row.categoria_custo),
+      norm(row.pago_por),
+      total.toFixed(2),
+    ];
+    return semanticParts.some(Boolean)
+      ? `semantic|${semanticParts.join("|")}`
+      : `id:${row.despesa_id || row.id}`;
+  };
+
   const toggleColumn = (column: string) => {
     setHiddenColumns((current) => {
       const next = new Set(current);
@@ -147,7 +165,7 @@ export function FechamentoBalancoTab({
     const grouped = new Map<string, RateioRow[]>();
 
     despesas.forEach((r) => {
-      const key = r.despesa_id || `solo-${r.id}`;
+      const key = expenseGroupKey(r);
       if (!grouped.has(key)) {
         grouped.set(key, []);
       }
@@ -155,10 +173,13 @@ export function FechamentoBalancoTab({
     });
 
     return Array.from(grouped.values()).map((grupo) => ({
+      key: expenseGroupKey(grupo[0]),
       representante: grupo[0],
       todos: grupo,
       numCotistas: grupo.length,
-      valorTotal: num(grupo[0].valor_total_despesa),
+      // O valor total da despesa é repetido em cada linha de rateio; use o primeiro valor válido.
+      // Se registros antigos não tiverem o total, o fallback é a soma do rateio dos cotistas.
+      valorTotal: grupo.map(totalDespesaOf).find((value) => value > 0) ?? grupo.reduce((s, r) => s + num(r.valor_rateado), 0),
       valorRateado: grupo.reduce((s, r) => s + num(r.valor_rateado), 0),
       valorPagoTotal: grupo.reduce((s, r) => s + num(r.valor_pago_real), 0),
       todosConferidos: grupo.every((r) => r.conferido),
@@ -576,7 +597,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
               ) : (
                 sortedDespesasAgrupadas.map((grupo, idx) => {
                   const r = grupo.representante;
-                  const isExpanded = expandedRow === (r.despesa_id || r.id);
+                  const isExpanded = expandedRow === grupo.key;
                   const anexos = [
                     { label: "NF", url: r.nf_url },
                     { label: "Comprovante", url: r.comprovante_url },
@@ -599,12 +620,12 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                       : "bg-transparent hover:bg-slate-800/40";
 
                   return (
-                    <Fragment key={r.despesa_id || r.id}>
+                    <Fragment key={grupo.key}>
                       {/* Linha Principal da Tabela */}
                       <tr className={`group transition-all duration-200 divide-x divide-slate-800/40 ${rowBg}`}>
                         <td className="px-3 py-2 text-center">
                           <button
-                            onClick={() => setExpandedRow(isExpanded ? null : (r.despesa_id || r.id))}
+                            onClick={() => setExpandedRow(isExpanded ? null : grupo.key)}
                             className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-400 focus:outline-none"
                           >
                             {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -928,7 +949,7 @@ function EditRateioPanel({
     data_pagamento: rateio.data_pagamento || "",
     numero_doc: rateio.numero_doc || "",
     fornecedor_nome: rateio.fornecedor_nome || "",
-    valor_total_despesa: rateio.valor_total_despesa ?? "",
+    valor_total_despesa: totalDespesaOf(rateio) || "",
     valor_rateado: rateio.valor_rateado ?? "",
     valor_pago_real: rateio.valor_pago_real ?? "",
     status: rateio.status || "",
@@ -994,7 +1015,7 @@ function EditRateioPanel({
         data_pagamento: form.data_pagamento || null,
         numero_doc: form.numero_doc || null,
         fornecedor_nome: form.fornecedor_nome || null,
-        valor_total_despesa: form.valor_total_despesa === "" ? null : Number(form.valor_total_despesa),
+        valor_total: form.valor_total_despesa === "" ? null : Number(form.valor_total_despesa),
         descricao_despesa: form.descricao_despesa || null,
         ...anexosPatch(),
       };

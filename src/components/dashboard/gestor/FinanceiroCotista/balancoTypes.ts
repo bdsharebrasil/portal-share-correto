@@ -33,7 +33,9 @@ export interface RateioRow {
   data_emissao: string | null;
   data_pagamento: string | null;
   data_vencimento: string | null;
-  valor_total_despesa: number | null;
+  valor_total: number | null;
+  /** Alias legado usado por componentes antigos; novos registros usam valor_total. */
+  valor_total_despesa?: number | null;
   valor_rateado: number | null;
   valor_pago_real: number | null;
   percentual_uso: number | null;
@@ -154,6 +156,9 @@ export const formatDate = (d?: string | null) =>
 
 export const num = (v: unknown): number =>
   typeof v === "number" ? (Number.isFinite(v) ? v : 0) : Number(v) || 0;
+
+export const totalDespesaOf = (row: Pick<RateioRow, "valor_total" | "valor_total_despesa">): number =>
+  num(row.valor_total ?? row.valor_total_despesa);
 
 export const cotistaKey = (cid: string | null, sid: string | null) =>
   `${cid || ""}|${sid || ""}`;

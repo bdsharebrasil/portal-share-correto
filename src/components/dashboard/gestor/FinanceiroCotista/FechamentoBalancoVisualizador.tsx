@@ -89,6 +89,21 @@ function capitalize(s: string) {
 }
 
 const mesKey = (s?: string | null) => (s ? String(s).substring(0, 7) : "");
+const expenseGroupKey = (row: RateioRow): string => {
+  const date = row.data_pagamento || row.data_vencimento || "";
+  const total = Number(row.valor_total ?? row.valor_total_despesa ?? row.valor_rateado ?? 0);
+  const parts = [
+    date,
+    String(row.fornecedor_nome ?? "").toLowerCase().trim(),
+    String(row.descricao_despesa ?? "").toLowerCase().trim(),
+    String(row.numero_nf ?? row.numero_doc ?? "").toLowerCase().trim(),
+    String(row.categoria_custo ?? "").toLowerCase().trim(),
+    String(row.pago_por ?? "").toLowerCase().trim(),
+    total.toFixed(2),
+  ];
+  return parts.some(Boolean) ? `semantic|${parts.join("|")}` : `id:${row.despesa_id || row.id}`;
+};
+
 const labelMes = (key: string) => {
   if (!key) return "—";
   const [y, m] = key.split("-");
@@ -122,7 +137,8 @@ interface RateioRow {
   periodicidade: string | null;
   tipo_rateio: string | null;
   pago_por: string | null;
-  valor_total_despesa: number;
+  valor_total: number;
+  valor_total_despesa?: number;
   valor_rateado: number;
   percentual_uso: number | null;
   percentual_sociedade: number | null;
@@ -186,7 +202,7 @@ function useDadosRelatorio(
             "id", "despesa_id", "data_pagamento", "data_vencimento",
             "numero_doc", "numero_nf", "fornecedor_nome", "descricao_despesa",
             "categoria_custo", "periodicidade", "tipo_rateio", "pago_por",
-            "valor_total_despesa", "valor_rateado",
+            "valor_total", "valor_rateado",
             "percentual_uso", "percentual_sociedade",
             "socio_id", "socios_nome", "cliente_id", "clientes_nome",
             "abastecimento_id",
@@ -415,7 +431,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     if (!data) return [];
     const map = new Map<string, { ref: RateioRow; rateios: RateioRow[] }>();
     rateiosValidos.forEach((r) => {
-      const key = r.despesa_id || r.id;
+      const key = expenseGroupKey(r);
       if (!map.has(key)) map.set(key, { ref: r, rateios: [] });
       map.get(key)!.rateios.push(r);
     });
@@ -457,7 +473,10 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     return { cats, cotTot, grand, sortedCats };
   }, [despesasAgrupadas, catNome]);
 
-  const totalGeral = despesasAgrupadas.reduce((s, d) => s + Number(d.ref.valor_total_despesa ?? 0), 0);
+  const totalGeral = despesasAgrupadas.reduce((s, d) => {
+    const total = d.rateios.map((r) => Number(r.valor_total ?? r.valor_total_despesa ?? 0)).find((value) => value > 0) ?? d.rateios.reduce((sum, r) => sum + Number(r.valor_rateado ?? 0), 0);
+    return s + total;
+  }, 0);
   const totalHorasAeronave = (data?.voos ?? []).reduce((s, v) => s + Number(v.tempo_voo ?? v.tempo_total ?? 0), 0);
   const totalPousos = (data?.voos ?? []).reduce((s, v) => s + Number(v.pousos_total ?? 0), 0);
   const totalLitros = (data?.voos ?? []).reduce((s, v) => s + Number(v.combustivel_adicionado ?? 0), 0);
@@ -506,7 +525,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
             pagadorNome.includes(c.nome.toLowerCase().split(" ")[0]))
       );
       if (pagador) {
-        pagou.set(pagador.id, (pagou.get(pagador.id) ?? 0) + Number(ref.valor_total_despesa ?? 0));
+        const totalDespesa = rateios.map((r) => Number(r.valor_total ?? r.valor_total_despesa ?? 0)).find((value) => value > 0) ?? rateios.reduce((sum, r) => sum + Number(r.valor_rateado ?? 0), 0);
+        pagou.set(pagador.id, (pagou.get(pagador.id) ?? 0) + totalDespesa);
       }
       rateios.forEach((r) => {
         const cid = r.socio_id || r.cliente_id;
@@ -1269,7 +1289,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                             <Td dim upper>{prazo}</Td>
                             <Td upper>{ref.pago_por || "—"}</Td>
                             <Td className="border-r border-slate-700/60 font-bold text-slate-100" mono right>
-                              {BRL(ref.valor_total_despesa)}
+                              {BRL(Number(ref.valor_total ?? ref.valor_total_despesa ?? 0) || rateios.reduce((sum, item) => sum + Number(item.valor_rateado ?? 0), 0))}
                             </Td>
                             {cotistas.map((c) => {
                               const r = rateioDeC(rateios, c.id);
