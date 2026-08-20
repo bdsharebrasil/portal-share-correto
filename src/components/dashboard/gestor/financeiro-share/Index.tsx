@@ -6,7 +6,6 @@ import {
   Building2,
   ArrowUp,
   Settings,
-  CircleDollarSign,
   Layers,
 } from "lucide-react";
 import FluxoCaixaTab from "./FluxoCaixaTab";
@@ -39,12 +38,9 @@ export default function GestaoFiscal() {
 
   return (
     <Layout>
-      <div className="space-y-6 border border-[rgba(12,17,27,0.24)] px-2 text-[#becbe6]">
+      <div className="mx-[-20px] space-y-6 border border-[rgba(12,17,27,0.24)] px-2 text-[#becbe6]">
         {/* Header */}
         <header className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20 text-primary">
-            <CircleDollarSign className="h-5 w-5" />
-          </div>
           <div>
             <h1 className="font-bold text-xl text-foreground leading-tight">
               Módulo Financeiro
@@ -78,7 +74,7 @@ export default function GestaoFiscal() {
         </div>
 
         {/* Tab content */}
-        <div className="w-full ml-[-1px] rounded-[20px] border border-[#05080e] bg-[rgba(3,10,22,1)] px-1 shadow-[1px_1px_3px_1px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="!mt-[2px] !mr-[1px] w-full ml-[-1px] rounded-[5px] border border-[#05080e] bg-[rgba(3,10,22,1)] px-[10px] py-[18px] shadow-[1px_1px_3px_1px_rgba(0,0,0,1)] overflow-hidden">
           {activeTab === "fluxo" && <FluxoCaixaTab />}
           {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}
           {activeTab === "salarios" && <SalariosTab />}
