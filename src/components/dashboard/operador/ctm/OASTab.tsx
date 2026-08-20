@@ -525,6 +525,23 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
 }
 
 // ── Editar OAS ───────────────────────────────────────────────────────────────
+function normalizeCotistaPercentuais(rows: any[]): number[] {
+  const pesos = rows.map((row) => Math.max(0, Number(row?.percentual_sociedade) || 0));
+  const total = pesos.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return [];
+
+  const exatos = pesos.map((peso) => (peso / total) * 100);
+  const arredondados = exatos.map((value) => Math.floor((value + Number.EPSILON) * 100) / 100);
+  let restante = Math.round((100 - arredondados.reduce((sum, value) => sum + value, 0)) * 100) / 100;
+  const maiorIndice = exatos.reduce((best, value, index) => value > exatos[best] ? index : best, 0);
+  arredondados[maiorIndice] = Math.round((arredondados[maiorIndice] + restante) * 100) / 100;
+  return arredondados;
+}
+
+function parsePercentualRateio(value: string): number[] {
+  return value.split(/[\\/;,]+/).map((part) => Number.parseFloat(part.replace(',', '.'))).filter((number) => Number.isFinite(number));
+}
+
 function OASField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -579,12 +596,15 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
   const nomeCotista = (cotista: any) => cotista?.socios?.nome || cotista?.clientes?.razao_social || cotista?.clientes?.proprietario || 'Cotista';
   const percentualCotista = (cotista: any) => Number(cotista?.percentual_sociedade) || 0;
   const aplicarRateioPercentual = (rows = cotistas) => {
-    if (rows.length === 0) return false;
-    const linhas = rows.map((cotista) => `${nomeCotista(cotista)} ${percentualCotista(cotista).toFixed(2)}`).join(' / ');
-    const percentuais = rows.map((cotista) => percentualCotista(cotista).toFixed(2)).join(' / ');
-    setForm((current) => ({ ...current, tipo_rateio: 'percentual', total_voado_porcentagem: linhas, porcentagem_rateio: percentuais }));
+    const percentuais = normalizeCotistaPercentuais(rows);
+    if (percentuais.length === 0) return false;
+    const linhas = rows.map((cotista, index) => `${nomeCotista(cotista)} ${percentuais[index].toFixed(2)}`).join(' / ');
+    const valores = percentuais.map((percentual) => percentual.toFixed(2)).join(' / ');
+    setForm((current) => ({ ...current, tipo_rateio: 'percentual', total_voado_porcentagem: linhas, porcentagem_rateio: valores }));
     return true;
   };
+  const percentualRateioTotal = parsePercentualRateio(String(form.porcentagem_rateio || '')).reduce((sum, value) => sum + value, 0);
+  const percentualRateioValido = Math.abs(percentualRateioTotal - 100) < 0.005;
   useEffect(() => {
     if (form.tipo_rateio === 'percentual' && cotistas.length > 0 && !String(form.porcentagem_rateio || '').trim()) {
       aplicarRateioPercentual(cotistas);
@@ -601,6 +621,10 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
   const num = (v: any) => (v === '' || v === null || v === undefined ? null : Number(v));
 
   async function save() {
+    if (form.tipo_rateio === 'percentual' && !percentualRateioValido) {
+      toast.error(`O rateio percentual precisa totalizar 100,00%. Total atual: ${percentualRateioTotal.toFixed(2)}%.`);
+      return;
+    }
     setSaving(true);
     const mo = num(form.total_mao_obra) ?? 0;
     const pc = num(form.total_pecas) ?? 0;
@@ -732,7 +756,7 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
             <option value="horas">Horas</option>
             <option value="percentual">Percentual — cotistas da aeronave</option>
           </select>
-          {form.tipo_rateio === 'percentual' && <p className="mt-1 text-[11px] text-emerald-300">Rateio preenchido automaticamente com os percentuais cadastrados para a aeronave. Você pode ajustar os valores antes de salvar.</p>}
+          {form.tipo_rateio === 'percentual' && <p className={`mt-1 text-[11px] ${percentualRateioValido ? 'text-emerald-300' : 'text-amber-300'}`}>Total calculado: <strong>{percentualRateioTotal.toFixed(2)}%</strong>. {percentualRateioValido ? 'Rateio preenchido automaticamente e válido.' : 'Ajuste os valores para totalizar exatamente 100,00% antes de salvar.'}</p>}
         </OASField>
         <OASField label="Total mão de obra (R$)">
           <input type="number" step="0.01" className="ctm-input w-full" value={form.total_mao_obra} onChange={e => f('total_mao_obra', e.target.value)} />
