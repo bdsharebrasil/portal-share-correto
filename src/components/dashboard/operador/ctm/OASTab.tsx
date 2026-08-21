@@ -77,7 +77,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-ctm-teal"><Wrench className="h-4 w-4" /> Centro de manutenção</div>
           <h2 className="text-2xl font-bold tracking-tight">Ordens de Acompanhamento de Serviço</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Organize os lançamentos por ano e acompanhe a execução de cada serviço.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Serviços desta aeronave.</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-ctm-teal px-4 py-2.5 text-sm font-semibold text-[hsl(var(--ctm-navy))] shadow-lg shadow-ctm-teal/10 transition hover:bg-ctm-teal-light active:scale-[0.98]"><Plus className="h-4 w-4" /> Nova OAS</button>
       </div>
