@@ -256,6 +256,7 @@ export default function NFSaidaTab() {
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [uploading, setUploading] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
+  const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
 
   // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -421,32 +422,34 @@ export default function NFSaidaTab() {
     }));
   };
 
-  // Agrupamento por cliente e priorização de pendentes para exibição visual
+  const toggleYearGroup = (clientName: string, year: string) => {
+    const key = `${clientName}|${year}`;
+    setExpandedYears((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  // Agrupamento hierárquico: cotista/cliente → ano → notas.
   const groupedNotas = useMemo(() => {
-    const groups: Record<string, NFSaida[]> = {};
-    
+    const groups: Record<string, Record<string, NFSaida[]>> = {};
+
     filteredNotas.forEach((n) => {
-      const clientName = n.cliente_nome || "Cliente Não Informado";
-      if (!groups[clientName]) groups[clientName] = [];
-      groups[clientName].push(n);
+      const pessoa = clientes.find((item: any) => item.socioId && item.socioId === n.socio_id)
+        || clientes.find((item: any) => item.clienteId && item.clienteId === n.cliente_id);
+      const cotistaNome = pessoa?.nome || n.cliente_nome || "Cotista não informado";
+      const ano = n.data_criacao?.slice(0, 4) || "Sem ano";
+      groups[cotistaNome] ||= {};
+      groups[cotistaNome][ano] ||= [];
+      groups[cotistaNome][ano].push(n);
     });
 
-    // Ordenar pendentes no topo de cada grupo
-    Object.keys(groups).forEach((key) => {
-      groups[key].sort((a, b) => {
-        const aPendente = (a.status || "").toLowerCase() === "pendente";
-        const bPendente = (b.status || "").toLowerCase() === "pendente";
-        
-        if (aPendente && !bPendente) return -1;
-        if (!aPendente && bPendente) return 1;
-        
-        // Se empatar, ordena por data descrescente
-        return (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "");
-      });
-    });
+    Object.values(groups).forEach((anos) => Object.values(anos).forEach((items) => items.sort((a, b) => {
+      const aPendente = (a.status || "").toLowerCase() === "pendente";
+      const bPendente = (b.status || "").toLowerCase() === "pendente";
+      if (aPendente !== bPendente) return aPendente ? -1 : 1;
+      return (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "");
+    })));
 
     return groups;
-  }, [filteredNotas]);
+  }, [filteredNotas, clientes]);
 
   const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
 
@@ -1195,26 +1198,42 @@ export default function NFSaidaTab() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(groupedNotas).map(([clienteNome, notasDoCliente]) => {
+              {Object.entries(groupedNotas).map(([clienteNome, notasPorAno]) => {
                 const isExpanded = expandedClients[clienteNome] ?? false;
+                const totalCliente = Object.values(notasPorAno).reduce((total, items) => total + items.length, 0);
                 return (
                   <React.Fragment key={clienteNome}>
-                    <tr className="bg-slate-800/60 border-b border-slate-700">
+                    <tr className="border-b border-blue-300/15 bg-blue-950/35">
                       <td colSpan={10} className="px-3 py-2">
                         <button
                           type="button"
                           onClick={() => toggleClientGroup(clienteNome)}
-                          className="flex w-full items-center justify-between text-left text-sm font-bold text-slate-100"
+                          className="flex min-h-10 w-full items-center justify-between text-left text-sm font-bold text-blue-100"
                         >
-                          <span>
+                          <span className="flex items-center gap-2">
+                            <FolderOpen className="h-4 w-4 text-blue-300" />
                             {isExpanded ? "▾" : "▸"} {clienteNome}
-                            <span className="ml-2 text-xs font-normal text-slate-400">({notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'})</span>
+                            <span className="text-xs font-normal text-blue-200/70">({totalCliente} {totalCliente === 1 ? 'nota' : 'notas'})</span>
                           </span>
                         </button>
                       </td>
                     </tr>
 
-                    {isExpanded && notasDoCliente.map((n) => {
+                    {isExpanded && Object.entries(notasPorAno).sort(([a], [b]) => b.localeCompare(a)).map(([ano, notasDoCliente]) => {
+                      const yearKey = `${clienteNome}|${ano}`;
+                      const isYearExpanded = expandedYears[yearKey] ?? false;
+                      return (
+                        <React.Fragment key={yearKey}>
+                          <tr className="border-b border-blue-300/10 bg-blue-900/20">
+                            <td colSpan={10} className="px-3 py-1.5 pl-8">
+                              <button type="button" onClick={() => toggleYearGroup(clienteNome, ano)} className="flex min-h-9 w-full items-center justify-between text-left text-xs font-semibold text-blue-100">
+                                <span className="flex items-center gap-2"><FolderOpen className="h-3.5 w-3.5 text-blue-300/90" /> {isYearExpanded ? "▾" : "▸"} {ano}</span>
+                                <span className="text-[10px] font-normal text-blue-200/60">{notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'}</span>
+                              </button>
+                            </td>
+                          </tr>
+
+                    {isYearExpanded && notasDoCliente.map((n) => {
                       const isRecebido = (n.status ?? "").toLowerCase() === "recebido";
                       const isPendente = (n.status ?? "").toLowerCase() === "pendente";
 
@@ -1283,6 +1302,9 @@ export default function NFSaidaTab() {
                             </div>
                           </td>
                         </tr>
+                      );
+                    })}
+                        </React.Fragment>
                       );
                     })}
                   </React.Fragment>

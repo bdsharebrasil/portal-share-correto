@@ -37,7 +37,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
     const rows = data ?? [];
     setList(rows);
     const years = [...new Set(rows.map((oas: any) => getOASYear(oas)))];
-    setOpenYears((current) => Object.fromEntries(years.map((year) => [year, current[year] ?? true])));
+    setOpenYears((current) => Object.fromEntries(years.map((year) => [year, current[year] ?? false])));
     setLoading(false);
   }
 
@@ -88,12 +88,12 @@ export function OASTab({ aircraftId }: OASTabProps) {
       {list.length === 0 && !showForm ? <EmptySection icon={FileText} text="Nenhuma OAS registrada" /> : years.length === 0 ? <EmptySection icon={Search} text="Nenhuma OAS encontrada para essa busca" /> : (
         <div className="space-y-4">
           {years.map((year) => {
-            const opened = openYears[year] ?? true;
-            return <section key={year} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/35 shadow-lg">
-              <button onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))} className="flex w-full items-center gap-4 border-b border-white/10 bg-gradient-to-r from-blue-950/80 to-slate-900/70 px-5 py-4 text-left transition hover:from-blue-900/80">
-                <FolderOpen className="h-8 w-8 shrink-0 text-blue-300" />
-                <span className="flex-1"><span className="block text-lg font-bold">{year}</span><span className="text-xs text-muted-foreground">{groupedByYear[year].length} lançamento(s) neste arquivo</span></span>
-                <ChevronRight className={cn('h-5 w-5 text-blue-200 transition-transform', opened && 'rotate-90')} />
+            const opened = openYears[year] ?? false;
+            return <section key={year} className="overflow-hidden rounded-xl border border-blue-300/15 bg-blue-950/15 shadow-md shadow-blue-950/20">
+              <button onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))} className="flex w-full items-center gap-3 border-b border-blue-300/10 bg-blue-900/20 px-3 py-2.5 text-left transition hover:bg-blue-800/30">
+                <FolderOpen className="h-6 w-6 shrink-0 text-blue-300" />
+                <span className="flex-1"><span className="block text-sm font-bold text-blue-100">{year}</span><span className="text-[11px] text-blue-200/60">{groupedByYear[year].length} OAS neste arquivo</span></span>
+                <ChevronRight className={cn('h-4 w-4 text-blue-200 transition-transform', opened && 'rotate-90')} />
               </button>
               {opened && <div className="space-y-3 p-3 md:p-4">{groupedByYear[year].map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => setSelected(oas)} />)}</div>}
             </section>;

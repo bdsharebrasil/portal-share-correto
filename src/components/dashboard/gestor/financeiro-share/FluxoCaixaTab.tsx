@@ -202,6 +202,16 @@ export default function FluxoCaixaTab() {
   const onBaixaSuccess = async () => { setBaixaMov(null); await load(); await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }); };
   const onDelete = async (id: string) => { if (!confirm("Deseja realmente excluir esta movimentação?")) return; try { await deleteMovimentacao(id); await load(); } catch (e: any) { setErro(e.message); } };
   
+  const statusExibicao = (m: any) => {
+    if (isEntrada(m)) {
+      const status = String(m?.status || '').toLowerCase();
+      if (status === 'cancelado' || status === 'cancelada') return 'Cancelado';
+      if (['recebido', 'recebida', 'quitado', 'quitada'].includes(status) || m?.data_pagamento) return 'Recebido';
+      return 'Entrada';
+    }
+    return fornecedorStatus(m);
+  };
+
   const deveMostrarBotaoBaixa = (m: any) => {
     if (m?.data_pagamento || isEntrada(m)) return false;
     const texto = String([m?.tipo_rateio, m?.grupo_categoria, m?.categoria_nome, m?.categoria_id].filter(Boolean).join(" ")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[_-]+/g, " ");
@@ -415,12 +425,14 @@ export default function FluxoCaixaTab() {
                         {isEntr ? '+' : ''}{formatBRL(valueOf(m))}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                         <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                            fornecedorStatus(m) === "pago"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                         <span className={`inline-flex whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase leading-3 tracking-wide ${
+                            statusExibicao(m) === "Recebido" || statusExibicao(m) === "pago"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                              : statusExibicao(m) === "Entrada"
+                                ? "border-sky-500/20 bg-sky-500/10 text-sky-300"
+                                : "border-rose-500/20 bg-rose-500/10 text-rose-400"
                           }`}>
-                            {fornecedorStatus(m)}
+                            {statusExibicao(m)}
                          </span>
                       </td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
