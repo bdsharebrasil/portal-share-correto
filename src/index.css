@@ -1057,3 +1057,62 @@ body.dark .panel select {
 .portal-pill-warning { background: rgba(245, 158, 11, 0.10); color: #fbbf24; border-color: rgba(245, 158, 11, 0.22); }
 .portal-pill-danger  { background: rgba(239, 68, 68, 0.10); color: #f87171; border-color: rgba(239, 68, 68, 0.22); }
 .portal-pill-muted  { background: rgba(122, 174, 216, 0.08); color: #7aaed8; border-color: rgba(122, 174, 216, 0.18); }
+
+
+/* ─────────────────────────────────────────────────────────────
+   Dark theme readability
+   Os tons neutros abaixo preservam o fundo escuro, mas evitam
+   que textos auxiliares pareçam desabilitados ou apagados.
+───────────────────────────────────────────────────────────── */
+@layer base {
+  body {
+    color: hsl(var(--foreground));
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: hsl(215 22% 68% / 0.95);
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .text-muted-foreground {
+    color: hsl(215 24% 76%) !important;
+  }
+
+  .text-slate-600,
+  .text-gray-600,
+  .text-zinc-600,
+  .text-neutral-600 {
+    color: hsl(215 22% 67%) !important;
+  }
+
+  .text-slate-500,
+  .text-gray-500,
+  .text-zinc-500,
+  .text-neutral-500 {
+    color: hsl(215 22% 75%) !important;
+  }
+
+  .text-slate-400,
+  .text-gray-400,
+  .text-zinc-400,
+  .text-neutral-400 {
+    color: hsl(215 25% 84%) !important;
+  }
+
+  .placeholder\:text-slate-600::placeholder,
+  .placeholder\:text-slate-500::placeholder,
+  .placeholder\:text-gray-500::placeholder,
+  .placeholder\:text-zinc-500::placeholder {
+    color: hsl(215 22% 68%) !important;
+    opacity: 1;
+  }
+}
