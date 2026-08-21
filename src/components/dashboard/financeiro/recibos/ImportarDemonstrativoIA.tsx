@@ -444,8 +444,8 @@ export default function ImportarDemonstrativoTab() {
         status: "pendente_envio",
         percentual: 100,
       });
-      if (error) console.error("Erro ao criar despesa_cliente_direto:", error);
-      else count++;
+      if (error) throw error;
+      count++;
     }
     return count;
   };
@@ -489,7 +489,7 @@ export default function ImportarDemonstrativoTab() {
               return {
                 despesa_id: despesaId,
                 fonte_despesa: "demonstrativo",
-                fluxo: "SAIDA",
+                fluxo: "saida",
                 tipo_rateio: "variavel_por_voo",
                 periodicidade: "MENSAL",
                 descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${result.competencia ? " - Comp " + result.competencia : ""}`,
@@ -512,10 +512,10 @@ export default function ImportarDemonstrativoTab() {
               };
             });
           const { error: rateioErr } = await supabase.from("rateio_despesas").insert(linhasRateio);
-          if (rateioErr) console.error("Erro ao inserir rateio:", rateioErr);
+          if (rateioErr) throw rateioErr;
 
           // Criar movimentacao para o caixa share
-          await supabase.from("movimentacoes").insert({
+          const { error: movimentacaoErr } = await supabase.from("movimentacoes").insert({
             id: despesaId,
             descricao: `${tipoLabel} - Doc ${result.numero_documento || "?"} - ${aeronaves.find((a) => a.id === aircraftId)?.matricula || ""}`,
             fluxo: "saida",
@@ -529,6 +529,7 @@ export default function ImportarDemonstrativoTab() {
             numero_doc: result.numero_documento || null,
             fornecedor_nome: TIPO_FORNECEDOR[tipo],
           });
+          if (movimentacaoErr) throw movimentacaoErr;
         }
 
         const primeiraReceita = createdReceipts[0];
@@ -558,7 +559,6 @@ export default function ImportarDemonstrativoTab() {
             ...(primeiraReceita?.pdf_url ? [{ tipo: "recibo", url: primeiraReceita.pdf_url }] : []),
           ],
           valor_total: Number(consolidado.total.toFixed(2)),
-          valor_total_despesa: Number(consolidado.total.toFixed(2)),
           valor_rateado: Number(valorPrincipal.toFixed(2)),
           percentual_uso: Number(percentualPrincipal.toFixed(2)),
           competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
@@ -566,7 +566,7 @@ export default function ImportarDemonstrativoTab() {
           rateio_cliente: clientePrincipalId ? [{
             cliente_id: clientePrincipalId,
             cliente_nome: clientePrincipalNome,
-            valor_total_despesa: Number(consolidado.total.toFixed(2)),
+            valor_total: Number(consolidado.total.toFixed(2)),
             valor_rateado: Number(valorPrincipal.toFixed(2)),
             percentual_uso: Number(percentualPrincipal.toFixed(2)),
             socio_id: null,

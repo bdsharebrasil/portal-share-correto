@@ -1401,7 +1401,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         let movIdShare: string;
         try {
           movIdShare = await insertAndGetId("movimentacoes", {
-            descricao: descricao.trim(), tipo: "despesa", tipo_caixa: "share",
+            descricao: descricao.trim(), fluxo: "saida", tipo_caixa: "share",
             categoria_id: categoriaShareId, categoria_nome: categoriaShareLabel || null, valor_rateado: valorNumerico, valor_total: valorNumerico,
             data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
             periodicidade, tipo_rateio: tipoRateioFinal,
@@ -1771,7 +1771,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const comprovanteUrlLinhaMov = isAbastecimentoVinculado ? comprovanteUrl : anexoDocLinha?.url || comprovanteUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
-                descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
+                descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, fluxo: "saida", tipo_caixa: "cliente",
                 categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_total: valorNumericoFinal, data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
                 percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
@@ -1802,7 +1802,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
             
             return {
-              despesa_id: movimentacaoIdsPorCliente[linha.cliente_id] || shareMovId, fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
+              despesa_id: movimentacaoIdsPorCliente[linha.cliente_id] || shareMovId, fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "saida",
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
