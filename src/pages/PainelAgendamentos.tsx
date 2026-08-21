@@ -260,7 +260,7 @@ export default function PainelAgendamentos() {
 
   return (
     <Layout>
-      <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
+      <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden p-3 sm:space-y-6 sm:p-6">
 
         {/* ======================================================
             CABEÇALHO
@@ -337,9 +337,9 @@ export default function PainelAgendamentos() {
 
           <TabsContent
             value="painel"
-            className="space-y-5"
+            className="min-w-0 max-w-full space-y-5"
           >
-            <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-3 lg:gap-5">
 
               <div className="space-y-5 lg:col-span-2">
 
