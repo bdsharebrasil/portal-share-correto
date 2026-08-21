@@ -145,6 +145,8 @@ export function OASItensManager({ oasId, aircraftId, onChanged }: { oasId: strin
     const kind = editing.kind;
     const value = numberValue(kind === 'servico' ? editForm.valor : editForm.valor_total);
     if (!editForm.descricao?.trim() || value < 0) { toast.error('Informe a descrição e um valor válido.'); return; }
+    const rateTotal = Object.values(editRates || {}).reduce((sum: number, current: any) => sum + numberValue(String(current)), 0);
+    if (cotistas.length > 0 && Math.abs(rateTotal - 100) > 0.01) { toast.error(`O rateio precisa totalizar 100%. Total atual: ${rateTotal.toFixed(2)}%.`); return; }
     const table = kind === 'servico' ? 'ctm_oas_servicos' : 'ctm_pecas_trocadas';
     const payload = kind === 'servico' ? { oficina_nome: editForm.oficina_nome || null, os_oficina: editForm.os_oficina || null, descricao: editForm.descricao.trim(), valor: value, numero_nota_fiscal: editForm.numero_nota_fiscal || null, data_servico: editForm.data_servico || null, tipo_rateio: editForm.tipo_rateio || 'cota' } : { descricao: editForm.descricao.trim(), fornecedor: editForm.fornecedor || null, quantidade: numberValue(editForm.quantidade) || 1, valor_total: value, numero_nota_fiscal: editForm.numero_nota_fiscal || null, data_compra: editForm.data_compra || null };
     setSaving(true);
