@@ -237,9 +237,12 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
 export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onOpenTravelReports }: SolicitacaoPagamentoModalProps) {
   const [etapaAtual, setEtapaAtual] = useState(initialData ? 1 : 0);
 
+  const initialReferenceId = initialData?.reference_id ?? null;
+  const initialModo = initialData?.modo ?? null;
+
   useEffect(() => {
     if (open) setEtapaAtual(initialData ? 1 : 0);
-  }, [open, initialData]);
+  }, [open, initialReferenceId, initialModo]);
 
   const [tiposDespesa, setTiposDespesa] = useState<TipoDespesaOption[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([]);
