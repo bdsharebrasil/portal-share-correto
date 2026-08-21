@@ -51,6 +51,49 @@ const HIDEABLE_COLUMNS = [
   ["rateado", "Vlr. Rateado"],
 ] as const;
 
+const norm = (v: unknown) => String(v ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+const expenseGroupKey = (row: RateioRow): string => {
+  const date = row.data_pagamento || "";
+  const total = totalDespesaOf(row) || num(row.valor_rateado);
+  const semanticParts = [
+    date,
+    norm(row.fornecedor_nome),
+    norm(row.descricao_despesa),
+    norm(row.numero_nf || row.numero_doc || row.numero_recibo),
+    norm(row.categoria_custo),
+    norm(row.pago_por),
+    total.toFixed(2),
+  ];
+  return semanticParts.some(Boolean) ? `semantic|${semanticParts.join("|")}` : `id:${row.despesa_id || row.id}`;
+};
+
+const parseNumericQuery = (value: string) => {
+  const normalized = value.trim().replace(/[^\d,.-]/g, "");
+  if (!normalized) return null;
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+  const decimalIndex = Math.max(lastComma, lastDot);
+  const canonical = decimalIndex >= 0
+    ? `${normalized.slice(0, decimalIndex).replace(/[.,]/g, "")}.${normalized.slice(decimalIndex + 1)}`
+    : normalized.replace(/[.,]/g, "");
+  const parsed = Number(canonical);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const matchesAmount = (value: number, query: string) => {
+  const numeric = parseNumericQuery(query);
+  if (numeric != null && Math.abs(value - numeric) < 0.005) return true;
+  return norm(String(value)).includes(norm(query)) || norm(formatBRL(value)).includes(norm(query));
+};
+
+const paymentPeriodMatches = (date: string | null | undefined, year: number, months: Set<number>) => {
+  if (!date) return false;
+  const iso = String(date).slice(0, 10);
+  const [y, m] = iso.split("-").map(Number);
+  return y === year && Number.isInteger(m) && months.has(m);
+};
+
 export function FechamentoBalancoTab({
   rateios,
   cotistas,
@@ -70,37 +113,13 @@ export function FechamentoBalancoTab({
   const [viewerAnexo, setViewerAnexo] = useState<{ url: string; title: string } | null>(null);
 
   type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
-  const [sortBy, setSortBy] = useState<SortBy>("vencimento");
+  const [sortBy, setSortBy] = useState<SortBy>("pagamento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const qc = useQueryClient();
 
   const setFilter = (key: string, value: string) =>
     setColumnFilters((current) => ({ ...current, [key]: value }));
-
-  const norm = (v: unknown) =>
-    String(v ?? "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-
-  const expenseGroupKey = (row: RateioRow): string => {
-    const date = row.data_pagamento || row.data_vencimento || row.data_emissao || "";
-    const total = totalDespesaOf(row) || num(row.valor_rateado);
-    const semanticParts = [
-      date,
-      norm(row.fornecedor_nome),
-      norm(row.descricao_despesa),
-      norm(row.numero_nf || row.numero_doc || row.numero_recibo),
-      norm(row.categoria_custo),
-      norm(row.pago_por),
-      total.toFixed(2),
-    ];
-    return semanticParts.some(Boolean)
-      ? `semantic|${semanticParts.join("|")}`
-      : `id:${row.despesa_id || row.id}`;
-  };
 
   const toggleColumn = (column: string) => {
     setHiddenColumns((current) => {
@@ -149,12 +168,7 @@ export function FechamentoBalancoTab({
   // Filter by selected months
   const rateiosDoPeriodo = useMemo(() => {
     const selectedSet = new Set(selectedMonths);
-    return rateios.filter((r) => {
-      const d = r.data_pagamento || r.data_vencimento;
-      if (!d) return false;
-      const dt = new Date(d + (d.length <= 10 ? "T00:00:00" : ""));
-      return dt.getFullYear() === ano && selectedSet.has(dt.getMonth() + 1);
-    });
+    return rateios.filter((r) => paymentPeriodMatches(r.data_pagamento, ano, selectedSet));
   }, [rateios, ano, selectedMonths]);
 
   // A tabela exibe entradas e saídas; apenas saídas participam da conferência.
@@ -205,8 +219,8 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
           case "cliente": return norm(grupo.numCotistas > 1 ? `${grupo.numCotistas} socios` : cliente).includes(q);
           case "descricao": return norm(r.descricao_despesa).includes(q);
           case "uso": return norm(r.percentual_uso).includes(q);
-          case "total": return norm(grupo.valorTotal).includes(q) || norm(formatBRL(grupo.valorTotal)).includes(q);
-          case "rateado": return norm(grupo.valorRateado).includes(q) || norm(formatBRL(grupo.valorRateado)).includes(q);
+          case "total": return matchesAmount(grupo.valorTotal, raw);
+          case "rateado": return matchesAmount(grupo.valorRateado, raw);
           default: return true;
         }
       });
@@ -416,7 +430,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
               aria-label="Mostrar ou ocultar colunas"
             >
               <Eye className="h-3.5 w-3.5" />
-              COLUNAS
+              COLUNAS{hiddenColumns.size > 0 ? ` +${hiddenColumns.size}` : ""}
             </button>
             {showColumnMenu && (
               <>
