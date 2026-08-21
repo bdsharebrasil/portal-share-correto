@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 export type ThemePreference = "light" | "dark";
 
@@ -25,6 +24,9 @@ function applyTheme(theme: ThemePreference) {
   root.classList.add(theme);
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
+
+  const themeColor = theme === "light" ? "#e8edf3" : "#0f172a";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -47,25 +49,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setIsThemeLoading(true);
-    void (async () => {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("tema_preferido")
-        .eq("id", user.id)
-        .maybeSingle();
-      
-      if (!ativo) return;
-      
-      const saved = data?.tema_preferido === "light" || data?.tema_preferido === "dark" 
-        ? data.tema_preferido 
-        : initial;
-
-      setThemeState(saved);
-      window.localStorage.setItem(localKey, saved);
-      applyTheme(saved);
-      setIsThemeLoading(false);
-    })();
+    // A tabela user_profiles não possui coluna de preferência de tema no schema atual.
+    // A preferência permanece isolada por usuário neste navegador até existir uma
+    // coluna de tema no banco ou uma tabela de preferências dedicada.
+    if (ativo) setIsThemeLoading(false);
 
     return () => { ativo = false; };
   }, [user?.id]);
@@ -78,15 +65,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     
     if (!user?.id) return;
 
-    setIsThemeSaving(true);
-    try {
-      await supabase
-        .from("user_profiles")
-        .update({ tema_preferido: next, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
-    } finally {
-      setIsThemeSaving(false);
-    }
+    // Persistência local por usuário; tema_preferido não existe em user_profiles.
+    setIsThemeSaving(false);
   }, [user?.id]);
 
   const toggleTheme = useCallback(async () => {

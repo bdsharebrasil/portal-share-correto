@@ -700,45 +700,8 @@ select option {
   color: hsl(var(--foreground));
 }
 
-/* ============================================================
-   LIGHT THEME — compatibilidade com utilitários legados
-   ============================================================ */
-@layer utilities {
-  :root.light .text-white,
-  :root.light .text-slate-100,
-  :root.light .text-slate-200,
-  :root.light .text-slate-300 {
-    color: hsl(var(--foreground)) !important;
-  }
-
-  :root.light .text-slate-400,
-  :root.light .text-slate-500,
-  :root.light .text-slate-600,
-  :root.light .text-muted-foreground {
-    color: hsl(var(--muted-foreground)) !important;
-  }
-
-  :root.light .bg-slate-950,
-  :root.light .bg-slate-900,
-  :root.light .bg-slate-800 {
-    background-color: hsl(var(--card)) !important;
-  }
-
-  :root.light .bg-slate-950\/30,
-  :root.light .bg-slate-950\/45,
-  :root.light .bg-slate-950\/55,
-  :root.light .bg-slate-900\/50 {
-    background-color: hsl(var(--surface)) !important;
-  }
-
-  :root.light .border-slate-800,
-  :root.light .border-slate-700,
-  :root.light .border-slate-900 {
-    border-color: hsl(var(--border)) !important;
-  }
-
-  :root.light .hover\:bg-slate-800:hover,
-  :root.light .hover\:bg-slate-900:hover {
-    background-color: hsl(var(--surface-hover)) !important;
-  }
-}
+/*
+ * Componentes legados mantêm suas superfícies específicas quando necessário.
+ * Não aplicar overrides globais com !important: eles achatam a hierarquia visual
+ * da referência Light e podem ocultar imagens, gradientes e painéis escuros.
+ */
