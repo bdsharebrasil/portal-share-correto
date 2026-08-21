@@ -17,16 +17,16 @@
 
     color-scheme: light;
 
-    --background: 210 29% 93%;
-    --foreground: 220 27% 16%;
+    --background: 213 38% 94%;
+    --foreground: 221 35% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 27% 16%;
-    --card-secondary: 210 28% 97%;
+    --card-foreground: 221 35% 15%;
+    --card-secondary: 210 42% 97%;
 
-    --surface: 210 29% 93%;
+    --surface: 213 38% 94%;
     --surface-raised: 0 0% 100%;
-    --surface-hover: 210 27% 90%;
+    --surface-hover: 211 34% 90%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 220 27% 16%;
@@ -37,25 +37,25 @@
     --primary-dark: 212 68% 36%;
     --primary-muted: 211 69% 44% / 0.08;
 
-    --secondary: 210 25% 90%;
-    --secondary-foreground: 220 25% 22%;
+    --secondary: 211 34% 91%;
+    --secondary-foreground: 220 29% 20%;
 
-    --muted: 210 24% 91%;
-    --muted-foreground: 218 13% 44%;
+    --muted: 211 28% 92%;
+    --muted-foreground: 218 16% 40%;
 
-    --accent: 210 26% 89%;
-    --accent-foreground: 220 27% 16%;
+    --accent: 210 34% 89%;
+    --accent-foreground: 221 35% 15%;
 
-    --border: 218 20% 86%;
-    --border-subtle: 218 18% 91%;
-    --input: 220 20% 92%;
+    --border: 216 24% 84%;
+    --border-subtle: 214 28% 90%;
+    --input: 210 35% 96%;
 
     --ring: 211 69% 44%;
 
-    --text-primary: 220 27% 16%;
-    --text-bright: 220 28% 11%;
-    --text-muted: 218 13% 44%;
-    --text-faint: 218 11% 58%;
+    --text-primary: 221 35% 15%;
+    --text-bright: 222 42% 10%;
+    --text-muted: 218 16% 40%;
+    --text-faint: 218 13% 52%;
 
     --destructive: 0 63% 52%;
     --destructive-foreground: 0 0% 100%;
@@ -85,29 +85,26 @@
       linear-gradient(
         180deg,
         hsl(0 0% 100%),
-        hsl(210 28% 97%)
+        hsl(211 45% 97%)
       );
 
     --gradient-subtle:
-      linear-gradient(
-        180deg,
-        hsl(var(--background)),
-        hsl(210 27% 91%)
-      );
+      radial-gradient(circle at 100% 0%, hsl(207 70% 91% / 0.7), transparent 30%),
+      linear-gradient(180deg, hsl(213 38% 96%), hsl(213 32% 92%));
 
     /* Shadows */
     --shadow-primary:
       0 6px 18px -8px hsl(var(--primary) / 0.18);
 
     --shadow-card:
-      0 1px 2px hsl(220 30% 10% / 0.04),
-      0 5px 18px hsl(220 30% 10% / 0.05);
+      0 1px 2px hsl(220 35% 12% / 0.05),
+      0 8px 20px -12px hsl(220 35% 12% / 0.18);
 
     --shadow-elevated:
-      0 10px 30px -14px hsl(220 30% 10% / 0.12);
+      0 18px 42px -22px hsl(220 35% 12% / 0.28);
 
     --shadow-soft:
-      0 2px 8px hsl(220 30% 10% / 0.05);
+      0 4px 12px hsl(220 35% 12% / 0.08);
 
     --radius: 10px;
 
@@ -549,6 +546,98 @@
       monospace;
     font-variant-numeric: tabular-nums;
   }
+
+  .portal-card,
+  .portal-kpi {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
+  }
+
+  .portal-card { border-radius: 14px; }
+
+  .portal-kpi {
+    border-radius: 14px;
+    background: var(--gradient-card);
+  }
+
+  .portal-card-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid hsl(var(--border-subtle));
+    background: hsl(var(--surface) / 0.56);
+  }
+
+  .portal-input,
+  .portal-select {
+    height: 32px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    background: hsl(var(--input));
+    color: hsl(var(--foreground));
+    font-size: 12px;
+    outline: none;
+  }
+
+  .portal-input { padding: 0 10px; }
+  .portal-select { padding: 0 28px 0 10px; }
+
+  .portal-input:focus,
+  .portal-select:focus {
+    border-color: hsl(var(--primary) / 0.65);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+    background: hsl(var(--card));
+  }
+
+  .portal-section-label {
+    color: hsl(var(--muted-foreground));
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .portal-tab,
+  .portal-btn-toggle {
+    color: hsl(var(--muted-foreground));
+    font-size: 12px;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+  }
+
+  .portal-tab { padding: 10px 12px; border-bottom: 2px solid transparent; }
+  .portal-tab:hover { color: hsl(var(--foreground)); }
+  .portal-tab-active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+  .portal-tab-badge { display: inline-flex; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; }
+
+  .portal-btn-toggle { padding: 6px 9px; }
+  .portal-btn-toggle:hover { background: hsl(var(--surface-hover)); }
+  .portal-btn-toggle-active { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
+
+  .portal-table th {
+    padding: 10px 12px;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--surface));
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .portal-table td { border-top: 1px solid hsl(var(--border-subtle)); }
+  .portal-table tbody tr:hover { background: hsl(var(--surface) / 0.7); }
+
+  .portal-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 700; }
+  .portal-pill-success { color: hsl(151 55% 30%); background: hsl(151 55% 44% / 0.12); }
+  .portal-pill-warning { color: hsl(34 84% 34%); background: hsl(39 90% 50% / 0.14); }
+  .portal-pill-danger { color: hsl(0 65% 42%); background: hsl(0 72% 52% / 0.12); }
+  .portal-pill-muted { color: hsl(var(--muted-foreground)); background: hsl(var(--secondary)); }
+
+  .dark .portal-card,
+  .dark .portal-kpi { background: hsl(var(--card)); }
+  .dark .portal-pill-success { color: hsl(151 52% 60%); }
+  .dark .portal-pill-warning { color: hsl(39 90% 65%); }
+  .dark .portal-pill-danger { color: hsl(0 70% 68%); }
 
   /*
    * Tags de aeronave

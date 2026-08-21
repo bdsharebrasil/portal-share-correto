@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   }, [navigate, toast, signOut]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 z-50 border-b border-border/40 bg-background/70 backdrop-blur-md shadow-sm transition-all">
+    <header className="fixed top-0 left-0 right-0 h-16 z-50 border-b border-border bg-card/90 dark:bg-background/70 backdrop-blur-md shadow-soft transition-all">
       <div className="flex items-center justify-between h-full px-3 sm:px-6 max-w-[100vw] overflow-visible">
         
         {/* Mobile menu button */}

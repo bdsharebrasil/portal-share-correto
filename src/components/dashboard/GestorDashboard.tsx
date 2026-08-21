@@ -104,7 +104,7 @@ export function GestorDashboard() {
       icon: FileText,
       label: "Financeiro Share Brasil",
       route: "/gestor/financeiro-share",
-      iconColor: "text-emerald-400",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
       iconBg: "bg-emerald-500/10",
       hoverGlow: "hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]",
       grid: 1
@@ -154,31 +154,28 @@ export function GestorDashboard() {
         </button>
 
         {/* Hero */}
-        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
+        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-primary/20 shadow-elevated h-36 md:h-44 lg:h-52 bg-noite-950">
           <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-overlay"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-80"
             style={{ backgroundImage: `url(${aviationHero})` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-background/45 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-noite-950/95 via-noite-900/72 to-noite-950/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-noite-950/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
             <div className="relative z-10 flex flex-col gap-2">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md mt-[41px] mb-[41px]">
-                  Dashboard do Gestor
-                </span>
-              </div>
-              <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
+              <span className="w-fit rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] md:text-xs font-semibold text-blue-100 uppercase tracking-wider backdrop-blur-sm">
+                Dashboard do Gestor
+              </span>
+              <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-tight drop-shadow-sm">
                 Visão Gerencial
               </h1>
-             
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+          <Card className="bg-card border-primary/10 hover:border-primary/30 transition-colors">
             <CardContent className="pt-3 md:pt-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -194,7 +191,7 @@ export function GestorDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+          <Card className="bg-card border-primary/10 hover:border-primary/30 transition-colors">
             <CardContent className="pt-3 md:pt-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -202,37 +199,37 @@ export function GestorDashboard() {
                   <p className="text-2xl md:text-3xl font-bold text-foreground mt-1">{aircraft.length}</p>
                 </div>
                 <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] flex-shrink-0">
-                  <Plane className="h-5 md:h-6 w-5 md:w-6 text-emerald-400" />
+                  <Plane className="h-5 md:h-6 w-5 md:w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+          <Card className="bg-card border-primary/10 hover:border-primary/30 transition-colors">
             <CardContent className="pt-3 md:pt-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Aprovações</p>
-                  <p className="text-2xl md:text-3xl font-bold text-amber-400 mt-1">{pendingApprovals.length}</p>
+                  <p className="text-2xl md:text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{pendingApprovals.length}</p>
                 </div>
                 <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)] flex-shrink-0">
-                  <Clock className="h-5 md:h-6 w-5 md:w-6 text-amber-400" />
+                  <Clock className="h-5 md:h-6 w-5 md:w-6 text-amber-600 dark:text-amber-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+          <Card className="bg-card border-primary/10 hover:border-primary/30 transition-colors">
             <CardContent className="pt-3 md:pt-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Em Manutenção</p>
-                  <p className="text-2xl md:text-3xl font-bold text-red-400 mt-1">
+                  <p className="text-2xl md:text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
                     {aircraft.filter((a: any) => a.status === 'manutencao').length}
                   </p>
                 </div>
                 <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-red-500/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] flex-shrink-0">
-                  <AlertTriangle className="h-5 md:h-6 w-5 md:w-6 text-red-400" />
+                  <AlertTriangle className="h-5 md:h-6 w-5 md:w-6 text-red-600 dark:text-red-400" />
                 </div>
               </div>
             </CardContent>
@@ -249,9 +246,9 @@ export function GestorDashboard() {
               <button
                 key={tool.label}
                 onClick={() => navigate(tool.route)}
-                className={`flex items-center gap-3 md:gap-4 p-4 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-3xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
+                className={`flex items-center gap-3 md:gap-4 p-4 bg-card hover:bg-card-secondary rounded-2xl border border-border hover:border-primary/30 shadow-card transition-all duration-300 group ${tool.hoverGlow}`}
               >
-                <div className={`p-3 rounded-3xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
+                <div className={`p-3 rounded-2xl transition-transform duration-300 group-hover:scale-110 border border-border/60 ${tool.iconBg} flex-shrink-0`}>
                   <tool.icon className={`h-6 md:h-7 w-6 md:w-7 ${tool.iconColor}`} strokeWidth={1.5} />
                 </div>
 
@@ -271,15 +268,15 @@ export function GestorDashboard() {
         </div>
 
         {/* Pending Approvals */}
-        <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
+        <Card className="bg-card border-border shadow-card">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 md:pb-4 gap-2">
             <CardTitle className="flex items-center gap-2 text-base md:text-lg">
               <div className="p-1.5 md:p-2 bg-amber-500/10 rounded-lg">
-                <Clock className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-400" />
+                <Clock className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-600 dark:text-amber-400" />
               </div>
               Aprovações Pendentes
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/gestor/aprovacoes-orcamentos")} className="hover:bg-white/[0.05] text-xs md:text-sm">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/gestor/aprovacoes-orcamentos")} className="hover:bg-secondary text-xs md:text-sm">
               Ver todas <ArrowRight className="ml-1 md:ml-2 h-3 md:h-4 w-3 md:w-4" />
             </Button>
           </CardHeader>
@@ -301,7 +298,7 @@ export function GestorDashboard() {
                         navigate(`/financeiro/compras?requestId=${item.id}`);
                       }
                     }}
-                    className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-primary/50 hover:bg-white/[0.04] transition-all cursor-pointer group"
+                    className="flex items-center justify-between p-4 rounded-xl bg-card-secondary/70 border border-border hover:border-primary/50 hover:bg-card-secondary transition-all cursor-pointer group"
                   >
                     <div>
                       <p className="font-medium text-foreground group-hover:text-primary transition-colors">
@@ -322,7 +319,7 @@ export function GestorDashboard() {
                         </p>
                       </div>
                       {item.total && (
-                        <p className="text-sm font-semibold text-emerald-400 mt-2">
+                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-2">
                           R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
                       )}

@@ -178,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     <>
       {collapsed ? (
         <div className="hidden md:flex md:fixed md:left-2 md:top-20 z-50">
-          <button aria-label="Abrir menu" onClick={() => setCollapsed(false)} className="w-10 h-10 rounded-full bg-card-secondary/70 border border-border/50 flex items-center justify-center text-foreground hover:bg-card-secondary/90 transition-colors">
+          <button aria-label="Abrir menu" onClick={() => setCollapsed(false)} className="w-10 h-10 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-foreground hover:bg-card-secondary transition-colors">
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
