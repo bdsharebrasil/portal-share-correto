@@ -25,7 +25,8 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 
 const val = (m: any) => Number(m.valor_rateado ?? m.valor_total ?? 0);
 const isEntrada = (m: any) => ["entrada", "receita"].includes(String(m.fluxo || "").toLowerCase());
-const isPago = (m: any) => m.status === "pago" || Boolean(m.data_pagamento);
+const isPago = (m: any) => m.status === "pago" || m.status === "recebido" || m.status === "reembolsado" || Boolean(m.data_pagamento);
+const isRecebivelPendente = (m: any) => !['pago', 'recebido', 'quitado', 'reembolsado', 'cancelado'].includes(String(m.status || '').toLowerCase());
 const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reembolsavel));
 const isReembolso = (m: any) =>
   `${m.descricao ?? ""} ${m.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
@@ -167,11 +168,11 @@ export default function MasterRelatorios() {
       const inicioAno = `${ano}-01-01`;
       const fimAno = `${ano}-12-31`;
 
-      const [movRes, clientesRes, salariosRes, catRes] = await Promise.all([
+      const [movRes, clientesRes, salariosRes, catRes, receberRes] = await Promise.all([
         supabase
           .from("movimentacoes")
           .select(
-            `id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_categoria, categoria_id, conta_bancaria, reembolsavel`
+            `id, contas_areceber_id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_categoria, categoria_id, conta_bancaria, reembolsavel`
           )
           .or(
             `and(data_emissao.gte.${inicioAno},data_emissao.lte.${fimAno}),` +
@@ -184,8 +185,10 @@ export default function MasterRelatorios() {
         supabase.from("clientes").select("id, razao_social, proprietario"),
         supabase.from("salarios").select("salario_bruto, beneficios"),
         supabase.from("categorias_movimentacao").select("id, grupo_categoria, tipo_despesa"),
+        supabase.from("contas_areceber").select("id, movimentacao_id, descricao, categoria, valor, status, data_criacao, data_vencimento, data_pagamento, cliente_nome, aeronave, reference_type").or(`and(data_criacao.gte.${inicioAno},data_criacao.lte.${fimAno}),and(data_criacao.is.null,data_vencimento.gte.${inicioAno},data_vencimento.lte.${fimAno}),and(data_criacao.is.null,data_vencimento.is.null,data_pagamento.gte.${inicioAno},data_pagamento.lte.${fimAno})`).limit(5000),
       ]);
       if (movRes.error) throw movRes.error;
+      if (receberRes.error) throw receberRes.error;
 
       /* Constrói mapa de categoria_id -> { grupo, tipoDespesa } */
       const catMap = new Map<string, { grupo: string; tipoDespesa: string | null }>();
@@ -197,6 +200,7 @@ export default function MasterRelatorios() {
       return {
         movimentacoes: movRes.data || [],
         clientes: clientesRes.data || [],
+        contasAReceber: receberRes.data || [],
         folha: (salariosRes.data || []).reduce(
           (t: number, s: any) => t + Number(s.salario_bruto || 0) + Number(s.beneficios || 0),
           0
@@ -232,7 +236,12 @@ export default function MasterRelatorios() {
     const soma = (arr: any[], f: (m: any) => boolean) => arr.filter(f).reduce((t, m) => t + val(m), 0);
     const receitaShare = soma(share, (m) => isEntrada(m) && isPago(m));
     const despesaShare = soma(share, (m) => isShareExpense(m));
-    const aReceber = soma(share, (m) => isEntrada(m) && !isPago(m));
+    const idsMovimentacoes = new Set(share.map((m: any) => m.id));
+    const aReceberMovimentacoes = soma(share, (m) => isEntrada(m) && !isPago(m));
+    const aReceberLancamentos = (data?.contasAReceber || [])
+      .filter((r: any) => isRecebivelPendente(r) && (!r.movimentacao_id || !idsMovimentacoes.has(r.movimentacao_id)))
+      .reduce((total: number, r: any) => total + Math.abs(Number(r.valor || 0)), 0);
+    const aReceber = aReceberMovimentacoes + aReceberLancamentos;
     const despesaCliente = soma(cliente, (m) => !isEntrada(m) && isPago(m));
     const reembolsos = soma(movs, (m) => !isEntrada(m) && isPago(m) && isReembolso(m));
     return {
@@ -244,7 +253,7 @@ export default function MasterRelatorios() {
       reembolsos,
       margem: receitaShare > 0 ? ((receitaShare - despesaShare) / receitaShare) * 100 : 0,
     };
-  }, [share, cliente, movs]);
+  }, [share, cliente, movs, data?.contasAReceber]);
 
   /* ---------- séries mensais ---------- */
   const serieMensal = useMemo(() => {
@@ -343,14 +352,16 @@ export default function MasterRelatorios() {
       desp.filter((m) => nats.includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
 
     const pessoal = somaNat(["Folha de Pagamento"]);
-    const contasFixas = somaNat(["Despesas Empresa Fixo"]);
+    const fixosNoPeriodo = desp.filter((m) => naturezaDe(m) === "Despesas Empresa Fixo");
+    const contasFixas = fixosNoPeriodo.reduce((total, m) => total + val(m), 0);
+    const mesesComFixo = new Set(fixosNoPeriodo.map((m) => dataRef(m)?.slice(0, 7)).filter(Boolean)).size;
     const contasVariaveis = somaNat(["Despesas Empresa Variável", "Despesas Reembolsáveis", "Impostos", "Outros"]);
     const particulares = somaNat(["Particulares Fixo", "Particulares Variável"]);
     const receitasOperacionais = somaNat(["Receitas Operacionais"]);
     const reembolsosEntradas = somaNat(["Reembolsos Entradas"]);
 
     const fixoTotal = pessoal + contasFixas;
-    const fixoMensal = fixoTotal / mesesNoPeriodo;
+    const fixoMensal = fixoTotal / Math.max(1, mesesComFixo);
     const variavelMensal = contasVariaveis / mesesNoPeriodo;
     const receitaMensal = resumo.receitaShare / mesesNoPeriodo;
     const margemContribuicao = receitaMensal > 0 ? (receitaMensal - variavelMensal) / receitaMensal : 0;
@@ -371,6 +382,7 @@ export default function MasterRelatorios() {
 
     return {
       mesesNoPeriodo,
+      mesesComFixo,
       pessoal,
       contasFixas,
       contasVariaveis,
@@ -605,7 +617,7 @@ export default function MasterRelatorios() {
             <TabsContent value="empresa" className="space-y-4 focus-visible:outline-none">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatTile label="Pessoal / salários" value={brl(equilibrio.pessoal)} hint="Folha, benefícios, 13º" icon={Users} tone="primary" />
-                <StatTile label="Contas fixas" value={brl(equilibrio.contasFixas)} hint={`${brl(equilibrio.contasFixas / equilibrio.mesesNoPeriodo)} / mês`} icon={Building2} tone="neutral" delay={60} />
+                  <StatTile label="Contas fixas" value={brl(equilibrio.contasFixas)} hint={`${brl(equilibrio.contasFixas / Math.max(1, equilibrio.mesesComFixo))} / mês lançado`} icon={Building2} tone="neutral" delay={60} />
                 <StatTile label="Contas variáveis" value={brl(equilibrio.contasVariaveis)} hint={`${brl(equilibrio.variavelMensal)} / mês`} icon={TrendingDown} tone="warning" delay={120} />
                 <StatTile label="Resultado do caixa" value={brl(resumo.saldoShare)} hint={resumo.saldoShare >= 0 ? "Caixa positivo" : "Caixa negativo"} icon={Wallet} tone={resumo.saldoShare >= 0 ? "success" : "danger"} delay={180} />
               </div>
