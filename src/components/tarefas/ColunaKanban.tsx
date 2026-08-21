@@ -67,7 +67,7 @@ export function ColunaKanban({
         onDrop();
       }}
       aria-label={coluna.label}
-      className={`flex w-[290px] shrink-0 flex-col rounded-2xl border border-noite-700/80 bg-[#0b1220]/95 p-2.5 shadow-[0_0_0_1px_rgba(148,163,184,0.08)] transition-colors duration-150 ${
+      className={`flex min-w-0 w-full flex-col rounded-2xl border border-noite-700/80 bg-[#0b1220]/95 p-2.5 shadow-[0_0_0_1px_rgba(148,163,184,0.08)] transition-colors duration-150 ${
         ativa ? "border-azul-400 ring-2 ring-azul-400/30" : "border-noite-700/80"
       }`}
     >

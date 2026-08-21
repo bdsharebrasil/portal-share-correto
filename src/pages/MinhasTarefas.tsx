@@ -9,8 +9,7 @@ import {
   Users, 
   LayoutGrid, 
   List, 
-  CalendarDays,
-  Search
+  CalendarDays
 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -144,20 +143,11 @@ export default function MinhasTarefas() {
               </button>
             </div>
 
-            {/* Busca e Filtro */}
-            <div className="flex items-center gap-2 ml-auto 2xl:ml-4">
-              <div className="relative hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              </div>
-              
-             
-            </div>
-            
           </div>
         </div>
 
         {/* Renderizar com base no layout selecionado */}
-        <div className="w-full max-w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0b0d12] shadow-2xl mt-[23px] px-0 -ml-[9px] -mr-[3px]">
+        <div className="mt-5 w-full max-w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0b0d12] shadow-2xl">
           {layout === "kanban" ? (
             <TarefasKanban myView={isManager && view === "minhas"} />
           ) : layout === "lista" ? (

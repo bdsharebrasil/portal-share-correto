@@ -392,7 +392,7 @@ export default function TarefasKanban({ myView = false, title, subtitle }: Props
         </button>
       </div>
 
-      <div className="flex min-h-[500px] gap-4 overflow-x-auto p-5">
+      <div className="grid min-h-[500px] grid-cols-1 gap-3 overflow-visible p-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3 xl:p-4">
         {COLUMNS.map((col) => (
           <ColunaKanban
             key={col.id}
