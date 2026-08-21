@@ -183,26 +183,19 @@ export default function FluxoCaixaTab() {
     const adiantado = data.movimentacoes.filter((m: any) => paidByShareForClient(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
     const recebido = data.movimentacoes.filter((m: any) => !isDga(m) && isEntrada(m) && m.clientes_id).reduce((s:number, m:any) => s + valueOf(m), 0);
     const aReceber = Math.max(0, adiantado - recebido);
-    const dgaEntrada = data.movimentacoes.filter((m: any) => isDga(m) && isEntrada(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const dgaSaida = data.movimentacoes.filter((m: any) => isDga(m) && !isEntrada(m) && !String(m.pago_por || '').toLowerCase().includes('cotista') && !m.pago_diretamente).reduce((s:number, m:any) => s + valueOf(m), 0);
-    return { entradas, saidas, saldo: entradas - saidas, aReceber, dgaSaldo: dgaEntrada - dgaSaida };
+    return { entradas, saidas, aReceber };
   }, [data.movimentacoes]);
 
   const visaoGeral = useMemo(() => {
     const contasTotal = contasAPagar.reduce((sum: number, conta: any) => sum + Number(conta?.valor || 0), 0);
     const inadimplenciaTotal = inadimplencias.reduce((sum: number, item: any) => sum + Number(item?.valor || 0), 0);
     const diasMaxAtraso = inadimplencias.reduce((max: number, item: any) => Math.max(max, Number(item?.dias_atraso || 0)), 0);
-    const saldoAposContas = resumo.saldo - contasTotal;
-    const pressaoSobreCaixa = resumo.saldo > 0 ? Math.min(100, Math.max(0, (contasTotal / resumo.saldo) * 100)) : 0;
-
     return {
       contasTotal,
       inadimplenciaTotal,
       diasMaxAtraso,
-      saldoAposContas,
-      pressaoSobreCaixa,
     };
-  }, [contasAPagar, inadimplencias, resumo.saldo]);
+  }, [contasAPagar, inadimplencias]);
 
   const formatMesAno = (periodo: string) => { const [ano, mesNumero] = periodo.split("-"); return `${mesNumero}/${ano}`; };
 
@@ -258,13 +251,12 @@ export default function FluxoCaixaTab() {
           <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/45">
             <div className="flex flex-col gap-2 border-b border-slate-800/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-400">Resumo do caixa</div><h3 className="mt-0.5 text-sm font-black text-slate-100">Posição financeira consolidada</h3></div>
-              <div className="flex items-baseline gap-2"><span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Saldo atual</span><strong className={`text-base font-black ${resumo.saldo >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatBRL(resumo.saldo)}</strong></div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Acompanhamento de lançamentos</div>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-y divide-slate-800/90 md:grid-cols-4 md:divide-y-0">
+            <div className="grid grid-cols-2 divide-x divide-y divide-slate-800/90 md:grid-cols-3 md:divide-y-0">
               <ResumoKpi label="Entradas realizadas" value={formatBRL(resumo.entradas)} tone="green" note="Caixa recebido" />
               <ResumoKpi label="Saídas realizadas" value={formatBRL(resumo.saidas)} tone="red" note="Despesas registradas" />
               <ResumoKpi label="A receber da Share" value={formatBRL(resumo.aReceber)} tone="amber" note="Antecipações" />
-              <ResumoKpi label="Saldo DGA" value={formatBRL(resumo.dgaSaldo)} tone="violet" note="Movimento DGA" />
             </div>
           </section>
 
