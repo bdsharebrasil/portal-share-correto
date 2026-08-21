@@ -60,7 +60,9 @@ export function usePayslipsByMonth(employeeId?: string, month?: number, year?: n
   });
 }
 
-export function getPayslipPublicUrl(filePath: string): string {
+export function getPayslipPublicUrl(filePath?: string | null): string {
+  if (!filePath) return "";
+  if (/^https?:\/\//i.test(filePath)) return filePath;
   const { data } = supabase.storage.from("holerites").getPublicUrl(filePath);
   return data?.publicUrl || "";
 }

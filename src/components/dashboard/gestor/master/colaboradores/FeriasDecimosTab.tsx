@@ -124,13 +124,25 @@ export function FeriasDecimosTab() {
     queryKey: ["thirteenth-history", selectedColaboradorId],
     queryFn: async () => {
       if (!selectedColaboradorId) return [];
-      const { data, error } = await supabase
-        .from("employee_thirteenth_salary")
-        .select("*")
-        .eq("user_profile", selectedColaboradorId)
-        .order("year", { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
+        .select("id,id_usuario,ano_referencia,salario_bruto,salario_liquido,decimo_terceiro_parcela1,decimo_terceiro_parcela2,decimo_terceiro_status,decimo_terceiro_primeira_data,decimo_terceiro_segunda_data")
+        .eq("id_usuario", selectedColaboradorId)
+        .or("decimo_terceiro_parcela1.not.is.null,decimo_terceiro_parcela2.not.is.null")
+        .order("ano_referencia", { ascending: false });
       if (error) throw error;
-      return data as ThirteenthSalary[];
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        user_profile: row.id_usuario,
+        year: row.ano_referencia,
+        gross_value: Number(row.salario_bruto ?? 0),
+        net_value: Number(row.salario_liquido ?? row.salario_bruto ?? 0),
+        first_installment_amount: Number(row.decimo_terceiro_parcela1 ?? 0),
+        first_installment_date: row.decimo_terceiro_primeira_data,
+        second_installment_amount: Number(row.decimo_terceiro_parcela2 ?? 0),
+        second_installment_date: row.decimo_terceiro_segunda_data,
+        payment_status: row.decimo_terceiro_status ?? "pendente",
+      })) as ThirteenthSalary[];
     },
     enabled: !!selectedColaboradorId,
   });
@@ -159,15 +171,22 @@ export function FeriasDecimosTab() {
   const addThirteenthMutation = useMutation({
     mutationFn: async (data: typeof newThirteenth) => {
       if (!selectedColaboradorId) throw new Error("Selecione um colaborador");
-      const grossValue = parseFloat(data.gross_value);
-      const { error } = await supabase.from("employee_thirteenth_salary").insert({
-        user_profile: selectedColaboradorId,
-        year: parseInt(data.year),
-        gross_value: grossValue,
-        net_value: grossValue * 0.88,
-        first_installment_amount: grossValue * 0.5,
-        second_installment_amount: grossValue * 0.38,
-        payment_status: "pendente",
+      const grossValue = Number(data.gross_value.replace(",", "."));
+      const { error } = await (supabase as any).from("historico_pagamentos_funcionarios").insert({
+        id_usuario: selectedColaboradorId,
+        mes_referencia: 12,
+        ano_referencia: parseInt(data.year),
+        salario_holerite: grossValue,
+        salario_bruto: grossValue,
+        salario_liquido: grossValue * 0.88,
+        decimo_terceiro_parcela1: grossValue * 0.5,
+        decimo_terceiro_parcela2: grossValue * 0.38,
+        decimo_terceiro_referencia: `ano-base ${data.year}`,
+        decimo_terceiro_status: "pendente",
+        descontos_detalhes: [],
+        beneficios_detalhes: [],
+        custo_total_empresa: grossValue,
+        observacoes: "Registro de 13º criado pelo Dashboard Gestor Master",
       });
       if (error) throw error;
     },
@@ -196,15 +215,13 @@ export function FeriasDecimosTab() {
 
   const updateThirteenthStatus = useMutation({
     mutationFn: async ({ id, status, field }: { id: string; status: string; field?: string }) => {
-      const updateData: Record<string, string> = { payment_status: status };
-      if (field === "first" && status === "pago") {
-        updateData.first_installment_date = new Date().toISOString().split("T")[0];
-      } else if (field === "second" && status === "pago") {
-        updateData.second_installment_date = new Date().toISOString().split("T")[0];
-      }
-      const { error } = await supabase
-        .from("employee_thirteenth_salary")
-        .update(updateData)
+      const { error } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
+        .update({
+          decimo_terceiro_status: status,
+          ...(field === "first" && status === "pago" ? { decimo_terceiro_primeira_data: new Date().toISOString().split("T")[0] } : {}),
+          ...(field === "second" && status === "pago" ? { decimo_terceiro_segunda_data: new Date().toISOString().split("T")[0] } : {}),
+        })
         .eq("id", id);
       if (error) throw error;
     },

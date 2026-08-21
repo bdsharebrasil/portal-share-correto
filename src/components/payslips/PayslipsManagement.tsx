@@ -92,7 +92,7 @@ export function PayslipsManagement() {
 
       const fileName = `${uploadData.employee_id}/${uploadData.year}/${String(uploadData.month).padStart(2, "0")}_${uploadData.file.name}`;
       
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("holerites")
         .upload(fileName, uploadData.file, { upsert: true });
 
@@ -134,9 +134,10 @@ export function PayslipsManagement() {
       const payslip = payslips.find((p: any) => p.id === payslipId);
       if (!payslip) throw new Error("Holerite não encontrado");
 
-      const { error: storageError } = await supabase.storage
-        .from("holerites")
-        .remove([payslip.file_path]);
+      const filePath = payslip.file_path || (payslip as any).caminho_arquivo;
+      const { error: storageError } = filePath
+        ? await supabase.storage.from("holerites").remove([filePath])
+        : { error: null };
 
       if (storageError) throw storageError;
 
@@ -313,13 +314,13 @@ export function PayslipsManagement() {
                                   {months[payslip.month - 1]?.label}
                                 </TableCell>
                                 <TableCell>
-                                  {payslip.enviado_em
-                                    ? new Date(payslip.enviado_em).toLocaleDateString("pt-BR")
+                                  {(payslip.uploaded_at || payslip.enviado_em)
+                                    ? new Date(payslip.uploaded_at || payslip.enviado_em).toLocaleDateString("pt-BR")
                                     : "—"}
                                 </TableCell>
                                 <TableCell>
-                                  {payslip.caminho_arquivo
-                                    ? payslip.caminho_arquivo.split("/").pop()
+                                  {(payslip.file_path || payslip.caminho_arquivo)
+                                    ? (payslip.file_path || payslip.caminho_arquivo).split("/").pop()
                                     : "—"}
                                 </TableCell>
                                 <TableCell className="flex gap-2">
@@ -330,7 +331,7 @@ export function PayslipsManagement() {
                                     title="Visualizar holerite"
                                   >
                                     <a
-                                      href={getPayslipPublicUrl(payslip.caminho_arquivo)}
+                                      href={getPayslipPublicUrl(payslip.file_path || payslip.caminho_arquivo)}
                                       target="_blank"
                                       rel="noreferrer"
                                     >
