@@ -1,0 +1,250 @@
+/* ============================================================
+   SHARE BRASIL — THEME OVERRIDES
+   Referência visual: light executivo, limpo, branco/cinza claro;
+   dark premium em azul-marinho profundo.
+   ============================================================ */
+
+/* -----------------------------
+   LIGHT — executivo / clean
+   ----------------------------- */
+:root.light {
+  color-scheme: light;
+
+  --background: 214 32% 96%;
+  --foreground: 220 28% 16%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 28% 16%;
+  --card-secondary: 214 28% 98%;
+
+  --surface: 214 25% 94%;
+  --surface-raised: 0 0% 100%;
+  --surface-hover: 214 28% 92%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 28% 16%;
+
+  --primary: 211 68% 43%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 205 72% 55%;
+  --primary-dark: 212 67% 34%;
+  --primary-muted: 211 68% 43% / 0.10;
+
+  --secondary: 214 24% 92%;
+  --secondary-foreground: 220 26% 22%;
+
+  --muted: 214 24% 93%;
+  --muted-foreground: 218 13% 46%;
+
+  --accent: 211 28% 91%;
+  --accent-foreground: 220 28% 16%;
+
+  --border: 216 20% 84%;
+  --border-subtle: 216 18% 90%;
+  --input: 214 20% 94%;
+
+  --ring: 211 68% 43%;
+
+  --text-primary: 220 28% 16%;
+  --text-bright: 220 30% 10%;
+  --text-muted: 218 13% 46%;
+  --text-faint: 218 11% 58%;
+
+  --destructive: 0 63% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 151 51% 38%;
+  --warning: 39 91% 47%;
+
+  /* Sidebar continua corporativa/navy também no light */
+  --sidebar-background: 221 37% 12%;
+  --sidebar-foreground: 214 25% 94%;
+  --sidebar-primary: 211 73% 54%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 28% 18%;
+  --sidebar-accent-foreground: 214 25% 96%;
+  --sidebar-border: 219 24% 23%;
+  --sidebar-ring: 211 73% 54%;
+
+  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+  --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(214 28% 98%));
+  --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(214 28% 94%));
+
+  --shadow-primary: 0 7px 20px -10px hsl(var(--primary) / 0.24);
+  --shadow-card: 0 1px 2px hsl(220 30% 10% / 0.04), 0 7px 20px hsl(220 30% 10% / 0.06);
+  --shadow-elevated: 0 16px 34px -20px hsl(220 30% 10% / 0.16);
+  --shadow-soft: 0 3px 10px hsl(220 30% 10% / 0.06);
+}
+
+/* -----------------------------
+   DARK — premium / navy
+   ----------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --background: 221 40% 7%;
+  --foreground: 214 24% 94%;
+
+  --card: 221 34% 10%;
+  --card-foreground: 214 24% 94%;
+  --card-secondary: 221 31% 12%;
+
+  --surface: 221 31% 9%;
+  --surface-raised: 221 30% 12%;
+  --surface-hover: 221 28% 15%;
+
+  --popover: 221 30% 12%;
+  --popover-foreground: 214 24% 94%;
+
+  --primary: 211 72% 55%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 205 76% 63%;
+  --primary-dark: 211 68% 44%;
+  --primary-muted: 211 72% 55% / 0.12;
+
+  --secondary: 221 25% 16%;
+  --secondary-foreground: 214 23% 92%;
+
+  --muted: 221 24% 14%;
+  --muted-foreground: 217 14% 65%;
+
+  --accent: 221 24% 18%;
+  --accent-foreground: 214 25% 95%;
+
+  --border: 219 23% 22%;
+  --border-subtle: 219 22% 17%;
+  --input: 221 24% 17%;
+
+  --ring: 211 72% 55%;
+
+  --text-primary: 214 24% 94%;
+  --text-bright: 210 30% 98%;
+  --text-muted: 217 14% 67%;
+  --text-faint: 217 11% 50%;
+
+  --destructive: 0 66% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 151 50% 47%;
+  --warning: 39 91% 57%;
+
+  --sidebar-background: 221 42% 8%;
+  --sidebar-foreground: 214 25% 94%;
+  --sidebar-primary: 211 72% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 27% 15%;
+  --sidebar-accent-foreground: 214 25% 95%;
+  --sidebar-border: 219 26% 19%;
+  --sidebar-ring: 211 72% 55%;
+
+  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+  --gradient-card: linear-gradient(180deg, hsl(221 34% 11%), hsl(221 34% 9%));
+  --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(221 38% 8%));
+
+  --shadow-primary: 0 9px 26px -12px hsl(var(--primary) / 0.22);
+  --shadow-card: 0 1px 2px hsl(220 40% 2% / 0.48), 0 7px 22px hsl(220 40% 2% / 0.24);
+  --shadow-elevated: 0 18px 40px -20px hsl(220 40% 2% / 0.70);
+  --shadow-soft: 0 4px 13px hsl(220 40% 2% / 0.30);
+}
+
+/* Corpo / superfícies */
+html,
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+body {
+  background: linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+}
+
+/* Utilitários legados muito escuros passam a respeitar o tema no light. */
+:root.light .bg-slate-950,
+:root.light .bg-slate-900,
+:root.light .bg-slate-800,
+:root.light .bg-zinc-950,
+:root.light .bg-zinc-900,
+:root.light .bg-neutral-950,
+:root.light .bg-neutral-900 {
+  background-color: hsl(var(--card)) !important;
+}
+
+:root.light .bg-slate-950\/30,
+:root.light .bg-slate-950\/45,
+:root.light .bg-slate-950\/55,
+:root.light .bg-slate-900\/50,
+:root.light .bg-slate-900\/70,
+:root.light .bg-zinc-950\/30,
+:root.light .bg-zinc-900\/50 {
+  background-color: hsl(var(--surface)) !important;
+}
+
+:root.light .border-slate-900,
+:root.light .border-slate-800,
+:root.light .border-slate-700,
+:root.light .border-zinc-900,
+:root.light .border-zinc-800,
+:root.light .border-neutral-900 {
+  border-color: hsl(var(--border)) !important;
+}
+
+:root.light .text-slate-100,
+:root.light .text-slate-200,
+:root.light .text-slate-300,
+:root.light .text-zinc-100,
+:root.light .text-zinc-200,
+:root.light .text-zinc-300 {
+  color: hsl(var(--foreground)) !important;
+}
+
+:root.light .text-slate-400,
+:root.light .text-slate-500,
+:root.light .text-zinc-400,
+:root.light .text-zinc-500 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+:root.light .hover\:bg-slate-800:hover,
+:root.light .hover\:bg-slate-900:hover,
+:root.light .hover\:bg-zinc-800:hover,
+:root.light .hover\:bg-zinc-900:hover {
+  background-color: hsl(var(--surface-hover)) !important;
+}
+
+/* Inputs e selects mais próximos da referência visual */
+:root.light input,
+:root.light textarea,
+:root.light select {
+  background-color: hsl(var(--surface-raised));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+:root.light input:focus,
+:root.light textarea:focus,
+:root.light select:focus {
+  border-color: hsl(var(--primary) / 0.60);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.10);
+}
+
+/* A tabela da referência tem linhas brancas, separadores leves e cabeçalho claro. */
+:root.light .share-table thead {
+  background: hsl(214 24% 95%);
+}
+
+:root.light .share-table tbody tr:hover {
+  background: hsl(214 28% 97%);
+}
+
+/* Navegação lateral usando tokens semânticos */
+.bg-sidebar,
+[class*="bg-sidebar"] {
+  background-color: hsl(var(--sidebar-background));
+}
+
+/* Scrollbars */
+:root.light .ctm-scroll::-webkit-scrollbar-thumb {
+  background: hsl(216 16% 76%);
+}
+
+.dark .ctm-scroll::-webkit-scrollbar-thumb {
+  background: hsl(219 20% 30%);
+}
