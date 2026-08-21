@@ -8,6 +8,14 @@ import { OASItensManager } from './OASItensManager';
 
 interface OASTabProps { aircraftId: string; }
 
+function calcularDiasEfetivos(dataEntrada?: string | null, dataSaida?: string | null) {
+  if (!dataEntrada || !dataSaida) return null;
+  const entrada = new Date(`${dataEntrada}T00:00:00`).getTime();
+  const saida = new Date(`${dataSaida}T00:00:00`).getTime();
+  if (!Number.isFinite(entrada) || !Number.isFinite(saida) || saida < entrada) return null;
+  return Math.round((saida - entrada) / (1000 * 60 * 60 * 24));
+}
+
 export function OASTab({ aircraftId }: OASTabProps) {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +136,7 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
     programa_manutencao_id: '',
     tipo_manutencao: 'CORRETIVA', periodo: '', periodo_inicio: '', periodo_fim: '',
     tipo_rateio: 'horas', oficina_nome: '', os_oficina: '', horas_celula: '', dias_previstos: '',
-    data_entrada: '', data_saida: '', mecanico_responsavel: '', objetivo: '', observacoes: '',
+    data_entrada: '', data_saida: '', relatorio_voo_de: '', relatorio_voo_ate: '', mecanico_responsavel: '', objetivo: '', observacoes: '',
   });
 
   useEffect(() => {
@@ -177,6 +185,9 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
       dias_previstos: form.dias_previstos ? Number(form.dias_previstos) : null,
       data_entrada: form.data_entrada,
       data_saida: form.data_saida || null,
+      dias_efetivos: calcularDiasEfetivos(form.data_entrada, form.data_saida),
+      relatorio_voo_de: form.relatorio_voo_de || null,
+      relatorio_voo_ate: form.relatorio_voo_ate || null,
       mecanico_responsavel: form.mecanico_responsavel || null,
       objetivo: form.objetivo || null,
       observacoes: form.observacoes || null,
@@ -215,24 +226,24 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Período</label>
-          <input className="ctm-input w-full" placeholder="Ex: 50 HORAS, ANUAL" value={form.periodo} onChange={e => f('periodo', e.target.value)} />
+          <label className="text-xs text-muted-foreground block mb-1">Período da manutenção</label>
+          <input className="ctm-input w-full" placeholder="Ex: 100 HRS, ANUAL" value={form.periodo} onChange={e => f('periodo', e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Início do Período</label>
-          <input type="date" className="ctm-input w-full" value={form.periodo_inicio} onChange={e => f('periodo_inicio', e.target.value)} />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">Fim do Período</label>
-          <input type="date" className="ctm-input w-full" value={form.periodo_fim} onChange={e => f('periodo_fim', e.target.value)} />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">Data Entrada *</label>
+          <label className="text-xs text-muted-foreground block mb-1">Data de entrada na oficina *</label>
           <input type="date" className="ctm-input w-full" value={form.data_entrada} onChange={e => f('data_entrada', e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Data Saída</label>
+          <label className="text-xs text-muted-foreground block mb-1">Data de saída da oficina</label>
           <input type="date" className="ctm-input w-full" value={form.data_saida} onChange={e => f('data_saida', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Relatório de voo — de</label>
+          <input type="date" className="ctm-input w-full" value={form.relatorio_voo_de} onChange={e => f('relatorio_voo_de', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Relatório de voo — até</label>
+          <input type="date" className="ctm-input w-full" value={form.relatorio_voo_ate} onChange={e => f('relatorio_voo_ate', e.target.value)} />
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1">O.S Oficina</label>
@@ -656,7 +667,7 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
         periodo_fim: form.periodo_fim || null,
         objetivo: form.objetivo || null,
         dias_previstos: num(form.dias_previstos),
-        dias_efetivos: num(form.dias_efetivos),
+        dias_efetivos: calcularDiasEfetivos(form.data_entrada, form.data_saida) ?? num(form.dias_efetivos),
         data_entrada: form.data_entrada || null,
         data_saida: form.data_saida || null,
         relatorio_voo_de: form.relatorio_voo_de || null,
@@ -723,7 +734,7 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
             <option value="C.V.A">C.V.A</option>
           </select>
         </OASField>
-        <OASField label="Período">
+        <OASField label="Período da manutenção">
           <input className="ctm-input w-full" placeholder="50 HORAS" value={form.periodo} onChange={e => f('periodo', e.target.value)} />
         </OASField>
         <OASField label="Objetivo da manutenção">
@@ -732,8 +743,8 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
         <OASField label="Dias previstos MNT">
           <input type="number" className="ctm-input w-full" value={form.dias_previstos} onChange={e => f('dias_previstos', e.target.value)} />
         </OASField>
-        <OASField label="Dias efetivos MNT">
-          <input type="number" className="ctm-input w-full" value={form.dias_efetivos} onChange={e => f('dias_efetivos', e.target.value)} />
+        <OASField label="Dias efetivos MNT (calculado)">
+          <input type="number" readOnly className="ctm-input w-full cursor-not-allowed opacity-75" value={calcularDiasEfetivos(form.data_entrada, form.data_saida) ?? ''} placeholder="Preencha entrada e saída" />
         </OASField>
         <OASField label="Status">
           <select className="ctm-input w-full" value={form.status} onChange={e => f('status', e.target.value)}>
@@ -749,17 +760,11 @@ function EditarOASForm({ oas, aircraftId, onClose, onSaved }: { oas: any; aircra
         <OASField label="Data de saída">
           <input type="date" className="ctm-input w-full" value={form.data_saida} onChange={e => f('data_saida', e.target.value)} />
         </OASField>
-        <OASField label="Início do período">
-          <input type="date" className="ctm-input w-full" value={form.periodo_inicio} onChange={e => f('periodo_inicio', e.target.value)} />
+        <OASField label="Relatório de voo — de">
+          <input type="date" className="ctm-input w-full" value={form.relatorio_voo_de} onChange={e => f('relatorio_voo_de', e.target.value)} />
         </OASField>
-        <OASField label="Fim do período">
-          <input type="date" className="ctm-input w-full" value={form.periodo_fim} onChange={e => f('periodo_fim', e.target.value)} />
-        </OASField>
-        <OASField label="Relatório de voo de">
-          <input className="ctm-input w-full" value={form.relatorio_voo_de} onChange={e => f('relatorio_voo_de', e.target.value)} />
-        </OASField>
-        <OASField label="Relatório de voo até">
-          <input className="ctm-input w-full" value={form.relatorio_voo_ate} onChange={e => f('relatorio_voo_ate', e.target.value)} />
+        <OASField label="Relatório de voo — até">
+          <input type="date" className="ctm-input w-full" value={form.relatorio_voo_ate} onChange={e => f('relatorio_voo_ate', e.target.value)} />
         </OASField>
         <OASField label="Oficina">
           <input className="ctm-input w-full" value={form.oficina_nome} onChange={e => f('oficina_nome', e.target.value)} />
