@@ -478,16 +478,16 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
       </div>
 
       {/* Tabela estilo grid (teal/dark) */}
-      <div className="overflow-hidden rounded-xl border border-border/50 bg-[#0a1120] shadow-2xl backdrop-blur-sm">
+      <div className="overflow-hidden rounded-xl border border-border/50 bg-[#0a1120] shadow-2xl backdrop-blur-sm -mr-[39px] px-0">
         <div
           ref={tableContainerRef}
-          className={`overflow-x-auto custom-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          className={`overflow-x-auto custom-scrollbar mx-[3px] px-0 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
           onMouseDown={handleMouseDown}
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
         >
-          <table className="w-full text-[11px] border-collapse min-w-[1000px]">
+          <table className="w-full text-[11px] border-collapse min-w-[1000px] -mx-[7px] px-[11px]">
             <thead>
               <tr className="border-b-2 border-teal-500/30 bg-[#0f1b2d] text-[9px] uppercase tracking-widest divide-x divide-border/60">
                 <th className={`${thBase} px-3 py-2.5 text-center w-10 text-muted-foreground`}></th>

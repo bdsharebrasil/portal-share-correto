@@ -177,7 +177,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mx-[30px]">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
