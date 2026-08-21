@@ -51,6 +51,7 @@ interface Movimentacao {
   categoria_id?: string | null;
   categoria_nome?: string | null;
   aeronave_id?: string | null;
+  aeronave_registro?: string | null;
   data_emissao: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
@@ -429,6 +430,16 @@ export default function BaixaPagamentoModal({
       const boleto = validAnexos.find((a) => a.tipo_anexo === "boleto");
       const nf = validAnexos.find((a) => a.tipo_anexo === "nota_fiscal");
 
+      const [{ data: authData }, aircraftResult] = await Promise.all([
+        supabase.auth.getUser(),
+        mov.aeronave_id
+          ? supabase.from("aeronave").select("matricula").eq("id", mov.aeronave_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      const criadoPor = authData.user?.id || null;
+      const aeronaveRegistro = mov.aeronave_registro || (aircraftResult as any)?.data?.matricula || null;
+      const reciboPdf = recibo?.file_url || comprovante?.file_url || null;
+
       const updatePayload: Record<string, any> = {
         data_pagamento: dataPagamento,
         pago_diretamente: pagoDiretamente,
@@ -477,14 +488,25 @@ export default function BaixaPagamentoModal({
         await supabase
           .from("contas_areceber")
           .update({
-            status: "recebido",
-            data_pagamento: dataPagamento,
-            data_recebimento: dataPagamento,
-            banco_recebimento: bancoNome || null,
-            comprovante_recebimento_url: comprovante?.file_url || null,
+            status: comReembolso ? "aguardando_reembolso" : "recebido",
+            ...(comReembolso ? {} : {
+              data_pagamento: dataPagamento,
+              data_recebimento: dataPagamento,
+              banco_recebimento: bancoNome || null,
+              comprovante_recebimento_url: comprovante?.file_url || null,
+            }),
+            arquivo_pdf_url: reciboPdf,
+            criado_por: criadoPor,
+            aeronave: aeronaveRegistro,
             metodo_pagamento: mov.forma_pagamento || null,
           })
           .eq("id", mov.contas_areceber_id);
+        if (comReembolso) {
+          await supabase
+            .from("movimentacoes")
+            .update({ contas_apagar_id: null })
+            .eq("id", mov.id);
+        }
       }
 
       if (comReembolso && !mov.contas_areceber_id) {
@@ -530,10 +552,15 @@ export default function BaixaPagamentoModal({
               categoria_id: mov.categoria_id || null,
               descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
               status: "aguardando_reembolso",
+              arquivo_pdf_url: reciboPdf,
               comprovante_url: comprovante?.file_url || null,
               movimentacao_id: mov.id,
               reference_type: "reembolso_share",
               reference_id: mov.id,
+              criado_por: criadoPor,
+              aeronave: aeronaveRegistro,
+              banco_recebimento: bancoNome || null,
+              metodo_pagamento: mov.forma_pagamento || null,
             };
           });
 
@@ -550,7 +577,12 @@ export default function BaixaPagamentoModal({
             updatePayload.contas_areceber_id = principal.id;
             await supabase
               .from("movimentacoes")
-              .update({ contas_areceber_id: principal.id })
+              .update({
+                contas_areceber_id: principal.id,
+                // A constraint mov_contas_exclusivas impede contas a pagar e a receber simultâneas.
+                // Depois que a Share paga, o vínculo ativo passa a ser o reembolso do cliente.
+                ...(comReembolso ? { contas_apagar_id: null } : {}),
+              })
               .eq("id", mov.id);
           }
         }

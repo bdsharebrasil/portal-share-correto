@@ -334,7 +334,18 @@ export default function ClienteSituacao({
       </div>
 
       {/* EXTRATO E FERRAMENTAS */}
-      <div className="rounded-2xl border border-border bg-card/60 overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="overflow-hidden rounded-2xl border border-border/80 bg-background shadow-xl">
+        <div className="border-b border-border/80 bg-card/80 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-400">Conta corrente do cliente</div>
+              <div className="mt-1 text-sm font-semibold text-foreground">Despesas, pagamentos e reembolsos em uma única visão</div>
+            </div>
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+              {lista.filter((item) => paidByShareForClient(item) && fornecedorStatus(item) !== "pago").length} reembolso(s) em aberto
+            </div>
+          </div>
+        </div>
         
         {/* Barra de Ferramentas */}
         <div className="flex flex-col gap-4 border-b border-border p-5 md:flex-row md:items-end md:justify-between">
@@ -405,8 +416,8 @@ export default function ClienteSituacao({
           </div>
         )}
 
-        <div className="overflow-x-auto bg-background/30">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto bg-background">
+          <table className="min-w-[1080px] w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-background/60 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <th className="w-10 px-4 py-4"><input type="checkbox" checked={selecionados.length === lista.length && lista.length > 0} onChange={handleSelectAll} className="h-4 w-4 rounded border-border bg-card accent-cyan-500" aria-label="Selecionar todos" /></th>
@@ -431,8 +442,8 @@ export default function ClienteSituacao({
                   <Fragment key={m.id}>
                     <tr
                       onClick={() => alternarExpandido(m.id)}
-                      className={`cursor-pointer border-b border-border/50 transition ${
-                        isSelected ? "bg-cyan-500/10" : expandido ? "bg-card-secondary/35" : "hover:bg-card-secondary/20"
+                      className={`cursor-pointer border-b border-border/70 transition-colors ${
+                        isSelected ? "bg-cyan-500/10" : expandido ? "bg-card-secondary/45" : "hover:bg-card-secondary/25"
                       }`}
                     >
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
@@ -447,15 +458,18 @@ export default function ClienteSituacao({
                         {expandido ? <ChevronDown className="h-4 w-4 text-cyan-400" /> : <ChevronRight className="h-4 w-4" />}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">{renderData(m)}</td>
-                      <td className="px-4 py-3.5">
-                        <div className="font-semibold text-foreground">{m.descricao || "—"}</div>
-                        <div className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{m.categoria_nome || "Sem Categoria"}</div>
+                      <td className="max-w-[310px] px-4 py-3.5">
+                        <div className="truncate font-semibold text-foreground">{m.descricao || "—"}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <span>{m.categoria_nome || "Sem Categoria"}</span>
+                          {m.numero_nf && <span className="rounded bg-card-secondary px-1.5 py-0.5 normal-case tracking-normal">NF {m.numero_nf}</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 text-muted-foreground">{m.fornecedor_nome || "—"}</td>
                       <td className="px-4 py-3.5 text-right font-bold tabular-nums text-foreground">{formatBRL(valueOf(m))}</td>
                       <td className="px-4 py-3.5 text-center">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${paidByShareForClient(m) ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>
-                          {clienteDividaLabel(m)}
+                          {clienteDividaLabel(m) === "Deve à Share" ? "Reembolso pendente" : clienteDividaLabel(m)}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
