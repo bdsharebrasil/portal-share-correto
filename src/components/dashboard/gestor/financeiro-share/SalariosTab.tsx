@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
@@ -249,6 +250,7 @@ const getMonthYearFromDate = (dateString: string): { month: number; year: number
 /* ─────────────────────────── main ─────────────────────────── */
 
 export default function SalariosTab() {
+  const queryClient = useQueryClient();
   const now = new Date();
   const [mes, setMes] = useState<number>(now.getMonth() + 1);
   const [ano, setAno] = useState<number>(now.getFullYear());
@@ -748,6 +750,37 @@ export default function SalariosTab() {
         },
       );
       if (!syncResult.success) throw new Error(syncResult.error || "Pagamento salvo, mas não foi sincronizado no Financeiro Share.");
+
+      // Mantém o período de férias consistente com o pagamento da folha.
+      // Se o período veio de uma solicitação aprovada, atualiza o mesmo registro;
+      // se ainda não existir, cria o vínculo para não perder o histórico.
+      if (f.showFerias && num(f.ferias) > 0) {
+        const vacationYear = f.ferias_inicio
+          ? new Date(`${f.ferias_inicio}T00:00:00`).getFullYear()
+          : ano;
+        const { data: vacationConfig, error: vacationLookupError } = await (supabase as any)
+          .from("employee_vacation_config")
+          .select("id, scheduled_date, total_vacation_days")
+          .eq("user_profile", userId)
+          .eq("year", vacationYear)
+          .maybeSingle();
+        if (vacationLookupError) throw vacationLookupError;
+
+        const vacationPayload = {
+          user_profile: userId,
+          year: vacationYear,
+          scheduled_date: f.ferias_inicio || vacationConfig?.scheduled_date || null,
+          total_vacation_days: Number(f.ferias_dias) || vacationConfig?.total_vacation_days || 0,
+          payment_status: "pago",
+        };
+        const vacationResult = vacationConfig?.id
+          ? await (supabase as any).from("employee_vacation_config").update(vacationPayload).eq("id", vacationConfig.id)
+          : await (supabase as any).from("employee_vacation_config").insert(vacationPayload);
+        if (vacationResult.error) throw vacationResult.error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["vacation-history", userId] });
+      queryClient.invalidateQueries({ queryKey: ["vacation-requests-management"] });
       setToast({ type: "ok", text: `Pagamento salvo. Líquido: ${formatBRL(resumo.liquido)} · Custo total: ${formatBRL(resumo.custoTotal)}.` });
       setEditingId(null);
     } catch (e: any) {
