@@ -1116,3 +1116,16 @@ body.dark .panel select {
     opacity: 1;
   }
 }
+
+/* Rastreamento técnico de componentes */
+.ctm-rastreamento-input {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: .75rem;
+  background: rgba(255,255,255,.04);
+  padding: .6rem .75rem;
+  color: #f8fafc;
+  outline: none;
+}
+.ctm-rastreamento-input:focus { border-color: rgba(103,232,249,.45); }
+.ctm-rastreamento-input option { background: #0f172a; color: #f8fafc; }
