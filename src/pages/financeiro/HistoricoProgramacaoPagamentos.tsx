@@ -87,7 +87,7 @@ const getStatusClasses = (status: string | null) => {
       return "border-red-400/20 bg-red-400/10 text-red-400";
 
     case "rascunho":
-      return "border-slate-400/20 bg-slate-400/10 text-slate-300";
+      return "border-slate-400/20 bg-slate-400/10 text-muted-foreground";
 
     default:
       return "border-amber-400/20 bg-amber-400/10 text-amber-400";
@@ -501,7 +501,7 @@ export default function HistoricoProgramacaoPagamentos() {
                   border
                   border-white/5
                   bg-white/[0.025]
-                  text-slate-400
+                  text-muted-foreground
                   hover:bg-white/[0.06]
                   hover:text-white
                 "
@@ -522,7 +522,7 @@ export default function HistoricoProgramacaoPagamentos() {
                   Histórico de programação de pagamentos
                 </h1>
 
-                <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                   Solicitações agrupadas por cliente, com uma visão completa
                   da criação, envio à Share, e-mails e liquidação.
                 </p>
@@ -535,7 +535,7 @@ export default function HistoricoProgramacaoPagamentos() {
               className="
                 border-white/10
                 bg-white/[0.025]
-                text-slate-300
+                text-muted-foreground
                 hover:bg-white/[0.06]
                 hover:text-white
               "
@@ -602,7 +602,7 @@ export default function HistoricoProgramacaoPagamentos() {
           <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
 
             <div className="relative w-full xl:max-w-[440px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
               <Input
                 value={search}
@@ -615,7 +615,7 @@ export default function HistoricoProgramacaoPagamentos() {
                   pl-10
                   text-sm
                   text-white
-                  placeholder:text-slate-600
+                  placeholder:text-muted-foreground
                   focus-visible:ring-1
                   focus-visible:ring-blue-500/50
                 "
@@ -679,12 +679,12 @@ export default function HistoricoProgramacaoPagamentos() {
 
               <section className="min-w-0">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-muted-foreground">
                     {filteredMovements.length} de {data?.movements.length || 0}{" "}
                     programações
                   </span>
 
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-muted-foreground">
                     {groupedClients.length} cliente
                     {groupedClients.length === 1 ? "" : "s"}
                   </span>
@@ -723,7 +723,7 @@ export default function HistoricoProgramacaoPagamentos() {
                         >
                           <div className="flex items-center gap-3">
 
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-500">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground">
                               {isExpanded ? (
                                 <ChevronDown className="h-4 w-4" />
                               ) : (
@@ -732,15 +732,15 @@ export default function HistoricoProgramacaoPagamentos() {
                             </div>
 
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.025]">
-                              <Wallet className="h-4 w-4 text-slate-400" />
+                              <Wallet className="h-4 w-4 text-muted-foreground" />
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold text-slate-100">
+                              <div className="truncate text-sm font-semibold text-foreground">
                                 {group.name}
                               </div>
 
-                              <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+                              <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <span>
                                   {group.movements.length} programação
                                   {group.movements.length === 1 ? "" : "ões"}
@@ -859,12 +859,12 @@ export default function HistoricoProgramacaoPagamentos() {
 
                                       </div>
 
-                                      <h3 className="truncate text-sm font-semibold text-slate-100">
+                                      <h3 className="truncate text-sm font-semibold text-foreground">
                                         {movement.descricao ||
                                           "Programação sem descrição"}
                                       </h3>
 
-                                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
 
                                         {movement.fornecedor_nome && (
                                           <span>
@@ -888,7 +888,7 @@ export default function HistoricoProgramacaoPagamentos() {
                                         )}
                                       </div>
 
-                                      <div className="mt-1 text-[11px] text-slate-600">
+                                      <div className="mt-1 text-[11px] text-muted-foreground">
                                         Venc.{" "}
                                         {formatDate(
                                           movement.data_vencimento
@@ -984,7 +984,7 @@ function StatItem({
     >
       <div className="min-w-0">
         <div className="mb-1 flex items-center gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {label}
           </span>
         </div>
@@ -998,7 +998,7 @@ function StatItem({
             ${
               accent === "primary"
                 ? "text-white"
-                : "text-slate-100"
+                : "text-foreground"
             }
           `}
         >
@@ -1012,7 +1012,7 @@ function StatItem({
         )}
       </div>
 
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.025] text-slate-500">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.025] text-muted-foreground">
         {icon}
       </div>
     </div>
@@ -1047,7 +1047,7 @@ function FilterButton({
         ${
           active
             ? "border-blue-500/50 bg-blue-500/[0.09] text-blue-400"
-            : "border-white/[0.06] bg-[#101114] text-slate-400 hover:border-white/[0.12] hover:bg-white/[0.04] hover:text-slate-200"
+            : "border-white/[0.06] bg-[#101114] text-muted-foreground hover:border-white/[0.12] hover:bg-white/[0.04] hover:text-foreground"
         }
       `}
     >
@@ -1114,7 +1114,7 @@ function PaymentDetailPanel({
               {movement.descricao || "Programação sem descrição"}
             </h2>
 
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {client}
             </p>
           </div>
@@ -1126,7 +1126,7 @@ function PaymentDetailPanel({
               )}
             </div>
 
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-slate-600">
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
               valor programado
             </div>
           </div>
@@ -1189,11 +1189,11 @@ function PaymentDetailPanel({
             <Separator className="my-5 bg-white/[0.06]" />
 
             <div>
-              <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 Observações
               </p>
 
-              <div className="rounded-xl border border-white/[0.06] bg-black/10 p-3 text-xs leading-relaxed text-slate-300">
+              <div className="rounded-xl border border-white/[0.06] bg-black/10 p-3 text-xs leading-relaxed text-muted-foreground">
                 {movement.observacoes}
               </div>
             </div>
@@ -1210,16 +1210,16 @@ function PaymentDetailPanel({
 
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               Trilha da programação
             </p>
 
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-muted-foreground">
               Histórico do fluxo financeiro
             </p>
           </div>
 
-          <History className="h-4 w-4 text-slate-600" />
+          <History className="h-4 w-4 text-muted-foreground" />
         </div>
 
         <div className="space-y-1">
@@ -1295,14 +1295,14 @@ function PaymentDetailPanel({
         <div className="border-t border-white/[0.06] px-5 py-5">
 
           <div className="mb-3 flex items-center gap-2">
-            <Mail className="h-4 w-4 text-slate-500" />
+            <Mail className="h-4 w-4 text-muted-foreground" />
 
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 Histórico de e-mails
               </p>
 
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {emails.length} envio
                 {emails.length === 1 ? "" : "s"}
               </p>
@@ -1318,11 +1318,11 @@ function PaymentDetailPanel({
                 <div className="flex items-start justify-between gap-3">
 
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-slate-200">
+                    <p className="truncate text-xs font-medium text-foreground">
                       {email.destinatario}
                     </p>
 
-                    <p className="mt-1 truncate text-[11px] text-slate-500">
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
                       {email.assunto}
                     </p>
                   </div>
@@ -1332,7 +1332,7 @@ function PaymentDetailPanel({
                   </span>
                 </div>
 
-                <p className="mt-2 text-[10px] text-slate-600">
+                <p className="mt-2 text-[10px] text-muted-foreground">
                   {formatDateTime(email.criado_em)}
                 </p>
               </div>
@@ -1361,12 +1361,12 @@ function DetailField({
 }) {
   return (
     <div>
-      <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-slate-600">
+      <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         {icon}
         <span>{label}</span>
       </div>
 
-      <p className="break-words text-xs font-medium text-slate-200">
+      <p className="break-words text-xs font-medium text-foreground">
         {value}
       </p>
     </div>
@@ -1407,7 +1407,7 @@ function TimelineRow({
             ${
               active
                 ? "border-blue-500/20 bg-blue-500/10 text-blue-400"
-                : "border-white/[0.07] bg-white/[0.02] text-slate-600"
+                : "border-white/[0.07] bg-white/[0.02] text-muted-foreground"
             }
           `}
         >
@@ -1420,13 +1420,13 @@ function TimelineRow({
       <div className="min-w-0 pt-0.5">
         <p
           className={`text-xs font-medium ${
-            active ? "text-slate-200" : "text-slate-500"
+            active ? "text-foreground" : "text-muted-foreground"
           }`}
         >
           {title}
         </p>
 
-        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
           {detail}
         </p>
       </div>
@@ -1471,7 +1471,7 @@ function ErrorState() {
           Não foi possível carregar o histórico
         </h3>
 
-        <p className="mt-1 max-w-md text-xs text-slate-500">
+        <p className="mt-1 max-w-md text-xs text-muted-foreground">
           Ocorreu um erro ao consultar as programações de pagamento.
         </p>
       </CardContent>
@@ -1489,14 +1489,14 @@ function EmptyState() {
       <div className="flex max-w-md flex-col items-center px-6 text-center">
 
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.025]">
-          <Search className="h-5 w-5 text-slate-600" />
+          <Search className="h-5 w-5 text-muted-foreground" />
         </div>
 
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-sm font-semibold text-foreground">
           Nenhuma programação encontrada
         </h3>
 
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Não existem registros que correspondam à busca ou ao filtro
           selecionado.
         </p>
@@ -1515,14 +1515,14 @@ function NoSelectionState() {
       <div className="flex max-w-md flex-col items-center px-6 text-center">
 
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.025]">
-          <Check className="h-5 w-5 text-slate-600" />
+          <Check className="h-5 w-5 text-muted-foreground" />
         </div>
 
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-sm font-semibold text-foreground">
           Nenhuma programação selecionada
         </h3>
 
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Selecione uma solicitação na lista para abrir o preview. Nenhuma
           programação é exibida automaticamente.
         </p>

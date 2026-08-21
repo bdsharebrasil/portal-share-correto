@@ -255,10 +255,10 @@ export function CategoriasCrud() {
         "group relative flex items-center justify-between p-5 rounded-xl border-2 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102 cursor-pointer",
         selectionMode && selectedIds.has(categoria.id)
           ? categoria.tipo === "receita"
-            ? "border-slate-500/80 bg-slate-900/20"
+            ? "border-slate-500/80 bg-card/20"
             : "border-amber-600/80 bg-amber-900/20"
           : categoria.tipo === "receita"
-            ? "border-slate-600/60 hover:border-slate-500/80 hover:bg-card/80"
+            ? "border-border/60 hover:border-slate-500/80 hover:bg-card/80"
             : "border-amber-700/60 hover:border-amber-600/80 hover:bg-card/80"
       )}
       onClick={() => selectionMode && toggleSelection(categoria.id)}
@@ -289,7 +289,7 @@ export function CategoriasCrud() {
               : "bg-amber-600/10"
           )}>
             {categoria.tipo === "receita" ? (
-              <ArrowUpCircle className="w-4 h-4 text-slate-500" />
+              <ArrowUpCircle className="w-4 h-4 text-muted-foreground" />
             ) : (
               <ArrowDownCircle className="w-4 h-4 text-amber-600" />
             )}
@@ -312,7 +312,7 @@ export function CategoriasCrud() {
               className={cn(
                 "text-xs border",
                 categoria.tipo === "receita"
-                  ? "border-slate-600/30 bg-slate-900/20 text-slate-400"
+                  ? "border-border/30 bg-card/20 text-muted-foreground"
                   : "border-amber-700/30 bg-amber-900/20 text-amber-500"
               )}
             >
@@ -333,11 +333,11 @@ export function CategoriasCrud() {
         <div className={cn(
         "text-center py-12 border-2 border-dashed rounded-lg backdrop-blur-sm transition-all duration-300",
         type === 'receita'
-          ? "border-slate-700/30 bg-slate-900/20 hover:border-slate-600/50"
+          ? "border-border/30 bg-card/20 hover:border-border/50"
           : "border-amber-700/30 bg-amber-900/20 hover:border-amber-600/50"
       )}>
         {type === 'receita' ? (
-          <TrendingUp className="h-10 w-10 mx-auto mb-3 text-slate-400" />
+          <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
         ) : (
           <TrendingDown className="h-10 w-10 mx-auto mb-3 text-amber-600" />
         )}
@@ -345,7 +345,7 @@ export function CategoriasCrud() {
           <Button
             variant="link"
             onClick={() => handleOpenDialog()}
-            className={cn("mt-2", type === 'receita' ? "text-slate-400" : "text-amber-600")}
+            className={cn("mt-2", type === 'receita' ? "text-muted-foreground" : "text-amber-600")}
           >
             Criar primeira categoria
           </Button>
@@ -360,30 +360,30 @@ export function CategoriasCrud() {
           const isExpanded = expandedGroups.has(groupName);
           
           const headerColor = type === 'receita'
-            ? (isExpanded ? "bg-slate-800/40 border-slate-500/30" : "bg-slate-800/40 border-slate-700/40")
-            : (isExpanded ? "bg-amber-900/40 border-amber-600/30" : "bg-slate-800/40 border-slate-700/40");
+            ? (isExpanded ? "bg-card-secondary/40 border-slate-500/30" : "bg-card-secondary/40 border-border/40")
+            : (isExpanded ? "bg-amber-900/40 border-amber-600/30" : "bg-card-secondary/40 border-border/40");
 
-          const iconColor = type === 'receita' ? "text-slate-400" : "text-amber-600";
+          const iconColor = type === 'receita' ? "text-muted-foreground" : "text-amber-600";
 
           return (
-            <div key={groupName} className="rounded-xl overflow-hidden border border-slate-800/50 shadow-sm group">
+            <div key={groupName} className="rounded-xl overflow-hidden border border-border/50 shadow-sm group">
               {/* CABEÇALHO DO GRUPO (CLICÁVEL) */}
               <div
                 onClick={() => toggleGroup(groupName)}
                 className={cn(
                   "flex items-center justify-between p-4 cursor-pointer transition-all duration-300 border-b",
                   headerColor,
-                  !isExpanded && "border-b-transparent hover:bg-slate-800/60"
+                  !isExpanded && "border-b-transparent hover:bg-card-secondary/60"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg bg-slate-950/30 border border-white/5", iconColor)}>
+                  <div className={cn("p-2 rounded-lg bg-background/30 border border-white/5", iconColor)}>
                     {isExpanded ? <FolderOpen className="w-5 h-5" /> : <Folder className="w-5 h-5" />}
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground text-sm md:text-base flex items-center gap-2">
                       {groupName}
-                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-slate-950/50 text-muted-foreground border-slate-800">
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-background/50 text-muted-foreground border-border">
                         {items.length}
                       </Badge>
                     </h3>
@@ -403,7 +403,7 @@ export function CategoriasCrud() {
                     className={cn(
                       "p-1.5 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 hover:bg-white/10",
                       type === 'receita'
-                        ? "text-slate-400 hover:text-slate-300"
+                        ? "text-muted-foreground hover:text-muted-foreground"
                         : "text-amber-500 hover:text-amber-400"
                     )}
                     title={`Adicionar ${type} neste grupo`}
@@ -421,7 +421,7 @@ export function CategoriasCrud() {
 
               {/* CONTEÚDO DO GRUPO (OS CARDS) */}
               <div className={cn(
-                "grid gap-3 transition-all duration-300 ease-in-out bg-slate-900/20",
+                "grid gap-3 transition-all duration-300 ease-in-out bg-card/20",
                 isExpanded ? "grid-rows-[1fr] opacity-100 p-4" : "grid-rows-[0fr] opacity-0 p-0"
               )}>
                 <div className="overflow-hidden min-h-0">
@@ -447,13 +447,13 @@ export function CategoriasCrud() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 shadow-2xl bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-xl">
+      <Card className="border-0 shadow-2xl bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-xl">
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-gradient-to-br from-slate-500/20 to-slate-600/20 border border-slate-500/30">
-                  <Sparkles className="w-5 h-5 text-slate-400" />
+                  <Sparkles className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-slate-300 via-slate-400 to-slate-400 bg-clip-text text-transparent">
                   Gerenciar Categorias
@@ -474,13 +474,13 @@ export function CategoriasCrud() {
               placeholder="Buscar categoria..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/60 focus:border-slate-500/60 transition-colors"
+              className="pl-10 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/60 focus:border-slate-500/60 transition-colors"
             />
           </div>
 
           {/* Tabs para Receitas e Despesas */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 bg-slate-800/40 border border-slate-700/40 p-1 rounded-lg">
+            <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 bg-card-secondary/40 border border-border/40 p-1 rounded-lg">
               <TabsTrigger
                 value="receita"
                 className="gap-2 rounded-md transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600/80 data-[state=active]:to-slate-700/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-slate-500/20 data-[state=inactive]:text-muted-foreground hover:text-foreground"
@@ -523,7 +523,7 @@ export function CategoriasCrud() {
                         onClick={() => handleActionOnSelected("edit")}
                         size="sm"
                         disabled={selectedIds.size !== 1}
-                        className={cn("bg-slate-600 hover:bg-slate-700 text-white", selectedIds.size !== 1 && "opacity-50 cursor-not-allowed")}
+                        className={cn("bg-muted hover:bg-secondary text-white", selectedIds.size !== 1 && "opacity-50 cursor-not-allowed")}
                       >
                         <Edit2 className="w-4 h-4 mr-2" />
                         Editar ({selectedIds.size})
@@ -544,14 +544,14 @@ export function CategoriasCrud() {
                         onClick={() => setSelectionMode(true)}
                         size="sm"
                         variant="outline"
-                        className="text-slate-400 border-slate-600/30 hover:bg-slate-900/20"
+                        className="text-muted-foreground border-border/30 hover:bg-card/20"
                       >
                         Selecionar
                       </Button>
                       <Button
                         onClick={() => handleOpenDialog()}
                         size="sm"
-                        className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-lg shadow-slate-500/30 transition-all duration-300 hover:scale-105"
+                        className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-card-secondary text-white shadow-lg shadow-slate-500/30 transition-all duration-300 hover:scale-105"
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Nova Receita
@@ -591,7 +591,7 @@ export function CategoriasCrud() {
                         onClick={() => handleActionOnSelected("edit")}
                         size="sm"
                         disabled={selectedIds.size !== 1}
-                        className={cn("bg-slate-600 hover:bg-slate-700 text-white", selectedIds.size !== 1 && "opacity-50 cursor-not-allowed")}
+                        className={cn("bg-muted hover:bg-secondary text-white", selectedIds.size !== 1 && "opacity-50 cursor-not-allowed")}
                       >
                         <Edit2 className="w-4 h-4 mr-2" />
                         Editar ({selectedIds.size})
@@ -638,11 +638,11 @@ export function CategoriasCrud() {
 
       {/* Dialog para confirmar ações nas selecionadas */}
       <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent className="max-w-md bg-gradient-to-br from-slate-900/95 to-slate-950/95 border-slate-700/50 backdrop-blur-xl">
+        <DialogContent className="max-w-md bg-gradient-to-br from-card/95 to-background/95 border-border/50 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className={cn(
               "flex items-center gap-3 text-lg font-bold",
-              actionType === "delete" ? "text-red-400" : "text-slate-400"
+              actionType === "delete" ? "text-red-400" : "text-muted-foreground"
             )}>
               {actionType === "delete" ? (
                 <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
@@ -650,7 +650,7 @@ export function CategoriasCrud() {
                 </div>
               ) : (
                 <div className="p-2 rounded-lg bg-slate-500/20 border border-slate-500/30">
-                  <Edit2 className="h-5 w-5 text-slate-400" />
+                  <Edit2 className="h-5 w-5 text-muted-foreground" />
                 </div>
               )}
               <span>
@@ -677,7 +677,7 @@ export function CategoriasCrud() {
             <Button
               variant="outline"
               onClick={() => setActionDialogOpen(false)}
-              className="border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"
+              className="border-border/60 hover:bg-card-secondary/50 text-foreground/80"
             >
               Cancelar
             </Button>
@@ -687,7 +687,7 @@ export function CategoriasCrud() {
                 "transition-all duration-300 shadow-lg",
                 actionType === "delete"
                   ? "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-red-500/30"
-                  : "bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-slate-500/30"
+                  : "bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-card-secondary text-white shadow-slate-500/30"
               )}
             >
               {actionType === "delete" ? "Deletar" : "Editar"}
@@ -698,17 +698,17 @@ export function CategoriasCrud() {
 
       {/* Dialog para adicionar/editar */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] bg-gradient-to-br from-slate-900/95 to-slate-950/95 border-slate-700/50 backdrop-blur-xl flex flex-col p-0">
+        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] bg-gradient-to-br from-card/95 to-background/95 border-border/50 backdrop-blur-xl flex flex-col p-0">
           <DialogHeader className="px-6 pt-6 pb-0 flex-shrink-0">
             <DialogTitle className={cn(
               "flex items-center gap-3 text-lg font-bold",
               formData.tipo === "receita"
-                ? "text-slate-400"
+                ? "text-muted-foreground"
                 : "text-amber-600"
             )}>
               {formData.tipo === "receita" ? (
                 <div className="p-2 rounded-lg bg-slate-500/20 border border-slate-500/30">
-                  <ArrowUpCircle className="h-5 w-5 text-slate-400" />
+                  <ArrowUpCircle className="h-5 w-5 text-muted-foreground" />
                 </div>
               ) : (
                 <div className="p-2 rounded-lg bg-amber-600/20 border border-amber-600/30">
@@ -730,7 +730,7 @@ export function CategoriasCrud() {
                   ...prev,
                   grupo_categoria: e.target.value
                 }))}
-                className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Define o grupo/agrupamento da categoria
@@ -747,7 +747,7 @@ export function CategoriasCrud() {
                   ...prev,
                   nome: e.target.value
                 }))}
-                className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Nome da categoria dentro do grupo
@@ -763,13 +763,13 @@ export function CategoriasCrud() {
                   tipo: value as "receita" | "despesa"
                 }))}
               >
-                <SelectTrigger className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground focus:border-blue-500/60 transition-colors">
+                <SelectTrigger className="mt-1 bg-card-secondary/50 border-border/60 text-foreground focus:border-blue-500/60 transition-colors">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
+                <SelectContent className="bg-card/95 border-border/50 backdrop-blur-xl">
                   <SelectItem value="receita">
                     <span className="flex items-center gap-2">
-                      <ArrowUpCircle className="h-4 w-4 text-slate-400" />
+                      <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
                       Receita
                     </span>
                   </SelectItem>
@@ -794,7 +794,7 @@ export function CategoriasCrud() {
                   descricao: e.target.value
                 }))}
                 rows={3}
-                className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
             </div>
 
@@ -808,10 +808,10 @@ export function CategoriasCrud() {
                     reembolsavel: value === "sim"
                   }))}
                 >
-                  <SelectTrigger className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground focus:border-amber-600/60 transition-colors">
+                  <SelectTrigger className="mt-1 bg-card-secondary/50 border-border/60 text-foreground focus:border-amber-600/60 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
+                  <SelectContent className="bg-card/95 border-border/50 backdrop-blur-xl">
                     <SelectItem value="sim">
                       <span className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-amber-500" />
@@ -820,7 +820,7 @@ export function CategoriasCrud() {
                     </SelectItem>
                     <SelectItem value="nao">
                       <span className="flex items-center gap-2">
-                        <X className="h-4 w-4 text-slate-400" />
+                        <X className="h-4 w-4 text-muted-foreground" />
                         Não
                       </span>
                     </SelectItem>
@@ -834,12 +834,12 @@ export function CategoriasCrud() {
 
           </div>
 
-          <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-slate-700/30 gap-3">
+          <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border/30 gap-3">
             <Button
               variant="outline"
               onClick={() => setShowDialog(false)}
               disabled={isSaving}
-              className="border-slate-700/60 hover:bg-slate-800/50 text-foreground/80 flex-1"
+              className="border-border/60 hover:bg-card-secondary/50 text-foreground/80 flex-1"
             >
               Cancelar
             </Button>
@@ -848,7 +848,7 @@ export function CategoriasCrud() {
               className={cn(
                 "transition-all duration-300 shadow-lg flex-1",
                 formData.tipo === "receita"
-                  ? "bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white shadow-slate-500/30"
+                  ? "bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-card-secondary text-white shadow-slate-500/30"
                   : "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shadow-amber-600/30"
               )}
               disabled={isSaving}

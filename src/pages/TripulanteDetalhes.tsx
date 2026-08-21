@@ -142,33 +142,33 @@ export default function TripulanteDetalhes() {
         : null;
 
     if (!expiryDate || isNaN(expiryDate.getTime()))
-      return { bg: "bg-slate-900/80", border: "border-slate-700/60" };
+      return { bg: "bg-card/80", border: "border-border/60" };
 
     const daysUntil = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (daysUntil < 0) return { bg: "bg-slate-900/80", border: "border-red-500/30" };
-    if (daysUntil <= 60) return { bg: "bg-slate-900/80", border: "border-amber-500/30" };
-    return { bg: "bg-slate-900/80", border: "border-emerald-500/30" };
+    if (daysUntil < 0) return { bg: "bg-card/80", border: "border-red-500/30" };
+    if (daysUntil <= 60) return { bg: "bg-card/80", border: "border-amber-500/30" };
+    return { bg: "bg-card/80", border: "border-emerald-500/30" };
   };
 
   // tipo_habilitacao — campo real
   const getLicenseColorClass = (licenseType: string) => {
     const type = (licenseType || "").toLowerCase().trim();
     const colorMap: Record<string, { bg: string; border: string; text: string; labelText: string }> = {
-      ppl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      comercial: { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      ifr:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      mpl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      atpl:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      cpl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      asel:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      ases:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      mel:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
-      mes:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      ppl:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      comercial: { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      ifr:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      mpl:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      atpl:      { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      cpl:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      asel:      { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      ases:      { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      mel:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
+      mes:       { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" },
     };
     for (const [key, colors] of Object.entries(colorMap)) {
       if (type.includes(key) || key.includes(type)) return colors;
     }
-    return { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" };
+    return { bg: "bg-card/80", border: "border-border/60", text: "text-muted-foreground", labelText: "text-muted-foreground" };
   };
 
   // ── Documentos (storage) ───────────────────────────────────────────────────
@@ -236,34 +236,34 @@ export default function TripulanteDetalhes() {
     <Layout>
       <div className="p-6 space-y-8">
         {/* Header do tripulante */}
-        <Card className="border border-slate-800/70 bg-slate-950/80 shadow-sm">
+        <Card className="border border-border/70 bg-background/80 shadow-sm">
           <CardContent className="p-0 overflow-hidden rounded-3xl">
-            <div className="relative bg-slate-950 border border-slate-800/70 p-5 md:p-6">
+            <div className="relative bg-background border border-border/70 p-5 md:p-6">
               <Button
                 variant="ghost"
                 onClick={() => navigate("/tripulacao")}
-                className="absolute right-4 top-4 h-10 w-10 p-0 bg-slate-900/80 hover:bg-slate-800 text-slate-200 rounded-full"
+                className="absolute right-4 top-4 h-10 w-10 p-0 bg-card/80 hover:bg-card-secondary text-foreground rounded-full"
                 aria-label="Voltar"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
               <div className="flex flex-col xl:flex-row items-start xl:items-center gap-5">
-                <Avatar className="h-24 w-24 ring-1 ring-slate-700/70 flex-shrink-0">
+                <Avatar className="h-24 w-24 ring-1 ring-border/70 flex-shrink-0">
                   <AvatarImage src={member.url_avatar || undefined} alt={member.nome_completo} className="object-cover" />
-                  <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-2xl">
+                  <AvatarFallback className="bg-card-secondary text-muted-foreground font-bold text-2xl">
                     {(member.nome_completo || "?").split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
                   <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-3">{member.nome_completo}</h1>
-                  <div className="flex flex-wrap gap-3 items-center text-sm text-slate-300">
-                    <Badge className="bg-slate-900/80 border border-slate-700/60 text-slate-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  <div className="flex flex-wrap gap-3 items-center text-sm text-muted-foreground">
+                    <Badge className="bg-card/80 border border-border/60 text-foreground text-xs font-semibold px-3 py-1 rounded-full">
                        ANAC: {member.canac || "N/A"}
                     </Badge>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-slate-400" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>{member.data_nascimento ? formatBirthDateWithAge(member.data_nascimento) : "Data de nascimento não informada"}</span>
                     </div>
 
@@ -272,16 +272,16 @@ export default function TripulanteDetalhes() {
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Habilitações</p>
+                <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Habilitações</p>
                   <p className="mt-2 text-lg font-semibold text-white">{licenses.length}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Escalas futuras</p>
+                <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Escalas futuras</p>
                   <p className="mt-2 text-lg font-semibold text-white">{schedules.length}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Aprovações pendentes</p>
+                <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Aprovações pendentes</p>
                   <p className="mt-2 text-lg font-semibold text-white">{pendingApprovals.length}</p>
                 </div>
               </div>
@@ -289,55 +289,55 @@ export default function TripulanteDetalhes() {
           </CardContent>
         </Card>
 
-        <Card className="border border-slate-800/70 bg-slate-950/80 shadow-sm">
+        <Card className="border border-border/70 bg-background/80 shadow-sm">
           <CardContent className="p-5">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
               <CrewMemberNav activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
 
               {/* Dados */}
               <TabsContent value="dados" className="mt-6 space-y-6">
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5">
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-5">
                   <div className="flex items-center justify-between gap-4 mb-6">
                     <div>
                       <h3 className="text-xl md:text-2xl font-semibold text-white">Informações Pessoais</h3>
-                      <p className="text-sm text-slate-400">Visão consolidada dos dados básicos e contato.</p>
+                      <p className="text-sm text-muted-foreground">Visão consolidada dos dados básicos e contato.</p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-slate-500">
-                      <span className="rounded-full bg-slate-900/80 px-3 py-2">Perfil</span>
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                      <span className="rounded-full bg-card/80 px-3 py-2">Perfil</span>
                     </div>
                   </div>
                   <dl className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Nome completo</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.nome_completo || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Nome completo</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.nome_completo || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">CANAC</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.canac || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">CANAC</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.canac || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Data de nascimento</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.data_nascimento ? formatDateToBR(member.data_nascimento) : <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Data de nascimento</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.data_nascimento ? formatDateToBR(member.data_nascimento) : <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Data de admissão</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).data_admissao ? formatDateToBR((member as any).data_admissao) : <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Data de admissão</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).data_admissao ? formatDateToBR((member as any).data_admissao) : <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Telefone</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{member.telefone || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Telefone</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.telefone || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">RG</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).rg || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">RG</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).rg || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">CPF</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).cpf || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">CPF</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).cpf || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4 md:col-span-2">
-                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Endereço</dt>
-                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).endereco || <span className="text-slate-600 italic text-base font-normal">Sem informação</span>}</dd>
+                    <div className="rounded-2xl border border-border/70 bg-card/80 p-4 md:col-span-2">
+                      <dt className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Endereço</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{(member as any).endereco || <span className="text-muted-foreground italic text-base font-normal">Sem informação</span>}</dd>
                     </div>
                   </dl>
                 </div>
@@ -346,23 +346,23 @@ export default function TripulanteDetalhes() {
               {/* Habilitações */}
               <TabsContent value="habilitacoes" className="mt-6 space-y-6">
                 <div className="flex justify-end">
-                  <Button onClick={() => setAddLicenseDialogOpen(true)} className="bg-slate-700/90 hover:bg-slate-600/90 text-white shadow-sm">
+                  <Button onClick={() => setAddLicenseDialogOpen(true)} className="bg-secondary/90 hover:bg-muted/90 text-white shadow-sm">
                     <Plus className="mr-2 h-4 w-4" /> Nova Habilitação
                   </Button>
                 </div>
 
                 {isLicensesLoading ? (
-                  <div className="text-center py-12 text-sm text-slate-400">Carregando habilitações...</div>
+                  <div className="text-center py-12 text-sm text-muted-foreground">Carregando habilitações...</div>
                 ) : licenses.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-slate-400">Nenhuma habilitação cadastrada</div>
+                  <div className="text-center py-12 text-sm text-muted-foreground">Nenhuma habilitação cadastrada</div>
                 ) : (
                   <div className="space-y-8">
                     {/* Habilitações técnicas (sem CMA) */}
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-sm">
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-5 shadow-sm">
                       <div className="flex items-center justify-between gap-4 mb-5">
                         <div>
                           <h3 className="text-lg font-semibold text-white">Habilitações Técnicas</h3>
-                          <p className="text-sm text-slate-400">Todas as licenças ativas e em acompanhamento.</p>
+                          <p className="text-sm text-muted-foreground">Todas as licenças ativas e em acompanhamento.</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -375,21 +375,21 @@ export default function TripulanteDetalhes() {
                               <div key={lic.id} className={`${statusColor.bg} border ${statusColor.border} rounded-2xl p-4 transition-colors`}> 
                                         <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="text-sm font-semibold text-slate-100">{lic.tipo_habilitacao}</div>
-                                    <p className="text-xs text-slate-400 mt-1">Licença técnica</p>
+                                    <div className="text-sm font-semibold text-foreground">{lic.tipo_habilitacao}</div>
+                                    <p className="text-xs text-muted-foreground mt-1">Licença técnica</p>
                                   </div>
                                   {getLicenseStatusBadge(lic, false, () => handleEditLicense(lic, false))}
                                 </div>
-                                <div className="mt-4 text-sm space-y-3 text-slate-200">
+                                <div className="mt-4 text-sm space-y-3 text-foreground">
                                   {lic.data_validade ? (
-                                    <div className="flex justify-between text-xs text-slate-400">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
                                       <span>Validade</span>
-                                      <span className="font-medium text-slate-100">{formatDateToBR(lic.data_validade)}</span>
+                                      <span className="font-medium text-foreground">{formatDateToBR(lic.data_validade)}</span>
                                     </div>
                                   ) : null}
                                 </div>
                                 {lic.observacao ? (
-                                  <div className="mt-4 text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-2xl border border-slate-800/60">
+                                  <div className="mt-4 text-xs text-muted-foreground italic bg-card/60 p-3 rounded-2xl border border-border/60">
                                     {lic.observacao}
                                   </div>
                                 ) : null}
@@ -400,11 +400,11 @@ export default function TripulanteDetalhes() {
                     </div>
 
                     {/* CMA */}
-                    <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-sm">
+                    <div className="rounded-2xl border border-border/70 bg-background/80 p-5 shadow-sm">
                       <div className="flex items-center justify-between gap-4 mb-5">
                         <div>
                           <h3 className="text-lg font-semibold text-white">Certificado Médico Aeronáutico</h3>
-                          <p className="text-sm text-slate-400">Controle de validade e informações complementares.</p>
+                          <p className="text-sm text-muted-foreground">Controle de validade e informações complementares.</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -416,33 +416,33 @@ export default function TripulanteDetalhes() {
                               <div key={`${lic.id}-cma`} className={`${statusColor.bg} border ${statusColor.border} rounded-2xl p-4 transition-colors`}> 
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="text-sm font-semibold text-slate-100">CMA</div>
-                                    <p className="text-xs text-slate-400 mt-1">Certificado Médico Aeronáutico</p>
+                                    <div className="text-sm font-semibold text-foreground">CMA</div>
+                                    <p className="text-xs text-muted-foreground mt-1">Certificado Médico Aeronáutico</p>
                                   </div>
                                   {getLicenseStatusBadge(lic, true, () => handleEditLicense(lic, true))}
                                 </div>
-                                <div className="mt-4 text-sm space-y-3 text-slate-200">
+                                <div className="mt-4 text-sm space-y-3 text-foreground">
                                   {lic.CMA ? (
-                                    <div className="flex justify-between text-xs text-slate-400">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
                                       <span>Classe</span>
-                                      <span className="font-medium text-slate-100">{lic.CMA === 'primeira' ? '1° Classe' : lic.CMA === 'segunda' ? '2° Classe' : lic.CMA}</span>
+                                      <span className="font-medium text-foreground">{lic.CMA === 'primeira' ? '1° Classe' : lic.CMA === 'segunda' ? '2° Classe' : lic.CMA}</span>
                                     </div>
                                   ) : null}
                                   {lic.validade_cma ? (
-                                    <div className="flex justify-between text-xs text-slate-400">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
                                       <span>Validade</span>
-                                      <span className="font-medium text-slate-100">{formatDateToBR(lic.validade_cma)}</span>
+                                      <span className="font-medium text-foreground">{formatDateToBR(lic.validade_cma)}</span>
                                     </div>
                                   ) : null}
                                   {lic.FS_RH ? (
-                                    <div className="flex justify-between text-xs text-slate-400">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
                                       <span>FS/RH</span>
-                                      <span className="font-medium text-slate-100">{lic.FS_RH}</span>
+                                      <span className="font-medium text-foreground">{lic.FS_RH}</span>
                                     </div>
                                   ) : null}
                                 </div>
                                 {lic.observacao ? (
-                                  <div className="mt-4 text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-2xl border border-slate-800/60">
+                                  <div className="mt-4 text-xs text-muted-foreground italic bg-card/60 p-3 rounded-2xl border border-border/60">
                                     {lic.observacao}
                                   </div>
                                 ) : null}
@@ -458,22 +458,22 @@ export default function TripulanteDetalhes() {
               {/* Escala (lancamentos_diario_bordo) */}
               <TabsContent value="escala" className="mt-6 space-y-4">
                 {isSchedulesLoading ? (
-                  <div className="text-sm text-slate-400">Carregando...</div>
+                  <div className="text-sm text-muted-foreground">Carregando...</div>
                 ) : schedules.length === 0 ? (
-                  <div className="text-sm text-slate-400">Nenhuma escala programada</div>
+                  <div className="text-sm text-muted-foreground">Nenhuma escala programada</div>
                 ) : (
                   <div className="space-y-4">
                     {(schedules as any[]).map((s: any) => (
-                      <div key={s.id} className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-4 shadow-sm">
+                      <div key={s.id} className="rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm">
                         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                           <div className="flex items-center gap-4">
-                            <div className="rounded-2xl bg-slate-900/80 p-3 text-center min-w-[70px]">
+                            <div className="rounded-2xl bg-card/80 p-3 text-center min-w-[70px]">
                               <p className="text-3xl font-semibold text-white">{new Date(s.data_registro + 'T00:00:00').getDate()}</p>
-                              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{formatMonthShort(s.data_registro)}</p>
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{formatMonthShort(s.data_registro)}</p>
                             </div>
                             <div>
                               <p className="text-lg font-semibold text-white">{s.aerodromo_partida} → {s.aerodromo_chegada}</p>
-                              <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-400">
+                              <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
                                 <span className="inline-flex items-center gap-2">
                                   <Clock className="h-4 w-4" />
                                   {s.natureza_voo}
@@ -499,29 +499,29 @@ export default function TripulanteDetalhes() {
 
               {/* Aprovações pendentes */}
               <TabsContent value="aprovacoes-pendentes" className="mt-6 space-y-6">
-                <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-4 shadow-sm">
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-4 mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-white">Relatórios para Aprovação</h3>
-                      <p className="text-sm text-slate-400">Acompanhe as pendências e aprove no fluxo de voo.</p>
+                      <p className="text-sm text-muted-foreground">Acompanhe as pendências e aprove no fluxo de voo.</p>
                     </div>
                   </div>
                   {isApprovalsLoading ? (
-                    <div className="text-center py-12 text-sm text-slate-400">Carregando relatórios pendentes...</div>
+                    <div className="text-center py-12 text-sm text-muted-foreground">Carregando relatórios pendentes...</div>
                   ) : pendingApprovals.length === 0 ? (
-                    <div className="text-center py-12 text-sm text-slate-400">Nenhum relatório pendente de aprovação</div>
+                    <div className="text-center py-12 text-sm text-muted-foreground">Nenhum relatório pendente de aprovação</div>
                   ) : (
                     <div className="space-y-4">
                       {pendingApprovals.map((report: any) => (
-                        <Card key={report.id} className="border border-slate-800/70 bg-slate-950/85 shadow-sm rounded-2xl">
+                        <Card key={report.id} className="border border-border/70 bg-background/85 shadow-sm rounded-2xl">
                           <CardContent className="p-5">
                             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3">
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold text-lg text-white mb-1">{report.numero_relatorio}</h4>
-                                <p className="text-sm text-slate-400 truncate">{report.cliente?.razao_social}</p>
-                                <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-400">
+                                <p className="text-sm text-muted-foreground truncate">{report.cliente?.razao_social}</p>
+                                <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
                                   <span>📅 {formatDateToBR(report.data_inicio)} até {formatDateToBR(report.data_fim)}</span>
-                                  <span className="font-semibold text-slate-100">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</span>
+                                  <span className="font-semibold text-foreground">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</span>
                                 </div>
                               </div>
                               <Badge variant={report.crew_approval_status === 'pending' ? 'secondary' : 'destructive'}>
@@ -534,7 +534,7 @@ export default function TripulanteDetalhes() {
                               </div>
                             )}
                             {report.crew_approval_status === 'pending' && (
-                              <Button onClick={() => window.open(`${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`, '_blank')} className="w-full bg-slate-700/90 hover:bg-slate-600/90 text-white shadow-sm">
+                              <Button onClick={() => window.open(`${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`, '_blank')} className="w-full bg-secondary/90 hover:bg-muted/90 text-white shadow-sm">
                                 Visualizar resumo relatório
                               </Button>
                             )}

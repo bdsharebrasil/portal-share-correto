@@ -308,7 +308,7 @@ export default function AeronaveDetalhes() {
   return <Layout>
       <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
+        <div className="bg-gradient-to-r from-card-secondary to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-xl" onClick={() => navigate("/aeronaves")}>
@@ -383,14 +383,14 @@ export default function AeronaveDetalhes() {
         </div>
 
         {/* Clients Line */}
-        {clients && clients.length > 0 && <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+        {clients && clients.length > 0 && <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-card to-card-secondary dark:from-background dark:to-card">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="h-12 w-12 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
                   <Users className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-3">Clientes Vinculados</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">Clientes Vinculados</p>
                   <div className="flex flex-wrap gap-2">
                     {clients.map((c, i) => <Badge key={i} className="rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 text-cyan-200 border-cyan-500/50 text-xs font-medium px-3 py-1.5 hover:from-cyan-600/40 hover:to-blue-600/40 transition-colors">
                         {c.clients?.razao_social || "Sem nome"}
@@ -403,7 +403,7 @@ export default function AeronaveDetalhes() {
           </Card>}
 
         {/* Informações Técnicas */}
-        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-card to-card-secondary dark:from-background dark:to-card">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-xl text-white">
               <Wrench className="h-5 w-5 text-purple-400" />
@@ -412,23 +412,23 @@ export default function AeronaveDetalhes() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 py-0 px-0 my-0 mx-[3px]">
-              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Nº Série</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.numero_serie || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-card-secondary/60 to-slate-700/40 rounded-xl border border-border/50 hover:border-border/70 transition-colors">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Nº Série</p>
+                <p className="text-base font-bold text-foreground">{aircraft.numero_serie || "N/A"}</p>
               </div>
-              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Fabricante</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.fabricante || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-card-secondary/60 to-slate-700/40 rounded-xl border border-border/50 hover:border-border/70 transition-colors">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Fabricante</p>
+                <p className="text-base font-bold text-foreground">{aircraft.fabricante || "N/A"}</p>
               </div>
-              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Modelo</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.modelo || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-card-secondary/60 to-slate-700/40 rounded-xl border border-border/50 hover:border-border/70 transition-colors">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Modelo</p>
+                <p className="text-base font-bold text-foreground">{aircraft.modelo || "N/A"}</p>
               </div>
               
               
-              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Proprietário</p>
-                <p className="text-base font-bold text-slate-100 truncate">{aircraft.nome_proprietario || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-card-secondary/60 to-slate-700/40 rounded-xl border border-border/50 hover:border-border/70 transition-colors">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Proprietário</p>
+                <p className="text-base font-bold text-foreground truncate">{aircraft.nome_proprietario || "N/A"}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-amber-900/30 to-amber-800/20 rounded-xl border border-amber-700/50 hover:border-amber-600/70 transition-colors">
                 <p className="text-xs text-amber-300 uppercase tracking-wider font-medium mb-2">Valor Hora</p>
@@ -440,7 +440,7 @@ export default function AeronaveDetalhes() {
         </Card>
 
         {/* Documents Section */}
-        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-card to-card-secondary dark:from-background dark:to-card">
           <CardHeader className="pb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -448,7 +448,7 @@ export default function AeronaveDetalhes() {
                   <FileText className="h-6 w-6 text-cyan-400" />
                   Documentos da Aeronave
                 </CardTitle>
-                <CardDescription className="mt-2 text-slate-400">
+                <CardDescription className="mt-2 text-muted-foreground">
                   Gerencie os documentos obrigatórios e certificados
                 </CardDescription>
               </div>
@@ -461,10 +461,10 @@ export default function AeronaveDetalhes() {
               const Icon = docType.icon;
               const expired = doc ? isDocumentExpired(doc.expiry_date) : false;
               const expiringSoon = doc ? isDocumentExpiringSoon(doc.expiry_date, doc.alert_days) : false;
-              return <div key={docType.key} className={`p-6 rounded-2xl border-2 transition-all flex flex-col h-full ${doc ? expired ? "border-red-500/40 bg-gradient-to-br from-red-950/40 to-red-900/20 hover:border-red-500/60" : expiringSoon ? "border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-amber-900/20 hover:border-amber-500/60" : "border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 hover:border-emerald-500/60" : "border-dashed border-slate-600/50 bg-slate-800/30 hover:border-cyan-500/50 hover:bg-slate-800/50"}`}>
+              return <div key={docType.key} className={`p-6 rounded-2xl border-2 transition-all flex flex-col h-full ${doc ? expired ? "border-red-500/40 bg-gradient-to-br from-red-950/40 to-red-900/20 hover:border-red-500/60" : expiringSoon ? "border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-amber-900/20 hover:border-amber-500/60" : "border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 hover:border-emerald-500/60" : "border-dashed border-border/50 bg-card-secondary/30 hover:border-cyan-500/50 hover:bg-card-secondary/50"}`}>
                     {/* Icon and Title */}
                     <div className="mb-4">
-                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 mb-3 ${doc ? expired ? "bg-red-500/20" : expiringSoon ? "bg-amber-500/20" : "bg-emerald-500/20" : "bg-slate-700/50"}`}>
+                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 mb-3 ${doc ? expired ? "bg-red-500/20" : expiringSoon ? "bg-amber-500/20" : "bg-emerald-500/20" : "bg-secondary/50"}`}>
                         <Icon className={`h-6 w-6 ${doc ? expired ? "text-red-400" : expiringSoon ? "text-amber-400" : "text-emerald-400" : docType.color}`} />
                       </div>
                       <p className="font-semibold text-sm text-white">{docType.label}</p>
@@ -474,10 +474,10 @@ export default function AeronaveDetalhes() {
                     <div className="flex-1">
                       {doc ? <div className="space-y-3">
                           <div className="space-y-1">
-                            <p className="text-xs text-slate-400 uppercase tracking-wide">Arquivo</p>
-                            <p className="text-xs text-slate-300 font-medium truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Arquivo</p>
+                            <p className="text-xs text-muted-foreground font-medium truncate">{doc.name}</p>
                           </div>
-                          {doc.expiry_date && <div className="pt-2 border-t border-slate-700/50">
+                          {doc.expiry_date && <div className="pt-2 border-t border-border/50">
                               {expired ? <Badge variant="destructive" className="text-xs rounded-lg w-full text-center justify-center">
                                   Vencido em {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
                                 </Badge> : expiringSoon ? <Badge className="text-xs rounded-lg w-full text-center justify-center bg-amber-500/20 text-amber-300 border-amber-500/30">
@@ -487,12 +487,12 @@ export default function AeronaveDetalhes() {
                                 </Badge>}
                             </div>}
                         </div> : <div className="text-center py-2">
-                          <p className="text-xs text-slate-500">Nenhum documento anexado</p>
+                          <p className="text-xs text-muted-foreground">Nenhum documento anexado</p>
                         </div>}
                     </div>
 
                     {/* Actions */}
-                    <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-2">
+                    <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
                       {doc && <div className="flex gap-2">
                           <Button size="sm" variant="ghost" className="h-8 px-2 rounded-lg text-xs flex-1" onClick={() => handleViewDocument(doc)}>
                             <Eye className="h-3.5 w-3.5 mr-1" />
@@ -506,7 +506,7 @@ export default function AeronaveDetalhes() {
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>}
-                      <Button size="sm" className={`w-full rounded-xl font-medium transition-all ${doc ? "bg-slate-700/50 hover:bg-slate-600/70 text-slate-200" : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20"}`} onClick={() => {
+                      <Button size="sm" className={`w-full rounded-xl font-medium transition-all ${doc ? "bg-secondary/50 hover:bg-muted/70 text-foreground" : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20"}`} onClick={() => {
                     setSelectedDocType(docType.key);
                     setUploadDialogOpen(true);
                   }}>

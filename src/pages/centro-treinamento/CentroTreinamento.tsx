@@ -66,7 +66,7 @@ const menuCards = [
     href: "/centro-treinamento/treinamento",
     icon: GraduationCap,
     iconClass:
-      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-400/15",
+      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-muted-foreground dark:border-slate-400/15",
   },
   {
     title: "Manual do sistema",
@@ -90,7 +90,7 @@ function getMeetingStatus(status: TrainingMeeting["status"]) {
       return {
         label: "Encerrada",
         className:
-          "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400",
+          "border-slate-200 bg-slate-100 text-muted-foreground dark:border-border dark:bg-card-secondary/70 dark:text-muted-foreground",
       };
 
     case "em_andamento":
@@ -287,7 +287,7 @@ export default function CentroTreinamento() {
 
           <div className="share-card">
             <div className="flex items-center gap-4 p-5">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 dark:border-border dark:bg-card-secondary/70 dark:text-muted-foreground">
                 <CalendarDays className="size-4.5" />
               </div>
 

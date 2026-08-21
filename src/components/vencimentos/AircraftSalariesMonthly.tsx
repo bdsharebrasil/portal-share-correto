@@ -310,9 +310,9 @@ export function AircraftSalariesMonthly() {
             </div>
           </div>
 
-          <div className="bg-slate-950 border border-blue-400/30 rounded-lg p-4 mb-6">
-            <Label className="text-sm font-semibold mb-2 block text-slate-200 bg-slate-900 px-2 py-1 rounded inline-block">Adicionar Aeronave</Label>
-            <div className="flex gap-2 text-slate-400">
+          <div className="bg-background border border-blue-400/30 rounded-lg p-4 mb-6">
+            <Label className="text-sm font-semibold mb-2 block text-foreground bg-card px-2 py-1 rounded inline-block">Adicionar Aeronave</Label>
+            <div className="flex gap-2 text-muted-foreground">
               <Select value={selectedAircraftToAdd} onValueChange={setSelectedAircraftToAdd}>
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Selecione uma aeronave" />

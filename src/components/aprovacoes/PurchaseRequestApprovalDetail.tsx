@@ -35,7 +35,7 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 };
 
 const PRIORITY_MAP: Record<string, { label: string; className: string }> = {
-  baixa: { label: "Baixa", className: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+  baixa: { label: "Baixa", className: "bg-slate-500/10 text-muted-foreground border-slate-500/20" },
   media: { label: "Média", className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
   alta: { label: "Alta", className: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
   urgente: { label: "Urgente", className: "bg-red-500/10 text-red-400 border-red-500/20" },

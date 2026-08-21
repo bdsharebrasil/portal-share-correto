@@ -161,7 +161,7 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
                   <div key={r.id || i} className="grid grid-cols-1 gap-3 md:grid-cols-3 items-end">
                     <div>
                       <Label>Cliente / Cotista</Label>
-                      <div className="text-sm text-slate-200">{r.clientes_nome || r.socios_nome || "—"}</div>
+                      <div className="text-sm text-foreground">{r.clientes_nome || r.socios_nome || "—"}</div>
                     </div>
                     <div>
                       <Label>Valor pago pelo cliente</Label>

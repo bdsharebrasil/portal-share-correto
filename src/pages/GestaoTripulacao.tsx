@@ -335,7 +335,7 @@ function RelationshipBadge({
       className="
         border-slate-500/30
         bg-slate-500/10
-        text-slate-300
+        text-muted-foreground
         font-semibold
         gap-1.5
       "

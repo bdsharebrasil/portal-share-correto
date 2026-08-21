@@ -35,13 +35,13 @@ export function MaintenanceInfo({ sharePercentage, fuelCost }: MaintenanceInfoPr
         </CardContent>
       </Card>
 
-      <div className="space-y-4 p-6 bg-slate-800/40 rounded-lg border border-slate-700/50 shadow-lg backdrop-blur-sm">
+      <div className="space-y-4 p-6 bg-card-secondary/40 rounded-lg border border-border/50 shadow-lg backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Gauge className="h-6 w-6 text-blue-400" />
           <h4 className="font-semibold text-white text-lg">Desgaste dos Pneus</h4>
         </div>
         <Progress value={maintenanceData.tireWear} className="h-4" />
-        <div className="flex justify-between text-base text-slate-300">
+        <div className="flex justify-between text-base text-muted-foreground">
           <span>{maintenanceData.tireWear}% de desgaste</span>
           <span>{100 - maintenanceData.tireWear}% de vida útil restante</span>
         </div>
@@ -80,7 +80,7 @@ export function MaintenanceInfo({ sharePercentage, fuelCost }: MaintenanceInfoPr
         </Badge>
       </div>
 
-      <div className="text-base text-slate-300 p-5 bg-slate-800/40 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+      <div className="text-base text-muted-foreground p-5 bg-card-secondary/40 rounded-lg border border-border/50 backdrop-blur-sm">
         <p>
           <strong className="text-white">Última manutenção:</strong> {new Date(maintenanceData.lastMaintenance).toLocaleDateString("pt-BR")}
         </p>

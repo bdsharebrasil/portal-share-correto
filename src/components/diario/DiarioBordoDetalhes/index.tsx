@@ -826,10 +826,10 @@ function DiarioBordoDetalhes() {
   if (loading || !aircraftId) {
     return (
       <Layout>
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-card flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-4 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">Carregando diário...</p>
+            <div className="w-10 h-10 border-4 border-border border-t-cyan-400 rounded-full animate-spin" />
+            <p className="text-muted-foreground text-sm">Carregando diário...</p>
           </div>
         </div>
       </Layout>
@@ -839,8 +839,8 @@ function DiarioBordoDetalhes() {
   if (!aeronave) {
     return (
       <Layout>
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-          <p className="text-slate-400">Aeronave não encontrada</p>
+        <div className="min-h-screen bg-card flex items-center justify-center">
+          <p className="text-muted-foreground">Aeronave não encontrada</p>
         </div>
       </Layout>
     );
@@ -854,13 +854,13 @@ function DiarioBordoDetalhes() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-card">
         <div className="max-w-[1800px] mx-auto px-4 py-4 md:px-6 md:py-5 space-y-4">
 
           {/* ── HEADER ──────────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={() => navigate('/diario-bordo')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:border-slate-600 transition-all">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-white hover:border-border transition-all">
               <ArrowLeft className="w-3.5 h-3.5" /> Voltar
             </button>
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -871,14 +871,14 @@ function DiarioBordoDetalhes() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/70 px-3 py-2">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card-secondary/70 px-3 py-2">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-4 rounded-full bg-blue-400" />
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-400">Período</span>
                 </div>
                 <div className="flex gap-1">
                   <select value={mes!} onChange={(e) => setMes(Number(e.target.value))}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                    className="rounded-md border border-border bg-card px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
                     {monthNames.map((m, i) => {
                       const hasData = availableMeses.some(am => am.ano === ano && am.mes === i + 1);
                       if (!hasData) return null;
@@ -886,7 +886,7 @@ function DiarioBordoDetalhes() {
                     })}
                   </select>
                   <select value={ano!} onChange={(e) => setAno(Number(e.target.value))}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                    className="rounded-md border border-border bg-card px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
                     {Array.from(new Set(availableMeses.map(am => am.ano)))
                       .sort((a, b) => b - a)
                       .map((y) => <option key={y} value={y}>{y}</option>)}
@@ -924,7 +924,7 @@ function DiarioBordoDetalhes() {
                 transition={{ duration: 0.22 }}
                 className="overflow-hidden"
               >
-                <div className="rounded-xl border border-cyan-500/30 bg-slate-800/70 backdrop-blur-sm shadow-lg shadow-cyan-500/5">
+                <div className="rounded-xl border border-cyan-500/30 bg-card-secondary/70 backdrop-blur-sm shadow-lg shadow-cyan-500/5">
                   <NovoVooInline
                     aeronave={aeronave} mes={mes!} ano={ano!} modoCelula={modoCelula}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
@@ -951,7 +951,7 @@ function DiarioBordoDetalhes() {
                 transition={{ duration: 0.22 }}
                 className="overflow-hidden"
               >
-                <div className="rounded-xl border border-amber-500/30 bg-slate-800/70 backdrop-blur-sm shadow-lg shadow-amber-500/5">
+                <div className="rounded-xl border border-amber-500/30 bg-card-secondary/70 backdrop-blur-sm shadow-lg shadow-amber-500/5">
                   <EditarVooInline
                     lanc={editingLanc} aeronave={aeronave}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
@@ -975,13 +975,13 @@ function DiarioBordoDetalhes() {
                 transition={{ duration: 0.22 }}
                 className="overflow-hidden"
               >
-                <div className="rounded-xl border border-amber-500/30 bg-slate-800/70">
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/50">
+                <div className="rounded-xl border border-amber-500/30 bg-card-secondary/70">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
                     <div className="flex items-center gap-2">
                       <Droplets className="w-4 h-4 text-amber-400" />
                       <span className="text-sm font-semibold text-white">Consumo de Combustível</span>
                     </div>
-                    <button onClick={() => setActivePanel("none")} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    <button onClick={() => setActivePanel("none")} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-secondary transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -1006,11 +1006,11 @@ function DiarioBordoDetalhes() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
             {/* Card 1 – Aeronave + Célula */}
-            <div className="lg:col-span-2 bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
+            <div className="lg:col-span-2 bg-card-secondary/50 border border-border/40 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-1 h-4 rounded-full bg-cyan-400" />
                 <span className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Aeronave</span>
-                <span className="ml-auto text-xs text-slate-500">{aeronave.matricula} · {aeronave.modelo}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{aeronave.matricula} · {aeronave.modelo}</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
@@ -1020,7 +1020,7 @@ function DiarioBordoDetalhes() {
                 <MiniStat label="Base" value={aeronave?.base ?? "—"} labelColor="text-cyan-400" />
               </div>
 
-              <div className="border-t border-slate-700/40 pt-3">
+              <div className="border-t border-border/40 pt-3">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1 h-3 rounded-full bg-violet-400" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">Célula</span>
@@ -1035,7 +1035,7 @@ function DiarioBordoDetalhes() {
                     hint="clique para editar"
                     labelColor="text-violet-400"
                   />
-                  <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
+                  <div className="bg-card/60 rounded-lg p-2.5 border border-border/40">
                     <p className="text-[10px] text-violet-400 mb-1">Atual</p>
                     <TooltipProvider>
                       <Tooltip>
@@ -1046,7 +1046,7 @@ function DiarioBordoDetalhes() {
                               : `${num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1)}h`}
                           </p>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-xs">
+                        <TooltipContent side="top" className="bg-card border-border text-xs">
                           <p>T.Voo: {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
                           <p>T.Total: {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
                         </TooltipContent>
@@ -1075,7 +1075,7 @@ function DiarioBordoDetalhes() {
 
             {/* Card 2 – Horímetro + Período */}
             <div className="flex flex-col gap-3">
-              <div className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4 flex-1">
+              <div className="bg-card-secondary/50 border border-border/40 rounded-xl p-4 flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-amber-400" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">Horímetro</span>
@@ -1105,8 +1105,8 @@ function DiarioBordoDetalhes() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-0.5">Consumo de Combustível</p>
                   <div className="flex items-center gap-4">
-                    <span className="text-xs text-slate-400">Histórico: <span className="text-white font-semibold">{num(aeronave?.consumo_combustivel ?? 0, 1)} L/H</span></span>
-                    <span className="text-xs text-slate-400">Mês: <span className="text-white font-semibold">{totals.fuel > 0 && totals.tVoo > 0 ? num(totals.fuel / totals.tVoo, 1) : "—"} L/H</span></span>
+                    <span className="text-xs text-muted-foreground">Histórico: <span className="text-white font-semibold">{num(aeronave?.consumo_combustivel ?? 0, 1)} L/H</span></span>
+                    <span className="text-xs text-muted-foreground">Mês: <span className="text-white font-semibold">{totals.fuel > 0 && totals.tVoo > 0 ? num(totals.fuel / totals.tVoo, 1) : "—"} L/H</span></span>
                   </div>
                 </div>
               </div>
@@ -1117,60 +1117,60 @@ function DiarioBordoDetalhes() {
           {/* ── TABELA TOOLBAR ────────────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-40">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setHighlightedId(null); }}
                 placeholder="Filtrar registros..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 text-xs text-white placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-card-secondary/60 text-xs text-white placeholder:text-muted-foreground focus:border-cyan-500/50 focus:outline-none"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
                   <X className="w-3 h-3" />
                 </button>
               )}
             </div>
             <button onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
               {sortDir === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
               {sortDir === "asc" ? "Crescente" : "Decrescente"}
             </button>
             <button onClick={() => setModoTabela(m => m === "completo" ? "resumo" : "completo")}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
               {modoTabela === "completo" ? <MapIcon className="w-3.5 h-3.5 text-cyan-400" /> : <LayoutList className="w-3.5 h-3.5 text-cyan-400" />}
               {modoTabela === "completo" ? "Resumo" : "Completo"}
             </button>
           </div>
 
           {/* ── TABELA ────────────────────────────────────────────────── */}
-          <section className="bg-slate-900 border border-slate-700/40 rounded-xl overflow-hidden">
-            <div className="border-b border-slate-700/40 px-4 py-2.5 flex items-center justify-between bg-slate-800/30">
+          <section className="bg-card border border-border/40 rounded-xl overflow-hidden">
+            <div className="border-b border-border/40 px-4 py-2.5 flex items-center justify-between bg-card-secondary/30">
               <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                 <Plane className="w-3.5 h-3.5 text-cyan-400" /> Registros de Voo
               </h2>
-              <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">{lancamentos.length} voos</span>
+              <span className="rounded-full border border-border bg-card-secondary px-2.5 py-0.5 text-xs text-muted-foreground">{lancamentos.length} voos</span>
             </div>
 
             {/* ── DICAS DA TABELA ────────────────────────────────────────── */}
-            <div className="px-4 py-3 border-b border-slate-700/40 bg-slate-800/20">
+            <div className="px-4 py-3 border-b border-border/40 bg-card-secondary/20">
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs font-bold flex-shrink-0">!</div>
-                  <span className="text-xs text-slate-400">Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para editar ou excluir um registro</span>
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-muted-foreground text-xs font-bold flex-shrink-0">!</div>
+                  <span className="text-xs text-muted-foreground">Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para editar ou excluir um registro</span>
                 </div>
-                <div className="w-px h-4 bg-slate-700 hidden sm:block" />
+                <div className="w-px h-4 bg-secondary hidden sm:block" />
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs font-bold flex-shrink-0">↔</div>
-                  <span className="text-xs text-slate-400">Arraste a borda de qualquer cabeçalho para <span className="text-slate-300 font-medium">redimensionar</span> a coluna</span>
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-muted-foreground text-xs font-bold flex-shrink-0">↔</div>
+                  <span className="text-xs text-muted-foreground">Arraste a borda de qualquer cabeçalho para <span className="text-muted-foreground font-medium">redimensionar</span> a coluna</span>
                 </div>
               </div>
             </div>
 
             <div className="overflow-auto max-h-[420px]">
               {modoTabela === "completo" ? (
-                <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-slate-700/50 [&_th]:border-r [&_th]:border-slate-700/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0" style={{ tableLayout: "fixed" }}>
-                  <thead className="border-b border-slate-700/50 bg-slate-800/50 sticky top-0 z-10">
-                    <tr className="text-[10px] uppercase tracking-wide text-slate-500">
+                <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-border/50 [&_th]:border-r [&_th]:border-border/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0" style={{ tableLayout: "fixed" }}>
+                  <thead className="border-b border-border/50 bg-card-secondary/50 sticky top-0 z-10">
+                    <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       <th className="px-2 py-2 text-center relative" style={{ width: colWidths["#"] ?? 44 }}>#<ResizeHandle col="#" /></th>
                       <th className="px-2 py-2 text-left relative" style={{ width: colWidths["data"] ?? 52 }}>Data<ResizeHandle col="data" /></th>
                       <th className="px-2 py-2 text-left relative" style={{ width: colWidths["de"] ?? 52 }}>De<ResizeHandle col="de" /></th>
@@ -1186,7 +1186,7 @@ function DiarioBordoDetalhes() {
                       <th className="px-2 py-2 text-center text-emerald-400 relative" style={{ width: colWidths["pousos"] ?? 52 }}>POUSOS<ResizeHandle col="pousos" /></th>
                       <th className="px-2 py-2 text-left relative" style={{ width: colWidths["abast"] ?? 56, color: "rgb(205, 132, 10)" }}>ABAST+<ResizeHandle col="abast" /></th>
                       <th className="px-2 py-2 text-left text-amber-400 relative" style={{ width: colWidths["fuel"] ?? 48 }}>FUEL<ResizeHandle col="fuel" /></th>
-                      <th className="px-2 py-2 text-left text-slate-400 relative" style={{ width: colWidths["celula"] ?? 62 }}>CÉLULA<ResizeHandle col="celula" /></th>
+                      <th className="px-2 py-2 text-left text-muted-foreground relative" style={{ width: colWidths["celula"] ?? 62 }}>CÉLULA<ResizeHandle col="celula" /></th>
                       <th className="px-2 py-2 text-left relative" style={{ width: colWidths["pic"] ?? 100 }}>PIC<ResizeHandle col="pic" /></th>
                       <th className="px-2 py-2 text-left relative" style={{ width: colWidths["sic"] ?? 100 }}>SIC<ResizeHandle col="sic" /></th>
                       {/* VOO PARA — sem tooltip (movido para dicas acima) */}
@@ -1201,9 +1201,9 @@ function DiarioBordoDetalhes() {
                       <th className="px-2 py-2 text-center relative" style={{ width: colWidths["assinar"] ?? 100 }}>ASSIN.<ResizeHandle col="assinar" /></th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-300">
+                  <tbody className="text-muted-foreground">
                     {displayLancamentos.length === 0 ? (
-                      <tr><td colSpan={24} className="p-10 text-center text-slate-500 text-xs">Nenhum voo registrado neste período.</td></tr>
+                      <tr><td colSpan={24} className="p-10 text-center text-muted-foreground text-xs">Nenhum voo registrado neste período.</td></tr>
                     ) : displayLancamentos.map(({ l, match }, idx) => {
                       const picT = l.pic_canac ? tripById.get(l.pic_canac) : null;
                       const sicT = l.sic_canac ? tripById.get(l.sic_canac) : null;
@@ -1212,24 +1212,24 @@ function DiarioBordoDetalhes() {
                       return (
                         <tr key={l.id} id={`row-${l.id}`}
                           className={[
-                            "border-b border-slate-700/40 transition-colors",
-                            isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-slate-800/20" : "",
-                            "hover:bg-slate-800/50",
+                            "border-b border-border/40 transition-colors",
+                            isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-card-secondary/20" : "",
+                            "hover:bg-card-secondary/50",
                           ].join(" ")}>
                           <Td className="text-center">
                             <Popover open={rowActionOpen === l.id} onOpenChange={(o) => setRowActionOpen(o ? l.id : null)}>
                               <PopoverTrigger asChild>
                                 <button className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors underline">{l.numero_sequencial ?? idx + 1}</button>
                               </PopoverTrigger>
-                              <PopoverContent side="right" align="start" className="w-40 p-1 bg-slate-900 border-slate-700 rounded-xl shadow-xl">
+                              <PopoverContent side="right" align="start" className="w-40 p-1 bg-card border-border rounded-xl shadow-xl">
                                 <button
                                   onClick={() => handleClickRowAction(l, "edit")}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 hover:text-cyan-400 rounded-lg transition-colors">
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-card-secondary hover:text-cyan-400 rounded-lg transition-colors">
                                   <Pencil className="w-3.5 h-3.5" /> Editar
                                 </button>
                                 <button
                                   onClick={() => handleClickRowAction(l, "delete")}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-red-900/30 hover:text-red-400 rounded-lg transition-colors">
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-red-900/30 hover:text-red-400 rounded-lg transition-colors">
                                   <Trash2 className="w-3.5 h-3.5" /> Excluir
                                 </button>
                               </PopoverContent>
@@ -1238,10 +1238,10 @@ function DiarioBordoDetalhes() {
                           <Td>{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</Td>
                           <Td className="font-mono">{l.aerodromo_partida ?? "—"}</Td>
                           <Td className="font-mono">{l.aerodromo_chegada ?? "—"}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_ac)}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_dep)}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_cor)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_ac)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_dep)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_pou)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_cor)}</Td>
                           <Td className="font-mono font-semibold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
                           <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.tempo_total ?? 0))}</Td>
                           <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(Number(l.horas_noturnas ?? 0))}</Td>
@@ -1265,21 +1265,21 @@ function DiarioBordoDetalhes() {
                                         {totalAbast}
                                       </button>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-slate-900 border border-slate-700 text-slate-100 text-xs p-2 max-w-xs">
+                                    <TooltipContent side="top" className="bg-card border border-border text-foreground text-xs p-2 max-w-xs">
                                       <div className="space-y-2">
-                                        <div className="font-semibold border-b border-slate-700 pb-1">
+                                        <div className="font-semibold border-b border-border pb-1">
                                           {abastVinculados.length} abast. vinculado{abastVinculados.length !== 1 ? 's' : ''}
                                         </div>
                                         {abastVinculados.map((ab, idx) => (
                                           <div key={ab.id} className="space-y-0.5 text-[11px]">
-                                            {idx > 0 && <div className="border-t border-slate-700 my-1"></div>}
-                                            {ab.comanda && <div><span className="text-slate-400">Comanda:</span> {ab.comanda}</div>}
-                                            {ab.litros !== null && ab.litros !== undefined && <div><span className="text-slate-400">Litros:</span> {ab.litros.toFixed(2)}</div>}
-                                            {ab.valor_unitario !== null && ab.valor_unitario !== undefined && <div><span className="text-slate-400">V. Unitário:</span> R$ {ab.valor_unitario.toFixed(2)}</div>}
-                                            {ab.valor_total !== null && ab.valor_total !== undefined && <div><span className="text-slate-400">V. Total:</span> R$ {ab.valor_total.toFixed(2)}</div>}
-                                            {ab.abastecedor && <div><span className="text-slate-400">Abastecedor:</span> {ab.abastecedor}</div>}
-                                            {ab.nf && <div><span className="text-slate-400">NF:</span> {ab.nf}</div>}
-                                            {ab.tipo_faturamento && <div><span className="text-slate-400">Faturamento:</span> {ab.tipo_faturamento}</div>}
+                                            {idx > 0 && <div className="border-t border-border my-1"></div>}
+                                            {ab.comanda && <div><span className="text-muted-foreground">Comanda:</span> {ab.comanda}</div>}
+                                            {ab.litros !== null && ab.litros !== undefined && <div><span className="text-muted-foreground">Litros:</span> {ab.litros.toFixed(2)}</div>}
+                                            {ab.valor_unitario !== null && ab.valor_unitario !== undefined && <div><span className="text-muted-foreground">V. Unitário:</span> R$ {ab.valor_unitario.toFixed(2)}</div>}
+                                            {ab.valor_total !== null && ab.valor_total !== undefined && <div><span className="text-muted-foreground">V. Total:</span> R$ {ab.valor_total.toFixed(2)}</div>}
+                                            {ab.abastecedor && <div><span className="text-muted-foreground">Abastecedor:</span> {ab.abastecedor}</div>}
+                                            {ab.nf && <div><span className="text-muted-foreground">NF:</span> {ab.nf}</div>}
+                                            {ab.tipo_faturamento && <div><span className="text-muted-foreground">Faturamento:</span> {ab.tipo_faturamento}</div>}
                                           </div>
                                         ))}
                                       </div>
@@ -1300,7 +1300,7 @@ function DiarioBordoDetalhes() {
                             </Td>
                           )}
                           {/* Exibe data de confirmação (confirmado_por não existe no banco) */}
-                          <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-slate-500"}`}>
+                          <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-muted-foreground"}`}>
                             {l.confirmado_em
                               ? new Date(l.confirmado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
                               : "—"}
@@ -1327,7 +1327,7 @@ function DiarioBordoDetalhes() {
                     })}
                   </tbody>
                   {lancamentos.length > 0 && (
-                    <tfoot className="border-t-2 border-cyan-500/20 bg-slate-800/80 sticky bottom-0">
+                    <tfoot className="border-t-2 border-cyan-500/20 bg-card-secondary/80 sticky bottom-0">
                       <tr>
                         <td colSpan={8} className="px-2 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-cyan-400/60">Totais</td>
                         <td className="px-2 py-2 font-mono font-bold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(totals.tVoo)}</td>
@@ -1337,23 +1337,23 @@ function DiarioBordoDetalhes() {
                         <td className="px-2 py-2 text-center font-bold text-emerald-400">{totals.pousos}</td>
                         <td className="px-2 py-2 font-bold text-amber-400">{num(totals.abast, 0)}</td>
                         <td className="px-2 py-2 font-bold text-amber-400">{num(totals.fuel, 0)}</td>
-                        <td className="px-2 py-2 text-slate-600">—</td>
-                        <td colSpan={3} className="px-2 py-2 text-slate-600">—</td>
+                        <td className="px-2 py-2 text-muted-foreground">—</td>
+                        <td colSpan={3} className="px-2 py-2 text-muted-foreground">—</td>
                         {temDiaria && (
                           <td className="px-2 py-2 font-bold text-violet-400 text-center">
                             {totals.totalDiarias}
                             <span className="block text-[10px] text-violet-300/60">R${num(totalDiariaReais, 0)}</span>
                           </td>
                         )}
-                        <td colSpan={4} className="text-slate-600">—</td>
+                        <td colSpan={4} className="text-muted-foreground">—</td>
                       </tr>
                     </tfoot>
                   )}
                 </table>
               ) : (
-                <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-slate-700/40 [&_th]:border-r [&_th]:border-slate-700/40 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
-                  <thead className="border-b border-slate-700/40 bg-slate-800/50 sticky top-0">
-                    <tr className="text-[10px] uppercase tracking-wide text-slate-500">
+                <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-border/40 [&_th]:border-r [&_th]:border-border/40 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
+                  <thead className="border-b border-border/40 bg-card-secondary/50 sticky top-0">
+                    <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       <Th className="text-center">#</Th>
                       <Th>Data</Th>
                       <Th>Trecho</Th>
@@ -1364,24 +1364,24 @@ function DiarioBordoDetalhes() {
                       {temDiaria && <Th className="text-violet-400">DIÁRIAS</Th>}
                     </tr>
                   </thead>
-                  <tbody className="text-slate-300">
+                  <tbody className="text-muted-foreground">
                     {displayLancamentos.length === 0 ? (
-                      <tr><td colSpan={9} className="p-10 text-center text-slate-500 text-xs">Nenhum voo registrado.</td></tr>
+                      <tr><td colSpan={9} className="p-10 text-center text-muted-foreground text-xs">Nenhum voo registrado.</td></tr>
                     ) : displayLancamentos.map(({ l, match }, idx) => {
                       const isHighlight = searchQuery && match;
                       const trecho = l.trecho ?? `${l.aerodromo_partida ?? "—"} → ${l.aerodromo_chegada ?? "—"}`;
                       return (
                         <tr key={l.id}
                           className={[
-                            "border-b border-slate-700/40 transition-colors",
-                            isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-slate-800/20" : "",
-                            "hover:bg-slate-800/50",
+                            "border-b border-border/40 transition-colors",
+                            isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-card-secondary/20" : "",
+                            "hover:bg-card-secondary/50",
                           ].join(" ")}>
-                          <Td className="text-center font-mono text-slate-500">{l.numero_sequencial ?? idx + 1}</Td>
+                          <Td className="text-center font-mono text-muted-foreground">{l.numero_sequencial ?? idx + 1}</Td>
                           <Td>{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</Td>
                           <Td className="font-mono font-medium text-white">{trecho}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_dep)}</Td>
-                          <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_dep)}</Td>
+                          <Td className="font-mono text-muted-foreground">{pgTimeToHHMM(l.tempo_pou)}</Td>
                           <Td className="font-mono font-bold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
                           <Td className="font-medium text-white">{labelVooPara(l)}</Td>
                           {temDiaria && (
@@ -1399,14 +1399,14 @@ function DiarioBordoDetalhes() {
           </section>
 
           {/* Resumo por cotista */}
-          <section className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
+          <section className="bg-card-secondary/50 border border-border/40 rounded-xl p-4">
             <div className="mb-3 flex items-center gap-2">
               <Users className="w-4 h-4 text-cyan-400" />
               <h2 className="text-sm font-semibold text-white">Horas por Cotista</h2>
-              <span className="text-[10px] text-slate-500">({modoCelula === "tvoo" ? "T. Voo" : "T. Total"})</span>
+              <span className="text-[10px] text-muted-foreground">({modoCelula === "tvoo" ? "T. Voo" : "T. Total"})</span>
             </div>
             {porCotista.length === 0 ? (
-              <p className="py-4 text-center text-slate-500 text-xs">Sem registros.</p>
+              <p className="py-4 text-center text-muted-foreground text-xs">Sem registros.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                 {porCotista.map((c, idx) => {
@@ -1417,14 +1417,14 @@ function DiarioBordoDetalhes() {
                   return (
                     <button key={`${c.label}-${idx}`}
                       onClick={() => setCotistaFiltro(cotistaFiltro === c.label ? null : c.label)}
-                      className={`rounded-xl border p-3 flex flex-col gap-1.5 transition-all text-left ${cotistaFiltro === c.label ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700/40 bg-slate-800/50 hover:border-slate-600"}`}>
-                      <span className="truncate text-[10px] font-medium text-slate-400" title={c.label}>{c.label}</span>
+                      className={`rounded-xl border p-3 flex flex-col gap-1.5 transition-all text-left ${cotistaFiltro === c.label ? "border-cyan-400 bg-cyan-500/10" : "border-border/40 bg-card-secondary/50 hover:border-border"}`}>
+                      <span className="truncate text-[10px] font-medium text-muted-foreground" title={c.label}>{c.label}</span>
                       <span className={`text-base font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`} style={{ fontFamily: 'Arial, sans-serif' }}>{decimalToHHMM(c.horas)}</span>
                       <div className="flex items-center gap-1.5">
-                        <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-900">
+                        <div className="flex-1 h-1 overflow-hidden rounded-full bg-card">
                           <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="text-slate-500 text-[10px]">{pct.toFixed(0)}%</span>
+                        <span className="text-muted-foreground text-[10px]">{pct.toFixed(0)}%</span>
                       </div>
                     </button>
                   );
@@ -1434,52 +1434,52 @@ function DiarioBordoDetalhes() {
           </section>
 
           {/* Horas Empréstimos — tooltip removido */}
-          <section className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
+          <section className="bg-card-secondary/50 border border-border/40 rounded-xl p-4">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <History className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-semibold text-white">Horas Empréstimos</h2>
               </div>
               {loans.length > 0 && (
-                <span className="text-xs font-medium text-slate-400">
+                <span className="text-xs font-medium text-muted-foreground">
                   {emprestimosResumo.quantidadeEmprestimos} {emprestimosResumo.quantidadeEmprestimos === 1 ? "empréstimo" : "empréstimos"}
                 </span>
               )}
             </div>
             {loans.length === 0 ? (
-              <p className="py-4 text-center text-slate-500 text-xs">Sem empréstimos registrados.</p>
+              <p className="py-4 text-center text-muted-foreground text-xs">Sem empréstimos registrados.</p>
             ) : (
               <div className="space-y-3">
                 {emprestimosPorCliente.map(clienteGroup => (
-                  <div key={clienteGroup.id} className="border border-slate-700/40 rounded-lg overflow-hidden bg-slate-900/30">
+                  <div key={clienteGroup.id} className="border border-border/40 rounded-lg overflow-hidden bg-card/30">
                     <button
                       onClick={() => setExpandedEmprestimoCliente(expandedEmprestimoCliente === clienteGroup.id ? null : clienteGroup.id)}
-                      className="w-full px-4 py-3 hover:bg-slate-800/30 transition-colors text-left flex items-center justify-between"
+                      className="w-full px-4 py-3 hover:bg-card-secondary/30 transition-colors text-left flex items-center justify-between"
                     >
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-white">{clienteGroup.nome}</p>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {clienteGroup.loans.length} {clienteGroup.loans.length === 1 ? "empréstimo" : "empréstimos"}
                         </p>
                       </div>
                       <div className="flex items-center gap-4 mr-4">
                         <div className="text-right">
-                          <div className="text-xs text-slate-400">Saldo</div>
+                          <div className="text-xs text-muted-foreground">Saldo</div>
                           <div className={`font-mono font-bold ${clienteGroup.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
                             {decimalToHHMM(clienteGroup.totalPendente)}
                           </div>
                         </div>
                         <div className={`transition-transform ${expandedEmprestimoCliente === clienteGroup.id ? "rotate-180" : ""}`}>
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
                         </div>
                       </div>
                     </button>
 
                     {expandedEmprestimoCliente === clienteGroup.id && (
-                      <div className="border-t border-slate-700/40 bg-slate-950/40 overflow-x-auto">
+                      <div className="border-t border-border/40 bg-background/40 overflow-x-auto">
                         <table className="w-full border-collapse text-[10px] font-bold uppercase">
                           <thead>
-                            <tr className="bg-slate-800/50 text-slate-400">
+                            <tr className="bg-card-secondary/50 text-muted-foreground">
                               <th className="px-3 py-2 text-left">Data</th>
                               <th className="px-3 py-2 text-left">Cotista Empréstimo</th>
                               <th className="px-3 py-2 text-left">Trecho</th>
@@ -1492,7 +1492,7 @@ function DiarioBordoDetalhes() {
                               <th className="px-3 py-2 text-center">Abastecimento (L)</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-800/30">
+                          <tbody className="divide-y divide-border/30">
                             {clienteGroup.loans.map(loan => {
                               const emprestadas = loan.horas_emprestadas || 0;
                               const devolvidas = loan.horas_devolvidas || 0;
@@ -1523,10 +1523,10 @@ function DiarioBordoDetalhes() {
                               }
 
                               return (
-                                <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
-                                  <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
-                                  <td className="px-3 py-2 text-slate-300 text-xs truncate" title={cotistaTomador}>{cotistaTomador}</td>
-                                  <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
+                                <tr key={loan.id} className="hover:bg-card-secondary/20 transition-colors">
+                                  <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{formattedDate}</td>
+                                  <td className="px-3 py-2 text-muted-foreground text-xs truncate" title={cotistaTomador}>{cotistaTomador}</td>
+                                  <td className="px-3 py-2 text-muted-foreground font-mono text-xs">{trecho}</td>
                                   <td className="px-3 py-2 text-center text-sky-300 font-mono text-xs">{origemICAO}</td>
                                   <td className="px-3 py-2 text-center text-sky-300 font-mono text-xs">{destinoICAO}</td>
                                   <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
@@ -1534,8 +1534,8 @@ function DiarioBordoDetalhes() {
                                   <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
                                     {decimalToHHMM(saldo)}
                                   </td>
-                                  <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
-                                  <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                                  <td className="px-3 py-2 text-muted-foreground truncate text-xs">{pilotName}</td>
+                                  <td className="px-3 py-2 text-center text-muted-foreground font-mono whitespace-nowrap">{fuelAdded}</td>
                                 </tr>
                               );
                             })}
@@ -1556,18 +1556,18 @@ function DiarioBordoDetalhes() {
       <AlertDialog open={editConfirmDialog.open} onOpenChange={(open) => {
         if (!open) setEditConfirmDialog({ open: false, lanc: null, action: "edit" });
       }}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700 max-w-sm">
+        <AlertDialogContent className="bg-card border-border max-w-sm">
           <AlertDialogTitle className={`text-white flex items-center gap-2 ${editConfirmDialog.action === "delete" ? "text-red-400" : ""}`}>
             {editConfirmDialog.action === "delete" ? <Trash2 className="w-4 h-4 text-red-400" /> : <Pencil className="w-4 h-4 text-amber-400" />}
             {editConfirmDialog.action === "delete" ? "Confirmar exclusão?" : "Editar lançamento?"}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-slate-400 text-sm">
+          <AlertDialogDescription className="text-muted-foreground text-sm">
             {editConfirmDialog.action === "delete"
               ? "Esta ação não pode ser desfeita. O lançamento será removido permanentemente."
               : "Deseja editar este lançamento? As alterações atualizarão os dados do registro."}
           </AlertDialogDescription>
           <div className="flex justify-end gap-2 mt-4">
-            <AlertDialogCancel className="bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-600 text-xs px-3 py-1.5 rounded-lg">
+            <AlertDialogCancel className="bg-card-secondary text-muted-foreground hover:bg-secondary border-border text-xs px-3 py-1.5 rounded-lg">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
@@ -1605,9 +1605,9 @@ function DiarioBordoDetalhes() {
 }
 
 /* ─── MiniStat ─────────────────────────────────────────────────────────────── */
-function MiniStat({ label, value, labelColor = "text-slate-500" }: { label: string; value: any; labelColor?: string }) {
+function MiniStat({ label, value, labelColor = "text-muted-foreground" }: { label: string; value: any; labelColor?: string }) {
   return (
-    <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
+    <div className="bg-card/60 rounded-lg p-2.5 border border-border/40">
       <p className={`text-[10px] ${labelColor} mb-0.5`}>{label}</p>
       <p className="text-sm font-semibold text-white truncate">{value ?? "—"}</p>
     </div>
@@ -1622,9 +1622,9 @@ function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor 
 }) {
   const [editing, setEditing] = useState(false);
   const accent = accentColor === "amber" ? "text-amber-400" : "text-cyan-400";
-  const labelCls = labelColor || "text-slate-500";
+  const labelCls = labelColor || "text-muted-foreground";
   return (
-    <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+    <div className="bg-card/60 rounded-lg p-2.5 border border-border/40 hover:border-border/60 transition-colors">
       <p className={`text-[10px] ${labelCls} mb-1`}>{label}</p>
       {hint && <p className="text-[9px] mb-1.5" style={{ color: 'rgba(102, 95, 89, 1)' }}>{hint}</p>}
       {editing ? (
@@ -1636,7 +1636,7 @@ function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor 
             if (e.key === "Enter") { onSave(fieldName, parseFloat(e.currentTarget.value)); setEditing(false); }
             if (e.key === "Escape") setEditing(false);
           }}
-          className="w-full bg-slate-800 border border-cyan-500/40 rounded px-1.5 py-0.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+          className="w-full bg-card-secondary border border-cyan-500/40 rounded px-1.5 py-0.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
         />
       ) : (
         <button onClick={() => setEditing(true)} className={`text-sm font-bold text-white hover:${accent} transition-colors`}>
@@ -1656,7 +1656,7 @@ function Td({ children, className = "", colSpan, style }: { children: React.Reac
 }
 
 /* ─── inputCls ─────────────────────────────────────────────────────────────── */
-const inputCls = "w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none transition-colors placeholder:text-slate-600";
+const inputCls = "w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none transition-colors placeholder:text-muted-foreground";
 
 /* ─── Data dd/mm/yy <-> ISO ────────────────────────────────────────────────── */
 function isoToBR2(iso: string): string {
@@ -1695,7 +1695,7 @@ function DateBRInput({ value, onChange }: { value: string; onChange: (iso: strin
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0"><CalendarIcon className="h-3.5 w-3.5" /></Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700" align="end">
+        <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-border" align="end">
           <CalendarComponent
             mode="single"
             selected={value ? new Date(`${value}T00:00`) : undefined}
@@ -1722,7 +1722,7 @@ function DateBRInput({ value, onChange }: { value: string; onChange: (iso: strin
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700/50 pb-1">{title}</p>
+      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border/50 pb-1">{title}</p>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">{children}</div>
     </div>
   );
@@ -1730,7 +1730,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-medium text-slate-500 uppercase tracking-wide">{label}</span>
+      <span className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
       {children}
     </label>
   );
@@ -1957,9 +1957,9 @@ function NovoVooInline({
       <div className="flex items-center justify-between px-5 py-3 border-b border-cyan-500/20">
         <div>
           <h3 className="text-sm font-bold text-white flex items-center gap-2"><Plus className="w-4 h-4 text-cyan-400" /> Novo Voo · {aeronave.matricula}</h3>
-          <p className="text-[10px] text-slate-500">Horários em Zulu (UTC)</p>
+          <p className="text-[10px] text-muted-foreground">Horários em Zulu (UTC)</p>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"><X className="w-4 h-4" /></button>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-secondary transition-colors"><X className="w-4 h-4" /></button>
       </div>
       <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {vooEmRota && (
@@ -1999,9 +1999,9 @@ function NovoVooInline({
             <SearchableCombobox items={sociosDoCliente.map((s) => ({ id: s.id, label: s.nome }))} value={socioId} onChange={setSocioId} placeholder="Selecionar..." searchPlaceholder="Buscar..." disabled={!clienteId || sociosDoCliente.length === 0} />
           </Field>
           <Field label="Emprestado?">
-            <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500" />
-              <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "Sim" : "Não"}</span>
+            <label className="flex items-center gap-2 rounded-lg border border-border bg-card-secondary px-3 py-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId} className="w-4 h-4 rounded border-border bg-secondary text-cyan-500" />
+              <span className={emprestimo ? "font-semibold text-amber-400" : "text-muted-foreground"}>{emprestimo ? "Sim" : "Não"}</span>
             </label>
           </Field>
           {emprestimo && (
@@ -2077,8 +2077,8 @@ function NovoVooInline({
           <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} className={`${inputCls} text-sm`} placeholder="Detalhes opcionais..." />
         </Field>
       </div>
-      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-700/40 bg-slate-800/30">
-        <button onClick={onClose} className="rounded-lg border border-slate-600 px-4 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">Cancelar</button>
+      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/40 bg-card-secondary/30">
+        <button onClick={onClose} className="rounded-lg border border-border px-4 py-1.5 text-xs text-muted-foreground hover:bg-card-secondary hover:text-white transition-colors">Cancelar</button>
         <button onClick={submit} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600 disabled:opacity-60 transition-colors">
           <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar voo"}
         </button>
@@ -2179,7 +2179,7 @@ function EditarVooInline({
           <h3 className="text-sm font-bold text-white flex items-center gap-2"><Pencil className="w-4 h-4 text-amber-400" /> Editar Voo · {aeronave.matricula}</h3>
           <p className="text-[10px] text-amber-400/60">Lançamento de {new Date(lanc.data_registro + "T00:00").toLocaleDateString("pt-BR")}</p>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"><X className="w-4 h-4" /></button>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-secondary transition-colors"><X className="w-4 h-4" /></button>
       </div>
       <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
         <Section title="Tripulação & Cotista">
@@ -2196,9 +2196,9 @@ function EditarVooInline({
             <SearchableCombobox items={sociosDoCliente.map((s) => ({ id: s.id, label: s.nome }))} value={socioId} onChange={setSocioId} placeholder="Selecionar..." searchPlaceholder="Buscar..." disabled={!clienteId || sociosDoCliente.length === 0} />
           </Field>
           <Field label="Emprestado?">
-            <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500" />
-              <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "Sim" : "Não"}</span>
+            <label className="flex items-center gap-2 rounded-lg border border-border bg-card-secondary px-3 py-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId} className="w-4 h-4 rounded border-border bg-secondary text-cyan-500" />
+              <span className={emprestimo ? "font-semibold text-amber-400" : "text-muted-foreground"}>{emprestimo ? "Sim" : "Não"}</span>
             </label>
           </Field>
           {emprestimo && (
@@ -2276,8 +2276,8 @@ function EditarVooInline({
           </Section>
         )}
       </div>
-      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-700/40 bg-slate-800/30">
-        <button onClick={onClose} className="rounded-lg border border-slate-600 px-4 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">Cancelar</button>
+      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/40 bg-card-secondary/30">
+        <button onClick={onClose} className="rounded-lg border border-border px-4 py-1.5 text-xs text-muted-foreground hover:bg-card-secondary hover:text-white transition-colors">Cancelar</button>
         <button onClick={submit} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-1.5 text-xs font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-60 transition-colors">
           <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar edição"}
         </button>
@@ -2296,12 +2296,12 @@ function AttachmentThumb({ url }: { url: string | null }) {
       target="_blank"
       rel="noopener noreferrer"
       title="Ver anexo"
-      className="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-800 hover:border-cyan-500/50 transition-colors"
+      className="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-border bg-card-secondary hover:border-cyan-500/50 transition-colors"
     >
       {isImage ? (
         <img src={url} alt="anexo" className="h-full w-full object-cover" />
       ) : (
-        <FileText className="w-4 h-4 text-slate-400" />
+        <FileText className="w-4 h-4 text-muted-foreground" />
       )}
     </a>
   );
@@ -2452,18 +2452,18 @@ function AbastecimentoModal({
 
   if (!clienteId) {
     return createPortal(
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-          className="flex w-full max-w-md flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
+          className="flex w-full max-w-md flex-col rounded-2xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border/50 p-4 shrink-0">
             <h3 className="text-sm font-bold text-white">Abastecimentos</h3>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-card-secondary"><X className="w-4 h-4" /></button>
           </div>
           <div className="p-5 text-center">
-            <p className="text-sm text-slate-300">Selecione um cliente antes de buscar os abastecimentos ou criar um novo.</p>
+            <p className="text-sm text-muted-foreground">Selecione um cliente antes de buscar os abastecimentos ou criar um novo.</p>
           </div>
-          <div className="flex justify-end border-t border-slate-700/50 p-4 shrink-0">
-            <button onClick={onClose} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Fechar</button>
+          <div className="flex justify-end border-t border-border/50 p-4 shrink-0">
+            <button onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-card-secondary">Fechar</button>
           </div>
         </motion.div>
       </div>,
@@ -2473,51 +2473,51 @@ function AbastecimentoModal({
 
   if (showForm) {
     return createPortal(
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-3 sm:p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-3 sm:p-4 backdrop-blur-sm">
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-          className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
+          className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border/50 p-4 shrink-0">
             <div>
               <h3 className="text-sm font-bold text-white">Novo Abastecimento</h3>
-              <p className="text-[11px] text-slate-400">Formulário responsivo com seleção pesquisável e anexos.</p>
+              <p className="text-[11px] text-muted-foreground">Formulário responsivo com seleção pesquisável e anexos.</p>
             </div>
-            <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
+            <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-card-secondary"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Data</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Data</span>
                 <input type="date" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  className="w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Local *</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Local *</span>
                 <input type="text" value={formData.local} onChange={(e) => setFormData({ ...formData, local: e.target.value })}
-                  placeholder="Ex: Jacarepaguá" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  placeholder="Ex: Jacarepaguá" className="w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
               </label>
               <label className="block md:col-span-2">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Trecho</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Trecho</span>
                 <input type="text" value={formData.trecho} onChange={(e) => setFormData({ ...formData, trecho: e.target.value })}
-                  placeholder="Ex: SBGR X SBRJ" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  placeholder="Ex: SBGR X SBRJ" className="w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
                 {lastLogbookEntry && !formData.trecho && (
-                  <p className="mt-1 text-[11px] text-slate-500">Sugestão: {[
+                  <p className="mt-1 text-[11px] text-muted-foreground">Sugestão: {[
                     lastLogbookEntry.aerodromo_partida,
                     lastLogbookEntry.aerodromo_chegada,
                   ].filter(Boolean).join(" X ") || "—"}</p>
                 )}
               </label>
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Litros *</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Litros *</span>
                 <input type="number" min="0" step="0.01" value={formData.litros} onChange={(e) => setFormData({ ...formData, litros: e.target.value })}
-                  placeholder="0" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  placeholder="0" className="w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Valor Unitário (R$/L)</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Valor Unitário (R$/L)</span>
                 <input type="text" inputMode="decimal" value={formData.valor_unitario ? formatCurrencyValue(formData.valor_unitario) : ""} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })}
-                  placeholder="R$ 0,00" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  placeholder="R$ 0,00" className="w-full rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Tipo de Combustível</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Tipo de Combustível</span>
                 <SearchableCombobox
                   items={[{ id: "JET A1", label: "JET A1" }, { id: "AVGAS", label: "AVGAS" }]}
                   value={formData.tipo_combustivel}
@@ -2528,7 +2528,7 @@ function AbastecimentoModal({
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Abastecedor</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Abastecedor</span>
                 <SearchableCombobox
                   items={fuelSuppliers}
                   value={formData.abastecedor_id}
@@ -2541,12 +2541,12 @@ function AbastecimentoModal({
 
               {/* Comanda: número + thumbnail + upload na mesma linha */}
               <label className="block md:col-span-2">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Comanda</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Comanda</span>
                 <div className="flex items-center gap-2">
                   <input type="text" value={formData.comanda} onChange={(e) => setFormData({ ...formData, comanda: e.target.value })}
-                    placeholder="Número da comanda" className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                    placeholder="Número da comanda" className="min-w-0 flex-1 rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
                   <AttachmentThumb url={formData.comanda_url} />
-                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
+                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-border bg-card-secondary/60 px-3 text-center text-xs text-muted-foreground hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
                     <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "comanda_url")} />
                     {uploading.comanda ? "Enviando..." : formData.comanda_url ? "Trocar" : "Upload"}
                   </label>
@@ -2555,12 +2555,12 @@ function AbastecimentoModal({
 
               {/* NF: número + thumbnail + upload na mesma linha */}
               <label className="block md:col-span-2">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">NF</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">NF</span>
                 <div className="flex items-center gap-2">
                   <input type="text" value={formData.nf} onChange={(e) => setFormData({ ...formData, nf: e.target.value })}
-                    placeholder="Número da NF" className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                    placeholder="Número da NF" className="min-w-0 flex-1 rounded-lg border border-border bg-card-secondary px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
                   <AttachmentThumb url={formData.nota_url} />
-                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
+                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-border bg-card-secondary/60 px-3 text-center text-xs text-muted-foreground hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
                     <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "nota_url")} />
                     {uploading.nf ? "Enviando..." : formData.nota_url ? "Trocar" : "Upload"}
                   </label>
@@ -2569,10 +2569,10 @@ function AbastecimentoModal({
 
               {/* Boleto: thumbnail + upload (sem número associado) */}
               <label className="block md:col-span-2">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Boleto</span>
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Boleto</span>
                 <div className="flex items-center gap-2">
                   <AttachmentThumb url={formData.boleto_url} />
-                  <label className="flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
+                  <label className="flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-border bg-card-secondary/60 px-3 text-center text-xs text-muted-foreground hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
                     <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "boleto_url")} />
                     {uploading.boleto ? "Enviando..." : formData.boleto_url ? "Arquivo anexado — trocar" : "Upload boleto"}
                   </label>
@@ -2580,8 +2580,8 @@ function AbastecimentoModal({
               </label>
             </div>
           </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-700/50 p-4 sm:flex-row sm:justify-end shrink-0">
-            <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
+          <div className="flex flex-col-reverse gap-2 border-t border-border/50 p-4 sm:flex-row sm:justify-end shrink-0">
+            <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-card-secondary">Cancelar</button>
             <button onClick={handleSaveNew} disabled={saving} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600 disabled:opacity-60">
               <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar"}
             </button>
@@ -2593,25 +2593,25 @@ function AbastecimentoModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-        className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
+        className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border/50 p-4 shrink-0">
           <h3 className="text-sm font-bold text-white">Abastecimentos</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-card-secondary"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {abastecimentos.length === 0 ? (
-            <p className="text-center text-slate-400 text-xs mb-4">Nenhum abastecimento encontrado</p>
+            <p className="text-center text-muted-foreground text-xs mb-4">Nenhum abastecimento encontrado</p>
           ) : (
             <div className="space-y-1.5 mb-4">
               {abastecimentos.map((ab) => (
                 <button key={ab.id} onClick={() => onSelectAbastecimento(ab)}
-                  className="w-full text-left rounded-lg border border-slate-700 bg-slate-800 p-2.5 hover:bg-slate-700 hover:border-cyan-500/50 transition-colors">
+                  className="w-full text-left rounded-lg border border-border bg-card-secondary p-2.5 hover:bg-secondary hover:border-cyan-500/50 transition-colors">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-xs font-semibold text-white">{ab.local} · {ab.litros}L</p>
-                      <p className="text-[10px] text-slate-400">{new Date(ab.data).toLocaleDateString("pt-BR")} · {ab.trecho || "—"}</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(ab.data).toLocaleDateString("pt-BR")} · {ab.trecho || "—"}</p>
                     </div>
                     <p className="text-xs font-mono text-cyan-400">{num(ab.litros, 2)}L</p>
                   </div>
@@ -2620,8 +2620,8 @@ function AbastecimentoModal({
             </div>
           )}
         </div>
-        <div className="flex justify-between gap-2 border-t border-slate-700/50 p-4 shrink-0">
-          <button onClick={onClose} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
+        <div className="flex justify-between gap-2 border-t border-border/50 p-4 shrink-0">
+          <button onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-card-secondary">Cancelar</button>
           <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600">
             <Plus className="w-3.5 h-3.5" /> Novo Abastecimento
           </button>

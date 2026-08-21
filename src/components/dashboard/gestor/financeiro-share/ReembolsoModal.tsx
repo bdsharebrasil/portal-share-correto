@@ -20,8 +20,8 @@ interface MovLike {
 const num = (v: any) => Number(v) || 0;
 
 const inputCls =
-  "w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30";
-const labelCls = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500";
+  "w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground placeholder-slate-500 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30";
+const labelCls = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
 
 /**
  * Baixa do reembolso do cliente para o caixa Share.
@@ -155,32 +155,32 @@ export default function ReembolsoModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3.5">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300">
               <HandCoins className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">Baixa de Reembolso do Cliente</h3>
-              <p className="mt-0.5 text-xs text-slate-500">{mov.descricao || "—"}</p>
+              <h3 className="text-sm font-bold text-foreground">Baixa de Reembolso do Cliente</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">{mov.descricao || "—"}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-500 transition-colors hover:text-slate-200">
+          <button onClick={onClose} className="text-muted-foreground transition-colors hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-5 p-5">
-          <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-800/30 px-4 py-3">
+          <div className="flex items-center justify-between rounded-lg border border-border bg-card-secondary/30 px-4 py-3">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">Valor a receber</div>
-              <div className="text-lg font-bold text-slate-100">{formatBRL(valorEsperado)}</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Valor a receber</div>
+              <div className="text-lg font-bold text-foreground">{formatBRL(valorEsperado)}</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">Saldo após baixa</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Saldo após baixa</div>
               <div className={`text-sm font-bold ${diferenca > 0.009 ? "text-amber-300" : "text-emerald-300"}`}>
                 {formatBRL(Math.max(0, diferenca))}
               </div>
@@ -230,7 +230,7 @@ export default function ReembolsoModal({
           <div>
             <label className={labelCls}>Comprovante</label>
             <div className="flex items-center gap-3">
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-slate-100">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground">
                 {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                 {comprovante ? "Trocar arquivo" : "Enviar arquivo"}
                 <input
@@ -273,10 +273,10 @@ export default function ReembolsoModal({
           )}
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-slate-800 bg-slate-900 px-5 py-3.5">
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-5 py-3.5">
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
+            className="rounded-lg border border-border bg-card-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
           >
             Cancelar
           </button>

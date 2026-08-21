@@ -90,28 +90,28 @@ export function ExportDiarioModal({
   const anosOrdenados = Array.from(mesesPorAno.keys()).sort((a, b) => b - a);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+      <div className="bg-card border border-border/50 rounded-2xl p-6 w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-white">Exportar Diário de Bordo</h2>
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="text-slate-400 hover:text-white transition-colors disabled:opacity-50">
+            className="text-muted-foreground hover:text-white transition-colors disabled:opacity-50">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Info text */}
-        <p className="text-sm text-slate-400 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Selecione os meses que deseja exportar. Serão incluídas as colunas de registros de voo (exceto "CONFIRMADO POR"), resumo por cliente/sócio e totais consolidados se múltiplos meses forem selecionados.
         </p>
 
         {/* Months selection */}
         <div className="max-h-96 overflow-y-auto mb-6 space-y-4">
           {availableMeses.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">Nenhum mês disponível para exportação</p>
+            <p className="text-sm text-muted-foreground italic">Nenhum mês disponível para exportação</p>
           ) : (
             anosOrdenados.map((ano) => (
               <div key={ano}>
@@ -123,7 +123,7 @@ export function ExportDiarioModal({
                     return (
                       <label
                         key={key}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors">
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-card-secondary/50 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -131,7 +131,7 @@ export function ExportDiarioModal({
                           disabled={isLoading}
                           className="w-4 h-4 rounded border-slate-500 text-cyan-500 disabled:opacity-50"
                         />
-                        <span className="text-sm text-slate-300 flex-1">
+                        <span className="text-sm text-muted-foreground flex-1">
                           {monthNames[m.mes - 1].charAt(0).toUpperCase() + monthNames[m.mes - 1].slice(1)}
                         </span>
                       </label>
@@ -158,7 +158,7 @@ export function ExportDiarioModal({
         )}
 
         {/* Selected count */}
-        <div className="mb-6 text-sm text-slate-400">
+        <div className="mb-6 text-sm text-muted-foreground">
           {selectedMeses.size} mês{selectedMeses.size !== 1 ? "es" : ""} selecionado{selectedMeses.size !== 1 ? "s" : ""}
         </div>
 
@@ -167,7 +167,7 @@ export function ExportDiarioModal({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50">
+            className="flex-1 bg-secondary hover:bg-muted text-white font-semibold rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50">
             Cancelar
           </button>
           <button

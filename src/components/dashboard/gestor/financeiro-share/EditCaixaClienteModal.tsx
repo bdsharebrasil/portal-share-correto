@@ -47,8 +47,8 @@ interface Props {
 }
 
 const inputCls =
-  "w-full rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2 text-[13px] text-slate-100 outline-none transition focus:ring-2 focus:ring-cyan-400/60 focus:border-cyan-500/60 placeholder:text-slate-600";
-const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5";
+  "w-full rounded-lg bg-background/60 border border-border/70 px-3 py-2 text-[13px] text-foreground outline-none transition focus:ring-2 focus:ring-cyan-400/60 focus:border-cyan-500/60 placeholder:text-muted-foreground";
+const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5";
 
 const TIPOS_RATEIO = [
   { id: "FIXO", label: "Fixo" },
@@ -67,10 +67,10 @@ const numOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
 
 function Section({ icon, title, accent, children }: any) {
   return (
-    <section className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-slate-900/50 to-slate-900/20 p-4 md:p-5">
+    <section className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-card/50 to-card/20 p-4 md:p-5">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `${accent}1A`, color: accent }}>{icon}</div>
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">{title}</h3>
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-foreground">{title}</h3>
         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
       </div>
       {children}
@@ -454,16 +454,16 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto p-3 sm:p-6 backdrop-blur-sm" style={{ background: "rgba(2,6,23,0.85)" }} onClick={onClose}>
-      <div className="relative m-auto flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/40" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 px-6 py-4">
+      <div className="relative m-auto flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-background shadow-2xl shadow-cyan-950/40" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-card via-card to-cyan-950/40 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300"><ClipboardList className="h-4 w-4" /></div>
             <div>
-              <div className="text-sm font-bold text-slate-100">Editar Lançamento — Caixa Cliente</div>
-              <div className="text-[10.5px] text-slate-500">Despesa do rateio (cliente/aeronave)</div>
+              <div className="text-sm font-bold text-foreground">Editar Lançamento — Caixa Cliente</div>
+              <div className="text-[10.5px] text-muted-foreground">Despesa do rateio (cliente/aeronave)</div>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-500/15 hover:text-red-300"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/15 hover:text-red-300"><X className="h-4 w-4" /></button>
         </div>
 
         <div className="flex-1 space-y-4 overflow-auto p-5 md:p-6">
@@ -506,7 +506,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                       <SearchableCombobox items={abastecimentoOptions} value={abastecimentoId} onChange={setAbastecimentoId} placeholder="Selecione o abastecimento" searchPlaceholder="Buscar abastecimento..." />
                     </div>
                     {abastecimentoId && (
-                      <button type="button" onClick={() => setAbastecimentoId("")} className="rounded-lg border border-slate-700 px-2 py-1.5 text-[11px] text-slate-400 hover:bg-slate-800">Limpar</button>
+                      <button type="button" onClick={() => setAbastecimentoId("")} className="rounded-lg border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-card-secondary">Limpar</button>
                     )}
                   </div>
                 </div>
@@ -531,13 +531,13 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           <Section icon={<Layers className="h-4 w-4" />} title="Rateio da Despesa" accent="#34d399">
             <div className="space-y-3">
               {linhas.length === 0 && (
-                <div className="rounded-lg border border-dashed border-slate-700/70 px-3 py-4 text-center text-[11.5px] text-slate-500">
+                <div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-[11.5px] text-muted-foreground">
                   Nenhum rateio cadastrado para esta despesa.
                 </div>
               )}
 
               {linhas.map((l, idx) => (
-                <div key={l.id || `new-${idx}`} className="rounded-xl border border-white/[0.07] bg-slate-950/50 p-3">
+                <div key={l.id || `new-${idx}`} className="rounded-xl border border-white/[0.07] bg-background/50 p-3">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
                     <div className="md:col-span-2">
                       <label className={labelCls}>Cotista / Cliente</label>
@@ -614,17 +614,17 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-[10.5px] text-slate-500">
+                    <div className="text-[10.5px] text-muted-foreground">
                       {l.modo_pagamento === "reembolso"
                         ? "A Share pagou esta despesa e ela ficará aguardando o reembolso do cliente."
                         : "O cotista pagou diretamente; a despesa não fica pendente de reembolso da Share."}
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pago real</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pago real</span>
                         <input
                           type="number" step="0.01"
-                          className="w-28 rounded-lg bg-slate-950/60 border border-slate-700/70 px-2 py-1 text-[12px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-400/50"
+                          className="w-28 rounded-lg bg-background/60 border border-border/70 px-2 py-1 text-[12px] text-foreground outline-none focus:ring-2 focus:ring-cyan-400/50"
                           value={l.valor_pago_real ?? ""}
                           onChange={(e) => setLinha(idx, { valor_pago_real: e.target.value === "" ? null : Number(e.target.value) })}
                         />
@@ -650,14 +650,14 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                   <Plus className="h-3.5 w-3.5" /> Adicionar rateio
                 </button>
                 <div className="flex items-center gap-4 text-[11px]">
-                  <span className="text-slate-400">
+                  <span className="text-muted-foreground">
                     Total rateado:{" "}
                     <strong className={Math.abs(totalRateado - valorTotal) > 0.02 ? "text-amber-300" : "text-emerald-300"}>
                       {totalRateado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </strong>
-                    {valorTotal ? <span className="text-slate-600"> / {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span> : null}
+                    {valorTotal ? <span className="text-muted-foreground"> / {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span> : null}
                   </span>
-                  <span className="text-slate-400">
+                  <span className="text-muted-foreground">
                     Total %: <strong className={Math.abs(totalPercentual - 100) > 0.01 ? "text-amber-300" : "text-emerald-300"}>{totalPercentual.toFixed(2)}%</strong>
                   </span>
                 </div>
@@ -675,8 +675,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           </Section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-800 bg-slate-900/60 px-6 py-3.5">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">Cancelar</button>
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-card/60 px-6 py-3.5">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-card-secondary">Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-500 px-5 py-2 text-xs font-bold text-white shadow-lg hover:from-cyan-500 hover:to-cyan-400 disabled:opacity-50">
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Salvar
           </button>

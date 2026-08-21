@@ -138,7 +138,7 @@ const COLOR_MAP = {
   green: { text: "text-emerald-400", badge: "bg-emerald-500/15 text-emerald-400", icon: TrendingDown },
   amber: { text: "text-amber-400",   badge: "bg-amber-500/15 text-amber-400",   icon: TrendingUp },
   red:   { text: "text-red-400",     badge: "bg-red-500/15 text-red-400",       icon: TrendingUp },
-  neutral:{ text: "text-slate-300",  badge: "bg-slate-700/50 text-slate-400",   icon: Minus },
+  neutral:{ text: "text-muted-foreground",  badge: "bg-secondary/50 text-muted-foreground",   icon: Minus },
 };
 
 const SERIE_COLORS = [
@@ -152,7 +152,7 @@ function DiffBadge({ val, ref }: { val: number; ref: number }) {
   const cls = colorClass(val, ref);
   const { badge, icon: Icon } = COLOR_MAP[cls];
   const d = diffPct(val, ref);
-  if (val <= 0) return <span className="text-xs text-slate-600">—</span>;
+  if (val <= 0) return <span className="text-xs text-muted-foreground">—</span>;
   const label = Math.abs(d) < 1 ? "≈ hist." : `${d > 0 ? "+" : ""}${d.toFixed(1)}%`;
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${badge}`}>
@@ -164,7 +164,7 @@ function DiffBadge({ val, ref }: { val: number; ref: number }) {
 
 function LHCell({ val, ref }: { val: number; ref: number }) {
   const cls = colorClass(val, ref);
-  if (val <= 0) return <span className="text-slate-600 font-mono text-xs">—</span>;
+  if (val <= 0) return <span className="text-muted-foreground font-mono text-xs">—</span>;
   return (
     <span className={`font-mono text-sm font-semibold ${COLOR_MAP[cls].text}`}>
       {val.toFixed(1)}
@@ -177,7 +177,7 @@ function CoberturaBadge({ comDado, total }: { comDado: number; total: number }) 
   if (comDado === total) return null; // cobertura completa, não precisa avisar
   return (
     <span
-      className="inline-flex items-center rounded-full bg-slate-700/40 px-2 py-0.5 text-[10px] text-slate-500"
+      className="inline-flex items-center rounded-full bg-secondary/40 px-2 py-0.5 text-[10px] text-muted-foreground"
       title="Alguns voos ainda não têm consumo calculado (geralmente o lançamento mais recente da aeronave, que aguarda o próximo voo para comparação de tanque)."
     >
       {comDado}/{total} voos com dado
@@ -386,23 +386,23 @@ export function ConsumoDialog({
     <>
       {/* ═══ BLOCO 1 — KPIs do mês ═══ */}
       <section>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           resumo do mês — {MONTH_NAMES[mes - 1]}/{ano}
         </p>
 
         {/* Explicação */}
-        <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed space-y-2">
+        <div className="mb-4 rounded-xl border border-border/40 bg-card-secondary/40 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
           <p>
-            <span className="text-slate-300 font-medium">Como é calculado: </span>
+            <span className="text-muted-foreground font-medium">Como é calculado: </span>
             o consumo (L/H) de cada voo é medido comparando o nível real de combustível no tanque
             no início deste voo com o início do voo seguinte, somando o que foi abastecido nesse intervalo.
-            Os totais do período são a <span className="text-slate-300 font-medium">média ponderada pelas horas</span> de
+            Os totais do período são a <span className="text-muted-foreground font-medium">média ponderada pelas horas</span> de
             cada voo.{" "}
             <span className="text-blue-400 font-medium">L/H por T. voo</span> considera apenas o tempo de voo efetivo;{" "}
             <span className="text-amber-400 font-medium">L/H por T. total</span> inclui táxi e solo (mais conservador).
           </p>
-          <p className="text-slate-500 border-t border-slate-700/30 pt-2">
-            <span className="text-slate-400 font-medium">Por que pode diferir de planilhas antigas: </span>
+          <p className="text-muted-foreground border-t border-border/30 pt-2">
+            <span className="text-muted-foreground font-medium">Por que pode diferir de planilhas antigas: </span>
             controles anteriores costumavam calcular "combustível abastecido no mês ÷ horas voadas no mês".
             Esse método distorce o resultado sempre que um voo usa combustível de um abastecimento feito
             fora daquele mês (ex.: voo no início do mês voando com sobra do mês anterior) — as horas entram
@@ -414,10 +414,10 @@ export function ConsumoDialog({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* L/H por T. voo */}
-          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-            <p className="text-xs text-slate-500 mb-1">L/H por T. voo</p>
+          <div className="rounded-xl border border-border/40 bg-card-secondary/50 p-4">
+            <p className="text-xs text-muted-foreground mb-1">L/H por T. voo</p>
             <LHCell val={mesTotals.lhVoo} ref={historico} />
-            <p className="text-xs text-slate-600 mt-1">base: horas efetivas</p>
+            <p className="text-xs text-muted-foreground mt-1">base: horas efetivas</p>
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               <DiffBadge val={mesTotals.lhVoo} ref={historico} />
               <CoberturaBadge comDado={mesTotals.voosComDado} total={mesTotals.voosTotal} />
@@ -425,27 +425,27 @@ export function ConsumoDialog({
           </div>
 
           {/* L/H por T. total */}
-          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-            <p className="text-xs text-slate-500 mb-1">L/H por T. total</p>
+          <div className="rounded-xl border border-border/40 bg-card-secondary/50 p-4">
+            <p className="text-xs text-muted-foreground mb-1">L/H por T. total</p>
             <LHCell val={mesTotals.lhTotal} ref={historico} />
-            <p className="text-xs text-slate-600 mt-1">inclui táxi / solo</p>
+            <p className="text-xs text-muted-foreground mt-1">inclui táxi / solo</p>
             <div className="mt-2">
               <DiffBadge val={mesTotals.lhTotal} ref={historico} />
             </div>
           </div>
 
           {/* Total abastecido */}
-          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-            <p className="text-xs text-slate-500 mb-1">abastecido no mês</p>
+          <div className="rounded-xl border border-border/40 bg-card-secondary/50 p-4">
+            <p className="text-xs text-muted-foreground mb-1">abastecido no mês</p>
             <p className="text-lg font-bold text-white font-mono">{num(mesTotals.abast, 0)} L</p>
-            <p className="text-xs text-slate-600 mt-1">{lancamentos.length} voos registrados</p>
+            <p className="text-xs text-muted-foreground mt-1">{lancamentos.length} voos registrados</p>
           </div>
 
           {/* Horas */}
-          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-            <p className="text-xs text-slate-500 mb-1">horas de voo</p>
+          <div className="rounded-xl border border-border/40 bg-card-secondary/50 p-4">
+            <p className="text-xs text-muted-foreground mb-1">horas de voo</p>
             <p className="text-lg font-bold text-cyan-400 font-mono">{decimalToHHMM(mesTotals.tVoo)}</p>
-            <p className="text-xs text-slate-600 mt-1">T. total: {decimalToHHMM(mesTotals.tTotal)}</p>
+            <p className="text-xs text-muted-foreground mt-1">T. total: {decimalToHHMM(mesTotals.tTotal)}</p>
           </div>
         </div>
       </section>
@@ -453,13 +453,13 @@ export function ConsumoDialog({
       {/* ═══ BLOCO 2 — Tabela anual ═══ */}
       {anuais.length > 0 && (
         <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             tabela anual — {ano}
           </p>
 
           {/* Gráfico de linha */}
-          <div className="mb-4 rounded-xl border border-slate-700/30 bg-slate-800/30 px-4 pt-4 pb-2">
-            <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-slate-500">
+          <div className="mb-4 rounded-xl border border-border/30 bg-card-secondary/30 px-4 pt-4 pb-2">
+            <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-8 h-0.5 bg-blue-500 rounded" />
                 L/H por T. voo
@@ -480,18 +480,18 @@ export function ConsumoDialog({
           </div>
 
           {/* Tabela */}
-          <div className="overflow-x-auto rounded-xl border border-slate-700/40">
+          <div className="overflow-x-auto rounded-xl border border-border/40">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="bg-card-secondary/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 text-left font-medium">Mês</th>
                   <th className="px-4 py-2.5 text-right font-medium">T. voo (h)</th>
                   <th className="px-4 py-2.5 text-right font-medium">T. total (h)</th>
                   <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
                   <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
                   <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-slate-600">vs histórico</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-slate-600">cobertura</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">vs histórico</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">cobertura</th>
                 </tr>
               </thead>
               <tbody>
@@ -499,15 +499,15 @@ export function ConsumoDialog({
                   <tr
                     key={r.mes}
                     className={[
-                      "border-t border-slate-700/30 transition-colors hover:bg-slate-800/40",
+                      "border-t border-border/30 transition-colors hover:bg-card-secondary/40",
                       r.mes === mes ? "bg-amber-500/5 border-l-2 border-l-amber-500/50" : "",
-                      idx % 2 === 0 ? "bg-slate-800/10" : "",
+                      idx % 2 === 0 ? "bg-card-secondary/10" : "",
                     ].join(" ")}
                   >
                     <td className="px-4 py-2.5 font-semibold text-white capitalize">{r.nomeMes}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">{r.tVoo.toFixed(2)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-400">{r.tTotal.toFixed(2)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">
+                    <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{r.tVoo.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{r.tTotal.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
                       {r.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
                     </td>
                     <td className="px-4 py-2.5 text-right">
@@ -519,17 +519,17 @@ export function ConsumoDialog({
                     <td className="px-4 py-2.5 text-right">
                       <DiffBadge val={r.lhVoo} ref={historico} />
                     </td>
-                    <td className="px-4 py-2.5 text-right text-xs text-slate-500 font-mono">
+                    <td className="px-4 py-2.5 text-right text-xs text-muted-foreground font-mono">
                       {r.voosComDado}/{r.voosTotal}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-amber-500/30 bg-slate-800/60">
+                <tr className="border-t-2 border-amber-500/30 bg-card-secondary/60">
                   <td className="px-4 py-3 font-bold text-amber-400 text-xs uppercase tracking-wide">Total / Média</td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-white">{anoTotals.tVoo.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-300">{anoTotals.tTotal.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-muted-foreground">{anoTotals.tTotal.toFixed(2)}</td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-white">
                     {anoTotals.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
                   </td>
@@ -542,7 +542,7 @@ export function ConsumoDialog({
                   <td className="px-4 py-3 text-right">
                     <DiffBadge val={anoTotals.lhVoo} ref={historico} />
                   </td>
-                  <td className="px-4 py-3 text-right text-xs text-slate-500 font-mono">
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
                     {anoTotals.voosComDado}/{anoTotals.voosTotal}
                   </td>
                 </tr>
@@ -554,19 +554,19 @@ export function ConsumoDialog({
 
       {/* ═══ BLOCO 3 — Por cliente / cotista ═══ */}
       <section>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           consumo por cliente / cotista — {MONTH_NAMES[mes - 1]}/{ano}
         </p>
 
         {porCliente.length === 0 ? (
-          <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-border/40 bg-card-secondary/30 p-6 text-center text-sm text-muted-foreground">
             Nenhum voo com combustível registrado neste período.
           </p>
         ) : (
-          <div className="rounded-xl border border-slate-700/40 overflow-hidden">
+          <div className="rounded-xl border border-border/40 overflow-hidden">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="bg-card-secondary/60 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 text-left font-medium">Cliente / Cotista</th>
                   <th className="px-4 py-2.5 text-center font-medium">Voos</th>
                   <th className="px-4 py-2.5 text-right font-medium">T. voo</th>
@@ -582,17 +582,17 @@ export function ConsumoDialog({
                   const pct = totalAbastClientes > 0 ? (c.abast / totalAbastClientes) * 100 : 0;
                   const cor = SERIE_COLORS[idx % SERIE_COLORS.length];
                   return (
-                    <tr key={c.label} className="border-t border-slate-700/30 hover:bg-slate-800/40 transition-colors">
+                    <tr key={c.label} className="border-t border-border/30 hover:bg-card-secondary/40 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cor }} />
                           <span className="font-medium text-white truncate max-w-[160px]">{c.label}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-400">{c.voos}</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-300">{decimalToHHMM(c.tVoo)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-400">{decimalToHHMM(c.tTotal)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-300">{num(c.abast, 0)}</td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">{c.voos}</td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">{decimalToHHMM(c.tVoo)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">{decimalToHHMM(c.tTotal)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">{num(c.abast, 0)}</td>
                       <td className="px-4 py-3 text-right">
                         <LHCell val={c.lhVoo} ref={historico} />
                       </td>
@@ -601,10 +601,10 @@ export function ConsumoDialog({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <div className="w-20 h-1.5 rounded-full bg-slate-700/50 overflow-hidden">
+                          <div className="w-20 h-1.5 rounded-full bg-secondary/50 overflow-hidden">
                             <div className="h-full rounded-full" style={{ width: `${pct.toFixed(0)}%`, background: cor }} />
                           </div>
-                          <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(1)}%</span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(1)}%</span>
                         </div>
                       </td>
                     </tr>
@@ -618,19 +618,19 @@ export function ConsumoDialog({
 
       {/* ═══ BLOCO 4 — Por voo ═══ */}
       <section>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           detalhe por voo — {MONTH_NAMES[mes - 1]}/{ano}
         </p>
 
         {porVoo.length === 0 ? (
-          <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-border/40 bg-card-secondary/30 p-6 text-center text-sm text-muted-foreground">
             Nenhum voo no período.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-700/40 max-h-72 overflow-y-auto">
+          <div className="overflow-hidden rounded-xl border border-border/40 max-h-72 overflow-y-auto">
             <table className="w-full text-sm border-collapse">
-              <thead className="sticky top-0 bg-slate-800/95 backdrop-blur z-10">
-                <tr className="text-xs uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 bg-card-secondary/95 backdrop-blur z-10">
+                <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 text-left font-medium">Data</th>
                   <th className="px-4 py-2.5 text-left font-medium">Trecho</th>
                   <th className="px-4 py-2.5 text-left font-medium">Para</th>
@@ -644,24 +644,24 @@ export function ConsumoDialog({
                   <tr
                     key={l.id}
                     className={[
-                      "border-t border-slate-700/30 hover:bg-slate-800/50 transition-colors",
-                      idx % 2 === 0 ? "bg-slate-800/10" : "",
+                      "border-t border-border/30 hover:bg-card-secondary/50 transition-colors",
+                      idx % 2 === 0 ? "bg-card-secondary/10" : "",
                     ].join(" ")}
                   >
-                    <td className="px-4 py-2.5 font-mono text-slate-400 text-xs">
+                    <td className="px-4 py-2.5 font-mono text-muted-foreground text-xs">
                       {new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", {
                         day: "2-digit",
                         month: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-300">
+                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                       {l.trecho ?? `${l.aerodromo_partida ?? "—"} → ${l.aerodromo_chegada ?? "—"}`}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-400 max-w-[120px] truncate">
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[120px] truncate">
                       {labelVooPara(l)}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">
-                      {abast > 0 ? num(abast, 0) : <span className="text-slate-600">—</span>}
+                    <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
+                      {abast > 0 ? num(abast, 0) : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <LHCell val={lhVoo} ref={historico} />
@@ -685,26 +685,26 @@ export function ConsumoDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="max-h-[96vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-amber-500/20 bg-slate-900 shadow-2xl shadow-amber-500/10"
+        className="max-h-[96vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-amber-500/20 bg-card shadow-2xl shadow-amber-500/10"
       >
         {/* ── Header ── */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 px-6 py-4 backdrop-blur">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-card/95 px-6 py-4 backdrop-blur">
           <div>
             <h3 className="flex items-center gap-2 text-xl font-bold text-white">
               <Droplets className="w-5 h-5 text-amber-400" />
               Consumo de Combustível · {aeronave.matricula}
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {MONTH_NAMES[mes - 1]}/{ano} · referência histórica:{" "}
               <span className="font-mono text-amber-400">{num(historico, 1)} L/H</span>
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-card-secondary hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

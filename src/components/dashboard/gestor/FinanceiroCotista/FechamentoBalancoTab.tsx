@@ -126,7 +126,7 @@ export function FechamentoBalancoTab({
   // Ícone de ordenação para o cabeçalho da coluna (estilo grid)
   const SortIcon = ({ field }: { field: SortBy }) => {
     if (sortBy !== field) {
-      return <ArrowUpDown className="h-2.5 w-2.5 text-slate-600 group-hover:text-teal-400/70 transition-colors" />;
+      return <ArrowUpDown className="h-2.5 w-2.5 text-muted-foreground group-hover:text-teal-400/70 transition-colors" />;
     }
     return sortDir === "asc" ? (
       <ArrowUp className="h-2.5 w-2.5 text-teal-400" />
@@ -138,7 +138,7 @@ export function FechamentoBalancoTab({
   const thBase =
     "px-3 py-2.5 font-bold whitespace-nowrap select-none transition-colors";
   const thSortable = (field: SortBy) =>
-    `group cursor-pointer hover:bg-teal-500/10 ${sortBy === field ? "text-teal-300" : "text-slate-400"}`;
+    `group cursor-pointer hover:bg-teal-500/10 ${sortBy === field ? "text-teal-300" : "text-muted-foreground"}`;
 
   // Drag to scroll refs and state
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -366,15 +366,15 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
   return (
     <div className="space-y-4">
       {/* Header Premium */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-700/50 bg-slate-900/60 p-4 shadow-lg backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/60 p-4 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500/20 to-teal-500/5 border border-teal-500/20 text-teal-400 shadow-inner">
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold tracking-wide text-slate-100 leading-tight">Fechamento de Balanço</h2>
-            <p className="text-xs font-medium text-slate-400 mt-0.5">
-              {periodLabel} <span className="mx-1.5 text-slate-600">•</span> {matricula || "Aeronave"} <span className="mx-1.5 text-slate-600">•</span> {totalConferido}/{totalLancamentos} conferidos
+            <h2 className="text-base font-bold tracking-wide text-foreground leading-tight">Fechamento de Balanço</h2>
+            <p className="text-xs font-medium text-muted-foreground mt-0.5">
+              {periodLabel} <span className="mx-1.5 text-muted-foreground">•</span> {matricula || "Aeronave"} <span className="mx-1.5 text-muted-foreground">•</span> {totalConferido}/{totalLancamentos} conferidos
             </p>
           </div>
         </div>
@@ -402,8 +402,8 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
               </span>
             </div>
             <div className="text-xs">
-              <p className="font-bold text-slate-200 leading-tight">{totalConferido} Conf.</p>
-              <p className="text-slate-500 font-medium leading-tight">{totalLancamentos - totalConferido} Pend.</p>
+              <p className="font-bold text-foreground leading-tight">{totalConferido} Conf.</p>
+              <p className="text-muted-foreground font-medium leading-tight">{totalLancamentos - totalConferido} Pend.</p>
             </div>
           </div>
 
@@ -411,7 +411,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/70 px-3 py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
               aria-expanded={showColumnMenu}
               aria-label="Mostrar ou ocultar colunas"
             >
@@ -421,15 +421,15 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             {showColumnMenu && (
               <>
                 <div className="fixed inset-0 z-[9998]" onClick={() => setShowColumnMenu(false)} />
-                <div className="absolute right-0 top-full z-[9999] mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-2xl">
+                <div className="absolute right-0 top-full z-[9999] mt-2 w-48 rounded-lg border border-border bg-card p-2 shadow-2xl">
                   {HIDEABLE_COLUMNS.map(([id, label]) => (
                     <button
                       key={id}
                       onClick={() => toggleColumn(id)}
-                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-teal-300"
+                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-muted-foreground transition-colors hover:bg-card-secondary hover:text-teal-300"
                     >
                       {label}
-                      {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
+                      {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
                     </button>
                   ))}
                 </div>
@@ -442,7 +442,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             {onVerNaTela && (
               <button
                 onClick={onVerNaTela}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/70 px-3 py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
                 title="Ver relatório dos meses fechados na tela"
               >
                 <Eye className="h-3.5 w-3.5" /> VER NA TELA
@@ -451,7 +451,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             {onExportPDF && (
               <button
                 onClick={onExportPDF}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/70 px-3 py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
                 title="Exportar PDF"
               >
                 <FileText className="h-3.5 w-3.5" /> EXPORTAR PDF
@@ -464,7 +464,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-bold tracking-wide transition-all duration-300 ${
               todosConferidos
                 ? "bg-gradient-to-r from-emerald-500 to-emerald-400 text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-[1.02]"
-                : "bg-slate-800/50 text-slate-500 border border-slate-700/50 cursor-not-allowed"
+                : "bg-card-secondary/50 text-muted-foreground border border-border/50 cursor-not-allowed"
             }`}
           >
             {fecharMesMutation.isPending ? (
@@ -478,7 +478,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
       </div>
 
       {/* Tabela estilo grid (teal/dark) */}
-      <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#0a1120] shadow-2xl backdrop-blur-sm">
+      <div className="overflow-hidden rounded-xl border border-border/50 bg-[#0a1120] shadow-2xl backdrop-blur-sm">
         <div
           ref={tableContainerRef}
           className={`overflow-x-auto custom-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
@@ -489,10 +489,10 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
         >
           <table className="w-full text-[11px] border-collapse min-w-[1000px]">
             <thead>
-              <tr className="border-b-2 border-teal-500/30 bg-[#0f1b2d] text-[9px] uppercase tracking-widest divide-x divide-slate-800/60">
-                <th className={`${thBase} px-3 py-2.5 text-center w-10 text-slate-500`}></th>
+              <tr className="border-b-2 border-teal-500/30 bg-[#0f1b2d] text-[9px] uppercase tracking-widest divide-x divide-border/60">
+                <th className={`${thBase} px-3 py-2.5 text-center w-10 text-muted-foreground`}></th>
 
-                <th className={`${thBase} text-left ${columnVisible("fluxo") ? "" : "hidden"} text-slate-400`}>
+                <th className={`${thBase} text-left ${columnVisible("fluxo") ? "" : "hidden"} text-muted-foreground`}>
                   Fluxo
                 </th>
 
@@ -510,7 +510,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                   <span className="inline-flex items-center gap-1">Pagamento <SortIcon field="pagamento" /></span>
                 </th>
 
-                <th className={`${thBase} text-left ${columnVisible("documento") ? "" : "hidden"} text-slate-400`}>
+                <th className={`${thBase} text-left ${columnVisible("documento") ? "" : "hidden"} text-muted-foreground`}>
                   nº Doc
                 </th>
 
@@ -535,7 +535,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                   <span className="inline-flex items-center gap-1">Descrição <SortIcon field="descricao" /></span>
                 </th>
 
-                <th className={`${thBase} text-right ${columnVisible("uso") ? "" : "hidden"} text-slate-400`}>
+                <th className={`${thBase} text-right ${columnVisible("uso") ? "" : "hidden"} text-muted-foreground`}>
                   % Uso
                 </th>
 
@@ -553,17 +553,17 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                   <span className="inline-flex items-center justify-end gap-1 w-full">Vlr. Rateado <SortIcon field="rateado" /></span>
                 </th>
 
-                <th className={`${thBase} text-center text-slate-400`}>Ações</th>
+                <th className={`${thBase} text-center text-muted-foreground`}>Ações</th>
               </tr>
 
               {/* Linha de filtros por coluna */}
-              <tr className="border-b border-slate-800/70 bg-[#0b1524]">
+              <tr className="border-b border-border/70 bg-[#0b1524]">
                 <th className="px-2 py-1.5">
                   {hasActiveFilters && (
                     <button
                       onClick={() => setColumnFilters({})}
                       title="Limpar filtros"
-                      className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/60 text-[10px] font-bold text-slate-400 hover:border-teal-500/50 hover:text-teal-300"
+                      className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card-secondary/60 text-[10px] font-bold text-muted-foreground hover:border-teal-500/50 hover:text-teal-300"
                     >
                       ×
                     </button>
@@ -576,7 +576,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                       onChange={(e) => setFilter(id, e.target.value)}
                       onMouseDown={(e) => e.stopPropagation()}
                       placeholder={label}
-                      className={`w-full min-w-[70px] rounded border border-slate-700/70 bg-slate-900/70 px-2 py-1 text-[10px] font-medium text-slate-200 placeholder:text-slate-600 outline-none transition-colors focus:border-teal-500/60 ${
+                      className={`w-full min-w-[70px] rounded border border-border/70 bg-card/70 px-2 py-1 text-[10px] font-medium text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-teal-500/60 ${
                         id === "total" || id === "rateado" || id === "uso" ? "text-right" : ""
                       }`}
                     />
@@ -585,10 +585,10 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                 <th className="px-2 py-1.5" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-border/50">
               {sortedDespesasAgrupadas.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
+                  <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-muted-foreground">
                     {hasActiveFilters
                       ? "Nenhum lançamento corresponde aos filtros aplicados."
                       : "Nenhum lançamento encontrado no período selecionado."}
@@ -617,16 +617,16 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                     ? "bg-emerald-950/10 hover:bg-emerald-950/20"
                     : idx % 2 === 0
                       ? "bg-teal-500/[0.03] hover:bg-teal-500/[0.07]"
-                      : "bg-transparent hover:bg-slate-800/40";
+                      : "bg-transparent hover:bg-card-secondary/40";
 
                   return (
                     <Fragment key={grupo.key}>
                       {/* Linha Principal da Tabela */}
-                      <tr className={`group transition-all duration-200 divide-x divide-slate-800/40 ${rowBg}`}>
+                      <tr className={`group transition-all duration-200 divide-x divide-border/40 ${rowBg}`}>
                         <td className="px-3 py-2 text-center">
                           <button
                             onClick={() => setExpandedRow(isExpanded ? null : grupo.key)}
-                            className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-400 focus:outline-none"
+                            className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card-secondary/50 text-muted-foreground transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-400 focus:outline-none"
                           >
                             {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
@@ -636,31 +636,31 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                             {r.fluxo || "—"}
                           </span>
                         </td>
-                        <td className={`px-3 py-2 text-slate-300 font-medium font-mono ${columnVisible("vencimento") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-muted-foreground font-medium font-mono ${columnVisible("vencimento") ? "" : "hidden"}`}>
                           {formatDate(r.data_vencimento)}
                         </td>
-                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-500 font-bold" : "text-slate-500"} ${columnVisible("pagamento") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-500 font-bold" : "text-muted-foreground"} ${columnVisible("pagamento") ? "" : "hidden"}`}>
                           {r.data_pagamento ? formatDate(r.data_pagamento) : "---"}
                         </td>
                         <td className={`px-3 py-2 font-mono text-teal-400/90 text-[10px] ${columnVisible("documento") ? "" : "hidden"}`}>
                           {docDisplay}
                         </td>
-                        <td className={`px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-foreground font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
                           {r.fornecedor_nome || "—"} {temMultiplosCotistas && <span className="text-teal-400 text-[9px]">({grupo.numCotistas})</span>}
                         </td>
-                        <td className={`px-3 py-2 text-slate-300 font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-muted-foreground font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
                           {temMultiplosCotistas ? `${grupo.numCotistas} sócios` : clienteDisplay}
                         </td>
-                        <td className={`px-3 py-2 text-slate-400 max-w-[180px] truncate ${columnVisible("descricao") ? "" : "hidden"}`} title={r.descricao_despesa || ""}>
+                        <td className={`px-3 py-2 text-muted-foreground max-w-[180px] truncate ${columnVisible("descricao") ? "" : "hidden"}`} title={r.descricao_despesa || ""}>
                           {r.descricao_despesa || "—"}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums text-slate-300 font-medium ${columnVisible("uso") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-right tabular-nums text-muted-foreground font-medium ${columnVisible("uso") ? "" : "hidden"}`}>
                           {r.percentual_uso != null ? `${num(r.percentual_uso)}%` : "—"}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold text-slate-200 ${columnVisible("total") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold text-foreground ${columnVisible("total") ? "" : "hidden"}`}>
                           {formatBRL(grupo.valorTotal)}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorRateado > 0 ? "text-teal-400" : "text-slate-500"} ${columnVisible("rateado") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorRateado > 0 ? "text-teal-400" : "text-muted-foreground"} ${columnVisible("rateado") ? "" : "hidden"}`}>
                           {formatBRL(grupo.valorRateado)}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -675,7 +675,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                             className={`inline-flex min-w-[75px] items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold transition-all shadow-sm ${
                               grupo.todosConferidos
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
-                                : "bg-slate-800 text-slate-300 border border-slate-600 hover:bg-teal-500/20 hover:text-teal-300 hover:border-teal-500/40"
+                                : "bg-card-secondary text-muted-foreground border border-border hover:bg-teal-500/20 hover:text-teal-300 hover:border-teal-500/40"
                             }`}
                           >
                             {grupo.todosConferidos ? (
@@ -694,14 +694,14 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-slate-950/80 border-b border-slate-800/60 shadow-inner"
+                            className="bg-background/80 border-b border-border/60 shadow-inner"
                           >
                             <td colSpan={visibleColumnCount} className="px-4 py-4 cursor-default">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                                 {/* Coluna 1: Anexos */}
-                                <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                <div className="space-y-2 rounded-lg border border-border bg-card/50 p-3">
+                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                     Anexos e Documentos
                                   </h4>
                                   <div className="flex flex-col gap-1.5">
@@ -711,7 +711,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                                           key={a.label}
                                           type="button"
                                           onClick={() => setViewerAnexo({ url: a.url!, title: a.label })}
-                                          className="flex w-full items-center justify-between rounded-md border border-slate-700/50 bg-slate-800/50 px-2.5 py-1.5 text-[10px] font-medium text-slate-300 transition-colors hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-400"
+                                          className="flex w-full items-center justify-between rounded-md border border-border/50 bg-card-secondary/50 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-400"
                                         >
                                           <div className="flex items-center gap-1.5">
                                             <FileText className="h-3 w-3 text-red-400" />
@@ -722,42 +722,42 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                                       ))
 
                                     ) : (
-                                      <p className="text-[10px] italic text-slate-600">Nenhum documento anexado.</p>
+                                      <p className="text-[10px] italic text-muted-foreground">Nenhum documento anexado.</p>
                                     )}
                                   </div>
                                 </div>
 
                                 {/* Coluna 2: Dados da Despesa */}
-                                <div className="space-y-2.5 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                <div className="space-y-2.5 rounded-lg border border-border bg-card/50 p-3">
+                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                     Informações da Despesa
                                   </h4>
-                                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                    <span className="text-[10px] text-slate-400">Data Emissão</span>
-                                    <span className="text-[10px] font-bold text-slate-200">
+                                  <div className="flex items-center justify-between border-b border-border pb-1.5">
+                                    <span className="text-[10px] text-muted-foreground">Data Emissão</span>
+                                    <span className="text-[10px] font-bold text-foreground">
                                       {formatDate(r.data_emissao || r.data_vencimento)}
                                     </span>
                                   </div>
-                                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                    <span className="text-[10px] text-slate-400">Data Vencimento</span>
-                                    <span className="text-[10px] font-bold text-slate-200">
+                                  <div className="flex items-center justify-between border-b border-border pb-1.5">
+                                    <span className="text-[10px] text-muted-foreground">Data Vencimento</span>
+                                    <span className="text-[10px] font-bold text-foreground">
                                       {formatDate(r.data_vencimento)}
                                     </span>
                                   </div>
-                                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                    <span className="text-[10px] text-slate-400">Data Pagamento</span>
-                                    <span className={`text-[10px] font-bold ${r.data_pagamento ? "text-emerald-400" : "text-slate-500"}`}>
+                                  <div className="flex items-center justify-between border-b border-border pb-1.5">
+                                    <span className="text-[10px] text-muted-foreground">Data Pagamento</span>
+                                    <span className={`text-[10px] font-bold ${r.data_pagamento ? "text-emerald-400" : "text-muted-foreground"}`}>
                                       {r.data_pagamento ? formatDate(r.data_pagamento) : "—"}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-400">Valor Total</span>
+                                    <span className="text-[10px] text-muted-foreground">Valor Total</span>
                                     <span className="text-[10px] font-bold text-teal-400">
                                       {formatBRL(grupo.valorTotal)}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-400">Valor Pago Real</span>
+                                    <span className="text-[10px] text-muted-foreground">Valor Pago Real</span>
                                     <span className="text-[10px] font-bold text-emerald-400">
                                       {formatBRL(grupo.valorPagoTotal)}
                                     </span>
@@ -765,20 +765,20 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                                 </div>
 
                                 {/* Coluna 3: Notas / Edição */}
-                                <div className="flex flex-col space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+                                <div className="flex flex-col space-y-2 rounded-lg border border-border bg-card/50 p-3">
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                    <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                    <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                       Observações
                                     </h4>
                                     <button
                                       onClick={() => setEditingRateio(r)}
-                                      className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-200 transition-colors hover:bg-teal-500/20 hover:text-teal-300"
+                                      className="inline-flex items-center gap-1 rounded-md border border-border bg-card-secondary px-2 py-1 text-[10px] font-bold text-foreground transition-colors hover:bg-teal-500/20 hover:text-teal-300"
                                     >
                                       <Edit2 className="h-3 w-3" /> Editar
                                     </button>
                                   </div>
-                                  <div className="flex-1 rounded bg-slate-950/50 p-2 border border-slate-800/80">
-                                    <p className="text-[10px] italic text-slate-400">
+                                  <div className="flex-1 rounded bg-background/50 p-2 border border-border/80">
+                                    <p className="text-[10px] italic text-muted-foreground">
                                       {r.observacoes ? `"${r.observacoes}"` : "Sem notas adicionais."}
                                     </p>
                                   </div>
@@ -788,8 +788,8 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
 
                               {/* Cotistas Envolvidos no Rateio */}
                               {temMultiplosCotistas && (
-                                <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                                  <h4 className="mb-3 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                <div className="mt-3 rounded-lg border border-border bg-card/30 p-3">
+                                  <h4 className="mb-3 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                     Cotistas Envolvidos no Rateio ({grupo.numCotistas})
                                   </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -806,20 +806,20 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                                         danger: "⚠",
                                       };
                                       return (
-                                      <div key={`${o.id}-${i}`} className="rounded-md border border-slate-700/50 bg-slate-900/50 p-3 space-y-2">
+                                      <div key={`${o.id}-${i}`} className="rounded-md border border-border/50 bg-card/50 p-3 space-y-2">
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-bold text-slate-200 truncate">
+                                            <p className="text-[10px] font-bold text-foreground truncate">
                                               {o.socios_nome || o.clientes_nome || "—"}
                                             </p>
-                                            <p className="text-[9px] text-slate-500 mt-0.5">
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">
                                               Quota: {o.percentual_sociedade != null ? `${num(o.percentual_sociedade)}%` : "—"}
                                             </p>
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <button
                                               onClick={() => setEditingRateio(o)}
-                                              className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[9px] font-bold text-slate-200 transition-colors hover:bg-teal-500/20 hover:text-teal-300"
+                                              className="inline-flex items-center gap-1 rounded-md border border-border bg-card-secondary px-2 py-1 text-[9px] font-bold text-foreground transition-colors hover:bg-teal-500/20 hover:text-teal-300"
                                             >
                                               <Edit2 className="h-3 w-3" /> Editar
                                             </button>
@@ -830,21 +830,21 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                                             </span>
                                           </div>
                                         </div>
-                                        <div className="border-t border-slate-700/50 pt-2 space-y-1">
+                                        <div className="border-t border-border/50 pt-2 space-y-1">
                                           <div className="flex justify-between text-[9px]">
-                                            <span className="text-slate-500">Valor Rateado:</span>
+                                            <span className="text-muted-foreground">Valor Rateado:</span>
                                             <span className="text-teal-400 font-semibold">{formatBRL(num(o.valor_rateado))}</span>
                                           </div>
                                           {o.valor_pago_real > 0 && (
                                             <div className="flex justify-between text-[9px]">
-                                              <span className="text-slate-500">Pago:</span>
+                                              <span className="text-muted-foreground">Pago:</span>
                                               <span className="text-emerald-400 font-semibold">{formatBRL(num(o.valor_pago_real))}</span>
                                             </div>
                                           )}
                                           {o.data_pagamento && (
                                             <div className="flex justify-between text-[9px]">
-                                              <span className="text-slate-500">Data Pag.:</span>
-                                              <span className="text-slate-300 font-semibold">{formatDate(o.data_pagamento)}</span>
+                                              <span className="text-muted-foreground">Data Pag.:</span>
+                                              <span className="text-muted-foreground font-semibold">{formatDate(o.data_pagamento)}</span>
                                             </div>
                                           )}
                                         </div>
@@ -863,18 +863,18 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="bg-slate-950/90 border-b border-slate-800/60"
+                          className="bg-background/90 border-b border-border/60"
                         >
                           <td colSpan={visibleColumnCount} className="px-4 py-4">
-                            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 shadow-inner">
+                            <div className="rounded-3xl border border-border/70 bg-card/80 p-4 shadow-inner">
                               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                  <p className="text-sm font-bold text-slate-100">Editar lançamento</p>
-                                  <p className="text-[11px] text-slate-400">Ajuste no fechamento de balanço sem sair do expansor.</p>
+                                  <p className="text-sm font-bold text-foreground">Editar lançamento</p>
+                                  <p className="text-[11px] text-muted-foreground">Ajuste no fechamento de balanço sem sair do expansor.</p>
                                 </div>
                                 <button
                                   onClick={() => setEditingRateio(null)}
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-[10px] font-bold text-slate-200 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card-secondary px-3 py-2 text-[10px] font-bold text-foreground transition-colors hover:bg-red-500/10 hover:text-red-300"
                                 >
                                   Fechar edição
                                 </button>
@@ -901,11 +901,11 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             {sortedDespesasAgrupadas.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-teal-500/30 bg-[#0f1b2d] shadow-inner">
-                  <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("rateado") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
+                  <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("rateado") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-muted-foreground text-[10px]">
                     {hasActiveFilters ? `TOTAL FILTRADO (${sortedDespesasAgrupadas.length}):` : "TOTAL DO MÊS:"}
                   </td>
                   {columnVisible("total") && (
-                    <td className="px-3 py-3 text-right tabular-nums font-black text-slate-100 text-xs">
+                    <td className="px-3 py-3 text-right tabular-nums font-black text-foreground text-xs">
                       {formatBRL(totalFiltradoTotal)}
                     </td>
                   )}
@@ -1058,8 +1058,8 @@ function EditRateioPanel({
 
   };
 
-  const inputCls = "w-full rounded-xl bg-slate-950/80 border border-slate-700/60 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-slate-600 shadow-inner";
-  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2";
+  const inputCls = "w-full rounded-xl bg-background/80 border border-border/60 px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-muted-foreground shadow-inner";
+  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md" style={{ background: "rgba(2,6,23,0.90)" }} onClick={onClose}>
@@ -1067,20 +1067,20 @@ function EditRateioPanel({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/50 bg-card shadow-[0_0_50px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-5 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-border bg-card/80 px-6 py-5 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
               <Edit2 className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-100 tracking-wide">Editar Lançamento</div>
+              <div className="text-base font-bold text-foreground tracking-wide">Editar Lançamento</div>
               <div className="text-[11px] font-medium uppercase tracking-widest text-teal-500/70">Ajuste Financeiro</div>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-400">
+          <button onClick={onClose} className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-400">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1150,8 +1150,8 @@ function EditRateioPanel({
 
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-800 bg-slate-900/80 px-6 py-4">
-          <button onClick={onClose} className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200">
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-card/80 px-6 py-4">
+          <button onClick={onClose} className="rounded-xl px-5 py-2.5 text-sm font-bold text-muted-foreground transition-colors hover:bg-card-secondary hover:text-foreground">
             Cancelar
           </button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 px-7 py-2.5 text-sm font-bold tracking-wide text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-teal-500/25 disabled:opacity-50">

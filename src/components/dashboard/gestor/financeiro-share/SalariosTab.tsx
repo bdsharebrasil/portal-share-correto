@@ -663,8 +663,8 @@ export default function SalariosTab() {
   const totalFuncionario = (userId: string) => resumoFolha(userId).custoTotal;
 
   const inputCls =
-    "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+    "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
 
   const anos = Array.from({ length: 6 }, (_, i) => now.getFullYear() - 2 + i);
 
@@ -672,8 +672,8 @@ export default function SalariosTab() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-100">Salários</h2>
-          <p className="text-xs text-slate-400">Gestão da folha de pagamento dos colaboradores.</p>
+          <h2 className="text-lg font-bold text-foreground">Salários</h2>
+          <p className="text-xs text-muted-foreground">Gestão da folha de pagamento dos colaboradores.</p>
         </div>
       </div>
 
@@ -737,16 +737,16 @@ export default function SalariosTab() {
       {/* Lista */}
       {!loaded ? (
         <div
-          className="rounded-2xl p-10 text-center text-sm text-slate-400"
+          className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
         >
           Selecione um período e clique em "Carregar".
         </div>
       ) : loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : funcionarios.length === 0 ? (
         <div
-          className="rounded-2xl p-10 text-center text-sm text-slate-400"
+          className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
         >
           Nenhum colaborador ativo encontrado.
@@ -771,7 +771,7 @@ export default function SalariosTab() {
                 {/* Cabeçalho da Linha */}
                 <button
                   onClick={() => setExpandedId(expanded ? null : u.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/40"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-secondary/40"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {expanded ? (
@@ -781,17 +781,17 @@ export default function SalariosTab() {
                     )}
                     <div className="min-w-0 text-left">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-100 truncate">
+                        <span className="text-sm font-semibold text-foreground truncate">
                           {u.full_name || "Sem nome"}
                         </span>
                         {u.departamento && (
-                          <span className="text-[10px] bg-slate-800 text-cyan-300 border border-slate-700 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <span className="text-[10px] bg-card-secondary text-cyan-300 border border-border px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                             <Building2 className="h-2.5 w-2.5" />
                             {u.departamento}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 truncate">{u.email || "—"}</div>
+                      <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
@@ -815,12 +815,12 @@ export default function SalariosTab() {
 
                 {/* Form Expandido */}
                 {expanded && (
-                  <div className="px-4 pb-4 pt-3 border-t border-slate-800 space-y-4">
+                  <div className="px-4 pb-4 pt-3 border-t border-border space-y-4">
                     {/* Bloco de Dados Bancários do Colaborador */}
-                    <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs flex flex-wrap items-center justify-between gap-3 text-slate-300">
+                    <div className="p-3 bg-card/60 rounded-xl border border-border text-xs flex flex-wrap items-center justify-between gap-3 text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <CreditCard className="h-4 w-4 text-cyan-400" />
-                        <span className="font-semibold text-slate-200">Dados Bancários Cadastrados:</span>
+                        <span className="font-semibold text-foreground">Dados Bancários Cadastrados:</span>
                       </div>
                       <div className="flex flex-wrap gap-4">
                         <span><strong>Banco:</strong> {u.bank_name || "—"}</span>
@@ -962,22 +962,22 @@ export default function SalariosTab() {
                     {(() => {
                       const resumo = resumoFolha(u.id);
                       return (
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Bruto</span><strong className="text-sm text-slate-200">{formatBRL(resumo.bruto)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Descontos</span><strong className="text-sm text-rose-300">− {formatBRL(resumo.totalDescontos)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Líquido</span><strong className="text-sm text-emerald-300">{formatBRL(resumo.liquido)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Benefícios</span><strong className="text-sm text-amber-300">+ {formatBRL(resumo.totalBeneficios)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Horas de voo</span><strong className="text-sm text-cyan-300">+ {formatBRL(resumo.valorHorasVoo)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-slate-500">Custo empresa</span><strong className="text-sm text-cyan-300">{formatBRL(resumo.custoTotal)}</strong></div>
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 rounded-xl border border-border bg-card/40 p-3">
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Bruto</span><strong className="text-sm text-foreground">{formatBRL(resumo.bruto)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Descontos</span><strong className="text-sm text-rose-300">− {formatBRL(resumo.totalDescontos)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Líquido</span><strong className="text-sm text-emerald-300">{formatBRL(resumo.liquido)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Benefícios</span><strong className="text-sm text-amber-300">+ {formatBRL(resumo.totalBeneficios)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Horas de voo</span><strong className="text-sm text-cyan-300">+ {formatBRL(resumo.valorHorasVoo)}</strong></div>
+                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Custo empresa</span><strong className="text-sm text-cyan-300">{formatBRL(resumo.custoTotal)}</strong></div>
                         </div>
                       );
                     })()}
 
                     {/* Calculadora de Horas de Voo — apenas Tripulante / Piloto Chefe */}
                     {crew && (
-                      <div className="p-3 bg-slate-900/40 rounded-xl border border-slate-800 space-y-2">
+                      <div className="p-3 bg-card/40 rounded-xl border border-border space-y-2">
                         <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Cálculo de Horas de Voo — {MESES.find((m) => m.value === mes)?.label}/{ano}
                           </span>
                           <button
@@ -996,7 +996,7 @@ export default function SalariosTab() {
                         </div>
 
                         {horasDetalhado.length === 0 ? (
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             Nenhuma hora de voo lançada para este colaborador no período selecionado.
                           </p>
                         ) : (
@@ -1004,13 +1004,13 @@ export default function SalariosTab() {
                             {horasDetalhado.map((d) => (
                               <div
                                 key={d.aeronaveId}
-                                className="flex items-center justify-between text-xs text-slate-300 gap-2"
+                                className="flex items-center justify-between text-xs text-muted-foreground gap-2"
                               >
                                 <span className="truncate">
                                   {d.matricula}
                                   {d.modelo ? ` · ${d.modelo}` : ""}
                                 </span>
-                                <span className="text-slate-400 whitespace-nowrap">
+                                <span className="text-muted-foreground whitespace-nowrap">
                                   {d.horas.toFixed(1)}h × {formatBRL(d.taxa)}
                                 </span>
                                 <span className="text-cyan-300 font-semibold whitespace-nowrap">
@@ -1018,8 +1018,8 @@ export default function SalariosTab() {
                                 </span>
                               </div>
                             ))}
-                            <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-slate-800">
-                              <span className="font-semibold text-slate-200">Valor horas de voo</span>
+                            <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-border">
+                              <span className="font-semibold text-foreground">Valor horas de voo</span>
                               <span className="text-cyan-300 font-bold">{formatBRL(horasTotal)}</span>
                             </div>
                           </div>
@@ -1033,7 +1033,7 @@ export default function SalariosTab() {
                         <button
                           type="button"
                           onClick={() => setForms((prev) => ({ ...prev, [u.id]: { ...f, show13: true } }))}
-                          className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors"
+                          className="text-xs bg-card-secondary hover:bg-secondary text-cyan-300 px-3 py-1.5 rounded-lg border border-border flex items-center gap-1.5 transition-colors"
                         >
                           <Plus className="h-3.5 w-3.5" /> Adicionar 13º Salário
                         </button>
@@ -1056,7 +1056,7 @@ export default function SalariosTab() {
                         <button
                           type="button"
                           onClick={() => setForms((prev) => ({ ...prev, [u.id]: { ...f, showFerias: true } }))}
-                          className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors"
+                          className="text-xs bg-card-secondary hover:bg-secondary text-cyan-300 px-3 py-1.5 rounded-lg border border-border flex items-center gap-1.5 transition-colors"
                         >
                           <Plus className="h-3.5 w-3.5" /> Adicionar Férias
                         </button>
@@ -1078,7 +1078,7 @@ export default function SalariosTab() {
 
                     {/* Campos Condicionais de 13º e Férias */}
                     {(f.show13 || f.showFerias) && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-900/30 rounded-xl border border-slate-800">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-card/30 rounded-xl border border-border">
                         {f.show13 && (
                           <>
                             <div>
@@ -1171,7 +1171,7 @@ export default function SalariosTab() {
                       <div>
                         <label className={labelCls}>Holerite (Imagem/PDF)</label>
                         {f.holerite_url ? (
-                          <div className="flex items-center justify-between p-2 bg-slate-950/80 border border-slate-700 rounded-lg text-xs">
+                          <div className="flex items-center justify-between p-2 bg-background/80 border border-border rounded-lg text-xs">
                             <a
                               href={f.holerite_url}
                               target="_blank"
@@ -1192,7 +1192,7 @@ export default function SalariosTab() {
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-700 hover:border-cyan-400/50 bg-slate-950/40 rounded-lg cursor-pointer text-xs text-slate-400 transition-colors">
+                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-border hover:border-cyan-400/50 bg-background/40 rounded-lg cursor-pointer text-xs text-muted-foreground transition-colors">
                             {readingHolerite === u.id || (uploadingField?.userId === u.id && uploadingField?.field === "holerite") ? (
                               <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                             ) : (
@@ -1217,7 +1217,7 @@ export default function SalariosTab() {
                       <div>
                         <label className={labelCls}>Comprovante (Imagem/PDF)</label>
                         {f.comprovante_url ? (
-                          <div className="flex items-center justify-between p-2 bg-slate-950/80 border border-slate-700 rounded-lg text-xs">
+                          <div className="flex items-center justify-between p-2 bg-background/80 border border-border rounded-lg text-xs">
                             <a
                               href={f.comprovante_url}
                               target="_blank"
@@ -1238,7 +1238,7 @@ export default function SalariosTab() {
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-700 hover:border-cyan-400/50 bg-slate-950/40 rounded-lg cursor-pointer text-xs text-slate-400 transition-colors">
+                          <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-border hover:border-cyan-400/50 bg-background/40 rounded-lg cursor-pointer text-xs text-muted-foreground transition-colors">
                             {uploadingField?.userId === u.id && uploadingField?.field === "comprovante" ? (
                               <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                             ) : (
@@ -1273,7 +1273,7 @@ export default function SalariosTab() {
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
-                      <div className="text-xs text-slate-400 inline-flex items-center gap-1">
+                      <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         Total Final: <span className="text-cyan-300 font-bold ml-1">{formatBRL(totalFuncionario(u.id))}</span>
                       </div>

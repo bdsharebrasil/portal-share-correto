@@ -103,7 +103,7 @@ function DiarioBordo() {
                 <h1 className="text-3xl font-bold text-white tracking-wide">
                   Diários de Bordo
                 </h1>
-                <p className="text-slate-400 mt-0.5">
+                <p className="text-muted-foreground mt-0.5">
                   Gerencie os diários de bordo digitais das aeronaves
                 </p>
               </div>
@@ -121,20 +121,20 @@ function DiarioBordo() {
         {loading ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-48 animate-pulse rounded-2xl border border-slate-600/50 bg-slate-700/50" />
+              <div key={i} className="h-48 animate-pulse rounded-2xl border border-border/50 bg-secondary/50" />
             ))}
           </div>
         ) : (
           <>
             {aeronaves.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="mb-4 rounded-3xl border border-slate-600/50 bg-slate-700/50 p-5">
-                  <Plane className="h-12 w-12 text-slate-500" />
+                <div className="mb-4 rounded-3xl border border-border/50 bg-secondary/50 p-5">
+                  <Plane className="h-12 w-12 text-muted-foreground" />
                 </div>
                 <p className="mb-1 text-lg font-semibold text-white">
                   Nenhuma aeronave cadastrada
                 </p>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   Suas aeronaves ativas aparecerão aqui
                 </p>
               </div>
@@ -157,7 +157,7 @@ function DiarioBordo() {
                     >
                       <button
                         onClick={() => navigate(`/diario-bordo/${a.id}`)}
-                        className="group relative block w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 text-left"
+                        className="group relative block w-full overflow-hidden rounded-2xl border border-border/50 bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 text-left"
                       >
                         {/* Glow bg */}
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
@@ -173,34 +173,34 @@ function DiarioBordo() {
                                 <h3 className="text-lg font-bold tracking-wide text-white">
                                   {a.matricula}
                                 </h3>
-                                <p className="text-sm text-slate-400">
+                                <p className="text-sm text-muted-foreground">
                                   {a.modelo || "Sem modelo"}
                                 </p>
                               </div>
                             </div>
                             <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ativa
                                 ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
-                                : "border-slate-600 bg-slate-800 text-slate-400"
+                                : "border-border bg-card-secondary text-muted-foreground"
                               }`}>
                               {ativa ? "Ativa" : (a.status ?? "Inativa")}
                             </span>
                           </div>
 
                           {/* Dados da Aeronave */}
-                          <div className="mb-4 rounded-xl border border-slate-700/50 bg-slate-800/80 p-4">
-                            <h4 className="mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Dados da Aeronave</h4>
+                          <div className="mb-4 rounded-xl border border-border/50 bg-card-secondary/80 p-4">
+                            <h4 className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados da Aeronave</h4>
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <div className="mb-1 flex items-center gap-2">
-                                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                  <span className="text-xs text-slate-400">Diário</span>
+                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">Diário</span>
                                 </div>
                                 <p className="font-bold text-white">{ano}</p>
                               </div>
                               <div>
                                 <div className="mb-1 flex items-center gap-2">
-                                  <Gauge className="h-3.5 w-3.5 text-slate-400" />
-                                  <span className="text-xs text-slate-400">
+                                  <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">
                                     Célula Atual
                                   </span>
                                 </div>
@@ -215,14 +215,14 @@ function DiarioBordo() {
                             return (
                               <div className="mb-4">
                                 <div className="mb-1.5 flex items-center justify-between">
-                                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <Activity className={`h-3 w-3 ${colors.textClass}`} /> Próxima revisão
                                   </span>
                                   <span className={`text-xs font-medium ${colors.textClass}`}>
                                     {num(horasRestantes, 0)}h restantes
                                   </span>
                                 </div>
-                                <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
+                                <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
                                   <div
                                     className={`h-full rounded-full ${colors.barClass} transition-all`}
                                     style={{ width: `${pct}%` }}
@@ -233,11 +233,11 @@ function DiarioBordo() {
                           })()}
 
                           {/* Footer */}
-                          <div className="flex items-center justify-between border-t border-slate-700/50 pt-2.5 text-xs text-slate-500">
+                          <div className="flex items-center justify-between border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
                             <span className="text-xs truncate">
                               Consumo: {a.consumo_combustivel ? num(a.consumo_combustivel, 1) : "—"} L/H
                             </span>
-                            <ChevronRight className="h-4 w-4 text-slate-500 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400 flex-shrink-0" />
+                            <ChevronRight className="h-4 w-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400 flex-shrink-0" />
                           </div>
                         </div>
                       </button>

@@ -59,8 +59,8 @@ const STATUS_STYLE: Record<string, string> = {
   PARCIAL: "bg-orange-500/15 text-orange-400",
   ATRASADO: "bg-red-500/15 text-red-400",
   VENCIDO: "bg-red-500/15 text-red-400",
-  SAIDA: "bg-slate-500/15 text-slate-400",
-  DESPESA: "bg-slate-500/15 text-slate-400",
+  SAIDA: "bg-slate-500/15 text-muted-foreground",
+  DESPESA: "bg-slate-500/15 text-muted-foreground",
 };
 
 function formatarPeriodo(periodo: string) {

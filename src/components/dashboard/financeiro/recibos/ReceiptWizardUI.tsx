@@ -16,17 +16,17 @@ function Input({ className = "", ...props }: any) {
   return (
     <input
       {...props}
-      className={`w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors ${className}`}
+      className={`w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors ${className}`}
     />
   );
 }
 function MoneyInput({ className = "", ...props }: any) {
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">R$</span>
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
       <input
         {...props}
-        className={`w-full pl-9 pr-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors ${className}`}
+        className={`w-full pl-9 pr-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors ${className}`}
         placeholder="0,00"
       />
     </div>
@@ -34,7 +34,7 @@ function MoneyInput({ className = "", ...props }: any) {
 }
 function Label({ children, className = "", htmlFor }: any) {
   return (
-    <label htmlFor={htmlFor} className={`block text-xs font-medium text-slate-400 mb-1.5 tracking-wide uppercase ${className}`}>
+    <label htmlFor={htmlFor} className={`block text-xs font-medium text-muted-foreground mb-1.5 tracking-wide uppercase ${className}`}>
       {children}
     </label>
   );
@@ -43,7 +43,7 @@ function Textarea({ className = "", ...props }: any) {
   return (
     <textarea
       {...props}
-      className={`w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors resize-none ${className}`}
+      className={`w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/40 transition-colors resize-none ${className}`}
     />
   );
 }
@@ -63,7 +63,7 @@ function Checkbox({ id, checked, onCheckedChange, label }: any) {
         {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
       </button>
       {label && (
-        <Label htmlFor={id} className="mb-0 cursor-pointer text-slate-200 normal-case tracking-normal">
+        <Label htmlFor={id} className="mb-0 cursor-pointer text-foreground normal-case tracking-normal">
           {label}
         </Label>
       )}
@@ -90,23 +90,23 @@ function SearchableCombobox({ items, value, onChange, placeholder, searchPlaceho
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-left flex items-center justify-between focus:outline-none focus:border-[#3b82f6] transition-colors">
-        <span className={selected ? "text-slate-100" : "text-slate-500"}>{selected ? selected.label : placeholder}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className={selected ? "text-foreground" : "text-muted-foreground"}>{selected ? selected.label : placeholder}</span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute z-50 top-full mt-1 w-full bg-[#111827] border border-[#1e2d45] rounded-lg shadow-2xl overflow-hidden">
           <div className="p-2 border-b border-[#1e2d45]">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} className="w-full pl-7 pr-3 py-1.5 bg-[#0f1623] border border-[#1e2d45] rounded text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#3b82f6]" />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} className="w-full pl-7 pr-3 py-1.5 bg-[#0f1623] border border-[#1e2d45] rounded text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b82f6]" />
             </div>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="px-3 py-3 text-xs text-slate-500 text-center">{emptyMessage}</p>
+              <p className="px-3 py-3 text-xs text-muted-foreground text-center">{emptyMessage}</p>
             ) : (
               filtered.map((item: any) => (
-                <button key={item.id} type="button" onClick={() => { onChange(item.id, item.label); setOpen(false); setQuery(""); }} className={`w-full px-3 py-2.5 text-sm text-left hover:bg-[#1e2d45] transition-colors ${ item.id === value ? "text-[#3b82f6] bg-[#3b82f6]/10" : "text-slate-200" }`}>
+                <button key={item.id} type="button" onClick={() => { onChange(item.id, item.label); setOpen(false); setQuery(""); }} className={`w-full px-3 py-2.5 text-sm text-left hover:bg-[#1e2d45] transition-colors ${ item.id === value ? "text-[#3b82f6] bg-[#3b82f6]/10" : "text-foreground" }`}>
                   {item.label}
                 </button>
               ))
@@ -129,7 +129,7 @@ function DateInput({ value, onChange, placeholder = "DD/MM/AAAA", required, clas
       }} maxLength={10} />
       <Popover>
         <PopoverTrigger asChild>
-          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground">
             <Calendar className="w-4 h-4" />
           </button>
         </PopoverTrigger>
@@ -150,9 +150,9 @@ function FileUpload({ label, value, onChange, accept }: any) {
     <div>
       {label ? <Label>{label}</Label> : null}
       <div onClick={() => ref.current?.click()} className={`relative flex items-center gap-3 px-3 py-2.5 bg-[#0f1623] border border-dashed rounded-lg cursor-pointer hover:border-[#3b82f6]/60 transition-colors ${ value ? "border-[#3b82f6]/40 bg-[#3b82f6]/5" : "border-[#1e2d45]" }`}>
-        <Upload className={`w-4 h-4 flex-shrink-0 ${value ? "text-[#3b82f6]" : "text-slate-500"}`} />
-        <span className="text-sm truncate text-slate-400">{value ? value.name : "Selecionar arquivo (opcional)"}</span>
-        {value && (<button type="button" onClick={(e) => { e.stopPropagation(); onChange(null); }} className="ml-auto text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>)}
+        <Upload className={`w-4 h-4 flex-shrink-0 ${value ? "text-[#3b82f6]" : "text-muted-foreground"}`} />
+        <span className="text-sm truncate text-muted-foreground">{value ? value.name : "Selecionar arquivo (opcional)"}</span>
+        {value && (<button type="button" onClick={(e) => { e.stopPropagation(); onChange(null); }} className="ml-auto text-muted-foreground hover:text-red-400"><X className="w-4 h-4" /></button>)}
         <input ref={ref} type="file" className="hidden" accept={accept} onChange={(e) => onChange(e.target.files?.[0] || null)} />
       </div>
     </div>
@@ -162,7 +162,7 @@ function FileUpload({ label, value, onChange, accept }: any) {
 function SectionCard({ title, icon: Icon, accent, children }: any) {
   return (
     <div className={`rounded-xl border p-5 space-y-4 ${accent || "border-[#1e2d45] bg-[#0f1623]/60"}`}>
-      {title && (<div className="flex items-center gap-2">{Icon && <Icon className="w-4 h-4 text-slate-400" />}<span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{title}</span></div>)}
+      {title && (<div className="flex items-center gap-2">{Icon && <Icon className="w-4 h-4 text-muted-foreground" />}<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span></div>)}
       {children}
     </div>
   );
@@ -191,9 +191,9 @@ function StepIndicator({ current, completed }: { current: number; completed: num
           <div key={step.id} className="flex items-center flex-1">
             <div className="flex flex-col items-center gap-1.5">
               <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${ isCompleted ? "bg-[#3b82f6] border-[#3b82f6] shadow-md shadow-[#3b82f6]/20" : isActive ? "bg-[#111827] border-[#3b82f6] shadow-md shadow-[#3b82f6]/15" : "bg-[#111827] border-[#1e2d45]" }`}>
-                {isCompleted ? (<Check className="w-4 h-4 text-white" strokeWidth={3} />) : (<Icon className={`w-4 h-4 ${isActive ? "text-[#3b82f6]" : "text-slate-600"}`} />)}
+                {isCompleted ? (<Check className="w-4 h-4 text-white" strokeWidth={3} />) : (<Icon className={`w-4 h-4 ${isActive ? "text-[#3b82f6]" : "text-muted-foreground"}`} />)}
               </div>
-              <span className={`text-[10px] font-medium hidden sm:block transition-colors ${ isActive ? "text-[#3b82f6]" : isCompleted ? "text-slate-400" : "text-slate-600" }`}>
+              <span className={`text-[10px] font-medium hidden sm:block transition-colors ${ isActive ? "text-[#3b82f6]" : isCompleted ? "text-muted-foreground" : "text-muted-foreground" }`}>
                 {step.shortLabel}
               </span>
             </div>
@@ -214,8 +214,8 @@ function ReviewItem({ label, value }: { label: string; value: any }) {
   if (!value && value !== 0) return null;
   return (
     <div className="flex items-start justify-between py-2 border-b border-[#1e2d45] last:border-0">
-      <span className="text-xs text-slate-500 uppercase tracking-wide">{label}</span>
-      <span className="text-sm text-slate-200 text-right max-w-[60%]">{String(value)}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="text-sm text-foreground text-right max-w-[60%]">{String(value)}</span>
     </div>
   );
 }
@@ -624,10 +624,10 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
       case 1:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div><h3 className="text-lg font-semibold text-white mb-1">Tipo de Recibo</h3><p className="text-sm text-slate-500">Selecione a natureza do recibo que será gerado</p></div>
+            <div><h3 className="text-lg font-semibold text-white mb-1">Tipo de Recibo</h3><p className="text-sm text-muted-foreground">Selecione a natureza do recibo que será gerado</p></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button type="button" onClick={() => selectReceiptType('pagamento')} className={`p-4 rounded-xl w-full text-left transition-all ${formData.receiptType==='pagamento' ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2' : 'border-[#1e2d45] bg-[#111827] border hover:border-[#3b82f6]/50'}`}><div className="font-semibold text-slate-100">Pagamento</div><p className="text-xs text-slate-500 mt-1">Recibo de serviços prestados ou tarifas avulsas</p></button>
-              <button type="button" onClick={() => selectReceiptType('reembolso')} className={`p-4 rounded-xl w-full text-left transition-all ${formData.receiptType==='reembolso' ? 'border-[#f59e0b] bg-[#f59e0b]/10 border-2' : 'border-[#1e2d45] bg-[#111827] border hover:border-[#f59e0b]/50'}`}><div className="font-semibold text-slate-100">Reembolso</div><p className="text-xs text-slate-500 mt-1">Devolução de despesas reembolsáveis ao cliente</p></button>
+              <button type="button" onClick={() => selectReceiptType('pagamento')} className={`p-4 rounded-xl w-full text-left transition-all ${formData.receiptType==='pagamento' ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2' : 'border-[#1e2d45] bg-[#111827] border hover:border-[#3b82f6]/50'}`}><div className="font-semibold text-foreground">Pagamento</div><p className="text-xs text-muted-foreground mt-1">Recibo de serviços prestados ou tarifas avulsas</p></button>
+              <button type="button" onClick={() => selectReceiptType('reembolso')} className={`p-4 rounded-xl w-full text-left transition-all ${formData.receiptType==='reembolso' ? 'border-[#f59e0b] bg-[#f59e0b]/10 border-2' : 'border-[#1e2d45] bg-[#111827] border hover:border-[#f59e0b]/50'}`}><div className="font-semibold text-foreground">Reembolso</div><p className="text-xs text-muted-foreground mt-1">Devolução de despesas reembolsáveis ao cliente</p></button>
             </div>
           </div>
         );
@@ -635,14 +635,14 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
       case 2:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div><h3 className="text-lg font-semibold text-white mb-1">Identificação</h3><p className="text-sm text-slate-500">Vincule a aeronave e categorize a operação{isReembolso ? ", e defina os clientes envolvidos" : ""}</p></div>
+            <div><h3 className="text-lg font-semibold text-white mb-1">Identificação</h3><p className="text-sm text-muted-foreground">Vincule a aeronave e categorize a operação{isReembolso ? ", e defina os clientes envolvidos" : ""}</p></div>
 
             {isReembolso && (
               <SectionCard title="Clientes Envolvidos" icon={Users}>
-                <p className="text-sm text-slate-400 mb-3">Deseja associar esse recibo para mais de um cliente?</p>
+                <p className="text-sm text-muted-foreground mb-3">Deseja associar esse recibo para mais de um cliente?</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button type="button" onClick={() => setMultiCliente(false)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${!formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-slate-100' : 'border-[#1e2d45] bg-[#111827] border text-slate-400 hover:border-[#3b82f6]/50'}`}>Não, apenas um cliente</button>
-                  <button type="button" onClick={() => setMultiCliente(true)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-slate-100' : 'border-[#1e2d45] bg-[#111827] border text-slate-400 hover:border-[#3b82f6]/50'}`}>Sim, ratear entre clientes</button>
+                  <button type="button" onClick={() => setMultiCliente(false)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${!formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-foreground' : 'border-[#1e2d45] bg-[#111827] border text-muted-foreground hover:border-[#3b82f6]/50'}`}>Não, apenas um cliente</button>
+                  <button type="button" onClick={() => setMultiCliente(true)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-foreground' : 'border-[#1e2d45] bg-[#111827] border text-muted-foreground hover:border-[#3b82f6]/50'}`}>Sim, ratear entre clientes</button>
                 </div>
               </SectionCard>
             )}
@@ -687,20 +687,20 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
       case 3:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div><h3 className="text-lg font-semibold text-white mb-1">Dados do Pagador</h3><p className="text-xs text-slate-500">Informações que sairão impressas no documento{isMulti ? " — uma linha por cliente" : ""}</p></div>
+            <div><h3 className="text-lg font-semibold text-white mb-1">Dados do Pagador</h3><p className="text-xs text-muted-foreground">Informações que sairão impressas no documento{isMulti ? " — uma linha por cliente" : ""}</p></div>
 
             {!isMulti && favoritePayers.length > 0 && (
               <div className="rounded-xl border border-[#1e2d45] p-4 bg-[#0f1623]">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-slate-400">Pagadores favoritos</span>
-                  <button type="button" onClick={() => setShowFavoritePayers((prev) => !prev)} className="text-xs text-slate-400 hover:text-slate-200">{showFavoritePayers ? "Ocultar" : "Selecionar"}</button>
+                  <span className="text-xs text-muted-foreground">Pagadores favoritos</span>
+                  <button type="button" onClick={() => setShowFavoritePayers((prev) => !prev)} className="text-xs text-muted-foreground hover:text-foreground">{showFavoritePayers ? "Ocultar" : "Selecionar"}</button>
                 </div>
                 {showFavoritePayers && (
                   <div className="grid gap-2">
                     {favoritePayers.map((payer: any) => (
-                      <button key={payer.id} type="button" onClick={() => selectFavoritePayer(payer)} className="w-full text-left px-3 py-2 rounded-lg border border-[#1e2d45] text-sm text-slate-200 hover:border-[#3b82f6] hover:bg-[#1e2d45]/40 transition-colors">
+                      <button key={payer.id} type="button" onClick={() => selectFavoritePayer(payer)} className="w-full text-left px-3 py-2 rounded-lg border border-[#1e2d45] text-sm text-foreground hover:border-[#3b82f6] hover:bg-[#1e2d45]/40 transition-colors">
                         <div className="font-semibold">{payer.name || payer.nome}</div>
-                        <div className="text-xs text-slate-500">{payer.document || payer.cpf}</div>
+                        <div className="text-xs text-muted-foreground">{payer.document || payer.cpf}</div>
                       </button>
                     ))}
                   </div>
@@ -738,7 +738,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                       </Row>
                     </div>
                     {isMulti && pagadores.length > 1 && (
-                      <button type="button" onClick={() => removePagador(row.id)} className="text-slate-500 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => removePagador(row.id)} className="text-muted-foreground hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
                     )}
                   </div>
                 </SectionCard>
@@ -746,7 +746,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
             })}
 
             {isMulti && (
-              <button type="button" onClick={addPagador} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-slate-400 hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
+              <button type="button" onClick={addPagador} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-muted-foreground hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
                 <Plus className="w-4 h-4" /> Adicionar outro cliente
               </button>
             )}
@@ -766,7 +766,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                   {pagadores.map((row, idx) => (
                     <SectionCard key={row.id} accent="border-[#3b82f6]/20 bg-[#3b82f6]/5">
                       <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-                        <span className="text-sm font-medium text-slate-200">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
+                        <span className="text-sm font-medium text-foreground">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
                         <Checkbox id={`gerar-${row.id}`} checked={row.gerarRecibo} label="Gerar recibo" onCheckedChange={(v: boolean) => updatePagador(row.id, "gerarRecibo", v)} />
                       </div>
                       <Row className="grid-cols-1 sm:grid-cols-2">
@@ -780,7 +780,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
                   <span>% total alocado: {totalPercentual.toFixed(2)}%</span>
                   <span>Valor total alocado: R$ {totalValorAlocado.toFixed(2)}</span>
                 </div>
@@ -807,7 +807,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
               <div className="flex items-center justify-between mb-1.5">
                 <Label className="mb-0">Descrição do Serviço *</Label>
                 {favoriteDescriptions.length > 0 && (
-                  <button type="button" onClick={() => setShowFavorites(!showFavorites)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors ${showFavorites ? "bg-[#f59e0b]/20 border-[#f59e0b]/30 text-[#f59e0b]" : "border-[#1e2d45] text-slate-400 hover:text-slate-200"}`}><Star className="w-3 h-3" />Favoritas</button>
+                  <button type="button" onClick={() => setShowFavorites(!showFavorites)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors ${showFavorites ? "bg-[#f59e0b]/20 border-[#f59e0b]/30 text-[#f59e0b]" : "border-[#1e2d45] text-muted-foreground hover:text-foreground"}`}><Star className="w-3 h-3" />Favoritas</button>
                 )}
               </div>
               {showFavorites && favoriteDescriptions.length > 0 && (
@@ -815,7 +815,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                   <div className="max-h-36 overflow-y-auto">
                     {favoriteDescriptions.map((desc: any) => {
                       const text = desc.descricao || desc.description || "";
-                      return (<button key={desc.id} type="button" onClick={() => selectFavoriteDescription(text)} className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:bg-[#1e2d45] transition-colors border-b border-[#1e2d45] last:border-0">{text}</button>);
+                      return (<button key={desc.id} type="button" onClick={() => selectFavoriteDescription(text)} className="w-full text-left px-3 py-2.5 text-sm text-muted-foreground hover:bg-[#1e2d45] transition-colors border-b border-[#1e2d45] last:border-0">{text}</button>);
                     })}
                   </div>
                 </div>
@@ -838,11 +838,11 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                     <FileUpload value={row.file} onChange={(f: File | null) => updateAnexo(row.id, "file", f)} accept=".pdf,.jpg,.png" />
                   </div>
                   {anexos.length > 1 && (
-                    <button type="button" onClick={() => removeAnexo(row.id)} className="text-slate-500 hover:text-red-400 mt-2.5"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => removeAnexo(row.id)} className="text-muted-foreground hover:text-red-400 mt-2.5"><X className="w-4 h-4" /></button>
                   )}
                 </div>
               ))}
-              <button type="button" onClick={addAnexo} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-slate-400 hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
+              <button type="button" onClick={addAnexo} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-muted-foreground hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
                 <Plus className="w-4 h-4" /> Adicionar documento
               </button>
             </div>
@@ -866,9 +866,9 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
               {pagadores.map((row, idx) => (
                 <div key={row.id} className="py-2 border-b border-[#1e2d45] last:border-0">
                   <div className="flex items-center justify-between flex-wrap gap-1">
-                    <span className="text-sm text-slate-200">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
+                    <span className="text-sm text-foreground">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
                     {isMulti && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-muted-foreground">
                         {row.percentual ? `${row.percentual}%` : ''} {row.valor ? `— R$ ${row.valor}` : ''} {row.gerarRecibo ? '' : '(sem recibo)'}
                       </span>
                     )}
@@ -903,9 +903,9 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">Emissor de Recibos</h2>
-            <p className="text-xs text-slate-500">Etapa {step} de {STEPS.length} — {STEPS[step-1].label}</p>
+            <p className="text-xs text-muted-foreground">Etapa {step} de {STEPS.length} — {STEPS[step-1].label}</p>
           </div>
-          <div><span className="text-xs font-mono text-slate-600 bg-[#0f1623] border border-[#1e2d45] px-2.5 py-1 rounded-lg">{formData.receiptType==='reembolso'?'REEMBOLSO':'PAGAMENTO'}</span></div>
+          <div><span className="text-xs font-mono text-muted-foreground bg-[#0f1623] border border-[#1e2d45] px-2.5 py-1 rounded-lg">{formData.receiptType==='reembolso'?'REEMBOLSO':'PAGAMENTO'}</span></div>
         </div>
       </div>
       <div className="mb-8"><StepIndicator current={step} completed={completedSteps} /></div>
@@ -913,7 +913,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
       <div className="min-h-[360px]">{renderStep()}</div>
 
       <div className="mt-8 flex items-center justify-between border-t border-[#1e2d45] pt-5">
-        <button type="button" onClick={goBack} disabled={step===1} className="px-4 py-2.5 text-sm text-slate-400 border border-[#1e2d45] rounded-xl hover:bg-[#1e2d45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Voltar</button>
+        <button type="button" onClick={goBack} disabled={step===1} className="px-4 py-2.5 text-sm text-muted-foreground border border-[#1e2d45] rounded-xl hover:bg-[#1e2d45] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Voltar</button>
         <div className="flex items-center gap-3">
           {step < STEPS.length ? (
             <button type="button" onClick={goNext} className="px-5 py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-xl transition-colors shadow-lg shadow-[#3b82f6]/20 font-medium flex items-center gap-1">

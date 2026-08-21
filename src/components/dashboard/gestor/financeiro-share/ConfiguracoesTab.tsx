@@ -170,7 +170,7 @@ function ComboboxPesquisavel({ valor, onChange, opcoes, placeholder, borderColor
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
-        <Search className="h-3.5 w-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           className={inputCls + " pl-8"}
           style={borderColor ? { borderColor } : undefined}
@@ -186,13 +186,13 @@ function ComboboxPesquisavel({ valor, onChange, opcoes, placeholder, borderColor
         />
       </div>
       {aberto && (opcoesFiltradas.length > 0 || mostrarCriarNovo) && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 shadow-xl max-h-52 overflow-y-auto">
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card shadow-xl max-h-52 overflow-y-auto">
           {opcoesFiltradas.map((o) => (
             <button
               key={o}
               type="button"
               onClick={() => selecionar(o)}
-              className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between"
+              className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-card-secondary flex items-center justify-between"
             >
               {o}
               {o.toLowerCase() === valor.trim().toLowerCase() && (
@@ -204,7 +204,7 @@ function ComboboxPesquisavel({ valor, onChange, opcoes, placeholder, borderColor
             <button
               type="button"
               onClick={() => selecionar(busca.trim())}
-              className="w-full text-left px-3 py-2 text-sm text-cyan-300 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800"
+              className="w-full text-left px-3 py-2 text-sm text-cyan-300 hover:bg-card-secondary flex items-center gap-2 border-t border-border"
             >
               <Plus className="h-3.5 w-3.5" />
               Criar novo grupo "{busca.trim()}"
@@ -223,8 +223,8 @@ export default function ConfiguracoesTab() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-slate-100">Configurações</h2>
-        <p className="text-xs text-slate-400">Categorias, contas bancárias e fornecedores favoritos.</p>
+        <h2 className="text-lg font-bold text-foreground">Configurações</h2>
+        <p className="text-xs text-muted-foreground">Categorias, contas bancárias e fornecedores favoritos.</p>
       </div>
       <div className="flex gap-2 flex-wrap">
         <SubBtn active={sub === "caixa_share"} onClick={() => setSub("caixa_share")} icon={Wallet} label="Caixa Share" color="#10b981" />
@@ -257,7 +257,7 @@ function SubBtn({
     <button
       onClick={onClick}
       className={`rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 ${
-        active ? "text-slate-950" : "border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800"
+        active ? "text-slate-950" : "border border-border bg-card/70 text-foreground hover:bg-card-secondary"
       }`}
       style={active ? { background: color || "#06b6d4" } : undefined}
     >
@@ -269,8 +269,8 @@ function SubBtn({
 /* ─────────────────────────── shared UI ─────────────────────────── */
 
 const inputCls =
-  "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+  "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
 
 function DeleteModal({
   open,
@@ -290,16 +290,16 @@ function DeleteModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+      <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center">
             <Trash2 className="h-5 w-5 text-red-400" />
           </div>
-          <h3 className="text-base font-bold text-slate-100">{title}</h3>
+          <h3 className="text-base font-bold text-foreground">{title}</h3>
         </div>
-        <p className="text-sm text-slate-300">{message}</p>
+        <p className="text-sm text-muted-foreground">{message}</p>
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onCancel} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
+          <button onClick={onCancel} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">
             Cancelar
           </button>
           <button
@@ -473,7 +473,7 @@ function CaixaSharePanel() {
         <span className="h-2 w-2 rounded-full" style={{ background: GREEN }} />
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+        <button onClick={fetchItems} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: GREEN }}>
@@ -489,7 +489,7 @@ function CaixaSharePanel() {
             <h3 className="text-sm font-bold" style={{ color: GREEN }}>
               {editingId ? "Editar Categoria" : "Nova Categoria"}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -527,7 +527,7 @@ function CaixaSharePanel() {
                 className="h-4 w-4"
                 style={{ accentColor: GREEN }}
               />
-              <label htmlFor="reemb" className="text-sm text-slate-200">
+              <label htmlFor="reemb" className="text-sm text-foreground">
                 Reembolsável
               </label>
             </div>
@@ -537,7 +537,7 @@ function CaixaSharePanel() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
+            <button onClick={closeForm} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
             <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: GREEN }}>
@@ -548,9 +548,9 @@ function CaixaSharePanel() {
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(16,185,129,0.2)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(16,185,129,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhuma categoria cadastrada.
         </div>
       ) : (
@@ -559,21 +559,21 @@ function CaixaSharePanel() {
             .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
             .map(([grupo, categorias]) => (
               <section key={grupo} className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(16,185,129,0.2)", background: "rgba(15,23,42,0.7)" }}>
-                <div className="flex items-center justify-between border-b border-slate-700/80 px-4 py-3">
+                <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: GREEN }}>{grupo}</h3>
                   <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">{categorias.length} categorias</span>
                 </div>
                 <table className="w-full text-xs">
-                  <thead><tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700 text-slate-400">
+                  <thead><tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-border text-muted-foreground">
                     <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Tipo</th><th className="px-3 py-2">Reembolsável</th><th className="px-3 py-2 text-right">Ações</th>
                   </tr></thead>
                   <tbody>{categorias.map((c) => (
-                    <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                      <td className="px-3 py-2 text-slate-200 font-semibold">{c.nome || "—"}</td>
+                    <tr key={c.id} className="border-b border-border hover:bg-card-secondary/30">
+                      <td className="px-3 py-2 text-foreground font-semibold">{c.nome || "—"}</td>
                       <td className="px-3 py-2"><TipoBadge tipo={c.tipo} /></td>
-                      <td className="px-3 py-2">{c.reembolsavel ? <CheckCircle2 className="h-4 w-4" style={{ color: GREEN }} /> : <span className="text-slate-600">—</span>}</td>
+                      <td className="px-3 py-2">{c.reembolsavel ? <CheckCircle2 className="h-4 w-4" style={{ color: GREEN }} /> : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-3 py-2"><div className="flex justify-end gap-1">
-                        <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]"><Pencil className="h-3 w-3" /></button>
+                        <button onClick={() => openEdit(c)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]"><Pencil className="h-3 w-3" /></button>
                         <button onClick={() => setDeleteId(c.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]"><Trash2 className="h-3 w-3" /></button>
                       </div></td>
                     </tr>
@@ -736,7 +736,7 @@ function CaixaClientePanel() {
         <span className="h-2 w-2 rounded-full" style={{ background: BLUE }} />
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+        <button onClick={fetchItems} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: BLUE }}>
@@ -752,7 +752,7 @@ function CaixaClientePanel() {
             <h3 className="text-sm font-bold" style={{ color: BLUE }}>
               {editingId ? "Editar Configuração" : "Nova Configuração"}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -777,7 +777,7 @@ function CaixaClientePanel() {
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-500 mt-1">Associa esta despesa do caixa cliente à categoria do caixa share que será reembolsada.</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Associa esta despesa do caixa cliente à categoria do caixa share que será reembolsada.</p>
             </div>
             <div>
               <label className={labelCls}>Subcategoria 1</label>
@@ -797,7 +797,7 @@ function CaixaClientePanel() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
+            <button onClick={closeForm} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
             <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: BLUE }}>
@@ -808,16 +808,16 @@ function CaixaClientePanel() {
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhuma configuração cadastrada.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: BLUE }}>
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-border" style={{ color: BLUE }}>
                 <th className="px-3 py-2">Tipo de Despesa</th>
                 <th className="px-3 py-2">Subcategorias</th>
                 <th className="px-3 py-2">Categoria Pai</th>
@@ -829,8 +829,8 @@ function CaixaClientePanel() {
                 const s = subs(c);
                 const pName = parentName(c.categoria_pai);
                 return (
-                  <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                    <td className="px-3 py-2 text-slate-200 font-semibold">{c.expense_type || "—"}</td>
+                  <tr key={c.id} className="border-b border-border hover:bg-card-secondary/30">
+                    <td className="px-3 py-2 text-foreground font-semibold">{c.expense_type || "—"}</td>
                     <td className="px-3 py-2">
                       {s.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -845,7 +845,7 @@ function CaixaClientePanel() {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-slate-600">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -857,12 +857,12 @@ function CaixaClientePanel() {
                           {pName}
                         </span>
                       ) : (
-                        <span className="text-slate-600">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                        <button onClick={() => openEdit(c)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
                           <Pencil className="h-3 w-3" />
                         </button>
                         <button onClick={() => setDeleteId(c.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
@@ -1011,7 +1011,7 @@ function ContasPanel() {
         <span className="h-2 w-2 rounded-full" style={{ background: AMBER }} />
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+        <button onClick={fetchItems} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: AMBER }}>
@@ -1027,7 +1027,7 @@ function ContasPanel() {
             <h3 className="text-sm font-bold" style={{ color: AMBER }}>
               {editingId ? "Editar Conta" : "Nova Conta"}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -1059,13 +1059,13 @@ function ContasPanel() {
                 className="h-4 w-4"
                 style={{ accentColor: AMBER }}
               />
-              <label htmlFor="ativoConta" className="text-sm text-slate-200">
+              <label htmlFor="ativoConta" className="text-sm text-foreground">
                 Ativa
               </label>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
+            <button onClick={closeForm} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
             <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: AMBER }}>
@@ -1076,16 +1076,16 @@ function ContasPanel() {
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhuma conta bancária cadastrada.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: AMBER }}>
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-border" style={{ color: AMBER }}>
                 <th className="px-3 py-2">Banco</th>
                 <th className="px-3 py-2">Número da Conta</th>
                 <th className="px-3 py-2">Tipo</th>
@@ -1095,18 +1095,18 @@ function ContasPanel() {
             </thead>
             <tbody>
               {items.map((c) => (
-                <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2 text-slate-200 font-semibold">{c.banco || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{c.numero_conta || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">
+                <tr key={c.id} className="border-b border-border hover:bg-card-secondary/30">
+                  <td className="px-3 py-2 text-foreground font-semibold">{c.banco || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{c.numero_conta || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
                     {CONTAS_TIPO.find((t) => t.value === c.tipo_conta)?.label || c.tipo_conta || "—"}
                   </td>
                   <td className="px-3 py-2">
-                    {c.ativo ? <CheckCircle2 className="h-4 w-4" style={{ color: AMBER }} /> : <span className="text-slate-600">—</span>}
+                    {c.ativo ? <CheckCircle2 className="h-4 w-4" style={{ color: AMBER }} /> : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
-                      <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                      <button onClick={() => openEdit(c)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button onClick={() => setDeleteId(c.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
@@ -1284,7 +1284,7 @@ function FornecedoresPanel() {
         <span className="h-2 w-2 rounded-full" style={{ background: PURPLE }} />
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+        <button onClick={fetchItems} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: PURPLE }}>
@@ -1300,7 +1300,7 @@ function FornecedoresPanel() {
             <h3 className="text-sm font-bold" style={{ color: PURPLE }}>
               {editingId ? "Editar Fornecedor" : "Novo Fornecedor"}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -1353,7 +1353,7 @@ function FornecedoresPanel() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
+            <button onClick={closeForm} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
             <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: PURPLE }}>
@@ -1364,16 +1364,16 @@ function FornecedoresPanel() {
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(168,85,247,0.2)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(168,85,247,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhum fornecedor cadastrado.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(168,85,247,0.2)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: PURPLE }}>
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-border" style={{ color: PURPLE }}>
                 <th className="px-3 py-2">Nome</th>
                 <th className="px-3 py-2">Cidade</th>
                 <th className="px-3 py-2">Telefone</th>
@@ -1384,18 +1384,18 @@ function FornecedoresPanel() {
             </thead>
             <tbody>
               {items.map((f) => (
-                <tr key={f.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2 text-slate-200 font-semibold">
+                <tr key={f.id} className="border-b border-border hover:bg-card-secondary/30">
+                  <td className="px-3 py-2 text-foreground font-semibold">
                     {f.nome_completo || "—"}
-                    {f.apelido && <span className="text-slate-500 font-normal"> ({f.apelido})</span>}
+                    {f.apelido && <span className="text-muted-foreground font-normal"> ({f.apelido})</span>}
                   </td>
-                  <td className="px-3 py-2 text-slate-300">{f.cidade || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{f.telefone || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{f.cidade || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{f.telefone || "—"}</td>
                   <td className="px-3 py-2"><FornecedorCatBadge cat={f.categoria} /></td>
-                  <td className="px-3 py-2 text-slate-300">{contaLabel(f.conta_pagamento) || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{contaLabel(f.conta_pagamento) || "—"}</td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
-                      <button onClick={() => openEdit(f)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                      <button onClick={() => openEdit(f)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button onClick={() => setDeleteId(f.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">

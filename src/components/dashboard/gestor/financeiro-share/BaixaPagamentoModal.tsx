@@ -115,23 +115,23 @@ function SearchableCombobox({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-100 outline-none transition hover:border-slate-600"
+        className="flex items-center gap-2 w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground outline-none transition hover:border-border"
       >
         <Icon className="h-4 w-4 text-cyan-400" />
         <span className="flex-1 text-left">{selected?.label || "Selecione..."}</span>
-        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-xl">
             <div className="p-2">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-500"
+                className="w-full rounded border border-border bg-card-secondary px-2 py-1.5 text-xs text-foreground outline-none focus:border-cyan-500"
               />
             </div>
             <div className="max-h-40 overflow-y-auto">
@@ -146,16 +146,16 @@ function SearchableCombobox({
                       setOpen(false);
                       setQuery("");
                     }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 transition"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-card-secondary transition"
                   >
-                    <OptIcon className="h-4 w-4 text-slate-400" />
+                    <OptIcon className="h-4 w-4 text-muted-foreground" />
                     <span className="flex-1 text-left">{o.label}</span>
                     {value === o.value && <Check className="h-3.5 w-3.5 text-cyan-400" />}
                   </button>
                 );
               })}
               {filtered.length === 0 && (
-                <div className="px-3 py-2 text-xs text-slate-500">Nenhum resultado.</div>
+                <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum resultado.</div>
               )}
             </div>
           </div>
@@ -666,7 +666,7 @@ export default function BaixaPagamentoModal({
   };
 
   const inputCls =
-    "w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30";
+    "w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground placeholder-slate-500 outline-none transition focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30";
 
   return (
     <div
@@ -675,16 +675,16 @@ export default function BaixaPagamentoModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        className="relative w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3.5">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3.5">
           <div>
-            <h3 className="text-sm font-bold text-slate-100">Dar Baixa — {entrada ? "Receita" : "Despesa"}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{mov.descricao || "—"}</p>
+            <h3 className="text-sm font-bold text-foreground">Dar Baixa — {entrada ? "Receita" : "Despesa"}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{mov.descricao || "—"}</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -692,14 +692,14 @@ export default function BaixaPagamentoModal({
         {/* Body */}
         <div className="space-y-5 p-5">
           {/* Valor info */}
-          <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-800/30 px-4 py-3">
+          <div className="flex items-center justify-between rounded-lg border border-border bg-card-secondary/30 px-4 py-3">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">Valor Total</div>
-              <div className="text-lg font-bold text-slate-100">{formatBRL(valorTotal)}</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Valor Total</div>
+              <div className="text-lg font-bold text-foreground">{formatBRL(valorTotal)}</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">Vencimento</div>
-              <div className="text-sm text-slate-300">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Vencimento</div>
+              <div className="text-sm text-muted-foreground">
                 {mov.data_vencimento
                   ? new Date(mov.data_vencimento + "T00:00:00").toLocaleDateString("pt-BR")
                   : "—"}
@@ -710,7 +710,7 @@ export default function BaixaPagamentoModal({
           {/* Data + Tipo de Pagamento */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Data de Pagamento
               </label>
               <input
@@ -721,7 +721,7 @@ export default function BaixaPagamentoModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Tipo de Pagamento
               </label>
               <div className="flex gap-2">
@@ -731,7 +731,7 @@ export default function BaixaPagamentoModal({
                   className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                     pagoDiretamente
                       ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-300"
-                      : "border-slate-700 bg-slate-800/60 text-slate-400 hover:text-slate-200"
+                      : "border-border bg-card-secondary/60 text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Pago Diretamente
@@ -742,7 +742,7 @@ export default function BaixaPagamentoModal({
                   className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                     comReembolso
                       ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
-                      : "border-slate-700 bg-slate-800/60 text-slate-400 hover:text-slate-200"
+                      : "border-border bg-card-secondary/60 text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Com Reembolso
@@ -752,7 +752,7 @@ export default function BaixaPagamentoModal({
           </div>
 
           <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Banco {(entrada || baixaReceitaSharePeloCliente) ? "(obrigatório)" : ""}
               </label>
               <UISearchableCombobox
@@ -792,14 +792,14 @@ export default function BaixaPagamentoModal({
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-cyan-300">
                     Rateio da despesa
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Dados do rateio pré-preenchidos. Se um cotista pagar 100% da despesa, os demais
                     são zerados automaticamente.
                   </p>
                 </div>
-                <div className="text-right text-[11px] text-slate-500">
+                <div className="text-right text-[11px] text-muted-foreground">
                   <div>Total rateado</div>
-                  <div className="text-sm font-bold text-slate-100">
+                  <div className="text-sm font-bold text-foreground">
                     {formatBRL(rateioRows.reduce((s, r) => s + (Number(r.valor_rateado) || 0), 0))}
                   </div>
                   <div className="mt-1">Total pago</div>
@@ -816,14 +816,14 @@ export default function BaixaPagamentoModal({
                     className={`rounded-lg border px-3 py-3 ${
                       r.pago_por_outro
                         ? "border-amber-500/30 bg-amber-500/5"
-                        : "border-slate-800 bg-slate-800/40"
+                        : "border-border bg-card-secondary/40"
                     }`}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-slate-100 truncate">
+                      <div className="text-sm font-semibold text-foreground truncate">
                         {r.clientes_nome || r.socios_nome || "—"}
                         {r.socios_nome && r.clientes_nome && (
-                          <span className="ml-2 text-xs font-normal text-slate-400">
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
                             {r.socios_nome}
                           </span>
                         )}
@@ -837,7 +837,7 @@ export default function BaixaPagamentoModal({
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           Tipo Rateio
                         </label>
                         <input
@@ -848,7 +848,7 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           % Sociedade
                         </label>
                         <input
@@ -865,7 +865,7 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           % Uso
                         </label>
                         <input
@@ -881,7 +881,7 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           Periodicidade
                         </label>
                         <input
@@ -892,7 +892,7 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           Valor Rateado
                         </label>
                         <input
@@ -908,7 +908,7 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           Valor Pago Real
                         </label>
                         <input
@@ -925,12 +925,12 @@ export default function BaixaPagamentoModal({
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                           Pago por
                         </label>
                         {/* Se for Com Reembolso trava visualmente em "Share" */}
                         {comReembolso ? (
-                          <div className="w-full rounded-lg border border-slate-700 bg-slate-800/40 px-3 py-2 text-sm text-slate-400 cursor-not-allowed opacity-80 h-[38px] flex items-center">
+                          <div className="w-full rounded-lg border border-border bg-card-secondary/40 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-80 h-[38px] flex items-center">
                             Share
                           </div>
                         ) : (
@@ -954,7 +954,7 @@ export default function BaixaPagamentoModal({
           {/* Attachments */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Anexos
               </label>
               <button
@@ -969,7 +969,7 @@ export default function BaixaPagamentoModal({
               {anexos.map((anexo, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 gap-2 items-start rounded-lg border border-slate-800 bg-slate-800/30 p-3"
+                  className="grid grid-cols-12 gap-2 items-start rounded-lg border border-border bg-card-secondary/30 p-3"
                 >
                   <div className="col-span-12 md:col-span-4">
                     <SearchableCombobox
@@ -987,7 +987,7 @@ export default function BaixaPagamentoModal({
                     />
                   </div>
                   <div className="col-span-4 md:col-span-4 flex items-center gap-2">
-                    <label className="cursor-pointer flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-slate-100">
+                    <label className="cursor-pointer flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground">
                       {uploadingIdx === idx ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
@@ -1022,7 +1022,7 @@ export default function BaixaPagamentoModal({
                     <button
                       type="button"
                       onClick={() => removeAnexoRow(idx)}
-                      className="p-1.5 rounded text-slate-400 hover:text-red-400 transition"
+                      className="p-1.5 rounded text-muted-foreground hover:text-red-400 transition"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -1040,10 +1040,10 @@ export default function BaixaPagamentoModal({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-slate-800 bg-slate-900 px-5 py-3.5">
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-5 py-3.5">
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
+            className="rounded-lg border border-border bg-card-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
           >
             Cancelar
           </button>
@@ -1064,7 +1064,7 @@ export default function BaixaPagamentoModal({
         {/* In-modal attachment preview */}
         {previewAnexo && (
           <div className="absolute inset-0 z-30 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.85)" }} onClick={() => setPreviewAnexo(null)}>
-            <div className="max-w-3xl w-full max-h-full overflow-auto rounded-xl bg-slate-800 p-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
+            <div className="max-w-3xl w-full max-h-full overflow-auto rounded-xl bg-card-secondary p-4 border border-border" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   {(() => {
@@ -1072,12 +1072,12 @@ export default function BaixaPagamentoModal({
                     const PreviewIcon = T?.icon || FileText;
                     return <PreviewIcon className="h-4 w-4 text-cyan-400" />;
                   })()}
-                  <span className="text-sm font-bold text-slate-100">
+                  <span className="text-sm font-bold text-foreground">
                     {ANEXO_TYPES.find((t) => t.value === previewAnexo.tipo_anexo)?.label || "Anexo"}
                   </span>
-                  {previewAnexo.numero_doc && <span className="text-xs text-slate-500">— {previewAnexo.numero_doc}</span>}
+                  {previewAnexo.numero_doc && <span className="text-xs text-muted-foreground">— {previewAnexo.numero_doc}</span>}
                 </div>
-                <button onClick={() => setPreviewAnexo(null)} className="text-slate-400 hover:text-slate-100 transition">
+                <button onClick={() => setPreviewAnexo(null)} className="text-muted-foreground hover:text-foreground transition">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -1087,7 +1087,7 @@ export default function BaixaPagamentoModal({
                 <iframe src={previewAnexo.file_url} title="Pré-visualização" className="w-full h-[60vh] rounded-lg bg-white" />
               ) : (
                 <div className="flex flex-col items-center gap-3 py-8">
-                  <FileText className="h-12 w-12 text-slate-600" />
+                  <FileText className="h-12 w-12 text-muted-foreground" />
                   <a href={previewAnexo.file_url} download className="text-cyan-400 hover:underline text-sm">Baixar arquivo</a>
                 </div>
               )}

@@ -21,9 +21,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const FIELD =
-  "bg-slate-950/60 border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 " +
+  "bg-background/60 border-border rounded-lg text-foreground placeholder:text-muted-foreground " +
   "focus-visible:border-cyan-500/60 focus-visible:ring-1 focus-visible:ring-cyan-500/30";
-const LABEL = "text-slate-300 font-medium mb-1.5 block text-xs";
+const LABEL = "text-muted-foreground font-medium mb-1.5 block text-xs";
 
 interface Contato {
   id: string;
@@ -183,8 +183,8 @@ export default function Contatos() {
     <div className="space-y-6 py-2">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-100">Contatos</h1>
-          <p className="mt-1 text-sm text-slate-400">Gerencie seus contatos importantes</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Contatos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Gerencie seus contatos importantes</p>
         </div>
         <Button onClick={() => handleOpenDialog()} className="w-full gap-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 sm:w-auto">
           <Plus className="h-4 w-4" /> Novo Contato
@@ -193,7 +193,7 @@ export default function Contatos() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1 sm:max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, empresa, cidade ou email..."
             value={searchTerm}
@@ -212,13 +212,13 @@ export default function Contatos() {
           </SelectContent>
         </Select>
 
-        <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/60 p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background/60 p-1">
           <button
             type="button"
             onClick={() => setViewMode("cards")}
             aria-label="Visualização em cards"
             className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition sm:flex-none ${
-              viewMode === "cards" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+              viewMode === "cards" ? "bg-cyan-600 text-white" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <LayoutGrid className="h-4 w-4" /> Cards
@@ -228,7 +228,7 @@ export default function Contatos() {
             onClick={() => setViewMode("lista")}
             aria-label="Visualização em lista"
             className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition sm:flex-none ${
-              viewMode === "lista" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+              viewMode === "lista" ? "bg-cyan-600 text-white" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <List className="h-4 w-4" /> Lista
@@ -240,7 +240,7 @@ export default function Contatos() {
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
-            <p className="text-sm text-slate-400">Carregando contatos...</p>
+            <p className="text-sm text-muted-foreground">Carregando contatos...</p>
           </div>
         </div>
       ) : tableError ? (
@@ -249,7 +249,7 @@ export default function Contatos() {
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
             <div className="flex-1 space-y-2">
               <p className="font-semibold text-destructive">Erro ao acessar tabela de contatos</p>
-              <p className="text-sm text-slate-400">{tableError}</p>
+              <p className="text-sm text-muted-foreground">{tableError}</p>
               <Button size="sm" onClick={loadContatos} variant="outline" className="mt-3">
                 Tentar novamente
               </Button>
@@ -257,13 +257,13 @@ export default function Contatos() {
           </CardContent>
         </Card>
       ) : filteredContatos.length === 0 ? (
-        <Card className="border-dashed border-slate-800 bg-slate-900/40">
+        <Card className="border-dashed border-border bg-card/40">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
-              <Phone className="h-8 w-8 text-slate-400" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card-secondary">
+              <Phone className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-slate-100">Nenhum contato encontrado</h3>
-            <p className="mb-4 text-sm text-slate-400">Comece adicionando seu primeiro contato</p>
+            <h3 className="mb-1 text-lg font-semibold text-foreground">Nenhum contato encontrado</h3>
+            <p className="mb-4 text-sm text-muted-foreground">Comece adicionando seu primeiro contato</p>
             <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" /> Cadastrar Contato
             </Button>
@@ -272,15 +272,15 @@ export default function Contatos() {
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filteredContatos.map((contato) => (
-            <Card key={contato.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
+            <Card key={contato.id} className="group border-border/80 bg-card/50 transition-colors hover:border-cyan-500/40">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start gap-3">
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-sm font-semibold text-white">
                     {iniciais(contato.nome)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-semibold text-slate-100">{contato.nome}</h3>
-                    {contato.cargo && <p className="truncate text-xs text-slate-400">{contato.cargo}</p>}
+                    <h3 className="truncate text-base font-semibold text-foreground">{contato.nome}</h3>
+                    {contato.cargo && <p className="truncate text-xs text-muted-foreground">{contato.cargo}</p>}
                     {contato.empresa && (
                       <span className="mt-1.5 inline-block rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
                         {contato.empresa}
@@ -297,21 +297,21 @@ export default function Contatos() {
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+                <div className="space-y-2 border-t border-border/80 pt-3 text-xs">
                   {contato.telefone && (
-                    <p className="flex items-center gap-2 text-slate-300">
-                      <Phone className="h-3.5 w-3.5 text-slate-500" /> {contato.telefone}
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {contato.telefone}
                     </p>
                   )}
                   {contato.email && (
-                    <p className="flex items-center gap-2 truncate text-slate-300">
-                      <Mail className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                    <p className="flex items-center gap-2 truncate text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                       <span className="truncate">{contato.email}</span>
                     </p>
                   )}
                   {contato.cidade && (
-                    <p className="flex items-center gap-2 text-slate-400">
-                      <MapPin className="h-3.5 w-3.5 text-slate-500" />
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                       {contato.cidade}
                       {contato.uf && `, ${contato.uf}`}
                     </p>
@@ -323,26 +323,26 @@ export default function Contatos() {
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/50">
-          <div className="divide-y divide-slate-800/80">
+        <div className="overflow-hidden rounded-xl border border-border/80 bg-card/50">
+          <div className="divide-y divide-border/80">
             {filteredContatos.map((contato) => (
-              <div key={contato.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-slate-800/30 sm:flex-row sm:items-center">
+              <div key={contato.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-card-secondary/30 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/80 to-blue-500/80 text-xs font-semibold text-white">
                     {iniciais(contato.nome)}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-100">{contato.nome}</p>
-                    <p className="truncate text-xs text-slate-400">
+                    <p className="truncate text-sm font-medium text-foreground">{contato.nome}</p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {[contato.cargo, contato.empresa].filter(Boolean).join(" · ") || "—"}
                     </p>
                   </div>
                 </div>
-                <div className="min-w-0 flex-1 text-xs text-slate-400 sm:text-right">
+                <div className="min-w-0 flex-1 text-xs text-muted-foreground sm:text-right">
                   {contato.telefone && <p className="truncate">{contato.telefone}</p>}
                   {contato.email && <p className="truncate">{contato.email}</p>}
                 </div>
-                <div className="min-w-0 text-xs text-slate-500 sm:w-40 sm:text-right">
+                <div className="min-w-0 text-xs text-muted-foreground sm:w-40 sm:text-right">
                   {[contato.cidade, contato.uf].filter(Boolean).join(", ") || "—"}
                 </div>
                 <div className="flex gap-1 sm:justify-end">

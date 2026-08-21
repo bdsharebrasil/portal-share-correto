@@ -479,7 +479,7 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
               <div key={idx} className="relative rounded-xl border border-border/60 bg-secondary/40 p-2">
                 <button
                   onClick={() => setNovasFotos(prev => prev.filter((_, i) => i !== idx))}
-                  className="absolute right-3 top-3 rounded-md bg-slate-900/80 p-1 text-red-400 hover:text-red-300"
+                  className="absolute right-3 top-3 rounded-md bg-card/80 p-1 text-red-400 hover:text-red-300"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

@@ -101,7 +101,7 @@ export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputP
 
   return (
     <div ref={containerRef} className={cn('relative w-full', className)}>
-      {label && <label className="text-xs font-black text-slate-500 uppercase mb-2 block">{label}</label>}
+      {label && <label className="text-xs font-black text-muted-foreground uppercase mb-2 block">{label}</label>}
 
       <div className="relative">
         <Input
@@ -112,14 +112,14 @@ export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputP
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
           disabled={disabled || isLoading}
-          className="pr-10 bg-slate-950 border-slate-800 text-white font-mono text-sm uppercase"
+          className="pr-10 bg-background border-border text-white font-mono text-sm uppercase"
         />
 
         {value && !disabled && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors"
             title="Limpar"
           >
             <X className="h-4 w-4" />
@@ -134,9 +134,9 @@ export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputP
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-800 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
           {isLoading ? (
-            <div className="p-4 text-center text-sm text-slate-400">
+            <div className="p-4 text-center text-sm text-muted-foreground">
               Carregando opções...
             </div>
           ) : filteredOptions.length > 0 ? (
@@ -146,18 +146,18 @@ export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputP
                   key={`${option.id}-${index}`}
                   type="button"
                   onClick={() => handleSelectOption(option)}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-sky-500/20 hover:text-sky-400 transition-colors font-mono uppercase"
+                  className="w-full px-4 py-2 text-left text-sm text-muted-foreground hover:bg-sky-500/20 hover:text-sky-400 transition-colors font-mono uppercase"
                 >
                   {option.label}
                 </button>
               ))}
             </div>
           ) : value.trim() ? (
-            <div className="p-4 text-sm text-slate-500">
+            <div className="p-4 text-sm text-muted-foreground">
               Nenhuma opção encontrada. Você pode usar o texto digitado "{value}"
             </div>
           ) : (
-            <div className="p-4 text-sm text-slate-500">
+            <div className="p-4 text-sm text-muted-foreground">
               Digite para buscar entre as opções disponíveis
             </div>
           )}

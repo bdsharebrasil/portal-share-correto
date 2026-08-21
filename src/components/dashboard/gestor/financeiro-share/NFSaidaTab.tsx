@@ -972,18 +972,18 @@ export default function NFSaidaTab() {
     } finally { setBaixaSaving(false); }
   };
 
-  const inputCls = "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+  const inputCls = "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-100">Notas Fiscais de Saída</h2>
-          <p className="text-xs text-slate-400">Notas fiscais emitidas para clientes.</p>
+          <h2 className="text-lg font-bold text-foreground">Notas Fiscais de Saída</h2>
+          <p className="text-xs text-muted-foreground">Notas fiscais emitidas para clientes.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchNotas} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+          <button onClick={fetchNotas} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
             <RefreshCw className="h-4 w-4" /> Atualizar
           </button>
           <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
@@ -1003,7 +1003,7 @@ export default function NFSaidaTab() {
           return (
             <div key={c.label} className="rounded-2xl p-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{c.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</span>
                 <Icon className="h-4 w-4" style={{ color: c.color }} />
               </div>
               <div className="text-lg font-bold mt-1" style={{ color: c.color }}>{c.value}</div>
@@ -1026,10 +1026,10 @@ export default function NFSaidaTab() {
         <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-bold text-slate-100">{editingId ? "Editar Nota Fiscal" : documentType === "recibo" ? "Novo Recibo de Saída" : "Nova Nota Fiscal"}</h3>
+              <h3 className="text-sm font-bold text-foreground">{editingId ? "Editar Nota Fiscal" : documentType === "recibo" ? "Novo Recibo de Saída" : "Nova Nota Fiscal"}</h3>
               {!editingId && documentType === "nota" && <button onClick={openNewReceipt} className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"><ReceiptText className="h-3.5 w-3.5" /> Novo Recibo</button>}
             </div>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200"><X className="h-4 w-4" /></button>
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div><label className={labelCls}>Número *</label>
@@ -1080,20 +1080,20 @@ export default function NFSaidaTab() {
             <div className="md:col-span-3">
               <label className={labelCls}>PDF ou imagem</label>
               {form.arquivo_pdf_url ? (
-                <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/70 p-3">
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-background/70 p-3">
                   {isImageUrl(form.arquivo_pdf_url) ? (
-                    <img src={form.arquivo_pdf_url} alt="Pré-visualização" className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 object-cover" />
+                    <img src={form.arquivo_pdf_url} alt="Pré-visualização" className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
                   ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900">
-                      <FileText className="h-6 w-6 text-slate-400" />
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-card">
+                      <FileText className="h-6 w-6 text-muted-foreground" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-slate-200">{getFileNameFromUrl(form.arquivo_pdf_url)}</p>
+                    <p className="truncate text-sm text-foreground">{getFileNameFromUrl(form.arquivo_pdf_url)}</p>
                     <a href={form.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-xs text-cyan-400 hover:text-cyan-300">Abrir arquivo</a>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800">
+                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-card/70 px-2.5 py-1.5 text-xs text-foreground hover:bg-card-secondary">
                       <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Trocar"}
                       <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
                     </label>
@@ -1103,7 +1103,7 @@ export default function NFSaidaTab() {
                   </div>
                 </div>
               ) : (
-                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-xs text-slate-400 hover:border-cyan-400/50 hover:text-slate-200">
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/40 px-4 py-6 text-center text-xs text-muted-foreground hover:border-cyan-400/50 hover:text-foreground">
                   <Upload className="h-5 w-5" />
                   {uploading ? "Enviando..." : "Clique para enviar PDF ou imagem"}
                   <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
@@ -1112,7 +1112,7 @@ export default function NFSaidaTab() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+            <button onClick={closeForm} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
             <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: "#06b6d4" }}>
               {saving ? "Salvando..." : editingId ? "Salvar Alterações" : documentType === "recibo" ? "Criar Recibo" : "Criar Nota"}
             </button>
@@ -1124,17 +1124,17 @@ export default function NFSaidaTab() {
       <div className="rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-border text-foreground hover:bg-card-secondary"}`}>
               <Filter className="h-3.5 w-3.5" /> Filtros{hasActiveFilters ? " •" : ""}
             </button>
             <div className="relative">
-              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-border text-foreground hover:bg-card-secondary"}`}>
                 <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
               </button>
               {showSortMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1">
+                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-card shadow-xl py-1">
                     {([
                       { by: "data" as const, dir: "desc" as const, label: "Data — Mais recente" },
                       { by: "data" as const, dir: "asc" as const, label: "Data — Mais antiga" },
@@ -1146,7 +1146,7 @@ export default function NFSaidaTab() {
                         <button
                           key={`${opt.by}-${opt.dir}`}
                           onClick={() => { setSortBy(opt.by); setSortDir(opt.dir); setShowSortMenu(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs ${active ? "text-cyan-300 bg-cyan-500/10" : "text-slate-200 hover:bg-slate-800"}`}
+                          className={`w-full text-left px-3 py-2 text-xs ${active ? "text-cyan-300 bg-cyan-500/10" : "text-foreground hover:bg-card-secondary"}`}
                         >
                           {opt.label}
                         </button>
@@ -1157,22 +1157,22 @@ export default function NFSaidaTab() {
               )}
             </div>
           </div>
-          <span className="text-[11px] text-slate-500">{filteredNotas.length} de {notas.length} nota(s)</span>
+          <span className="text-[11px] text-muted-foreground">{filteredNotas.length} de {notas.length} nota(s)</span>
         </div>
         {showFilterPanel && (
           <div className="px-5 py-4 border-t space-y-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data De</label>
-                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data De</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data Até</label>
-                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data Até</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400">
                   <option value="">Todos</option>
                   {STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -1186,12 +1186,12 @@ export default function NFSaidaTab() {
       </div>
 
       {clienteSelecionado && !loading && (
-        <div className="animate-in fade-in slide-in-from-right-3 duration-300 rounded-2xl border border-blue-300/15 bg-gradient-to-r from-blue-950/40 via-slate-950/60 to-slate-950/40 px-4 py-4 shadow-lg shadow-blue-950/10 sm:px-6">
+        <div className="animate-in fade-in slide-in-from-right-3 duration-300 rounded-2xl border border-blue-300/15 bg-gradient-to-r from-blue-950/40 via-slate-950/60 to-background/40 px-4 py-4 shadow-lg shadow-blue-950/10 sm:px-6">
           <button type="button" onClick={voltarParaClientes} className="mb-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-300 transition hover:text-blue-200">
             <ArrowLeft className="h-4 w-4" /> Voltar para cotistas
           </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400">Arquivo do cotista</p><h2 className="mt-1 text-2xl font-black text-slate-100">{clienteSelecionado}</h2><p className="mt-1 text-sm text-slate-400">Notas fiscais e recibos organizados por ano.</p></div>
+            <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400">Arquivo do cotista</p><h2 className="mt-1 text-2xl font-black text-foreground">{clienteSelecionado}</h2><p className="mt-1 text-sm text-muted-foreground">Notas fiscais e recibos organizados por ano.</p></div>
             <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-xs font-bold text-blue-200">{groupedNotas[clienteSelecionado] ? Object.values(groupedNotas[clienteSelecionado]).reduce((total, items) => total + items.length, 0) : 0} documentos</span>
           </div>
         </div>
@@ -1199,16 +1199,16 @@ export default function NFSaidaTab() {
 
       {/* table agrupada */}
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : filteredNotas.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           {hasActiveFilters ? "Nenhuma nota fiscal encontrada para os filtros aplicados." : "Nenhuma nota fiscal cadastrada."}
         </div>
       ) : (
         <div className={`overflow-x-auto rounded-2xl transition-all duration-300 ${clienteSelecionado ? "animate-in fade-in slide-in-from-right-2" : "animate-in fade-in"}`} style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-3 py-2">Número</th>
                 <th className="px-3 py-2">Cliente</th>
                 <th className="px-3 py-2">Aeronave</th>
@@ -1267,33 +1267,33 @@ export default function NFSaidaTab() {
                       return (
                         <tr
                           key={n.id}
-                          className={`border-b border-slate-800/50 transition-all ${
+                          className={`border-b border-border/50 transition-all ${
                             isRecebido
                               ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'
                               : isPendente
-                                ? 'bg-slate-800/30 border-l-2 border-l-amber-500 hover:bg-slate-800/60'
-                                : 'hover:bg-slate-800/30'
+                                ? 'bg-card-secondary/30 border-l-2 border-l-amber-500 hover:bg-card-secondary/60'
+                                : 'hover:bg-card-secondary/30'
                           }`}
                         >
-                          <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-slate-400' : 'text-slate-200'}`}>{n.numero || "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.cliente_nome || "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.aeronave || "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td>
-                          <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-slate-400' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.categoria || "—"}</td>
+                          <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-muted-foreground' : 'text-foreground'}`}>{n.numero || "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{n.cliente_nome || "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{n.aeronave || "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-muted-foreground' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{n.categoria || "—"}</td>
                           <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
                           <td className="px-3 py-2 text-center">
                             {n.arquivo_pdf_url ? (
                               <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
                                 <Download className="h-3.5 w-3.5" />
                               </a>
-                            ) : <span className="text-slate-600">—</span>}
+                            ) : <span className="text-muted-foreground">—</span>}
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex justify-end gap-1">
                               {n.origem === "storage_recebido_saida" ? (
-                                <span className="text-[10px] text-slate-500">Somente visualização</span>
+                                <span className="text-[10px] text-muted-foreground">Somente visualização</span>
                               ) : (
                                 <div className="flex flex-col gap-1">
                                   <EnviarEmailClienteButton
@@ -1318,7 +1318,7 @@ export default function NFSaidaTab() {
                                       <Banknote className="h-3 w-3" />
                                     </button>
                                   )}
-                                  <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                                  <button onClick={() => openEdit(n)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
                                     <Pencil className="h-3 w-3" />
                                   </button>
                                   <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
@@ -1374,14 +1374,14 @@ export default function NFSaidaTab() {
       {/* delete modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center"><Trash2 className="h-5 w-5 text-red-400" /></div>
-              <h3 className="text-base font-bold text-slate-100">Excluir nota fiscal</h3>
+              <h3 className="text-base font-bold text-foreground">Excluir nota fiscal</h3>
             </div>
-            <p className="text-sm text-slate-300">Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita. (Os lançamentos financeiros já gerados não são excluídos automaticamente — cancele-os separadamente se necessário.)</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita. (Os lançamentos financeiros já gerados não são excluídos automaticamente — cancele-os separadamente se necessário.)</p>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setDeleteId(null)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={() => setDeleteId(null)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={confirmDelete} disabled={deleting} className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleting ? "Excluindo..." : "Excluir"}
               </button>
@@ -1393,18 +1393,18 @@ export default function NFSaidaTab() {
       {/* dar baixa modal */}
       {baixaTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-emerald-950/50 flex items-center justify-center"><Banknote className="h-5 w-5 text-emerald-400" /></div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-100">Dar baixa</h3>
-                  <p className="text-xs text-slate-400">Nota {baixaTarget.numero} · {baixaTarget.cliente_nome} · {formatBRL(num(baixaTarget.valor))}</p>
+                  <h3 className="text-base font-bold text-foreground">Dar baixa</h3>
+                  <p className="text-xs text-muted-foreground">Nota {baixaTarget.numero} · {baixaTarget.cliente_nome} · {formatBRL(num(baixaTarget.valor))}</p>
                 </div>
               </div>
-              <button onClick={closeBaixa} className="text-slate-400 hover:text-slate-200"><X className="h-4 w-4" /></button>
+              <button onClick={closeBaixa} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
-            <p className="text-xs text-slate-400">Isso marca a receita da Share como recebida e a despesa correspondente do cliente como paga.</p>
+            <p className="text-xs text-muted-foreground">Isso marca a receita da Share como recebida e a despesa correspondente do cliente como paga.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className={labelCls}>Data do Pagamento *</label>
                 <input type="date" className={inputCls} value={baixaForm.data_pagamento} onChange={(e) => setBaixaForm({ ...baixaForm, data_pagamento: e.target.value })} /></div>
@@ -1423,7 +1423,7 @@ export default function NFSaidaTab() {
               <div className="sm:col-span-2"><label className={labelCls}>Comprovante</label>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input className={inputCls} value={baixaForm.comprovante_url} onChange={(e) => setBaixaForm({ ...baixaForm, comprovante_url: e.target.value })} placeholder="URL do comprovante" />
-                  <label className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
+                  <label className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card/70 px-3 py-2 text-sm text-foreground hover:bg-card-secondary">
                     <Upload className="h-4 w-4" /> {baixaUploading ? "Enviando..." : "Anexar"}
                     <input type="file" accept="application/pdf,image/*" className="hidden" disabled={baixaUploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadComprovante(file); e.target.value = ""; }} />
                   </label>
@@ -1431,7 +1431,7 @@ export default function NFSaidaTab() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={closeBaixa} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={closeBaixa} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={confirmBaixa} disabled={baixaSaving} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50" style={{ background: "#4ade80" }}>
                 {baixaSaving ? "Registrando..." : "Confirmar Baixa"}
               </button>

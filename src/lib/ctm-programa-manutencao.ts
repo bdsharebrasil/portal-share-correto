@@ -309,7 +309,7 @@ export const NIVEL_STYLE: Record<NivelAlerta, { label: string; text: string; bg:
   critico: { label: 'Crítico', text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/40', bar: 'bg-orange-500' },
   atencao: { label: 'Atenção', text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/40', bar: 'bg-yellow-500' },
   ok: { label: 'Em dia', text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', bar: 'bg-emerald-500' },
-  sem_controle: { label: 'Sem intervalo', text: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30', bar: 'bg-slate-500' },
+  sem_controle: { label: 'Sem intervalo', text: 'text-muted-foreground', bg: 'bg-slate-500/10', border: 'border-slate-500/30', bar: 'bg-slate-500' },
 };
 
 const addMonths = (iso: string, meses: number) => {

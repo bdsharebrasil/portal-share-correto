@@ -52,7 +52,7 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
   return (
     <div className="space-y-4">
       {/* Desktop: Horizontal navigation */}
-      <div className="hidden md:block rounded-2xl border border-slate-800/80 bg-slate-950/80 p-2 shadow-sm">
+      <div className="hidden md:block rounded-2xl border border-border/80 bg-background/80 p-2 shadow-sm">
         <div className="flex gap-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -65,15 +65,15 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
                 className={cn(
                   "group flex-1 rounded-3xl border px-4 py-4 text-left transition-all duration-200 ease-in-out",
                   isActive
-                    ? "border-slate-700/60 bg-slate-900/90 text-slate-100"
-                    : "border-transparent bg-slate-950/80 text-slate-300 hover:bg-slate-900/90 hover:text-slate-100"
+                    ? "border-border/60 bg-card/90 text-foreground"
+                    : "border-transparent bg-background/80 text-muted-foreground hover:bg-card/90 hover:text-foreground"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={cn("h-5 w-5", isActive ? "text-slate-200" : "text-slate-400")} />
+                  <Icon className={cn("h-5 w-5", isActive ? "text-foreground" : "text-muted-foreground")} />
                   <div>
                     <div className="text-sm font-semibold">{tab.label}</div>
-                    <div className="text-xs text-slate-500 group-hover:text-slate-400">{tab.description}</div>
+                    <div className="text-xs text-muted-foreground group-hover:text-muted-foreground">{tab.description}</div>
                   </div>
                 </div>
               </button>
@@ -95,14 +95,14 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
               className={cn(
                 "w-full flex items-start gap-3 px-4 py-4 rounded-3xl border transition-all duration-200 text-left",
                 isActive
-                  ? "border-slate-700/60 bg-slate-900/90 text-slate-100"
-                  : "border-slate-800/70 bg-slate-950/70 text-slate-300 hover:border-slate-700/70 hover:bg-slate-900/80"
+                  ? "border-border/60 bg-card/90 text-foreground"
+                  : "border-border/70 bg-background/70 text-muted-foreground hover:border-border/70 hover:bg-card/80"
               )}
             >
-              <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", isActive ? "text-cyan-300" : "text-slate-400")} />
+              <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", isActive ? "text-cyan-300" : "text-muted-foreground")} />
               <div className="flex-1">
                 <p className="font-semibold">{tab.label}</p>
-                <p className="text-xs text-slate-500">{tab.description}</p>
+                <p className="text-xs text-muted-foreground">{tab.description}</p>
               </div>
               {isActive && (
                 <div className="h-2 w-2 rounded-full bg-slate-500 mt-2 flex-shrink-0" />

@@ -350,7 +350,7 @@ export default function CartoesCorporativos() {
       <div className="space-y-8 max-w-6xl mx-auto">
         
         {/* Header & Controls - Layout Moderno em Linha */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-900/40 p-6 rounded-2xl border border-slate-800/60 backdrop-blur-md shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-card/40 p-6 rounded-2xl border border-border/60 backdrop-blur-md shadow-sm">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1 flex items-center gap-3">
               <CreditCard className="h-7 w-7 text-primary" />
@@ -367,7 +367,7 @@ export default function CartoesCorporativos() {
                 {!canEditSettings && <Lock className="h-3 w-3 text-yellow-500/70 ml-auto" title="Somente Admin" />}
               </div>
               <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!canEditSettings}>
-                <SelectTrigger className="h-9 bg-slate-950/50 border-slate-700/50">
+                <SelectTrigger className="h-9 bg-background/50 border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -386,7 +386,7 @@ export default function CartoesCorporativos() {
             <div className="w-24">
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Ano</label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="h-9 bg-slate-950/50 border-slate-700/50">
+                <SelectTrigger className="h-9 bg-background/50 border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -451,7 +451,7 @@ export default function CartoesCorporativos() {
         </div>
 
         {/* Main Section */}
-        <div className="bg-slate-900/30 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-sm">
+        <div className="bg-card/30 border border-border/60 rounded-2xl p-6 backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
               <TrendingDown className="h-5 w-5 text-primary" />
@@ -465,7 +465,7 @@ export default function CartoesCorporativos() {
                   Registrar Gasto
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md bg-slate-900 border-slate-800">
+              <DialogContent className="max-w-md bg-card border-border">
                 <DialogHeader>
                   <DialogTitle>Registrar Gasto com Cartão</DialogTitle>
                 </DialogHeader>
@@ -481,7 +481,7 @@ export default function CartoesCorporativos() {
                           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
                             formData.category === type
                               ? "border-primary bg-primary/10 text-primary"
-                              : "border-slate-800 bg-slate-950/50 text-muted-foreground hover:border-slate-700"
+                              : "border-border bg-background/50 text-muted-foreground hover:border-border"
                           }`}
                         >
                           {type === "combustivel" ? <Fuel className="h-4 w-4"/> : <UtensilsCrossed className="h-4 w-4"/>}
@@ -500,7 +500,7 @@ export default function CartoesCorporativos() {
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                       step="0.01"
                       min="0"
-                      className="bg-slate-950/50 border-slate-800 h-10"
+                      className="bg-background/50 border-border h-10"
                     />
                   </div>
 
@@ -510,12 +510,12 @@ export default function CartoesCorporativos() {
                       placeholder="Ex: Abastecimento veículo N-123"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="bg-slate-950/50 border-slate-800 h-10"
+                      className="bg-background/50 border-border h-10"
                     />
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                    <Button variant="outline" className="flex-1 border-slate-700 bg-transparent" onClick={() => setDialogOpen(false)}>
+                    <Button variant="outline" className="flex-1 border-border bg-transparent" onClick={() => setDialogOpen(false)}>
                       Cancelar
                     </Button>
                     <Button className="flex-1" onClick={handleAddExpense} disabled={loading}>
@@ -528,15 +528,15 @@ export default function CartoesCorporativos() {
           </div>
 
           {/* Modern Tabs */}
-          <div className="flex gap-2 mb-6 p-1 bg-slate-950/40 rounded-xl w-fit border border-slate-800/50">
+          <div className="flex gap-2 mb-6 p-1 bg-background/40 rounded-xl w-fit border border-border/50">
             {["combustivel", "alimentacao"].map((type) => (
               <button
                 key={type}
                 onClick={() => setSelectedCardType(type as "combustivel" | "alimentacao")}
                 className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${
                   selectedCardType === type
-                    ? "bg-slate-800 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-slate-900/50"
+                    ? "bg-card-secondary text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
                 }`}
               >
                 {type === "combustivel" ? <Fuel className="h-4 w-4" /> : <UtensilsCrossed className="h-4 w-4" />}
@@ -547,15 +547,15 @@ export default function CartoesCorporativos() {
 
           {/* Compact Stats */}
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/50">
+            <div className="bg-background/40 p-4 rounded-xl border border-border/50">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Gasto no Período</p>
               <p className="text-xl font-bold text-foreground">R$ {getTotalSpent(selectedCardType).toFixed(2)}</p>
             </div>
-            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/50">
+            <div className="bg-background/40 p-4 rounded-xl border border-border/50">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Transações</p>
               <p className="text-xl font-bold text-foreground">{getTransactionsForCard(selectedCardType).length}</p>
             </div>
-            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/50">
+            <div className="bg-background/40 p-4 rounded-xl border border-border/50">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Ticket Médio</p>
               <p className="text-xl font-bold text-foreground">
                 R$ {getTransactionsForCard(selectedCardType).length > 0
@@ -566,7 +566,7 @@ export default function CartoesCorporativos() {
           </div>
 
           {/* History Table */}
-          <div className="bg-slate-950/40 rounded-xl border border-slate-800/50 overflow-hidden">
+          <div className="bg-background/40 rounded-xl border border-border/50 overflow-hidden">
             {loading ? (
               <div className="text-center py-10 text-sm text-muted-foreground animate-pulse">Carregando transações...</div>
             ) : getTransactionsForCard(selectedCardType).length === 0 ? (
@@ -574,8 +574,8 @@ export default function CartoesCorporativos() {
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="bg-slate-900/50 hover:bg-slate-900/50">
-                    <TableRow className="border-slate-800/50">
+                  <TableHeader className="bg-card/50 hover:bg-card/50">
+                    <TableRow className="border-border/50">
                       <TableHead className="w-[120px] text-xs font-medium">Data</TableHead>
                       <TableHead className="text-xs font-medium">Descrição</TableHead>
                       <TableHead className="text-xs font-medium">Responsável</TableHead>
@@ -584,7 +584,7 @@ export default function CartoesCorporativos() {
                   </TableHeader>
                   <TableBody>
                     {getTransactionsForCard(selectedCardType).map((tx) => (
-                      <TableRow key={tx.id} className="border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                      <TableRow key={tx.id} className="border-border/50 hover:bg-card-secondary/20 transition-colors">
                         <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                           {format(new Date(tx.transaction_date), "dd/MM/yyyy")}
                         </TableCell>

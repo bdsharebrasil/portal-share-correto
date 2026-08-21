@@ -159,7 +159,7 @@ export default function ControleVencimentos() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-b from-background via-card to-background relative overflow-hidden">
         {/* Background gradient orbs */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] mix-blend-screen" />
@@ -168,7 +168,7 @@ export default function ControleVencimentos() {
 
         <div className="relative z-10">
           {/* Sticky Header */}
-          <header className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-[12px] border-b border-white/5">
+          <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-[12px] border-b border-white/5">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10 group cursor-pointer hover:scale-105 transition-transform">
@@ -236,7 +236,7 @@ export default function ControleVencimentos() {
               {/* Tripulação Card */}
               <div 
                 onClick={() => navigate('/vencimentos/tripulacao')}
-                className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
+                className="rounded-2xl border border-white/5 bg-gradient-to-br from-card-secondary/40 to-card/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
               >
                 <div className="p-6 bg-gradient-to-r from-purple-500/10 via-transparent to-pink-500/5 border-b border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
@@ -292,7 +292,7 @@ export default function ControleVencimentos() {
               {/* Documentos Card */}
               <div 
                 onClick={() => navigate('/vencimentos/documentos')}
-                className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
+                className="rounded-2xl border border-white/5 bg-gradient-to-br from-card-secondary/40 to-card/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
               >
                 <div className="p-6 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/5 border-b border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
@@ -348,7 +348,7 @@ export default function ControleVencimentos() {
               {/* Manutenção Card */}
               <div 
                 onClick={() => navigate('/manutencao/aeronaves')}
-                className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
+                className="rounded-2xl border border-white/5 bg-gradient-to-br from-card-secondary/40 to-card/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.02] cursor-pointer group"
               >
                 <div className="p-6 bg-gradient-to-r from-orange-500/10 via-transparent to-red-500/5 border-b border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
@@ -399,7 +399,7 @@ export default function ControleVencimentos() {
             </div>
 
             {/* Info Section */}
-            <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-[12px] p-6">
+            <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-card-secondary/40 to-card/40 backdrop-blur-[12px] p-6">
               <h3 className="text-lg font-semibold text-white mb-4">ℹ️ Sistema de Vencimentos</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-3 rounded-lg bg-white/5 border border-white/5">

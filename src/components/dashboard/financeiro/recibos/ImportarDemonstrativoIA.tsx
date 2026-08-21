@@ -602,7 +602,7 @@ export default function ImportarDemonstrativoTab() {
       {toast && (
         <div className={`fixed top-4 right-4 z-50 rounded-xl border px-4 py-3 text-sm font-medium shadow-xl ${toast.type === "ok" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-rose-500/30 bg-rose-500/10 text-rose-400"}`}>
           {toast.text}
-          <button onClick={() => setToast(null)} className="ml-3 text-slate-500 hover:text-slate-300"><Trash2 className="h-3.5 w-3.5 inline" /></button>
+          <button onClick={() => setToast(null)} className="ml-3 text-muted-foreground hover:text-muted-foreground"><Trash2 className="h-3.5 w-3.5 inline" /></button>
         </div>
       )}
 
@@ -623,7 +623,7 @@ export default function ImportarDemonstrativoTab() {
               <button
                 type="button"
                 onClick={() => { setRecibosGerados([]); setPerguntarEmail(false); resetForm(); }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:text-slate-100"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-card-secondary text-muted-foreground border border-border hover:text-foreground"
               >
                 Novo demonstrativo
               </button>
@@ -631,8 +631,8 @@ export default function ImportarDemonstrativoTab() {
           </div>
           <div className="space-y-1.5">
             {recibosGerados.map((r) => (
-              <div key={r.id} className="flex items-center justify-between gap-3 text-xs text-slate-300 rounded-lg bg-slate-900/60 border border-slate-800 px-3 py-2">
-                <span className="font-semibold text-slate-100">Nº {r.numero_recibo}</span>
+              <div key={r.id} className="flex items-center justify-between gap-3 text-xs text-muted-foreground rounded-lg bg-card/60 border border-border px-3 py-2">
+                <span className="font-semibold text-foreground">Nº {r.numero_recibo}</span>
                 <span className="truncate flex-1">{r.nome_pagador}</span>
                 <span className="text-cyan-400 font-semibold">{brl(Number(r.valor || 0))}</span>
                 {r.pdf_url ? (
@@ -640,17 +640,17 @@ export default function ImportarDemonstrativoTab() {
                     <FileText className="h-3.5 w-3.5" /> Ver PDF
                   </a>
                 ) : (
-                  <span className="text-slate-500">PDF indisponível</span>
+                  <span className="text-muted-foreground">PDF indisponível</span>
                 )}
               </div>
             ))}
           </div>
           {perguntarEmail && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
-              <span className="text-xs text-slate-200">Deseja enviar o(s) recibo(s) por e-mail agora?</span>
+              <span className="text-xs text-foreground">Deseja enviar o(s) recibo(s) por e-mail agora?</span>
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setPerguntarEmail(false); setEmailDialogOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950">Sim, enviar</button>
-                <button type="button" onClick={() => setPerguntarEmail(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">Agora não</button>
+                <button type="button" onClick={() => setPerguntarEmail(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-card-secondary text-muted-foreground border border-border">Agora não</button>
               </div>
             </div>
           )}
@@ -659,26 +659,26 @@ export default function ImportarDemonstrativoTab() {
 
       <div className="flex items-center gap-2">
       
-        <span className="text-sm font-bold text-slate-100">Importar Demonstrativo — Reconhecimento Automático</span>
+        <span className="text-sm font-bold text-foreground">Importar Demonstrativo — Reconhecimento Automático</span>
       </div>
 
 
       {/* Upload card */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+      <div className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Tipo de demonstrativo</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Tipo de demonstrativo</label>
             <div className="flex gap-2">
               {(["INFRAERO", "DECEA", "POUSO"] as TipoDemo[]).map((t) => (
-                <button key={t} onClick={() => setTipo(t)} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${tipo === t ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700"}`}>
+                <button key={t} onClick={() => setTipo(t)} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${tipo === t ? "bg-cyan-500 text-slate-950" : "bg-card-secondary text-muted-foreground hover:text-foreground border border-border"}`}>
                   {TIPO_LABEL[t]}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Matrícula da aeronave</label>
-            <select value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400">
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Matrícula da aeronave</label>
+            <select value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className="w-full rounded-lg border border-border bg-card/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-400">
               <option value="">Selecione a aeronave</option>
               {aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula}</option>)}
             </select>
@@ -686,16 +686,16 @@ export default function ImportarDemonstrativoTab() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Imagem do demonstrativo</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Imagem do demonstrativo</label>
           <div className="flex items-center gap-3">
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleFileChange(e.target.files?.[0] || null)} className="flex-1 text-sm text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 file:cursor-pointer" />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleFileChange(e.target.files?.[0] || null)} className="flex-1 text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-card-secondary file:text-foreground hover:file:bg-secondary file:cursor-pointer" />
             <button onClick={handleAnalyze} disabled={!file || isAnalyzing || !aircraftId} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {isAnalyzing ? <Hourglass className="h-4 w-4 animate-spin" /> : null}
               ANALISAR 
             </button>
           </div>
           {previewUrl && (
-            <div className="mt-3 inline-block rounded-lg border border-slate-700 p-2 bg-slate-900/40">
+            <div className="mt-3 inline-block rounded-lg border border-border p-2 bg-card/40">
               <img src={previewUrl} alt="Prévia demonstrativo" className="max-h-40 rounded" />
             </div>
           )}
@@ -705,8 +705,8 @@ export default function ImportarDemonstrativoTab() {
       {result && (
         <>
           {/* Dados extraídos */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-            <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-slate-200"><FileImage className="h-4 w-4 text-cyan-400" /> Dados extraídos</div>
+          <div className="rounded-2xl border border-border bg-card/40 p-5">
+            <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-foreground"><FileImage className="h-4 w-4 text-cyan-400" /> Dados extraídos</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <DataField label="Nº Documento" value={result.numero_documento || "—"} />
               <DataField label="Competência" value={result.competencia || "—"} />
@@ -716,11 +716,11 @@ export default function ImportarDemonstrativoTab() {
           </div>
 
           {/* Operações — atribuição por linha */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-            <div className="text-sm font-semibold text-slate-200 mb-3">Operações — atribua o sócio/cliente por linha</div>
+          <div className="rounded-2xl border border-border bg-card/40 p-5">
+            <div className="text-sm font-semibold text-foreground mb-3">Operações — atribua o sócio/cliente por linha</div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2.5 text-left">Data</th>
                     <th className="px-3 py-2.5 text-left">Hora</th>
@@ -732,11 +732,11 @@ export default function ImportarDemonstrativoTab() {
                 </thead>
                 <tbody>
                   {linhas.map((l, idx) => (
-                    <tr key={idx} className="border-t border-slate-800/60">
-                      <td className="px-3 py-3 text-slate-300">{l.data}</td>
-                      <td className="px-3 py-3 text-slate-400">{l.hora || "—"}</td>
-                      <td className="px-3 py-3 text-slate-400 text-xs">{l.operacao || "—"}</td>
-                      <td className="px-3 py-3 text-right font-medium text-slate-200">{brl(l.valor)}</td>
+                    <tr key={idx} className="border-t border-border/60">
+                      <td className="px-3 py-3 text-muted-foreground">{l.data}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{l.hora || "—"}</td>
+                      <td className="px-3 py-3 text-muted-foreground text-xs">{l.operacao || "—"}</td>
+                      <td className="px-3 py-3 text-right font-medium text-foreground">{brl(l.valor)}</td>
                       <td className="px-3 py-3">
                         <div className="space-y-1.5">
                           <SearchableCotista
@@ -756,7 +756,7 @@ export default function ImportarDemonstrativoTab() {
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        <button onClick={() => setLinhas((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => setLinhas((prev) => prev.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
@@ -766,14 +766,14 @@ export default function ImportarDemonstrativoTab() {
           </div>
 
           {/* Rateio consolidado */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
-            <div className="text-sm font-semibold text-slate-200">Rateio consolidado</div>
+          <div className="rounded-2xl border border-border bg-card/40 p-5 space-y-4">
+            <div className="text-sm font-semibold text-foreground">Rateio consolidado</div>
             {consolidado.rows.length === 0 ? (
-              <p className="text-sm text-slate-400">Atribua os sócios nas linhas acima para ver o rateio.</p>
+              <p className="text-sm text-muted-foreground">Atribua os sócios nas linhas acima para ver o rateio.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                  <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2.5 text-left">Sócio / Cliente</th>
                       <th className="px-3 py-2.5 text-center">Operações</th>
@@ -783,21 +783,21 @@ export default function ImportarDemonstrativoTab() {
                   </thead>
                   <tbody>
                     {consolidado.rows.map((r) => (
-                      <tr key={r.nome} className="border-t border-slate-800/60">
-                        <td className="px-3 py-2.5 font-medium text-slate-200">
+                      <tr key={r.nome} className="border-t border-border/60">
+                        <td className="px-3 py-2.5 font-medium text-foreground">
                           {r.nome}
                           {r.isEmprestimo && <span className="ml-2 text-[10px] text-sky-400 border border-sky-400/30 rounded-full px-2 py-0.5">empréstimo</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-center text-slate-400">{r.itens}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{brl(r.valor)}</td>
-                        <td className="px-3 py-2.5 text-right"><span className="text-xs bg-slate-800 text-slate-300 rounded-full px-2 py-0.5">{r.percentual.toFixed(2)}%</span></td>
+                        <td className="px-3 py-2.5 text-center text-muted-foreground">{r.itens}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{brl(r.valor)}</td>
+                        <td className="px-3 py-2.5 text-right"><span className="text-xs bg-card-secondary text-muted-foreground rounded-full px-2 py-0.5">{r.percentual.toFixed(2)}%</span></td>
                       </tr>
                     ))}
-                    <tr className="border-t border-slate-700">
-                      <td className="px-3 py-2.5 font-bold text-slate-100">Total</td>
+                    <tr className="border-t border-border">
+                      <td className="px-3 py-2.5 font-bold text-foreground">Total</td>
                       <td className="px-3 py-2.5" />
-                      <td className="px-3 py-2.5 text-right font-bold tabular-nums text-slate-100">{brl(consolidado.total)}</td>
-                      <td className="px-3 py-2.5 text-right font-bold text-slate-100">100%</td>
+                      <td className="px-3 py-2.5 text-right font-bold tabular-nums text-foreground">{brl(consolidado.total)}</td>
+                      <td className="px-3 py-2.5 text-right font-bold text-foreground">100%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -806,7 +806,7 @@ export default function ImportarDemonstrativoTab() {
 
             <div className="space-y-3 pt-2">
               <div className="max-w-md">
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Cliente principal para a solicitação</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Cliente principal para a solicitação</label>
                 <SearchableCombobox
                   items={clienteRateioItems}
                   value={clienteRateioSelecionado}
@@ -861,8 +861,8 @@ export default function ImportarDemonstrativoTab() {
 function DataField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-slate-500 text-xs">{label}</div>
-      <div className="font-medium text-slate-200">{value}</div>
+      <div className="text-muted-foreground text-xs">{label}</div>
+      <div className="font-medium text-foreground">{value}</div>
     </div>
   );
 }
@@ -874,8 +874,8 @@ function SearchableCotista({ opcoes, value, onChange }: { opcoes: (Cotista | Tom
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900/60 text-xs text-left flex items-center justify-between outline-none focus:border-cyan-400 transition-colors">
-        <span className={value ? "text-slate-200" : "text-slate-500"}>
+      <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2 rounded-lg border border-border bg-card/60 text-xs text-left flex items-center justify-between outline-none focus:border-cyan-400 transition-colors">
+        <span className={value ? "text-foreground" : "text-muted-foreground"}>
           {(() => {
             const sel = opcoes.find((o) => o.nome === value);
             return sel ? (sel as any).isEmprestimo ? `${sel.nome} (empréstimo)` : sel.nome : "Selecione";
@@ -885,14 +885,14 @@ function SearchableCotista({ opcoes, value, onChange }: { opcoes: (Cotista | Tom
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setQuery(""); }} />
-          <div className="absolute z-50 top-full mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg shadow-2xl overflow-hidden">
-            <div className="p-2 border-b border-slate-700">
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cotista…" className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 outline-none focus:border-cyan-400" />
+          <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
+            <div className="p-2 border-b border-border">
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cotista…" className="w-full px-2 py-1.5 bg-card-secondary border border-border rounded text-xs text-foreground outline-none focus:border-cyan-400" />
             </div>
             <div className="max-h-40 overflow-y-auto">
-              {filtered.length === 0 ? <p className="px-3 py-3 text-xs text-slate-500 text-center">Nenhum resultado</p> :
+              {filtered.length === 0 ? <p className="px-3 py-3 text-xs text-muted-foreground text-center">Nenhum resultado</p> :
                 filtered.map((o) => (
-                  <button key={o.id} type="button" onClick={() => { onChange(o.nome, !!(o as any).isEmprestimo); setOpen(false); setQuery(""); }} className={`w-full px-3 py-2 text-xs text-left hover:bg-slate-800 transition-colors ${o.nome === value ? "text-cyan-400 bg-cyan-500/10" : "text-slate-200"}`}>
+                  <button key={o.id} type="button" onClick={() => { onChange(o.nome, !!(o as any).isEmprestimo); setOpen(false); setQuery(""); }} className={`w-full px-3 py-2 text-xs text-left hover:bg-card-secondary transition-colors ${o.nome === value ? "text-cyan-400 bg-cyan-500/10" : "text-foreground"}`}>
                     {(o as any).isEmprestimo ? `${o.nome} (empréstimo)` : o.nome}
                   </button>
                 ))

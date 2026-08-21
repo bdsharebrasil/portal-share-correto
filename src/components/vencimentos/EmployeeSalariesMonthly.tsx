@@ -302,15 +302,15 @@ export function EmployeeSalariesMonthly() {
   const monthLabel = months.find((m) => m.value === selectedMonth)?.label || "";
 
   return (
-    <div className="min-h-screen space-y-6 bg-slate-950/50 p-6">
-      <div className="rounded-[32px] border border-white/10 bg-slate-950/95 p-6 shadow-card">
+    <div className="min-h-screen space-y-6 bg-background/50 p-6">
+      <div className="rounded-[32px] border border-white/10 bg-background/95 p-6 shadow-card">
         <h1 className="text-3xl font-semibold tracking-tight text-white">Salários</h1>
-        <p className="mt-2 text-sm text-slate-300">Gestão mensal de colaboradores</p>
+        <p className="mt-2 text-sm text-muted-foreground">Gestão mensal de colaboradores</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(Number(value))}>
-          <SelectTrigger className="h-11 w-[140px] rounded-2xl border border-white/10 bg-slate-900/90 text-white shadow-sm shadow-black/20">
+          <SelectTrigger className="h-11 w-[140px] rounded-2xl border border-white/10 bg-card/90 text-white shadow-sm shadow-black/20">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -321,7 +321,7 @@ export function EmployeeSalariesMonthly() {
         </Select>
 
         <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-          <SelectTrigger className="h-11 w-[120px] rounded-2xl border border-white/10 bg-slate-900/90 text-white shadow-sm shadow-black/20">
+          <SelectTrigger className="h-11 w-[120px] rounded-2xl border border-white/10 bg-card/90 text-white shadow-sm shadow-black/20">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -335,11 +335,11 @@ export function EmployeeSalariesMonthly() {
           placeholder="Buscar colaborador..."
           value={searchFilter}
           onChange={(event) => setSearchFilter(event.target.value)}
-          className="h-11 w-[260px] rounded-2xl border border-white/10 bg-slate-900/90 text-white shadow-sm shadow-black/20"
+          className="h-11 w-[260px] rounded-2xl border border-white/10 bg-card/90 text-white shadow-sm shadow-black/20"
         />
 
         <Select value={roleFilter || "all"} onValueChange={(value) => setRoleFilter(value === "all" ? "" : value)}>
-          <SelectTrigger className="h-11 w-[200px] rounded-2xl border border-white/10 bg-slate-900/90 text-white shadow-sm shadow-black/20">
+          <SelectTrigger className="h-11 w-[200px] rounded-2xl border border-white/10 bg-card/90 text-white shadow-sm shadow-black/20">
             <SelectValue placeholder="Função" />
           </SelectTrigger>
           <SelectContent>
@@ -358,25 +358,25 @@ export function EmployeeSalariesMonthly() {
           { label: "Total bruto", value: `R$ ${statistics.totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
           { label: "Média", value: `R$ ${statistics.averageBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
         ].map((item) => (
-          <div key={item.label} className="rounded-[28px] border border-white/10 bg-slate-900/85 p-5 shadow-card">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
+          <div key={item.label} className="rounded-[28px] border border-white/10 bg-card/85 p-5 shadow-card">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
             <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/95 shadow-card">
+      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-background/95 shadow-card">
         {filteredEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <Users className="mb-3 h-8 w-8 text-slate-400" />
+            <Users className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-white">Nenhum colaborador encontrado</p>
-            <p className="text-sm text-slate-400">Tente ajustar seus filtros de busca.</p>
+            <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-white/10 bg-slate-900/80">
-                <tr className="text-left text-slate-400">
+              <thead className="border-b border-white/10 bg-card/80">
+                <tr className="text-left text-muted-foreground">
                   <th className="px-4 py-3 font-medium">Nome</th>
                   <th className="px-4 py-3 font-medium">Função</th>
                   <th className="px-4 py-3 font-medium">Bruto</th>
@@ -386,12 +386,12 @@ export function EmployeeSalariesMonthly() {
               </thead>
               <tbody>
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="border-b border-white/10 transition-colors hover:bg-slate-900/70 last:border-0">
+                  <tr key={employee.id} className="border-b border-white/10 transition-colors hover:bg-card/70 last:border-0">
                     <td className="px-4 py-3 font-medium text-white">
                       {employee.full_name}
-                      <div className="text-xs font-normal text-slate-400">{employee.email}</div>
+                      <div className="text-xs font-normal text-muted-foreground">{employee.email}</div>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{employee.roles.map(formatRole).join(", ")}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{employee.roles.map(formatRole).join(", ")}</td>
                     <td className="px-4 py-3 text-white">
                       {employee.salary?.salario_bruto
                         ? `R$ ${Number(employee.salary.salario_bruto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
@@ -403,7 +403,7 @@ export function EmployeeSalariesMonthly() {
                         : "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" className="text-slate-300 hover:text-white" onClick={() => handleEditClick(employee)}>
+                      <Button variant="ghost" className="text-muted-foreground hover:text-white" onClick={() => handleEditClick(employee)}>
                         Editar
                       </Button>
                     </td>
@@ -441,7 +441,7 @@ export function EmployeeSalariesMonthly() {
               />
             </div>
             <div>
-              <Label htmlFor="dialog-liquid" className="text-slate-300 font-medium">Salário Líquido (R$)</Label>
+              <Label htmlFor="dialog-liquid" className="text-muted-foreground font-medium">Salário Líquido (R$)</Label>
               <Input
                 id="dialog-liquid"
                 type="number"
@@ -449,17 +449,17 @@ export function EmployeeSalariesMonthly() {
                 value={editFormData.salario_liquido}
                 onChange={(e) => setEditFormData({ ...editFormData, salario_liquido: e.target.value })}
                 placeholder="0.00"
-                className="mt-2 h-11 rounded-2xl border border-white/10 bg-slate-900/90 text-white"
+                className="mt-2 h-11 rounded-2xl border border-white/10 bg-card/90 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="dialog-benefit" className="text-slate-300 font-medium">Benefícios</Label>
+              <Label htmlFor="dialog-benefit" className="text-muted-foreground font-medium">Benefícios</Label>
               <Textarea
                 id="dialog-benefit"
                 value={editFormData.beneficios}
                 onChange={(e) => setEditFormData({ ...editFormData, beneficios: e.target.value })}
                 placeholder="Ex: Vale alimentação, Plano de saúde..."
-                className="mt-2 rounded-2xl border border-white/10 bg-slate-900/90 text-white min-h-24"
+                className="mt-2 rounded-2xl border border-white/10 bg-card/90 text-white min-h-24"
               />
             </div>
           </div>

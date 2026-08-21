@@ -69,7 +69,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   return <aside className={cn("fixed right-0 top-16 h-[calc(100vh-4rem)] aviation-gradient-card border-l border-border transition-all duration-300 custom-scrollbar overflow-y-auto z-40", isOpen ? "w-80" : "w-0")}>
       {isOpen && <div className="p-4 space-y-6">
           {/* Horário do Sistema */}
-          <Card className="bg-gradient-to-b from-slate-800 to-slate-900 border-slate-700 shadow-lg rounded-lg">
+          <Card className="bg-gradient-to-b from-card-secondary to-card border-border shadow-lg rounded-lg">
             <CardContent className="py-[7px] px-[9px]">
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-2">
@@ -78,7 +78,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     {formatTime(currentTime)}
                   </div>
                 </div>
-                <div className="text-sm text-slate-300 capitalize">{formatDate(currentTime)}</div>
+                <div className="text-sm text-muted-foreground capitalize">{formatDate(currentTime)}</div>
               </div>
             </CardContent>
           </Card>

@@ -160,7 +160,7 @@ export function ExportFuelRecordsModal({
               onClick={() => setPeriodMode("month")}
               className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
                 periodMode === "month"
-                  ? "bg-slate-900 text-white border-slate-900"
+                  ? "bg-card text-white border-slate-900"
                   : "bg-transparent text-muted-foreground border-border/60 hover:bg-muted/50"
               }`}
             >
@@ -171,7 +171,7 @@ export function ExportFuelRecordsModal({
               onClick={() => setPeriodMode("range")}
               className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
                 periodMode === "range"
-                  ? "bg-slate-900 text-white border-slate-900"
+                  ? "bg-card text-white border-slate-900"
                   : "bg-transparent text-muted-foreground border-border/60 hover:bg-muted/50"
               }`}
             >
@@ -326,7 +326,7 @@ export function ExportFuelRecordsModal({
             onClick={handleExportClick}
             disabled={filteredRecords.length === 0}
             variant="outline"
-            className="gap-2 border-border/60 bg-slate-900/60 text-slate-200 font-medium hover:bg-slate-900 hover:text-white hover:border-slate-600 shadow-sm"
+            className="gap-2 border-border/60 bg-card/60 text-foreground font-medium hover:bg-card hover:text-white hover:border-border shadow-sm"
           >
             <Download className="h-4 w-4" />
             Salvar em PDF

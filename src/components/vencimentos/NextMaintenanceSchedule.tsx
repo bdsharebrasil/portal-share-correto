@@ -138,7 +138,7 @@ export function NextMaintenanceSchedule({
 
   if (loading) {
     return (
-      <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-6 flex items-center justify-center min-h-[200px]">
+      <div className="bg-card-secondary/30 border border-white/5 rounded-2xl p-6 flex items-center justify-center min-h-[200px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-400">Carregando dados de manutenção...</p>
@@ -216,7 +216,7 @@ export function NextMaintenanceSchedule({
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-slate-700/40 rounded-full h-2 overflow-hidden border border-current/10">
+        <div className="w-full bg-secondary/40 rounded-full h-2 overflow-hidden border border-current/10">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
               status === 'vencido'

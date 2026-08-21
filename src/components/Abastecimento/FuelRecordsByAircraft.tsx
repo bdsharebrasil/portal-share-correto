@@ -1560,7 +1560,7 @@ export function FuelRecordsByAircraft({
         </div>
       </div>
 
-      <Card className="border-border/60 bg-slate-950/45 shadow-none">
+      <Card className="border-border/60 bg-background/45 shadow-none">
         <CardContent className="p-4 md:p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <div className="xl:col-span-2">
@@ -2167,11 +2167,11 @@ export function FuelRecordsByAircraft({
         </Button>
       </div>
 
-      <Card className="overflow-hidden border-border/60 bg-slate-950/30 shadow-none">
+      <Card className="overflow-hidden border-border/60 bg-background/30 shadow-none">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table className="min-w-[1120px] overflow-hidden rounded-lg">
-              <TableHeader className="bg-slate-950/75">
+              <TableHeader className="bg-background/75">
                 <TableRow className="border-b border-border/60 hover:bg-transparent">
                   <TableHead className="h-10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     <button

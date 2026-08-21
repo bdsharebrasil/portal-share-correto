@@ -46,7 +46,7 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
 
   return (
     <Card
-      className="group relative cursor-pointer rounded-xl border border-slate-800/80 bg-slate-900/40 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200"
+      className="group relative cursor-pointer rounded-xl border border-border/80 bg-card/40 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200"
       onClick={() => onView?.(cliente)}
     >
       {(onEdit || onDelete) && (
@@ -56,7 +56,7 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-lg bg-slate-950/80 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-sm"
+              className="h-8 w-8 rounded-lg bg-background/80 text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-sm"
               onClick={(e) => { e.stopPropagation(); onEdit(cliente); }}
               title="Editar"
             >
@@ -68,7 +68,7 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-lg bg-slate-950/80 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 backdrop-blur-sm"
+              className="h-8 w-8 rounded-lg bg-background/80 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 backdrop-blur-sm"
               onClick={(e) => { e.stopPropagation(); onDelete(cliente.id); }}
               title="Excluir"
             >
@@ -80,7 +80,7 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
 
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          <Avatar className="h-14 w-14 rounded-xl ring-2 ring-cyan-400/30 flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+          <Avatar className="h-14 w-14 rounded-xl ring-2 ring-cyan-400/30 flex-shrink-0 bg-gradient-to-br from-card-secondary to-card flex items-center justify-center">
             {cliente.url_logo ? <AvatarImage src={cliente.url_logo} alt={cliente.razao_social || ""} className="object-contain p-1" /> : null}
             <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white font-bold text-sm rounded-xl">
               {getInitials(cliente.razao_social || "?")}
@@ -88,10 +88,10 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
           </Avatar>
 
           <div className="flex-1 min-w-0 pr-8">
-            <h3 className="font-semibold text-slate-100 text-base truncate group-hover:text-cyan-400 transition-colors">
+            <h3 className="font-semibold text-foreground text-base truncate group-hover:text-cyan-400 transition-colors">
               {cliente.razao_social}
             </h3>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">{cliente.cnpj}</p>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">{cliente.cnpj}</p>
 
             <div className="flex flex-wrap gap-1.5 mt-2">
               {cliente.tem_socio && (
@@ -108,47 +108,47 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2">
+        <div className="mt-4 pt-4 border-t border-border/80 space-y-2">
           {cliente.telefone && (
             <div className="flex items-center gap-2.5 text-sm">
-              <Phone className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-              <span className="text-slate-300 truncate">{cliente.telefone}</span>
+              <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground truncate">{cliente.telefone}</span>
             </div>
           )}
           {cliente.email && (
             <div className="flex items-center gap-2.5 text-sm">
-              <Mail className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-              <span className="text-slate-300 truncate">{cliente.email}</span>
+              <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground truncate">{cliente.email}</span>
             </div>
           )}
           {location && (
             <div className="flex items-center gap-2.5 text-sm">
-              <MapPin className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-              <span className="text-slate-400 truncate">{location}</span>
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground truncate">{location}</span>
             </div>
           )}
           {cliente.contato_financeiro && (
             <div className="flex items-center gap-2.5 text-sm">
-              <Building2 className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-              <span className="text-slate-400 truncate">{cliente.contato_financeiro}</span>
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground truncate">{cliente.contato_financeiro}</span>
             </div>
           )}
         </div>
 
         {cliente.aeronave_ownerships && cliente.aeronave_ownerships.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-slate-800/80">
+          <div className="mt-4 pt-3 border-t border-border/80">
             <div className="flex items-center gap-2 mb-2">
               <Plane className="h-3.5 w-3.5 text-cyan-400" />
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Aeronaves</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aeronaves</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {cliente.aeronave_ownerships.slice(0, 4).map((ownership, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
-                  {ownership.aircraft_registration} <span className="text-slate-500 ml-1">({ownership.ownership_percentage}%)</span>
+                <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-card-secondary text-muted-foreground border border-border/60">
+                  {ownership.aircraft_registration} <span className="text-muted-foreground ml-1">({ownership.ownership_percentage}%)</span>
                 </Badge>
               ))}
               {cliente.aeronave_ownerships.length > 4 && (
-                <Badge variant="outline" className="text-xs rounded-md border-slate-700 text-slate-400">
+                <Badge variant="outline" className="text-xs rounded-md border-border text-muted-foreground">
                   +{cliente.aeronave_ownerships.length - 4}
                 </Badge>
               )}

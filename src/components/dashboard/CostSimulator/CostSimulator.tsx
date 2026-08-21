@@ -112,15 +112,15 @@ function SimulatorInner() {
   return (
     <div className="min-h-full bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--muted)/0.35))]">
       <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 sm:p-6 lg:p-8">
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-black/20 sm:p-7">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-background/80 p-5 shadow-2xl shadow-black/20 sm:p-7">
           <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
           <div className="relative flex flex-wrap items-end justify-between gap-5">
             <div className="max-w-2xl">
               <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_12px_hsl(var(--primary))]" /> Intelligence operacional</div>
               <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Simulador de custos de voo</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">Transforme rota, aeronave e premissas em uma decisão financeira clara — com leitura rápida para operação e gestão.</p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Transforme rota, aeronave e premissas em uma decisão financeira clara — com leitura rápida para operação e gestão.</p>
             </div>
-            <div className="grid min-w-[250px] grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Status</p><p className="mt-1 text-sm font-semibold text-emerald-300">{costs ? "Simulação pronta" : "Aguardando dados"}</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Modo</p><p className="mt-1 text-sm font-semibold text-white">Por trecho</p></div></div>
+            <div className="grid min-w-[250px] grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</p><p className="mt-1 text-sm font-semibold text-emerald-300">{costs ? "Simulação pronta" : "Aguardando dados"}</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo</p><p className="mt-1 text-sm font-semibold text-white">Por trecho</p></div></div>
           </div>
         </section>
         <header className="flex flex-wrap items-start justify-between gap-4">
@@ -267,7 +267,7 @@ function SimulatorInner() {
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-6">
-            <Card className="overflow-hidden rounded-3xl border-primary/30 bg-gradient-to-br from-primary/15 via-slate-950 to-slate-950 shadow-xl shadow-primary/5">
+            <Card className="overflow-hidden rounded-3xl border-primary/30 bg-gradient-to-br from-primary/15 via-slate-950 to-background shadow-xl shadow-primary/5">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>

@@ -737,7 +737,7 @@ export default function ChecklistPreVoo() {
                 {/* PROGRESS CARD */}
                 <div className="w-full xl:w-[360px]">
 
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 shadow-inner shadow-black/10">
+                  <div className="rounded-2xl border border-white/10 bg-background/30 p-4 shadow-inner shadow-black/10">
 
                     <div className="flex items-center gap-4">
 
@@ -1046,7 +1046,7 @@ export default function ChecklistPreVoo() {
                           </div>
                         </div>
 
-                        <div className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-white/12 bg-slate-950/40 text-xs font-bold text-slate-200 shadow-inner">
+                        <div className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-white/12 bg-background/40 text-xs font-bold text-foreground shadow-inner">
                           {feitos}
                         </div>
 
@@ -1064,7 +1064,7 @@ export default function ChecklistPreVoo() {
                     {/* SECTION BODY */}
                     {!recolhida &&
                       liberada && (
-                        <div className="border-t border-white/8 bg-slate-950/15">
+                        <div className="border-t border-white/8 bg-background/15">
                           <div className="divide-y divide-white/8">
                             {section.items.map(
                               (item, itemIndex) => {
@@ -1117,7 +1117,7 @@ export default function ChecklistPreVoo() {
                                                 : st ===
                                                     "nao_feito"
                                                   ? "border-rose-500/20 bg-rose-500/10 text-rose-500"
-                                                  : "border-white/12 bg-slate-950/35 text-slate-300"
+                                                  : "border-white/12 bg-background/35 text-muted-foreground"
                                           )}
                                         >
                                           {ok ? (
@@ -1192,7 +1192,7 @@ export default function ChecklistPreVoo() {
                                               st ===
                                                 "feito"
                                                 ? "border-emerald-400/40 bg-emerald-400/12 text-emerald-300 shadow-sm shadow-emerald-950/20"
-                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
+                                                : "border-white/12 bg-background/45 text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">
@@ -1218,7 +1218,7 @@ export default function ChecklistPreVoo() {
                                               st ===
                                                 "nao_feito"
                                                 ? "border-rose-400/40 bg-rose-400/12 text-rose-300 shadow-sm shadow-rose-950/20"
-                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
+                                                : "border-white/12 bg-background/45 text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">
@@ -1244,7 +1244,7 @@ export default function ChecklistPreVoo() {
                                               st ===
                                                 "reporte"
                                                 ? "border-amber-400/40 bg-amber-400/12 text-amber-300 shadow-sm shadow-amber-950/20"
-                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
+                                                : "border-white/12 bg-background/45 text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">

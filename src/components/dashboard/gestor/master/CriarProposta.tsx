@@ -92,12 +92,12 @@ const SectionHeader = ({
     </div>
 
     <div className="min-w-0">
-      <h2 className="text-sm font-semibold tracking-tight text-slate-100">
+      <h2 className="text-sm font-semibold tracking-tight text-foreground">
         {title}
       </h2>
 
       {description && (
-        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}
@@ -112,10 +112,10 @@ const FieldLabel = ({
   children: React.ReactNode;
   optional?: boolean;
 }) => (
-  <Label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+  <Label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
     {children}
     {optional && (
-      <span className="normal-case tracking-normal text-slate-600">
+      <span className="normal-case tracking-normal text-muted-foreground">
         opcional
       </span>
     )}
@@ -132,7 +132,7 @@ const PanelCard = ({
   <div
     className={[
       "rounded-2xl border border-white/[0.07]",
-      "bg-slate-950/35",
+      "bg-background/35",
       "shadow-[0_12px_40px_rgba(0,0,0,0.12)]",
       className,
     ].join(" ")}
@@ -403,7 +403,7 @@ export default function CriarProposta() {
                   variant="ghost"
                   size="icon"
                   onClick={() => navigate(-1)}
-                  className="h-10 w-10 shrink-0 rounded-xl border border-white/[0.07] bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                  className="h-10 w-10 shrink-0 rounded-xl border border-white/[0.07] bg-white/[0.02] text-muted-foreground hover:bg-white/[0.06] hover:text-white"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
@@ -424,7 +424,7 @@ export default function CriarProposta() {
                     </span>
                   </div>
 
-                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                  <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                     Crie uma proposta comercial premium para gerenciamento de cota de aeronave.
                   </p>
                 </div>
@@ -432,13 +432,13 @@ export default function CriarProposta() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <div className="hidden items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 lg:flex">
-                  <FileText className="h-3.5 w-3.5 text-slate-500" />
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
 
-                  <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500">
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                     Proposta
                   </span>
 
-                  <span className="font-mono text-xs font-semibold text-slate-300">
+                  <span className="font-mono text-xs font-semibold text-muted-foreground">
                     {numero}
                   </span>
                 </div>
@@ -446,7 +446,7 @@ export default function CriarProposta() {
                 <Button
                   variant="outline"
                   onClick={() => window.print()}
-                  className="h-10 gap-2 rounded-xl border-white/[0.08] bg-white/[0.02] px-4 text-xs font-medium text-slate-200 shadow-none transition-all hover:border-cyan-400/20 hover:bg-cyan-400/[0.06] hover:text-cyan-200"
+                  className="h-10 gap-2 rounded-xl border-white/[0.08] bg-white/[0.02] px-4 text-xs font-medium text-foreground shadow-none transition-all hover:border-cyan-400/20 hover:bg-cyan-400/[0.06] hover:text-cyan-200"
                 >
                   <Printer className="h-4 w-4" />
                   <span className="hidden sm:inline">
@@ -507,7 +507,7 @@ export default function CriarProposta() {
                     </FieldLabel>
 
                     <div className="relative">
-                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                       <Input
                         value={cliente}
@@ -517,7 +517,7 @@ export default function CriarProposta() {
                           )
                         }
                         placeholder="Nome do cliente"
-                        className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                        className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                       />
                     </div>
                   </div>
@@ -529,7 +529,7 @@ export default function CriarProposta() {
                       </FieldLabel>
 
                       <div className="relative">
-                        <Plane className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                        <Plane className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                         <Input
                           value={aeronave}
@@ -539,7 +539,7 @@ export default function CriarProposta() {
                             )
                           }
                           placeholder="Modelo"
-                          className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                          className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                         />
                       </div>
                     </div>
@@ -550,7 +550,7 @@ export default function CriarProposta() {
                       </FieldLabel>
 
                       <div className="relative">
-                        <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                        <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                         <Input
                           value={base}
@@ -560,7 +560,7 @@ export default function CriarProposta() {
                             )
                           }
                           placeholder="São Paulo"
-                          className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                          className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-sm text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                         />
                       </div>
                     </div>
@@ -573,7 +573,7 @@ export default function CriarProposta() {
                       </FieldLabel>
 
                       <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                         <Input
                           type="date"
@@ -594,7 +594,7 @@ export default function CriarProposta() {
                       </FieldLabel>
 
                       <div className="relative">
-                        <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                        <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                         <Input
                           type="number"
@@ -608,7 +608,7 @@ export default function CriarProposta() {
                           className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 pr-14 text-sm text-white focus:border-cyan-400/30 focus:ring-cyan-400/10"
                         />
 
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-wider text-slate-600">
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-wider text-muted-foreground">
                           dias
                         </span>
                       </div>
@@ -622,7 +622,7 @@ export default function CriarProposta() {
 
                     <div className="flex gap-2">
                       <div className="relative min-w-0 flex-1">
-                        <FileText className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                        <FileText className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                         <Input
                           value={numero}
@@ -643,7 +643,7 @@ export default function CriarProposta() {
                           gerarNovaProposta
                         }
                         title="Gerar novo número"
-                        className="h-11 w-11 shrink-0 rounded-xl border-white/[0.08] bg-white/[0.025] text-slate-400 hover:border-cyan-400/20 hover:bg-cyan-400/[0.05] hover:text-cyan-300"
+                        className="h-11 w-11 shrink-0 rounded-xl border-white/[0.08] bg-white/[0.025] text-muted-foreground hover:border-cyan-400/20 hover:bg-cyan-400/[0.05] hover:text-cyan-300"
                       >
                         <RefreshCw className="h-4 w-4" />
                       </Button>
@@ -670,9 +670,9 @@ export default function CriarProposta() {
                   />
 
                   {secaoInvestimentoAberta ? (
-                    <ChevronUp className="h-4 w-4 text-slate-600" />
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-600" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
                 </button>
 
@@ -686,7 +686,7 @@ export default function CriarProposta() {
                             className="group rounded-xl border border-white/[0.06] bg-white/[0.018] p-3 transition-all hover:border-white/[0.1] hover:bg-white/[0.025]"
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-600">
+                              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
                                 Item {String(
                                   index + 1
                                 ).padStart(
@@ -709,7 +709,7 @@ export default function CriarProposta() {
                                         )
                                     )
                                   }
-                                  className="rounded-lg p-1.5 text-slate-600 opacity-0 transition-all hover:bg-red-400/10 hover:text-red-300 group-hover:opacity-100"
+                                  className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-red-400/10 hover:text-red-300 group-hover:opacity-100"
                                   title="Remover item"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -733,7 +733,7 @@ export default function CriarProposta() {
                                   )
                                 }
                                 placeholder="Descrição do serviço"
-                                className="h-10 rounded-lg border-white/[0.07] bg-black/10 text-xs text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                                className="h-10 rounded-lg border-white/[0.07] bg-black/10 text-xs text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                               />
 
                               <Input
@@ -752,7 +752,7 @@ export default function CriarProposta() {
                                 }
                                 placeholder="0,00"
                                 inputMode="decimal"
-                                className="h-10 rounded-lg border-white/[0.07] bg-black/10 text-right font-mono text-xs text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                                className="h-10 rounded-lg border-white/[0.07] bg-black/10 text-right font-mono text-xs text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                               />
                             </div>
                           </div>
@@ -776,7 +776,7 @@ export default function CriarProposta() {
                           ]
                         )
                       }
-                      className="mt-3 h-10 w-full gap-2 rounded-xl border-dashed border-white/[0.1] bg-transparent text-xs text-slate-400 hover:border-cyan-400/25 hover:bg-cyan-400/[0.04] hover:text-cyan-300"
+                      className="mt-3 h-10 w-full gap-2 rounded-xl border-dashed border-white/[0.1] bg-transparent text-xs text-muted-foreground hover:border-cyan-400/25 hover:bg-cyan-400/[0.04] hover:text-cyan-300"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar item
@@ -785,9 +785,9 @@ export default function CriarProposta() {
                     {/* RESUMO */}
                     <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/15 p-4">
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between text-slate-500">
+                        <div className="flex justify-between text-muted-foreground">
                           <span>Subtotal</span>
-                          <span className="font-mono text-slate-300">
+                          <span className="font-mono text-muted-foreground">
                             {brl(
                               subtotal
                             )}
@@ -812,7 +812,7 @@ export default function CriarProposta() {
                         <div className="my-2 h-px bg-white/[0.06]" />
 
                         <div className="flex items-end justify-between">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                             Total mensal
                           </span>
 
@@ -825,7 +825,7 @@ export default function CriarProposta() {
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-white/[0.06] bg-white/[0.018] p-3">
-                        <div className="mb-1 flex items-center gap-1.5 text-slate-500">
+                        <div className="mb-1 flex items-center gap-1.5 text-muted-foreground">
                           <Percent className="h-3 w-3" />
                           <span className="text-[10px] uppercase tracking-wider">
                             Desconto
@@ -849,10 +849,10 @@ export default function CriarProposta() {
 
                       <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.018] p-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             Recibo
                           </p>
-                          <p className="mt-0.5 truncate text-[11px] text-slate-400">
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             Sem nota fiscal
                           </p>
                         </div>
@@ -889,9 +889,9 @@ export default function CriarProposta() {
                   />
 
                   {secaoConteudoAberta ? (
-                    <ChevronUp className="h-4 w-4 text-slate-600" />
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-600" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
                 </button>
 
@@ -926,7 +926,7 @@ export default function CriarProposta() {
                             e.target.value
                           )
                         }
-                        className="resize-none rounded-xl border-white/[0.08] bg-white/[0.025] text-xs leading-relaxed text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                        className="resize-none rounded-xl border-white/[0.08] bg-white/[0.025] text-xs leading-relaxed text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                       />
                     </div>
 
@@ -943,18 +943,18 @@ export default function CriarProposta() {
                             e.target.value
                           )
                         }
-                        className="resize-none rounded-xl border-white/[0.08] bg-white/[0.025] text-xs leading-relaxed text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                        className="resize-none rounded-xl border-white/[0.08] bg-white/[0.025] text-xs leading-relaxed text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                       />
                     </div>
 
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.018] p-3.5">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-xs font-medium text-slate-200">
+                          <p className="text-xs font-medium text-foreground">
                             Mostrar vantagens
                           </p>
 
-                          <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">
+                          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                             Inclui uma seção de diferenciais na proposta.
                           </p>
                         </div>
@@ -979,7 +979,7 @@ export default function CriarProposta() {
                             )
                           }
                           placeholder="Uma vantagem por linha"
-                          className="mt-3 resize-none rounded-xl border-white/[0.07] bg-black/10 text-xs leading-relaxed text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                          className="mt-3 resize-none rounded-xl border-white/[0.07] bg-black/10 text-xs leading-relaxed text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                         />
                       )}
                     </div>
@@ -1009,9 +1009,9 @@ export default function CriarProposta() {
                   />
 
                   {secaoPastasAberta ? (
-                    <ChevronUp className="h-4 w-4 text-slate-600" />
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-600" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
                 </button>
 
@@ -1024,7 +1024,7 @@ export default function CriarProposta() {
 
                       <div className="flex gap-2">
                         <div className="relative min-w-0 flex-1">
-                          <FolderPlus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                          <FolderPlus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                           <Input
                             value={
@@ -1037,7 +1037,7 @@ export default function CriarProposta() {
                               )
                             }
                             placeholder="Ex.: Propostas 2026"
-                            className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-xs text-white placeholder:text-slate-600 focus:border-cyan-400/30 focus:ring-cyan-400/10"
+                            className="h-11 rounded-xl border-white/[0.08] bg-white/[0.025] pl-10 text-xs text-white placeholder:text-muted-foreground focus:border-cyan-400/30 focus:ring-cyan-400/10"
                           />
                         </div>
                       </div>
@@ -1058,7 +1058,7 @@ export default function CriarProposta() {
                               .value
                           )
                         }
-                        className="h-11 w-full rounded-xl border border-white/[0.08] bg-slate-950 px-3 text-xs text-slate-200 outline-none transition-colors focus:border-cyan-400/30"
+                        className="h-11 w-full rounded-xl border border-white/[0.08] bg-background px-3 text-xs text-foreground outline-none transition-colors focus:border-cyan-400/30"
                       >
                         <option value="">
                           Selecionar pasta
@@ -1132,7 +1132,7 @@ export default function CriarProposta() {
                     {pastas.length > 0 && (
                       <div className="space-y-2 pt-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                             Pastas salvas
                           </span>
 
@@ -1157,18 +1157,18 @@ export default function CriarProposta() {
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-2.5">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card">
                                     <FolderOpen className="h-3.5 w-3.5 text-cyan-300" />
                                   </div>
 
                                   <div className="min-w-0">
-                                    <p className="truncate text-xs font-medium text-slate-200">
+                                    <p className="truncate text-xs font-medium text-foreground">
                                       {
                                         pasta.nome
                                       }
                                     </p>
 
-                                    <p className="mt-0.5 text-[10px] text-slate-600">
+                                    <p className="mt-0.5 text-[10px] text-muted-foreground">
                                       {
                                         pasta
                                           .propostas
@@ -1216,13 +1216,13 @@ export default function CriarProposta() {
                                           className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.04] bg-black/10 px-2.5 py-2"
                                         >
                                           <div className="min-w-0">
-                                            <p className="truncate text-[11px] text-slate-300">
+                                            <p className="truncate text-[11px] text-muted-foreground">
                                               {proposta.nome ||
                                                 proposta.cliente ||
                                                 "Proposta"}
                                             </p>
 
-                                            <p className="mt-0.5 font-mono text-[9px] text-slate-600">
+                                            <p className="mt-0.5 font-mono text-[9px] text-muted-foreground">
                                               {
                                                 proposta.numero
                                               }
@@ -1237,7 +1237,7 @@ export default function CriarProposta() {
                                                 proposta
                                               )
                                             }
-                                            className="h-7 shrink-0 rounded-md px-2 text-[9px] text-slate-400 hover:bg-white/[0.05] hover:text-white"
+                                            className="h-7 shrink-0 rounded-md px-2 text-[9px] text-muted-foreground hover:bg-white/[0.05] hover:text-white"
                                           >
                                             Carregar
                                           </Button>
@@ -1262,14 +1262,14 @@ export default function CriarProposta() {
             <main className="min-w-0">
               <div className="mb-3 flex items-center justify-between print:hidden">
                 <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-slate-500" />
+                  <Eye className="h-4 w-4 text-muted-foreground" />
 
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     Pré-visualização
                   </span>
                 </div>
 
-                <span className="text-[10px] text-slate-600">
+                <span className="text-[10px] text-muted-foreground">
                   Visualização do documento final
                 </span>
               </div>

@@ -32,8 +32,8 @@ export default function EditLancamentoModal({ movId, onClose, onSaved }: Props) 
 
   if (loading) {
     return createPortal(
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Carregando lançamento...</div>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando lançamento...</div>
       </div>,
       document.body
     );
@@ -41,7 +41,7 @@ export default function EditLancamentoModal({ movId, onClose, onSaved }: Props) 
 
   if (err || !mov) {
     return createPortal(
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80" onClick={onClose}>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background/80" onClick={onClose}>
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{err || "Lançamento não encontrado"}</div>
       </div>,
       document.body

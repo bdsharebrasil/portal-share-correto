@@ -46,7 +46,7 @@ function Folder({ name, itemCount }: FolderProps) {
       </div>
       
       {/* Nome do Mês/Pasta abaixo do desenho */}
-      <p className="text-xl font-bold pt-8 text-slate-300 capitalize group-hover:text-amber-400 transition-colors duration-300">
+      <p className="text-xl font-bold pt-8 text-muted-foreground capitalize group-hover:text-amber-400 transition-colors duration-300">
         {name}
       </p>
     </section>
@@ -177,31 +177,31 @@ export function ReceiptHistory({
       
       <CardContent className="space-y-6">
         {receipts.length > 0 && (
-          <div className="space-y-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <h3 className="font-semibold text-sm flex items-center gap-2 text-slate-100">
+          <div className="space-y-4 p-4 bg-card/50 rounded-lg border border-border">
+            <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground">
               <Search className="h-4 w-4" />
               Busca e Filtros
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2 md:col-span-1">
-                <Label className="text-slate-300">Buscar</Label>
+                <Label className="text-muted-foreground">Buscar</Label>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Nome ou Nº do recibo..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500"
+                    className="pl-9 bg-card-secondary border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-slate-300">Data Inicial</Label>
+                <Label className="text-muted-foreground">Data Inicial</Label>
                 <Popover open={filterStartDateOpen} onOpenChange={setFilterStartDateOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700">
+                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-card-secondary border-border text-foreground hover:bg-secondary">
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {filterStartDate
                         ? format(new Date(`${filterStartDate}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })
@@ -225,10 +225,10 @@ export function ReceiptHistory({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-slate-300">Data Final</Label>
+                <Label className="text-muted-foreground">Data Final</Label>
                 <Popover open={filterEndDateOpen} onOpenChange={setFilterEndDateOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700">
+                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-card-secondary border-border text-foreground hover:bg-secondary">
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {filterEndDate
                         ? format(new Date(`${filterEndDate}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })
@@ -270,12 +270,12 @@ export function ReceiptHistory({
         )}
 
         {receipts.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
+          <div className="text-center py-12 text-muted-foreground">
             <Receipt className="mx-auto h-12 w-12 mb-4 opacity-50" />
             <p>Nenhum recibo emitido ainda</p>
           </div>
         ) : filteredReceipts.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
+          <div className="text-center py-12 text-muted-foreground">
             <Search className="mx-auto h-12 w-12 mb-4 opacity-50" />
             <p>Nenhum recibo encontrado para a busca atual</p>
           </div>
@@ -312,12 +312,12 @@ export function ReceiptHistory({
         ) : (
           /* VISÃO DE RECIBOS DENTRO DA PASTA */
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center gap-4 pb-2 border-b border-slate-700">
+            <div className="flex items-center gap-4 pb-2 border-b border-border">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setSelectedFolder(null)}
-                className="text-slate-400 hover:text-white"
+                className="text-muted-foreground hover:text-white"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
@@ -338,16 +338,16 @@ export function ReceiptHistory({
                   className={`flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-all cursor-pointer ${
                     selectedReceiptId === receipt.id
                       ? "border-blue-500 border-2 bg-blue-500/5"
-                      : "border-slate-600 bg-slate-800/30"
+                      : "border-border bg-card-secondary/30"
                   }`}
                   onClick={() => setSelectedReceiptId(selectedReceiptId === receipt.id ? null : receipt.id)}
                 >
                   <div>
                     <div className="font-semibold text-white">{receipt.payer_name}</div>
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-muted-foreground">
                       {formatDate(receipt.issue_date)} • {formatCurrency(receipt.valor)}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">{receipt.receipt_number}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{receipt.receipt_number}</div>
                   </div>
                   <div className="flex gap-2">
                     <EnviarEmailClienteButton

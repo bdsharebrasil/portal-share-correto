@@ -28,12 +28,12 @@ export function DatePickerCalendar({
   };
 
   return (
-    <div className="w-full max-w-sm bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+    <div className="w-full max-w-sm bg-gradient-to-br from-card via-slate-950 to-card border border-border/50 rounded-2xl p-6 shadow-2xl">
       {/* Header with selected date */}
       {value && (
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700/50">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
           <Calendar className="w-5 h-5 text-cyan-400" />
-          <span className="text-sm font-semibold text-slate-100">
+          <span className="text-sm font-semibold text-foreground">
             {format(value, "dd/MM/yyyy", { locale: ptBR })}
           </span>
         </div>
@@ -45,13 +45,13 @@ export function DatePickerCalendar({
           variant="ghost"
           size="sm"
           onClick={handlePreviousMonth}
-          className="h-8 w-8 p-0 hover:bg-slate-800/50 text-slate-300 hover:text-slate-100 transition-all"
+          className="h-8 w-8 p-0 hover:bg-card-secondary/50 text-muted-foreground hover:text-foreground transition-all"
         >
           <ChevronLeft className="w-5 h-5" />
         </Button>
 
         <div className="text-center">
-          <h2 className="text-base font-bold text-slate-100 capitalize">
+          <h2 className="text-base font-bold text-foreground capitalize">
             {format(month, "MMMM yyyy", { locale: ptBR })}
           </h2>
         </div>
@@ -60,7 +60,7 @@ export function DatePickerCalendar({
           variant="ghost"
           size="sm"
           onClick={handleNextMonth}
-          className="h-8 w-8 p-0 hover:bg-slate-800/50 text-slate-300 hover:text-slate-100 transition-all"
+          className="h-8 w-8 p-0 hover:bg-card-secondary/50 text-muted-foreground hover:text-foreground transition-all"
         >
           <ChevronRight className="w-5 h-5" />
         </Button>
@@ -86,7 +86,7 @@ export function DatePickerCalendar({
             table: "w-full border-collapse space-y-2",
             head_row: "grid grid-cols-7 gap-2 mb-3",
             head_cell:
-              "text-xs font-semibold text-slate-400 w-10 h-10 flex items-center justify-center",
+              "text-xs font-semibold text-muted-foreground w-10 h-10 flex items-center justify-center",
             row: "grid grid-cols-7 gap-2",
             cell: cn(
               "h-10 w-10 text-center text-sm p-0 relative",
@@ -94,13 +94,13 @@ export function DatePickerCalendar({
             ),
             day: cn(
               "h-10 w-10 p-0 font-medium rounded-lg transition-all duration-200",
-              "text-slate-300 hover:bg-slate-700/60 hover:text-slate-100"
+              "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             ),
             day_selected: "bg-cyan-500 text-white font-semibold hover:bg-cyan-600 shadow-lg shadow-cyan-500/30",
             day_today: "text-cyan-300 font-semibold",
             day_outside:
-              "text-slate-600 opacity-40",
-            day_disabled: "text-slate-600 opacity-30 cursor-not-allowed hover:bg-transparent",
+              "text-muted-foreground opacity-40",
+            day_disabled: "text-muted-foreground opacity-30 cursor-not-allowed hover:bg-transparent",
             day_range_middle: "aria-selected:bg-transparent",
           }}
         />

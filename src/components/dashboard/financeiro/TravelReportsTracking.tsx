@@ -135,7 +135,7 @@ function StatusFilterCards({ counts, totals, active, loading, onSelect }: any) {
             type="button"
             aria-pressed={isActive}
             onClick={() => onSelect(status)}
-            className="relative text-left rounded-[14px] border border-slate-400/10 bg-slate-900/80 p-4 group focus-visible:outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-400/20 data-[active=true]:border-teal-400/40 data-[active=true]:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_16px_40px_-18px_rgba(0,0,0,0.75),0_0_0_1px_rgba(94,234,212,0.18)]"
+            className="relative text-left rounded-[14px] border border-slate-400/10 bg-card/80 p-4 group focus-visible:outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-400/20 data-[active=true]:border-teal-400/40 data-[active=true]:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_16px_40px_-18px_rgba(0,0,0,0.75),0_0_0_1px_rgba(94,234,212,0.18)]"
             data-active={isActive}
           >
             <span
@@ -148,7 +148,7 @@ function StatusFilterCards({ counts, totals, active, loading, onSelect }: any) {
                   {meta.label}
                 </p>
                 {loading ? (
-                  <div className="mt-2 h-8 w-12 rounded-md bg-slate-800 animate-pulse" />
+                  <div className="mt-2 h-8 w-12 rounded-md bg-card-secondary animate-pulse" />
                 ) : (
                   <p className={`tabular-nums font-bold tracking-tight mt-1 text-3xl leading-none ${meta.accent}`}>
                     {counts[status]}
@@ -199,7 +199,7 @@ function ReportListItem({ report, link, busyAction, onCopyLink, onResend, onSend
             )}
 
             {hasSecondCrew(report) && crewApprovalState(report) !== 'approved' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold tracking-wide whitespace-nowrap border border-slate-400/20 bg-slate-500/10 text-slate-300">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold tracking-wide whitespace-nowrap border border-slate-400/20 bg-slate-500/10 text-muted-foreground">
                 Trip 1: {isApprovedCrew(report.crew_approval_status) ? 'aprovado' : isRejectedCrew(report.crew_approval_status) ? 'em revisão' : 'pendente'}
                 {' · '}
                 Trip 2: {isApprovedCrew(report.crew2_approval_status) ? 'aprovado' : isRejectedCrew(report.crew2_approval_status) ? 'em revisão' : 'pendente'}

@@ -221,7 +221,7 @@ export default function VencimentosTripulacao() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-b from-background via-card to-background relative overflow-hidden">
         {/* Background orbs */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] mix-blend-screen" />
@@ -229,7 +229,7 @@ export default function VencimentosTripulacao() {
         </div>
 
         <div className="relative z-10">
-          <header className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-[12px] border-b border-white/5">
+          <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-[12px] border-b border-white/5">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20 ring-1 ring-white/10">
@@ -266,7 +266,7 @@ export default function VencimentosTripulacao() {
                 { label: 'Próximos 60 dias', value: stats.proximos, color: 'yellow', note: 'Requer atenção', icon: AlertTriangle, ping: false },
                 { label: 'Em dia', value: stats.ok, color: 'green', note: 'Regular', icon: CheckCircle, ping: false },
               ].map(({ label, value, color, note, icon: Icon, ping }) => (
-                <div key={label} className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+                <div key={label} className="bg-card-secondary/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-card-secondary/50 hover:border-white/10">
                   <div className="relative z-10 flex flex-col h-full justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-3">
@@ -290,7 +290,7 @@ export default function VencimentosTripulacao() {
                 </div>
               ))}
 
-              <div className="bg-gradient-to-br from-purple-500/10 to-slate-800 rounded-2xl p-6 border border-purple-500/20 relative overflow-hidden shadow-lg shadow-purple-900/10 group hover:shadow-purple-500/10 transition-all duration-300 hover:border-purple-500/40 hover:from-purple-500/20">
+              <div className="bg-gradient-to-br from-purple-500/10 to-card-secondary rounded-2xl p-6 border border-purple-500/20 relative overflow-hidden shadow-lg shadow-purple-900/10 group hover:shadow-purple-500/10 transition-all duration-300 hover:border-purple-500/40 hover:from-purple-500/20">
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl" />
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
@@ -318,7 +318,7 @@ export default function VencimentosTripulacao() {
                   <Search className="text-gray-500 group-focus-within:text-purple-400 transition-colors" size={20} />
                 </span>
                 <input
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-500/50 focus:bg-slate-800 transition-all text-sm font-medium"
+                  className="w-full pl-11 pr-4 py-2.5 bg-card-secondary/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-500/50 focus:bg-card-secondary transition-all text-sm font-medium"
                   placeholder="Buscar tripulante ou habilitação..."
                   type="text"
                   value={searchTerm}
@@ -327,7 +327,7 @@ export default function VencimentosTripulacao() {
               </div>
 
               <Tabs value={activeStatus} onValueChange={(v) => setActiveStatus(v as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-slate-800/30 border border-white/5 rounded-xl p-1">
+                <TabsList className="grid w-full grid-cols-4 bg-card-secondary/30 border border-white/5 rounded-xl p-1">
                   <TabsTrigger value="todos" className="rounded-lg data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">Todos ({vencimentos.length})</TabsTrigger>
                   <TabsTrigger value="vencidos" className="rounded-lg data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400">Vencidos ({stats.vencidos})</TabsTrigger>
                   <TabsTrigger value="proximos" className="rounded-lg data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-400">Próximos ({stats.proximos})</TabsTrigger>
@@ -338,7 +338,7 @@ export default function VencimentosTripulacao() {
 
             {/* Grid de vencimentos */}
             {filteredVencimentos.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 min-h-[300px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-dashed border-white/10 bg-card/40 min-h-[300px] flex flex-col items-center justify-center">
                 <Award className="w-12 h-12 text-purple-400/40 mb-4" />
                 <h3 className="text-xl font-bold text-white mb-2">Nenhum resultado encontrado</h3>
                 <p className="text-gray-400 text-sm">Ajuste os filtros para visualizar vencimentos</p>
@@ -355,7 +355,7 @@ export default function VencimentosTripulacao() {
                         <Avatar className="w-14 h-14 ring-2 ring-white/10 flex-shrink-0">
                           {/* url_avatar — campo real */}
                           <AvatarImage src={tripulante.tripulanteAvatar} alt={tripulante.tripulanteName} />
-                          <AvatarFallback className="bg-slate-700 text-sm font-semibold">
+                          <AvatarFallback className="bg-secondary text-sm font-semibold">
                             {tripulante.tripulanteName.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
@@ -423,7 +423,7 @@ export default function VencimentosTripulacao() {
 
       {/* Dialog de edição de data */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-900 border-white/10">
+        <DialogContent className="max-w-md bg-card border-white/10">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <Edit className="h-5 w-5 text-purple-400" />
@@ -432,7 +432,7 @@ export default function VencimentosTripulacao() {
           </DialogHeader>
           {editingHabilitacao && (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-white/5">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-card-secondary/50 border border-white/5">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                   <Calendar className="h-5 w-5 text-purple-400" />
                 </div>
@@ -449,7 +449,7 @@ export default function VencimentosTripulacao() {
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white"
+                  className="w-full px-3 py-2 rounded-lg bg-card-secondary border border-white/10 text-white"
                 />
               </div>
 

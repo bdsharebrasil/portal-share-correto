@@ -54,13 +54,13 @@ function CircularMetricCard({
         </svg>
 
         <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-slate-100 shadow-xl shadow-cyan-500/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card text-foreground shadow-xl shadow-cyan-500/10">
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{label}</p>
-            <p className="mt-2 text-lg font-semibold text-slate-100">{value}</p>
-            {subtitle && <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>}
+            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{label}</p>
+            <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
+            {subtitle && <p className="mt-1 text-[11px] text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -183,48 +183,48 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
         <div className="flex items-center gap-2">
         </div>
         <div className="flex-1" />
-        <span className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200">
+        <span className="rounded-lg border border-border bg-card/60 px-3 py-2 text-xs font-semibold text-foreground">
           {matricula || "Aeronave"}{modelo ? ` — ${modelo}` : ""}
         </span>
-        <select value={String(ano)} onChange={(e) => setAno(Number(e.target.value))} className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400">
+        <select value={String(ano)} onChange={(e) => setAno(Number(e.target.value))} className="rounded-lg border border-border bg-card/60 px-3 py-2 text-xs text-foreground outline-none focus:border-cyan-400">
           {anos.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
 
       {/* Month selector */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Meses:</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Meses:</span>
         {MESES_SHORT.map((m, i) => (
           <button key={i} onClick={() => toggleMonth(i + 1)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${selectedSet.has(i + 1) ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400 hover:bg-slate-700"}`}>
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${selectedSet.has(i + 1) ? "bg-cyan-500 text-slate-950" : "bg-card-secondary text-muted-foreground hover:bg-secondary"}`}>
             {m}
           </button>
         ))}
-        <button onClick={selectAllMonths} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all">Todos</button>
-        <button onClick={clearMonths} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all">Limpar</button>
+        <button onClick={selectAllMonths} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-card-secondary text-muted-foreground hover:bg-secondary transition-all">Todos</button>
+        <button onClick={clearMonths} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-card-secondary text-muted-foreground hover:bg-secondary transition-all">Limpar</button>
       </div>
 
       {/* Hero — sempre visível, dá contexto independente da aba */}
-      <div className="rounded-2xl border border-slate-800 p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.08), transparent 50%, rgba(2,6,23,0.4))" }}>
+      <div className="rounded-2xl border border-border p-6 sm:p-8" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.08), transparent 50%, rgba(2,6,23,0.4))" }}>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Relatório · {periodLabel}</div>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-100">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Relatório · {periodLabel}</div>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-foreground">
               Balanço da <span className="text-cyan-400">{matricula || "Aeronave"}</span>
             </h1>
-            {modelo && <span className="text-lg text-slate-500">{modelo}</span>}
+            {modelo && <span className="text-lg text-muted-foreground">{modelo}</span>}
           </div>
-          <div className="flex items-center gap-6 rounded-xl border border-slate-700/60 bg-slate-900/40 px-5 py-4">
+          <div className="flex items-center gap-6 rounded-xl border border-border/60 bg-card/40 px-5 py-4">
             <StatMini label="Custo total" value={formatBRL(custoTotal)} tone="primary" />
-            <div className="h-8 w-px bg-slate-700" />
+            <div className="h-8 w-px bg-secondary" />
             <StatMini label="Horas voadas" value={formatHours(horasPeriodo)} />
-            <div className="h-8 w-px bg-slate-700" />
+            <div className="h-8 w-px bg-secondary" />
           </div>
         </div>
       </div>
 
       {/* Navegação por abas */}
-      <div className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-900/40 p-1">
+      <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-card/40 p-1">
         {ABAS.map((t) => {
           const Icon = t.icon;
           const active = aba === t.id;
@@ -233,7 +233,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
               key={t.id}
               onClick={() => setAba(t.id)}
               className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
-                active ? "bg-cyan-500 text-slate-950 shadow-sm" : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                active ? "bg-cyan-500 text-slate-950 shadow-sm" : "text-muted-foreground hover:bg-card-secondary hover:text-foreground"
               }`}
             >
               <Icon className="h-3.5 w-3.5" /> {t.label}
@@ -243,13 +243,13 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-10 text-center text-sm text-slate-400">Carregando balanço…</div>
+        <div className="rounded-2xl border border-border bg-card/40 p-10 text-center text-sm text-muted-foreground">Carregando balanço…</div>
       ) : (
         <>
           {aba === "visao-geral" && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="col-span-2 rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                <div className="col-span-2 rounded-2xl border border-border bg-card/40 p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <Plane className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Horas voadas — por mês</span>
@@ -257,20 +257,20 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   <SimpleBarChart data={monthlyBreakdown.map(m => ({ key: `${ano}-${String(m.mes).padStart(2,'0')}`, horas: m.horas }))} dataKey="horas" color="#06b6d4" formatter={(v:number) => `${v.toFixed(1)} h`} heightClass="h-40" />
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                <div className="rounded-2xl border border-border bg-card/40 p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <Layers className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Composição & evolução dos custos</span>
                   </div>
                   <div className="space-y-3">
                     {composicaoPeriodo.slice(0,4).map((c, i) => <CategoryBar key={c.nome} label={c.nome} value={c.total} total={custoTotal} color={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                    <div className="mt-3 text-xs text-slate-400">Evolução mensal exibida na aba Gráficos.</div>
+                    <div className="mt-3 text-xs text-muted-foreground">Evolução mensal exibida na aba Gráficos.</div>
                   </div>
                 </div>
               </div>
 
               {/* Ranking aeroportos */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+              <div className="rounded-2xl border border-border bg-card/40 p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <PlaneLanding className="h-4 w-4 text-cyan-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Aeroportos mais visitados</span>
@@ -315,11 +315,11 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
               </div>
 
               {selectedMonths.length > 1 && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-                  <div className="mb-4 text-xs uppercase tracking-widest text-slate-500">Comparativo mensal — {ano}</div>
+                <div className="rounded-2xl border border-border bg-card/40 p-5">
+                  <div className="mb-4 text-xs uppercase tracking-widest text-muted-foreground">Comparativo mensal — {ano}</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                      <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                         <tr>
                           <th className="px-3 py-2.5 text-left">Mês</th>
                           <th className="px-3 py-2.5 text-right">Custo</th>
@@ -331,21 +331,21 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                       </thead>
                       <tbody>
                         {monthlyBreakdown.map((m) => (
-                          <tr key={m.mes} className="border-t border-slate-800/60 hover:bg-slate-800/20">
-                            <td className="px-3 py-2.5 font-medium text-slate-200">{MESES[m.mes - 1]}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{formatBRL(m.custo)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{formatHours(m.horas)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{m.pousos}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{m.voos}</td>
+                          <tr key={m.mes} className="border-t border-border/60 hover:bg-card-secondary/20">
+                            <td className="px-3 py-2.5 font-medium text-foreground">{MESES[m.mes - 1]}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatBRL(m.custo)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{formatHours(m.horas)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{m.pousos}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{m.voos}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400 font-medium">{m.custoHora > 0 ? formatBRL(m.custoHora) : "—"}</td>
                           </tr>
                         ))}
-                        <tr className="border-t-2 border-cyan-500/20 bg-slate-800/40 font-bold">
-                          <td className="px-3 py-2.5 text-slate-100">Total</td>
+                        <tr className="border-t-2 border-cyan-500/20 bg-card-secondary/40 font-bold">
+                          <td className="px-3 py-2.5 text-foreground">Total</td>
                           <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{formatBRL(monthlyBreakdown.reduce((s, m) => s + m.custo, 0))}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{formatHours(monthlyBreakdown.reduce((s, m) => s + m.horas, 0))}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{monthlyBreakdown.reduce((s, m) => s + m.pousos, 0)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{monthlyBreakdown.reduce((s, m) => s + m.voos, 0)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatHours(monthlyBreakdown.reduce((s, m) => s + m.horas, 0))}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{monthlyBreakdown.reduce((s, m) => s + m.pousos, 0)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{monthlyBreakdown.reduce((s, m) => s + m.voos, 0)}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{horasPeriodo > 0 ? formatBRL(custoTotal / horasPeriodo) : "—"}</td>
                         </tr>
                       </tbody>
@@ -358,13 +358,13 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
 
           
           {aba === "diario" && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+            <div className="rounded-2xl border border-border bg-card/40 p-5">
               <div className="mb-4 flex items-center gap-2">
                 <PlaneLanding className="h-4 w-4 text-cyan-400" />
                 <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Espelho do Diário de Bordo — {periodLabel}</span>
               </div>
               {diarioPorSocio.length === 0 ? (
-                <div className="text-sm text-slate-400 py-4">Nenhum voo no período selecionado.</div>
+                <div className="text-sm text-muted-foreground py-4">Nenhum voo no período selecionado.</div>
               ) : (
                 <div className="space-y-3">
                   {diarioPorSocio.map((d) => {
@@ -374,12 +374,12 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                       <DiarioSocioRow key={dk} d={d} enriquecidos={voosEnriquecidos} isOpen={isOpen} onToggle={() => setExpandedDiario(isOpen ? null : dk)} />
                     );
                   })}
-                  <div className="flex items-center justify-between rounded-xl border-t-2 border-cyan-500/20 bg-slate-800/30 px-4 py-3 font-bold">
-                    <span className="text-sm text-slate-100">Total Aeronave</span>
+                  <div className="flex items-center justify-between rounded-xl border-t-2 border-cyan-500/20 bg-card-secondary/30 px-4 py-3 font-bold">
+                    <span className="text-sm text-foreground">Total Aeronave</span>
                     <div className="flex items-center gap-6 text-sm tabular-nums">
-                      <span className="text-slate-100">{diarioPorSocio.reduce((s, d) => s + d.voos, 0)} voos</span>
+                      <span className="text-foreground">{diarioPorSocio.reduce((s, d) => s + d.voos, 0)} voos</span>
                       <span className="text-cyan-400">{formatHours(diarioPorSocio.reduce((s, d) => s + d.horas, 0))}</span>
-                      <span className="text-slate-100">{diarioPorSocio.reduce((s, d) => s + d.pousos, 0)} pousos</span>
+                      <span className="text-foreground">{diarioPorSocio.reduce((s, d) => s + d.pousos, 0)} pousos</span>
                     </div>
                   </div>
                 </div>
@@ -394,7 +394,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   <TrendingUp className="h-4 w-4 text-cyan-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Evolução Individual por Sócio — {ano}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">Clique em um sócio para ver horas voadas e pousos mês a mês.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Clique em um sócio para ver horas voadas e pousos mês a mês.</p>
               </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {evolucaoPorSocio.map((s) => {
@@ -407,7 +407,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   );
                 })}
                 {evolucaoPorSocio.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400 md:col-span-2 xl:col-span-3">
+                  <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
                     Nenhum voo registrado no ano.
                   </div>
                 )}
@@ -422,8 +422,8 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   <Layers className="h-4 w-4 text-cyan-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Composição de Custos — {periodLabel}</span>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 mb-4">
-                  <h3 className="text-sm font-semibold text-slate-200 mb-4">Aeronave — {formatBRL(custoTotal)}</h3>
+                <div className="rounded-2xl border border-border bg-card/40 p-5 mb-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Aeronave — {formatBRL(custoTotal)}</h3>
                   <div className="space-y-4">
                     <CategoryBar label="Custos fixos" value={custoFixo} total={custoFixo + custoVariavel + entradasPeriodo} color={CHART.amber} />
                     <CategoryBar label="Custos variáveis" value={custoVariavel} total={custoFixo + custoVariavel + entradasPeriodo} color={CHART.danger} />
@@ -436,7 +436,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                     return <SocioComposicaoCard key={c.id} nome={c.nome} fixo={c.fixo} variavel={c.variavel} extra={c.extra} entradas={c.entradas} total={c.total} isOpen={isOpen} onToggle={() => setExpandedComp(isOpen ? null : c.id)} />;
                   })}
                   {composicaoPorSocio.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400 md:col-span-2 xl:col-span-3">Nenhum sócio com movimentação no período selecionado.</div>
+                    <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">Nenhum sócio com movimentação no período selecionado.</div>
                   )}
                 </div>
               </div>
@@ -446,10 +446,10 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   <Wallet className="h-4 w-4 text-cyan-400" />
                   <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Custos por Categoria — {periodLabel}</span>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 mb-4">
-                  <h3 className="text-sm font-semibold text-slate-200 mb-4">Aeronave — {formatBRL(custoTotal)}</h3>
+                <div className="rounded-2xl border border-border bg-card/40 p-5 mb-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Aeronave — {formatBRL(custoTotal)}</h3>
                   {composicaoPeriodo.length === 0 ? (
-                    <div className="flex items-center justify-center h-32 text-sm text-slate-400">Sem despesas no período.</div>
+                    <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">Sem despesas no período.</div>
                   ) : (
                     <div className="space-y-3">
                       {composicaoPeriodo.map((c, i) => (
@@ -464,7 +464,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                     return <SocioCategoriaCard key={c.id} nome={c.nome} categorias={c.categorias} totalDespesas={c.categorias.reduce((s: number, x: any) => s + x.total, 0)} isOpen={isOpen} onToggle={() => setExpandedCat(isOpen ? null : c.id)} />;
                   })}
                   {categoriasPorSocio.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400 md:col-span-2 xl:col-span-3">Nenhum sócio com movimentação no período selecionado.</div>
+                    <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">Nenhum sócio com movimentação no período selecionado.</div>
                   )}
                 </div>
               </div>
@@ -515,18 +515,18 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {calcRows.map((r) => (
-                      <div key={r.label} className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-500">
-                          <span className={r.tone === "primary" ? "text-cyan-400" : "text-slate-500"}>{r.icon}</span>
+                      <div key={r.label} className="rounded-xl border border-border/50 bg-card-secondary/30 p-4">
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                          <span className={r.tone === "primary" ? "text-cyan-400" : "text-muted-foreground"}>{r.icon}</span>
                           {r.label}
                         </div>
-                        <div className={`mt-2 text-lg font-bold tabular-nums ${r.tone === "primary" ? "text-cyan-400" : "text-slate-100"}`}>{r.value}</div>
+                        <div className={`mt-2 text-lg font-bold tabular-nums ${r.tone === "primary" ? "text-cyan-400" : "text-foreground"}`}>{r.value}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                <div className="rounded-2xl border border-border bg-card/40 p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <Layers className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Composição Percentual</span>
@@ -535,10 +535,10 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                     {compRows.map((r) => (
                       <div key={r.label}>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs text-slate-300">{r.label}</span>
-                          <span className="text-xs tabular-nums text-slate-400">{r.value} · {r.pct.toFixed(1)}%</span>
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs tabular-nums text-muted-foreground">{r.value} · {r.pct.toFixed(1)}%</span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                        <div className="h-2 overflow-hidden rounded-full bg-card-secondary">
                           <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(100, r.pct)}%`, background: r.color }} />
                         </div>
                       </div>
@@ -547,14 +547,14 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                 </div>
 
                 {monthlyBreakdown.length > 0 && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                  <div className="rounded-2xl border border-border bg-card/40 p-5">
                     <div className="mb-4 flex items-center gap-2">
                       <BarChart3 className="h-4 w-4 text-cyan-400" />
                       <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Média de Custo/Hora por Mês</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                        <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2.5 text-left">Mês</th>
                             <th className="px-3 py-2.5 text-right">Custo</th>
@@ -565,19 +565,19 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                         </thead>
                         <tbody>
                           {monthlyBreakdown.map((m) => (
-                            <tr key={m.mes} className="border-t border-slate-800/60 hover:bg-slate-800/20">
-                              <td className="px-3 py-2.5 font-medium text-slate-200">{MESES[m.mes - 1]}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{formatBRL(m.custo)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{formatHours(m.horas)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{m.voos}</td>
+                            <tr key={m.mes} className="border-t border-border/60 hover:bg-card-secondary/20">
+                              <td className="px-3 py-2.5 font-medium text-foreground">{MESES[m.mes - 1]}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatBRL(m.custo)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{formatHours(m.horas)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{m.voos}</td>
                               <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400 font-medium">{m.custoHora > 0 ? formatBRL(m.custoHora) : "—"}</td>
                             </tr>
                           ))}
-                          <tr className="border-t-2 border-cyan-500/20 bg-slate-800/40 font-bold">
-                            <td className="px-3 py-2.5 text-slate-100">Média</td>
+                          <tr className="border-t-2 border-cyan-500/20 bg-card-secondary/40 font-bold">
+                            <td className="px-3 py-2.5 text-foreground">Média</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{formatBRL(mediaMensalCusto)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{formatHours(mediaMensalHoras)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{mediaMensalVoos.toFixed(1)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatHours(mediaMensalHoras)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{mediaMensalVoos.toFixed(1)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{horasPeriodo > 0 ? formatBRL(custoMedioHoraTotal) : "—"}</td>
                           </tr>
                         </tbody>
@@ -587,14 +587,14 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                 )}
 
                 {linhasPeriodo.length > 0 && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                  <div className="rounded-2xl border border-border bg-card/40 p-5">
                     <div className="mb-4 flex items-center gap-2">
                       <Users className="h-4 w-4 text-cyan-400" />
                       <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Médias por Cotista</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                        <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                           <tr>
                             <th className="px-3 py-2.5 text-left">Cotista</th>
                             <th className="px-3 py-2.5 text-right">Horas</th>
@@ -608,13 +608,13 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                           {linhasPeriodo.map((l) => {
                             const pctTotal = custoTotal > 0 ? (l.debito / custoTotal) * 100 : 0;
                             return (
-                              <tr key={l.id} className="border-t border-slate-800/60 hover:bg-slate-800/20">
-                                <td className="px-3 py-2.5 font-medium text-slate-200">{l.nome}</td>
+                              <tr key={l.id} className="border-t border-border/60 hover:bg-card-secondary/20">
+                                <td className="px-3 py-2.5 font-medium text-foreground">{l.nome}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{formatHours(l.horas)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{l.pousos}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{formatBRL(l.debito)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{l.pousos}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatBRL(l.debito)}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums text-amber-400">{l.horas > 0 ? formatBRL(l.debito / l.horas) : "—"}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{pctTotal.toFixed(1)}%</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{pctTotal.toFixed(1)}%</td>
                               </tr>
                             );
                           })}
@@ -655,7 +655,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
 
       {/* Visualizador de Fechamento de Balanço — somente sob demanda */}
       {showVisualizador && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950 print:static print:overflow-visible">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-background print:static print:overflow-visible">
           <FechamentoBalancoVisualizador
             aeronaveId={aeronaveId}
             ano={ano}
@@ -673,17 +673,17 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
 function StatMini({ label, value, tone }: { label: string; value: string; tone?: "primary" }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
-      <div className={`mt-1 text-base font-semibold tabular-nums ${tone === "primary" ? "text-cyan-400" : "text-slate-100"}`}>{value}</div>
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className={`mt-1 text-base font-semibold tabular-nums ${tone === "primary" ? "text-cyan-400" : "text-foreground"}`}>{value}</div>
     </div>
   );
 }
 
 function IndexStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-800/40 p-3 border border-slate-700/40">
-      <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-bold tabular-nums text-slate-100">{value}</div>
+    <div className="rounded-lg bg-card-secondary/40 p-3 border border-border/40">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-bold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }
@@ -697,11 +697,11 @@ function SimpleBarChart({ data, dataKey, color, formatter, heightClass = "h-24" 
         const h = val > 0 ? Math.max((val / max) * 100, 10) : 0;
         return (
           <div key={d.key} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
-            <div className="text-[9px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-4 whitespace-nowrap bg-slate-800 px-1.5 py-0.5 rounded text-slate-200 z-10">
+            <div className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity absolute -top-4 whitespace-nowrap bg-card-secondary px-1.5 py-0.5 rounded text-foreground z-10">
               {formatter(val)}
             </div>
             <div className="w-full rounded-t transition-all duration-700 ease-out" style={{ height: `${h}%`, background: color, minHeight: val > 0 ? "3px" : "0" }} />
-            <span className="text-[8px] text-slate-500">{monthLabel(d.key)}</span>
+            <span className="text-[8px] text-muted-foreground">{monthLabel(d.key)}</span>
           </div>
         );
       })}
@@ -714,13 +714,13 @@ function CategoryBar({ label, value, total, color }: { label: string; value: num
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs truncate text-slate-300">{label}</span>
-        <span className="text-xs tabular-nums text-slate-400">{formatBRL(value)}</span>
+        <span className="text-xs truncate text-muted-foreground">{label}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{formatBRL(value)}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-2 overflow-hidden rounded-full bg-card-secondary">
         <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <div className="mt-0.5 text-[10px] text-slate-500 text-right">{pct.toFixed(1)}%</div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground text-right">{pct.toFixed(1)}%</div>
     </div>
   );
 }
@@ -728,16 +728,16 @@ function CategoryBar({ label, value, total, color }: { label: string; value: num
 function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
   const [expandedVoo, setExpandedVoo] = useState<string | null>(null);
   return (
-    <div className={`rounded-xl border transition-all ${isOpen ? "border-cyan-400/40 bg-cyan-500/[0.04]" : "border-slate-800 bg-slate-900/30"}`}>
+    <div className={`rounded-xl border transition-all ${isOpen ? "border-cyan-400/40 bg-cyan-500/[0.04]" : "border-border bg-card/30"}`}>
       <button onClick={onToggle} className="flex w-full items-center justify-between px-4 py-3 text-left">
         <div className="flex items-center gap-3 min-w-0">
-          <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
-          <span className="truncate text-sm font-medium text-slate-200">{d.nome}</span>
+          <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
+          <span className="truncate text-sm font-medium text-foreground">{d.nome}</span>
         </div>
         <div className="flex items-center gap-5 text-sm tabular-nums shrink-0">
-          <span className="text-slate-300">{d.voos} voos</span>
+          <span className="text-muted-foreground">{d.voos} voos</span>
           <span className="text-cyan-400 font-medium">{formatHours(d.horas)}</span>
-          <span className="text-slate-300">{d.pousos} pousos</span>
+          <span className="text-muted-foreground">{d.pousos} pousos</span>
         </div>
       </button>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
@@ -748,44 +748,44 @@ function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
               const isVooOpen = expandedVoo === v.id;
               const trecho = v.trecho || `${v.aerodromo_partida || "—"} → ${v.aerodromo_chegada || "—"}`;
               return (
-                <div key={v.id} className={`rounded-lg border transition-colors ${isVooOpen ? "border-slate-600 bg-slate-800/40" : "border-slate-800/60 bg-slate-900/30"}`}>
+                <div key={v.id} className={`rounded-lg border transition-colors ${isVooOpen ? "border-border bg-card-secondary/40" : "border-border/60 bg-card/30"}`}>
                   <button onClick={() => setExpandedVoo(isVooOpen ? null : v.id)} className="grid w-full items-center gap-2 px-3 py-2.5 text-left" style={{ gridTemplateColumns: "auto 1fr auto auto auto auto auto auto" }}>
-                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-600 transition-transform ${isVooOpen ? "rotate-180 text-slate-400" : ""}`} />
+                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isVooOpen ? "rotate-180 text-muted-foreground" : ""}`} />
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-slate-200 truncate">{trecho}</div>
-                      <div className="text-[10px] text-slate-500">{formatDate(v.data_registro)}</div>
+                      <div className="text-xs font-medium text-foreground truncate">{trecho}</div>
+                      <div className="text-[10px] text-muted-foreground">{formatDate(v.data_registro)}</div>
                     </div>
                     <div className="hidden md:block text-right">
-                      <div className="text-[10px] text-slate-500">PIC</div>
-                      <div className="text-xs text-slate-300 whitespace-nowrap">{e?.picName ?? "—"}</div>
+                      <div className="text-[10px] text-muted-foreground">PIC</div>
+                      <div className="text-xs text-muted-foreground whitespace-nowrap">{e?.picName ?? "—"}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] text-slate-500">H VOO</div>
+                      <div className="text-[10px] text-muted-foreground">H VOO</div>
                       <div className="text-xs text-cyan-400 tabular-nums">{formatHours(e?.horas ?? (num(v.tempo_total) || num(v.tempo_voo)))}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] text-slate-500">Pousos</div>
-                      <div className="text-xs text-slate-300 tabular-nums">{e?.pousos ?? num(v.pousos_total)}</div>
+                      <div className="text-[10px] text-muted-foreground">Pousos</div>
+                      <div className="text-xs text-muted-foreground tabular-nums">{e?.pousos ?? num(v.pousos_total)}</div>
                     </div>
                     <div className="hidden sm:block text-right">
-                      <div className="text-[10px] text-slate-500">Dist. NM</div>
-                      <div className="text-xs text-slate-300 tabular-nums">{e && e.distanciaNm > 0 ? e.distanciaNm.toFixed(0) : "—"}</div>
+                      <div className="text-[10px] text-muted-foreground">Dist. NM</div>
+                      <div className="text-xs text-muted-foreground tabular-nums">{e && e.distanciaNm > 0 ? e.distanciaNm.toFixed(0) : "—"}</div>
                     </div>
                     <div className="hidden sm:block text-right" title="Consumo médio de combustível durante o voo (litros por hora)">
-                      <div className="text-[10px] text-slate-500">Consumo</div>
+                      <div className="text-[10px] text-muted-foreground">Consumo</div>
                       <div className="text-xs text-amber-400/80 tabular-nums">{e && e.consumoMedio > 0 ? `${e.consumoMedio.toFixed(1)} L/h` : "—"}</div>
                     </div>
                     <div className="text-right" title="Soma de combustível, tarifas (DECEA/ANAC/Pouso), hangar e relatório de viagem (TER) alocados a este voo">
-                      <div className="text-[10px] text-slate-500 flex items-center justify-end gap-0.5">Custo Total</div>
+                      <div className="text-[10px] text-muted-foreground flex items-center justify-end gap-0.5">Custo Total</div>
                       <div className="text-xs text-cyan-300 tabular-nums font-semibold">{e && e.totalCost > 0 ? formatBRL(e.totalCost) : "—"}</div>
                     </div>
                   </button>
                   <div className="grid transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: isVooOpen ? "1fr" : "0fr" }}>
                     <div className="overflow-hidden">
                       {e && (
-                        <div className="border-t border-slate-800/60 px-3 py-3 space-y-3">
-                          <p className="text-[11px] text-slate-500">
-                            O <span className="text-slate-300 font-medium">Custo Total</span> deste voo é a soma dos itens abaixo (combustível, tarifas de navegação/pouso, hangar rateado no mês e relatório de viagem, quando aplicável):
+                        <div className="border-t border-border/60 px-3 py-3 space-y-3">
+                          <p className="text-[11px] text-muted-foreground">
+                            O <span className="text-muted-foreground font-medium">Custo Total</span> deste voo é a soma dos itens abaixo (combustível, tarifas de navegação/pouso, hangar rateado no mês e relatório de viagem, quando aplicável):
                           </p>
                           <div className="flex flex-wrap items-center gap-2">
                             {e.terNumero ? (
@@ -804,19 +804,19 @@ function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
                           {e.despesasItems.length > 0 && (
                             <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
                               {e.despesasItems.map((di: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between rounded bg-slate-800/40 px-2.5 py-1.5 text-[11px]">
-                                  <span className="flex items-center gap-1.5 text-slate-300 truncate">
+                                <div key={i} className="flex items-center justify-between rounded bg-card-secondary/40 px-2.5 py-1.5 text-[11px]">
+                                  <span className="flex items-center gap-1.5 text-muted-foreground truncate">
                                     {di.pago ? <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" /> : <AlertCircle className="h-3 w-3 shrink-0 text-amber-400" />}
                                     <span className="truncate">{di.label}</span>
                                   </span>
-                                  <span className="ml-2 shrink-0 tabular-nums text-slate-300 font-medium">{formatBRL(di.valor)}</span>
+                                  <span className="ml-2 shrink-0 tabular-nums text-muted-foreground font-medium">{formatBRL(di.valor)}</span>
                                 </div>
                               ))}
                             </div>
                           )}
-                          {e.despesasItems.length === 0 && <p className="text-[11px] text-slate-600 italic">Nenhuma despesa direta encontrada para este voo.</p>}
-                          <div className="flex items-center justify-between border-t border-slate-800/40 pt-2">
-                            <span className="text-[11px] text-slate-500">{e.consumoMedio > 0 ? `Consumo médio: ${e.consumoMedio.toFixed(1)} L/h` : "Consumo médio não disponível"}</span>
+                          {e.despesasItems.length === 0 && <p className="text-[11px] text-muted-foreground italic">Nenhuma despesa direta encontrada para este voo.</p>}
+                          <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                            <span className="text-[11px] text-muted-foreground">{e.consumoMedio > 0 ? `Consumo médio: ${e.consumoMedio.toFixed(1)} L/h` : "Consumo médio não disponível"}</span>
                             <span className="text-[11px] font-semibold text-cyan-300">Total: {formatBRL(e.totalCost)}</span>
                           </div>
                         </div>
@@ -845,37 +845,37 @@ export function ExpenseBadge({ label, active, paid }: { label: string; active: b
 
 export function SocioEvolutionCard({ nome, serie, totalHoras, totalPousos, totalVoos, isOpen, onToggle }: any) {
   return (
-    <div className={`rounded-2xl border bg-slate-900/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-slate-800"}`}>
+    <div className={`rounded-2xl border bg-card/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-border"}`}>
       <button onClick={onToggle} className="flex w-full items-center justify-between text-left">
         <div className="flex items-center gap-2 min-w-0">
-          <Users className="h-4 w-4 shrink-0 text-slate-500" />
-          <span className="truncate text-sm font-semibold text-slate-100">{nome}</span>
+          <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold text-foreground">{nome}</span>
         </div>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
+        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
       </button>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-slate-800/40 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Voos</div>
-          <div className="mt-0.5 text-sm font-bold text-slate-200">{totalVoos}</div>
+        <div className="rounded-lg bg-card-secondary/40 p-2 text-center">
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Voos</div>
+          <div className="mt-0.5 text-sm font-bold text-foreground">{totalVoos}</div>
         </div>
-        <div className="rounded-lg bg-slate-800/40 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Horas</div>
+        <div className="rounded-lg bg-card-secondary/40 p-2 text-center">
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Horas</div>
           <div className="mt-0.5 text-sm font-bold text-cyan-400">{formatHours(totalHoras)}</div>
         </div>
-        <div className="rounded-lg bg-slate-800/40 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Pousos</div>
-          <div className="mt-0.5 text-sm font-bold text-slate-200">{totalPousos}</div>
+        <div className="rounded-lg bg-card-secondary/40 p-2 text-center">
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Pousos</div>
+          <div className="mt-0.5 text-sm font-bold text-foreground">{totalPousos}</div>
         </div>
       </div>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
         <div className="overflow-hidden">
           <div className="pt-3 grid grid-cols-2 gap-3">
             <div>
-              <div className="text-[9px] uppercase tracking-widest text-slate-500 mb-1.5">Horas / mês</div>
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Horas / mês</div>
               <SimpleBarChart data={serie} dataKey="horas" color={CHART.success} formatter={(v: number) => `${v.toFixed(1)} h`} heightClass="h-20" />
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-widest text-slate-500 mb-1.5">Pousos / mês</div>
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Pousos / mês</div>
               <SimpleBarChart data={serie} dataKey="pousos" color={CHART.sky} formatter={(v: number) => `${v} pousos`} heightClass="h-20" />
             </div>
           </div>
@@ -888,15 +888,15 @@ export function SocioEvolutionCard({ nome, serie, totalHoras, totalPousos, total
 export function SocioComposicaoCard({ nome, fixo, variavel, extra, entradas, total, isOpen, onToggle }: any) {
   const totalBar = Math.max(total + entradas, 0.01);
   return (
-    <div className={`rounded-2xl border bg-slate-900/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-slate-800"}`}>
+    <div className={`rounded-2xl border bg-card/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-border"}`}>
       <button onClick={onToggle} className="flex w-full items-center justify-between text-left">
         <div className="flex items-center gap-2 min-w-0">
-          <Layers className="h-4 w-4 shrink-0 text-slate-500" />
-          <span className="truncate text-sm font-semibold text-slate-100">{nome}</span>
+          <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold text-foreground">{nome}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-bold tabular-nums text-cyan-400">{formatBRL(total)}</span>
-          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
         </div>
       </button>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
@@ -915,22 +915,22 @@ export function SocioComposicaoCard({ nome, fixo, variavel, extra, entradas, tot
 
 export function SocioCategoriaCard({ nome, categorias, totalDespesas, isOpen, onToggle }: any) {
   return (
-    <div className={`rounded-2xl border bg-slate-900/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-slate-800"}`}>
+    <div className={`rounded-2xl border bg-card/40 p-5 transition-all duration-300 hover:border-cyan-400/30 ${isOpen ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-border"}`}>
       <button onClick={onToggle} className="flex w-full items-center justify-between text-left">
         <div className="flex items-center gap-2 min-w-0">
-          <Wallet className="h-4 w-4 shrink-0 text-slate-500" />
-          <span className="truncate text-sm font-semibold text-slate-100">{nome}</span>
+          <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold text-foreground">{nome}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-bold tabular-nums text-cyan-400">{formatBRL(totalDespesas)}</span>
-          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180 text-cyan-400" : ""}`} />
         </div>
       </button>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
         <div className="overflow-hidden">
           <div className="pt-4">
             {categorias.length === 0 ? (
-              <div className="text-sm text-slate-400 py-4 text-center">Sem despesas no período.</div>
+              <div className="text-sm text-muted-foreground py-4 text-center">Sem despesas no período.</div>
             ) : (
               <div className="space-y-3">
                 {categorias.map((c: any, i: number) => (
@@ -965,11 +965,11 @@ function AirportRanking({ voos, diarioMesMap, selectedMonths, ano }: { voos: Voo
     map.set(dest, cur);
   });
   const arr = Array.from(map.values()).sort((a, b) => b.count - a.count);
-  if (arr.length === 0) return <div className="text-sm text-slate-400">Nenhum destino encontrado no período.</div>;
+  if (arr.length === 0) return <div className="text-sm text-muted-foreground">Nenhum destino encontrado no período.</div>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+        <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="px-3 py-2.5 text-left">Aeroporto</th>
             <th className="px-3 py-2.5 text-left">ICAO</th>
@@ -981,13 +981,13 @@ function AirportRanking({ voos, diarioMesMap, selectedMonths, ano }: { voos: Voo
         </thead>
         <tbody>
           {arr.slice(0, 10).map((r) => (
-            <tr key={r.code} className="border-t border-slate-800/60 hover:bg-slate-800/20">
-              <td className="px-3 py-2.5 font-medium text-slate-200">{r.code}</td>
-              <td className="px-3 py-2.5 text-slate-300">{r.code}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{r.count}x</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{r.lastVisit ? formatDate(r.lastVisit) : "—"}</td>
+            <tr key={r.code} className="border-t border-border/60 hover:bg-card-secondary/20">
+              <td className="px-3 py-2.5 font-medium text-foreground">{r.code}</td>
+              <td className="px-3 py-2.5 text-muted-foreground">{r.code}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{r.count}x</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{r.lastVisit ? formatDate(r.lastVisit) : "—"}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400 font-medium">{formatHours(r.hours)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{r.pousos}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{r.pousos}</td>
             </tr>
           ))}
         </tbody>

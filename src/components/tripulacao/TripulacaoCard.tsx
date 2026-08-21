@@ -65,10 +65,10 @@ const statusConfig: Record<LicenseStatus, { label: string; badgeColor: string; t
 
 const InfoRow = ({ icon: Icon, label, value }: { icon: typeof FileText; label: string; value?: string | null }) => (
   <div className="flex items-start gap-2">
-    <Icon className="text-slate-500 min-w-[16px] mt-0.5" size={15} />
+    <Icon className="text-muted-foreground min-w-[16px] mt-0.5" size={15} />
     <div>
-      <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{label}</span>
-      <p className="text-sm text-slate-200">{value || <span className="text-slate-600 italic">Sem informação</span>}</p>
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</span>
+      <p className="text-sm text-foreground">{value || <span className="text-muted-foreground italic">Sem informação</span>}</p>
     </div>
   </div>
 );
@@ -122,7 +122,7 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
 
   return (
     <div
-      className="group cursor-pointer bg-slate-950 border border-slate-800 hover:border-slate-700 hover:shadow-xl shadow-[1px_1px_11px_0_rgba(0,0,0,1)] transition-all duration-300 overflow-hidden w-full mx-auto flex flex-col relative rounded-2xl"
+      className="group cursor-pointer bg-background border border-border hover:border-border hover:shadow-xl shadow-[1px_1px_11px_0_rgba(0,0,0,1)] transition-all duration-300 overflow-hidden w-full mx-auto flex flex-col relative rounded-2xl"
       onClick={() => setExpanded(!expanded)}
     >
       {/* Collapsed view */}
@@ -130,23 +130,23 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
         <div className={`p-0.5 rounded-full bg-gradient-to-tr ${avatarRingColor} shrink-0`}>
           <Avatar className="h-14 w-14 border-2 border-slate-950">
             <AvatarImage src={displayAvatar} alt={displayName} className="object-cover" />
-            <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-lg">
+            <AvatarFallback className="bg-card-secondary text-muted-foreground font-bold text-lg">
               {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide leading-tight truncate">
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wide leading-tight truncate">
             {displayName}
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            CANAC: <span className="text-slate-200 font-medium">{member.canac}</span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            CANAC: <span className="text-foreground font-medium">{member.canac}</span>
           </p>
         </div>
 
         <ChevronDown
-          className={`h-5 w-5 text-slate-500 transition-transform duration-300 shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          className={`h-5 w-5 text-muted-foreground transition-transform duration-300 shrink-0 ${expanded ? 'rotate-180' : ''}`}
         />
       </div>
 
@@ -179,7 +179,7 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
       {/* Expanded view */}
       {expanded && (
         <div
-          className="border-t border-slate-800 bg-slate-900/40 p-4 space-y-4"
+          className="border-t border-border bg-card/40 p-4 space-y-4"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Personal data */}
@@ -192,7 +192,7 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
           {/* All licenses */}
           {!loading && licenses.length > 0 && (
             <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold mb-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-semibold mb-2">
                 Licenças e Habilitações
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -200,15 +200,15 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
                   const status = getLicenseStatus(lic.data_validade);
                   const cfg = statusConfig[status];
                   return (
-                    <div key={lic.id} className="bg-slate-900/80 border border-slate-800/60 rounded-xl p-2.5">
+                    <div key={lic.id} className="bg-card/80 border border-border/60 rounded-xl p-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-200 uppercase">{lic.tipo_habilitacao}</span>
+                        <span className="text-xs font-bold text-foreground uppercase">{lic.tipo_habilitacao}</span>
                         <Badge className={`${cfg.badgeColor} text-[8px] font-bold border rounded-md px-1.5 py-0.5`}>
                           {cfg.label}
                         </Badge>
                       </div>
                       {lic.data_validade && (
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-1">
                           Validade: {formatDateToBR(lic.data_validade)}
                         </p>
                       )}
@@ -219,9 +219,9 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
 
               {/* CMA */}
               {cmaLicense && (
-                <div className="mt-2 bg-slate-900/80 border border-slate-800/60 rounded-xl p-3">
+                <div className="mt-2 bg-card/80 border border-border/60 rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-200 uppercase">CMA</span>
+                    <span className="text-xs font-bold text-foreground uppercase">CMA</span>
                     {cmaStatus && (
                       <Badge className={`${statusConfig[cmaStatus].badgeColor} text-[8px] font-bold border rounded-md px-1.5 py-0.5`}>
                         {statusConfig[cmaStatus].label}
@@ -230,20 +230,20 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <p className="text-[8px] text-slate-500 uppercase">Classe</p>
-                      <p className="text-xs font-bold text-slate-100">
+                      <p className="text-[8px] text-muted-foreground uppercase">Classe</p>
+                      <p className="text-xs font-bold text-foreground">
                         {cmaLicense.CMA === 'primeira' ? '1ª' : cmaLicense.CMA === 'segunda' ? '2ª' : cmaLicense.CMA || '-'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[8px] text-slate-500 uppercase">Validade</p>
-                      <p className={`text-xs font-bold ${cmaStatus ? statusConfig[cmaStatus].textColor : 'text-slate-100'}`}>
+                      <p className="text-[8px] text-muted-foreground uppercase">Validade</p>
+                      <p className={`text-xs font-bold ${cmaStatus ? statusConfig[cmaStatus].textColor : 'text-foreground'}`}>
                         {cmaLicense.validade_cma ? formatDateToBR(cmaLicense.validade_cma) : '-'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[8px] text-slate-500 uppercase">FS/RH</p>
-                      <p className="text-xs font-bold text-slate-100">{cmaLicense.FS_RH || '-'}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase">FS/RH</p>
+                      <p className="text-xs font-bold text-foreground">{cmaLicense.FS_RH || '-'}</p>
                     </div>
                   </div>
                 </div>
@@ -254,7 +254,7 @@ export function CrewMemberCard({ member, licenses: propLicenses, loadingLicenses
           {/* Link to full profile */}
           <button
             onClick={() => navigate(`/tripulacao/${member.id}?tab=dados`)}
-            className="w-full text-xs text-slate-400 hover:text-slate-200 py-2 border-t border-slate-800/60 transition-colors"
+            className="w-full text-xs text-muted-foreground hover:text-foreground py-2 border-t border-border/60 transition-colors"
           >
             Ver perfil completo →
           </button>

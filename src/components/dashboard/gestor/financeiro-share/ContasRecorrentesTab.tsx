@@ -229,21 +229,21 @@ export default function ContasRecorrentesTab() {
   };
 
   const inputCls =
-    "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+    "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
 
   return (
     <div className="space-y-5">
       {/* header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-100">Contas Recorrentes</h2>
-          <p className="text-xs text-slate-400">Despesas e receitas que se repetem automaticamente.</p>
+          <h2 className="text-lg font-bold text-foreground">Contas Recorrentes</h2>
+          <p className="text-xs text-muted-foreground">Despesas e receitas que se repetem automaticamente.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={fetchContas}
-            className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2"
+            className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2"
           >
             <RefreshCw className="h-4 w-4" /> Atualizar
           </button>
@@ -278,10 +278,10 @@ export default function ContasRecorrentesTab() {
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100">
+            <h3 className="text-sm font-bold text-foreground">
               {editingId ? "Editar Conta Recorrente" : "Nova Conta Recorrente"}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -383,7 +383,7 @@ export default function ContasRecorrentesTab() {
                 onChange={(e) => setForm({ ...form, lembrete_antecipado: e.target.checked })}
                 className="h-4 w-4 accent-cyan-400"
               />
-              <label htmlFor="lembrete" className="text-sm text-slate-200 inline-flex items-center gap-1">
+              <label htmlFor="lembrete" className="text-sm text-foreground inline-flex items-center gap-1">
                 <Bell className="h-3.5 w-3.5 text-cyan-400" /> Lembrar com antecedência
               </label>
             </div>
@@ -401,7 +401,7 @@ export default function ContasRecorrentesTab() {
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={closeForm}
-              className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
+              className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm"
             >
               Cancelar
             </button>
@@ -419,10 +419,10 @@ export default function ContasRecorrentesTab() {
 
       {/* list */}
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : contas.length === 0 ? (
         <div
-          className="rounded-2xl p-10 text-center text-sm text-slate-400"
+          className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
         >
           Nenhuma conta recorrente cadastrada.
@@ -437,27 +437,27 @@ export default function ContasRecorrentesTab() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-100 truncate">{c.descricao || "—"}</div>
-                  <div className="text-xs text-slate-400 truncate">{c.fornecedor || "Sem fornecedor"}</div>
+                  <div className="text-sm font-bold text-foreground truncate">{c.descricao || "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{c.fornecedor || "Sem fornecedor"}</div>
                 </div>
                 <StatusBadge status={c.status} />
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor</div>
                   <div className="text-lg font-bold text-cyan-300">{formatBRL(num(c.valor))}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recorrência</div>
-                  <div className="text-xs text-slate-200 inline-flex items-center gap-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recorrência</div>
+                  <div className="text-xs text-foreground inline-flex items-center gap-1">
                     <CalendarClock className="h-3.5 w-3.5 text-cyan-400" />
                     {freqLabel(c.frequencia_recorrencia)} · dia {c.dia_recorrencia ?? "—"}
                   </div>
                 </div>
               </div>
               {c.categoria && (
-                <div className="text-[11px] text-slate-400">
-                  Categoria: <span className="text-slate-200">{c.categoria}</span>
+                <div className="text-[11px] text-muted-foreground">
+                  Categoria: <span className="text-foreground">{c.categoria}</span>
                 </div>
               )}
               {c.lembrete_antecipado && (
@@ -466,14 +466,14 @@ export default function ContasRecorrentesTab() {
                 </div>
               )}
               {c.notas && (
-                <div className="text-[11px] text-slate-400 border-t border-slate-800 pt-2 line-clamp-2">
+                <div className="text-[11px] text-muted-foreground border-t border-border pt-2 line-clamp-2">
                   {c.notas}
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-1 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-1 border-t border-border">
                 <button
                   onClick={() => openEdit(c)}
-                  className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
+                  className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
                 >
                   <Pencil className="h-3.5 w-3.5" /> Editar
                 </button>
@@ -492,20 +492,20 @@ export default function ContasRecorrentesTab() {
       {/* delete modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center">
                 <Trash2 className="h-5 w-5 text-red-400" />
               </div>
-              <h3 className="text-base font-bold text-slate-100">Excluir conta recorrente</h3>
+              <h3 className="text-base font-bold text-foreground">Excluir conta recorrente</h3>
             </div>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-muted-foreground">
               Tem certeza que deseja excluir esta conta recorrente? Esta ação não pode ser desfeita.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setDeleteId(null)}
-                className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
+                className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm"
               >
                 Cancelar
               </button>

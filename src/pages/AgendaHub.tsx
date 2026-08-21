@@ -75,7 +75,7 @@ export default function AgendaHub() {
   return <Layout>
       <div
         ref={scrollContainerRef}
-        className="relative mx-[-9px] my-[-26px] h-[calc(100vh-4rem)] overflow-y-auto bg-[#040a17] px-[8px] py-0 text-slate-100"
+        className="relative mx-[-9px] my-[-26px] h-[calc(100vh-4rem)] overflow-y-auto bg-[#040a17] px-[8px] py-0 text-foreground"
       >
         <div
           className="sticky top-0 z-30 my-[6px] flex flex-col gap-0 py-[10px] text-[18px] font-medium text-[rgba(17,204,131,1)] transition-all duration-300"
@@ -119,10 +119,10 @@ export default function AgendaHub() {
                                 : tab.id === "ferias"
                                   ? "rounded-[6px] border-[rgba(255,251,34,1)] text-[rgba(174,238,200,1)] shadow-[1px_1px_5px_0_rgba(12,11,11,1)] overflow-hidden"
                                   : "rounded-[6px] border-[rgba(61,209,100,1)] text-[rgba(174,238,200,1)] shadow-[1px_1px_5px_0_rgba(12,11,11,1)] overflow-hidden"
-                          : "border-transparent text-slate-400 hover:text-slate-200",
+                          : "border-transparent text-muted-foreground hover:text-foreground",
                       ].join(" ")}
                     >
-                      <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : "text-slate-400 group-hover:text-slate-200"}`} />
+                      <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : "text-muted-foreground group-hover:text-foreground"}`} />
                       <span>{tab.title}</span>
                     </button>
                   );

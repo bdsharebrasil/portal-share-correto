@@ -104,34 +104,34 @@ export function Whiteboard({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0d1628] shadow-2xl shadow-slate-950/20">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-[#0d1628] shadow-2xl shadow-slate-950/20">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <span className="flex size-8 items-center justify-center rounded-lg bg-amber-300/10 text-amber-300">
             <PenLine className="size-4" />
           </span>
           Lousa virtual
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-400">
+          <span className="rounded-full bg-card-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
             {canEdit ? "modo instrutor" : "somente visualização"}
           </span>
         </div>
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               Cor
               <input
                 aria-label="Cor da caneta"
-                className="size-7 cursor-pointer rounded border border-slate-600 bg-transparent p-0"
+                className="size-7 cursor-pointer rounded border border-border bg-transparent p-0"
                 type="color"
                 value={color}
                 onChange={(event) => setColor(event.target.value)}
               />
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               Espessura
               <select
                 aria-label="Espessura da caneta"
-                className="h-8 rounded-md border border-slate-600 bg-slate-900 px-2 text-xs text-slate-200 outline-none focus:ring-2 focus:ring-amber-300/60"
+                className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-amber-300/60"
                 value={width}
                 onChange={(event) => setWidth(Number(event.target.value))}
               >
@@ -144,7 +144,7 @@ export function Whiteboard({
               type="button"
               size="sm"
               variant="outline"
-              className="border-slate-600 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="border-border bg-transparent text-muted-foreground hover:bg-card-secondary hover:text-white"
               onClick={onClear}
             >
               <Eraser className="size-4" /> Limpar
@@ -152,7 +152,7 @@ export function Whiteboard({
           </div>
         )}
         {!canEdit && (
-          <Trash2 className="size-4 text-slate-600" aria-hidden="true" />
+          <Trash2 className="size-4 text-muted-foreground" aria-hidden="true" />
         )}
       </div>
       <div className="relative aspect-[16/8] min-h-[260px] w-full bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:32px_32px]">
@@ -168,7 +168,7 @@ export function Whiteboard({
           onPointerLeave={stopDrawing}
         />
         {!canEdit && strokes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
             O instrutor ainda não desenhou na lousa.
           </div>
         )}

@@ -228,27 +228,27 @@ const WeatherPointCard: React.FC<{
 }> = ({ point, data, loading, error, onRefresh }) => {
   if (!point) return null;
   return (
-    <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-slate-950/90 p-3 text-slate-100 shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
+    <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-background/90 p-3 text-foreground shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div>
-          <div className="mt-1 font-mono text-[10px] text-slate-400">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div>
+          <div className="mt-1 font-mono text-[10px] text-muted-foreground">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div>
         </div>
-        <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-300 hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
+        <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
-      {loading && <div className="mt-3 text-xs text-slate-400">Atualizando dados da OpenWeather...</div>}
+      {loading && <div className="mt-3 text-xs text-muted-foreground">Atualizando dados da OpenWeather...</div>}
       {error && <div className="mt-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-xs text-red-200">{error}</div>}
       {data && !loading && (
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Thermometer className="h-3.5 w-3.5" /> Temperatura</div><strong className="font-mono text-base">{weatherNumber(data.main?.temp, 1)}°C</strong></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Wind className="h-3.5 w-3.5" /> Vento</div><strong className="font-mono text-base">{weatherNumber(data.wind?.speed, 1)} m/s</strong><span className="block text-[10px] text-slate-400">{weatherNumber(data.wind?.deg)}°</span></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><CloudRain className="h-3.5 w-3.5" /> Nuvens</div><strong className="font-mono text-base">{weatherNumber(data.clouds?.all)}%</strong></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-slate-400"><Gauge className="h-3.5 w-3.5" /> Pressão</div><strong className="font-mono text-base">{weatherNumber(data.main?.pressure)} hPa</strong></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Thermometer className="h-3.5 w-3.5" /> Temperatura</div><strong className="font-mono text-base">{weatherNumber(data.main?.temp, 1)}°C</strong></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Wind className="h-3.5 w-3.5" /> Vento</div><strong className="font-mono text-base">{weatherNumber(data.wind?.speed, 1)} m/s</strong><span className="block text-[10px] text-muted-foreground">{weatherNumber(data.wind?.deg)}°</span></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><CloudRain className="h-3.5 w-3.5" /> Nuvens</div><strong className="font-mono text-base">{weatherNumber(data.clouds?.all)}%</strong></div>
+          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Gauge className="h-3.5 w-3.5" /> Pressão</div><strong className="font-mono text-base">{weatherNumber(data.main?.pressure)} hPa</strong></div>
         </div>
       )}
-      {data?.weather?.[0]?.description && <div className="mt-2 text-xs capitalize text-slate-300">{data.weather[0].description}</div>}
+      {data?.weather?.[0]?.description && <div className="mt-2 text-xs capitalize text-muted-foreground">{data.weather[0].description}</div>}
     </Card>
   );
 };

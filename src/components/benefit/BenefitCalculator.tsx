@@ -198,13 +198,13 @@ export function BenefitCalculatorReal({
   const usagePercentage = initialBalance > 0 ? totalSpent / initialBalance * 100 : 0;
   return <div className="space-y-6">
       {/* Month/Year Selector */}
-      <Card className="bg-slate-800 border-slate-700 shadow-sm">
+      <Card className="bg-card-secondary border-border shadow-sm">
         <CardContent className="pt-6">
           <div className="flex gap-4 items-end">
             <div className="flex-1">
-              <Label className="text-slate-300 font-medium">Mês</Label>
+              <Label className="text-muted-foreground font-medium">Mês</Label>
               <Select value={selectedMonth.toString()} onValueChange={v => setSelectedMonth(parseInt(v))}>
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className="bg-secondary border-border text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,8 +215,8 @@ export function BenefitCalculatorReal({
               </Select>
             </div>
             <div className="flex-1">
-              <Label className="text-slate-300 font-medium">Ano</Label>
-              <Input type="number" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className="bg-slate-700 border-slate-600 text-white" />
+              <Label className="text-muted-foreground font-medium">Ano</Label>
+              <Input type="number" value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className="bg-secondary border-border text-white" />
             </div>
           </div>
         </CardContent>
@@ -252,18 +252,18 @@ export function BenefitCalculatorReal({
 
       {/* Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-slate-800 dark:bg-slate-800 border-slate-700 dark:border-slate-600 shadow-sm hover:shadow-md transition-shadow">
+        <Card className="bg-card-secondary dark:bg-card-secondary border-border dark:border-border shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-slate-300 text-sm font-medium">Saldo Inicial</p>
+                <p className="text-muted-foreground text-sm font-medium">Saldo Inicial</p>
                 <p className="text-3xl font-bold text-white mt-2">
                   R$ {initialBalance.toFixed(2).replace('.', ',')}
                 </p>
               </div>
               <Dialog open={isEditingBalance} onOpenChange={setIsEditingBalance}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-xs bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+                  <Button variant="outline" size="sm" className="text-xs bg-secondary border-border text-white hover:bg-muted">
                     <Edit className="h-3 w-3 mr-1" />
                     Editar
                   </Button>
@@ -288,11 +288,11 @@ export function BenefitCalculatorReal({
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800 dark:bg-slate-800 border-slate-700 dark:border-slate-600 shadow-sm hover:shadow-md transition-shadow">
+        <Card className="bg-card-secondary dark:bg-card-secondary border-border dark:border-border shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-slate-300 text-sm font-medium">Total Gasto</p>
+                <p className="text-muted-foreground text-sm font-medium">Total Gasto</p>
                 <p className="text-3xl font-bold text-red-400 mt-2">
                   R$ {totalSpent.toFixed(2).replace('.', ',')}
                 </p>
@@ -308,8 +308,8 @@ export function BenefitCalculatorReal({
       {/* Adicionar Gasto e Histórico */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Adicionar Gasto */}
-        <Card className="bg-slate-800 border-slate-700 shadow-sm">
-          <CardHeader className="border-b border-slate-700 pb-4">
+        <Card className="bg-card-secondary border-border shadow-sm">
+          <CardHeader className="border-b border-border pb-4">
             <CardTitle className="flex items-center text-white text-lg">
               <Plus className="mr-2 h-5 w-5 text-blue-400" />
               Adicionar Gasto
@@ -317,27 +317,27 @@ export function BenefitCalculatorReal({
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="space-y-2">
-              <Label htmlFor="transactionDate" className="font-medium text-sm text-slate-300">Data</Label>
+              <Label htmlFor="transactionDate" className="font-medium text-sm text-muted-foreground">Data</Label>
               <Input id="transactionDate" type="data" value={newTransaction.transaction_date} onChange={e => setNewTransaction(prev => ({
               ...prev,
               transaction_date: e.target.value
-            }))} className="bg-slate-700 border-slate-600 text-white" />
+            }))} className="bg-secondary border-border text-white" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expenseValue" className="font-medium text-sm text-slate-300">Valor Gasto (R$)</Label>
+              <Label htmlFor="expenseValue" className="font-medium text-sm text-muted-foreground">Valor Gasto (R$)</Label>
               <Input id="expenseValue" type="number" step="0.01" placeholder="0,00" value={newTransaction.amount} onChange={e => setNewTransaction(prev => ({
               ...prev,
               amount: e.target.value
-            }))} className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" />
+            }))} className="bg-secondary border-border text-white placeholder:text-muted-foreground" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expenseDescription" className="font-medium text-sm text-slate-300">Descrição</Label>
+              <Label htmlFor="expenseDescription" className="font-medium text-sm text-muted-foreground">Descrição</Label>
               <Textarea id="expenseDescription" placeholder="Descreva o gasto..." value={newTransaction.description} onChange={e => setNewTransaction(prev => ({
               ...prev,
               description: e.target.value
-            }))} className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 min-h-[80px] resize-none" />
+            }))} className="bg-secondary border-border text-white placeholder:text-muted-foreground min-h-[80px] resize-none" />
             </div>
 
             <Button onClick={addTransaction} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium" disabled={!newTransaction.description || !newTransaction.amount}>
@@ -348,32 +348,32 @@ export function BenefitCalculatorReal({
         </Card>
 
         {/* Histórico de Gastos */}
-        <Card className="bg-slate-800 border-slate-700 shadow-sm">
-          <CardHeader className="border-b border-slate-700 pb-4 flex flex-row items-center justify-between">
+        <Card className="bg-card-secondary border-border shadow-sm">
+          <CardHeader className="border-b border-border pb-4 flex flex-row items-center justify-between">
             <CardTitle className="flex items-center text-white text-lg">
               <History className="mr-2 h-5 w-5 text-blue-400" />
               Histórico
             </CardTitle>
-            <Badge variant="outline" className="text-xs bg-slate-700 border-slate-600 text-slate-200">{transactions.length} gasto(s)</Badge>
+            <Badge variant="outline" className="text-xs bg-secondary border-border text-foreground">{transactions.length} gasto(s)</Badge>
           </CardHeader>
           <CardContent className="pt-6">
             {transactions.length === 0 ? <div className="text-center py-12">
-                <Receipt className="mx-auto h-12 w-12 text-slate-600 mb-3" />
-                <p className="text-slate-300 font-medium">Nenhum gasto registrado</p>
-                <p className="text-xs text-slate-400 mt-1">Adicione o primeiro gasto para começar</p>
+                <Receipt className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground font-medium">Nenhum gasto registrado</p>
+                <p className="text-xs text-muted-foreground mt-1">Adicione o primeiro gasto para começar</p>
               </div> : <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                {transactions.map((transaction, index) => <div key={transaction.id} className="p-3 rounded-lg bg-slate-700 border border-slate-600 hover:border-blue-500 transition-colors">
+                {transactions.map((transaction, index) => <div key={transaction.id} className="p-3 rounded-lg bg-secondary border border-border hover:border-blue-500 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <p className="font-medium text-white text-sm">{transaction.description}</p>
-                        <p className="text-xs text-slate-400 mt-1">Por: {transaction.user_name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Por: {transaction.user_name}</p>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => removeTransaction(transaction.id)} className="text-red-400 hover:text-red-300 hover:bg-red-950/50 p-0 h-auto w-auto">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         {new Date(transaction.transaction_date).toLocaleDateString('pt-BR')}
                       </p>
                       <p className="font-bold text-red-400 text-sm">

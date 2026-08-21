@@ -237,7 +237,7 @@ export default function VencimentosDocumentos() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-b from-background via-card to-background relative overflow-hidden">
         {/* Background gradient orbs */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[120px] mix-blend-screen" />
@@ -246,7 +246,7 @@ export default function VencimentosDocumentos() {
 
         <div className="relative z-10">
           {/* Sticky Header */}
-          <header className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-[12px] border-b border-white/5">
+          <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-[12px] border-b border-white/5">
             <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 ring-1 ring-white/10 group cursor-pointer hover:scale-105 transition-transform">
@@ -280,7 +280,7 @@ export default function VencimentosDocumentos() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+              <div className="bg-card-secondary/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-card-secondary/50 hover:border-white/10">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
                   <AlertCircle className="text-8xl text-red-400 transform rotate-12" />
                 </div>
@@ -304,7 +304,7 @@ export default function VencimentosDocumentos() {
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+              <div className="bg-card-secondary/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-card-secondary/50 hover:border-white/10">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
                   <AlertTriangle className="text-8xl text-yellow-400 transform -rotate-12" />
                 </div>
@@ -325,7 +325,7 @@ export default function VencimentosDocumentos() {
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+              <div className="bg-card-secondary/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-card-secondary/50 hover:border-white/10">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
                   <CheckCircle className="text-8xl text-green-400 transform rotate-6" />
                 </div>
@@ -346,7 +346,7 @@ export default function VencimentosDocumentos() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-cyan-500/10 to-slate-800 rounded-2xl p-6 border border-cyan-500/20 relative overflow-hidden shadow-lg shadow-cyan-900/10 group hover:shadow-cyan-500/10 transition-all duration-300 w-full text-left hover:border-cyan-500/40 hover:from-cyan-500/20">
+              <div className="bg-gradient-to-br from-cyan-500/10 to-card-secondary rounded-2xl p-6 border border-cyan-500/20 relative overflow-hidden shadow-lg shadow-cyan-900/10 group hover:shadow-cyan-500/10 transition-all duration-300 w-full text-left hover:border-cyan-500/40 hover:from-cyan-500/20">
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl" />
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
@@ -374,7 +374,7 @@ export default function VencimentosDocumentos() {
                   <Search className="text-gray-500 group-focus-within:text-cyan-400 transition-colors" size={20} />
                 </span>
                 <input
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:border-cyan-500/50 focus:bg-slate-800 transition-all text-sm font-medium"
+                  className="w-full pl-11 pr-4 py-2.5 bg-card-secondary/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:border-cyan-500/50 focus:bg-card-secondary transition-all text-sm font-medium"
                   placeholder="Buscar aeronave ou documento..."
                   type="text"
                   value={searchTerm}
@@ -384,7 +384,7 @@ export default function VencimentosDocumentos() {
 
               {/* Status Filter Tabs */}
               <Tabs value={activeStatus} onValueChange={(v) => setActiveStatus(v as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-slate-800/30 border border-white/5 rounded-xl p-1">
+                <TabsList className="grid w-full grid-cols-4 bg-card-secondary/30 border border-white/5 rounded-xl p-1">
                   <TabsTrigger value="todos" className="rounded-lg data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
                     Todos ({documentos.length})
                   </TabsTrigger>
@@ -403,7 +403,7 @@ export default function VencimentosDocumentos() {
 
             {/* Documentos Grid */}
             {documentosPorAeronave.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 min-h-[300px] flex flex-col items-center justify-center">
+              <div className="rounded-2xl border border-dashed border-white/10 bg-card/40 min-h-[300px] flex flex-col items-center justify-center">
                 <div className="flex flex-col items-center max-w-md mx-auto text-center p-6">
                   <FileText className="w-12 h-12 text-cyan-400/40 mb-4" />
                   <h3 className="text-xl font-bold text-white mb-2">Nenhum documento encontrado</h3>
@@ -415,7 +415,7 @@ export default function VencimentosDocumentos() {
                 {documentosPorAeronave.map((grupo) => (
                   <div
                     key={grupo.aeronave.id}
-                    className="rounded-2xl border border-white/5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl"
+                    className="rounded-2xl border border-white/5 bg-gradient-to-br from-card-secondary/40 to-card/40 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all shadow-xl"
                   >
                     {/* Aircraft Header */}
                     <div className="p-5 md:p-6 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/5 border-b border-white/5 relative overflow-hidden">
@@ -426,7 +426,7 @@ export default function VencimentosDocumentos() {
                       <div className="flex gap-4 items-start relative z-10">
                         {/* Aircraft Image */}
                         <div className="w-28 h-28 flex-shrink-0">
-                          <div className="w-full h-full rounded-lg overflow-hidden border border-white/10 bg-slate-900/50 flex items-center justify-center">
+                          <div className="w-full h-full rounded-lg overflow-hidden border border-white/10 bg-card/50 flex items-center justify-center">
                             {grupo.aeronave.image_url ? (
                               <img
                                 src={grupo.aeronave.image_url}
@@ -530,7 +530,7 @@ export default function VencimentosDocumentos() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="flex-1 bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-[10px] px-2 py-1 h-auto"
+                                  className="flex-1 bg-secondary/50 border-white/10 text-gray-300 hover:bg-muted text-[10px] px-2 py-1 h-auto"
                                   onClick={() => {
                                     setEditingDocumento(doc);
                                     setNewDate(doc.dataVencimento);
@@ -544,7 +544,7 @@ export default function VencimentosDocumentos() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="flex-1 bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-[10px] px-2 py-1 h-auto"
+                                    className="flex-1 bg-secondary/50 border-white/10 text-gray-300 hover:bg-muted text-[10px] px-2 py-1 h-auto"
                                     onClick={() => window.open(publicUrl, '_blank')}
                                   >
                                     <Eye className="h-3 w-3 mr-0.5" />
@@ -567,7 +567,7 @@ export default function VencimentosDocumentos() {
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-900 border-white/10">
+        <DialogContent className="max-w-md bg-card border-white/10">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <Edit className="h-5 w-5 text-cyan-400" />
@@ -576,7 +576,7 @@ export default function VencimentosDocumentos() {
           </DialogHeader>
           {editingDocumento && (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-white/5">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-card-secondary/50 border border-white/5">
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-white">{editingDocumento.nomeDocumento}</p>
                   <p className="text-xs text-gray-400">{editingDocumento.aeronaveRegistro}</p>
@@ -589,7 +589,7 @@ export default function VencimentosDocumentos() {
                   type="data"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white"
+                  className="w-full px-3 py-2 rounded-lg bg-card-secondary border border-white/10 text-white"
                 />
               </div>
 

@@ -149,13 +149,13 @@ export const GestaoSalariosContent = () => {
 
 
       <Tabs defaultValue="salaries" className="w-full">
-    <TabsList className="flex gap-3 rounded-3xl border border-white/10 bg-slate-950/80 p-2 shadow-card w-full overflow-x-auto">
+    <TabsList className="flex gap-3 rounded-3xl border border-white/10 bg-background/80 p-2 shadow-card w-full overflow-x-auto">
       <TabsTrigger
         value="salaries"
-        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
-          <div className="rounded-2xl bg-slate-900/80 p-2">
+        <div className="border border-white/10 rounded-3xl bg-background/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-card/80 p-2">
             <DollarSign className="h-4 w-4 text-blue-400" />
           </div>
           <div className="text-center">
@@ -166,10 +166,10 @@ export const GestaoSalariosContent = () => {
 
       <TabsTrigger
         value="payslips"
-        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
-          <div className="rounded-2xl bg-slate-900/80 p-2">
+        <div className="border border-white/10 rounded-3xl bg-background/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-card/80 p-2">
             <FileText className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="text-center">
@@ -180,10 +180,10 @@ export const GestaoSalariosContent = () => {
 
       <TabsTrigger
         value="flights"
-        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
-          <div className="rounded-2xl bg-slate-900/80 p-2">
+        <div className="border border-white/10 rounded-3xl bg-background/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-card/80 p-2">
             <Plane className="h-4 w-4 text-orange-400" />
           </div>
           <div className="text-center">
@@ -194,10 +194,10 @@ export const GestaoSalariosContent = () => {
 
       <TabsTrigger
         value="aeronave"
-        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
-          <div className="rounded-2xl bg-slate-900/80 p-2">
+        <div className="border border-white/10 rounded-3xl bg-background/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-card/80 p-2">
             <Zap className="h-4 w-4 text-violet-400" />
           </div>
           <div className="text-center">

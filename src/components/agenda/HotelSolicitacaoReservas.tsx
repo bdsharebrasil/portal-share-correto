@@ -14,9 +14,9 @@ import {
 } from 'lucide-react'
 
 const FIELD =
-  'bg-slate-950/60 border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 ' +
+  'bg-background/60 border-border rounded-lg text-foreground placeholder:text-muted-foreground ' +
   'focus-visible:border-cyan-500/60 focus-visible:ring-1 focus-visible:ring-cyan-500/30'
-const LABEL = 'text-slate-300 font-medium mb-1.5 block text-xs'
+const LABEL = 'text-muted-foreground font-medium mb-1.5 block text-xs'
 
 interface Hotel {
   id: string
@@ -102,15 +102,15 @@ export function HotelSolicitacaoReservas({ hotel, userId, open = true, onClose }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-h-[92vh] w-[95vw] max-w-2xl overflow-y-auto border-slate-800 bg-slate-900/95 backdrop-blur">
+      <DialogContent className="max-h-[92vh] w-[95vw] max-w-2xl overflow-y-auto border-border bg-card/95 backdrop-blur">
         <DialogHeader>
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10">
               <HotelIcon className="h-5 w-5 text-cyan-400" />
             </div>
             <div className="min-w-0">
-              <DialogTitle className="text-slate-100">Solicitar reserva</DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogTitle className="text-foreground">Solicitar reserva</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 {hotel.nome}
                 {destino ? ` · ${destino}` : ''}
               </DialogDescription>
@@ -128,13 +128,13 @@ export function HotelSolicitacaoReservas({ hotel, userId, open = true, onClose }
             <div className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
               <CheckCircle2 className="h-7 w-7 text-emerald-400" />
             </div>
-            <p className="text-sm font-semibold text-slate-100">Solicitação enviada para {hotel.nome}</p>
-            <p className="text-xs text-slate-400">Enviada para {emailDestino}. Aguarde a confirmação do hotel.</p>
+            <p className="text-sm font-semibold text-foreground">Solicitação enviada para {hotel.nome}</p>
+            <p className="text-xs text-muted-foreground">Enviada para {emailDestino}. Aguarde a confirmação do hotel.</p>
             <Button className="mt-2 bg-cyan-600 hover:bg-cyan-500" onClick={onClose}>Fechar</Button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-1.5 text-[11px] text-slate-400">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/50 px-3 py-1.5 text-[11px] text-muted-foreground">
               <Mail className="h-3.5 w-3.5 text-cyan-400" /> {emailDestino}
             </div>
 
@@ -236,7 +236,7 @@ export function HotelSolicitacaoReservas({ hotel, userId, open = true, onClose }
               </div>
             )}
 
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
               <Button
                 type="submit"

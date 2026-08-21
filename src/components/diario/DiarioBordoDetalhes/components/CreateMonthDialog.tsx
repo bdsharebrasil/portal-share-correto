@@ -154,13 +154,13 @@ export function CreateMonthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] bg-slate-900 border-slate-800 text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] bg-card border-border text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-black flex items-center gap-3">
             <Plane className="w-6 h-6 text-sky-500" />
             Iniciar Novo Diário de Bordo
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             Configure os dados iniciais do diário para <span className="text-white font-semibold">{aircraftRegistration}</span>
           </DialogDescription>
         </DialogHeader>
@@ -173,7 +173,7 @@ export function CreateMonthDialog({
                 <div className="text-2xl">⚙️</div>
                 <div>
                   <p className="font-bold text-white mb-1">Como esta aeronave calcula as horas de CÉLULA?</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-muted-foreground">
                     Esta configuração será salva para a aeronave e usada em todos os meses seguintes.
                   </p>
                 </div>
@@ -189,7 +189,7 @@ export function CreateMonthDialog({
                 )}
 
                 {/* Opção: Tempo Total */}
-                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-card-secondary/50 transition-colors"
                   style={{
                     borderColor: modoCelula === "tempo_total" ? "#06b6d4" : "inherit",
                     backgroundColor: modoCelula === "tempo_total" ? "rgb(8, 47, 73)" : "inherit"
@@ -206,13 +206,13 @@ export function CreateMonthDialog({
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-white">TEMPO TOTAL</p>
-                    <p className="text-xs text-slate-400 mt-0.5">do acionamento ao corte (AC → COR)</p>
-                    <p className="text-xs text-slate-500 mt-1">Campo: <span className="font-mono">tempo_total</span> | Coluna: <span className="font-mono">celula</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">do acionamento ao corte (AC → COR)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Campo: <span className="font-mono">tempo_total</span> | Coluna: <span className="font-mono">celula</span></p>
                   </div>
                 </label>
 
                 {/* Opção: Tempo de Voo */}
-                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-card-secondary/50 transition-colors"
                   style={{
                     borderColor: modoCelula === "tvoo" ? "#06b6d4" : "inherit",
                     backgroundColor: modoCelula === "tvoo" ? "rgb(8, 47, 73)" : "inherit"
@@ -229,8 +229,8 @@ export function CreateMonthDialog({
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-white">TEMPO DE VOO</p>
-                    <p className="text-xs text-slate-400 mt-0.5">da decolagem ao pouso (DEP → POU)</p>
-                    <p className="text-xs text-slate-500 mt-1">Campo: <span className="font-mono">tempo_voo</span> | Coluna: <span className="font-mono">celula_tvoo</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">da decolagem ao pouso (DEP → POU)</p>
+                    <p className="text-xs text-muted-foreground mt-1">Campo: <span className="font-mono">tempo_voo</span> | Coluna: <span className="font-mono">celula_tvoo</span></p>
                   </div>
                 </label>
               </div>
@@ -242,7 +242,7 @@ export function CreateMonthDialog({
                       setModoCelula(currentModoCelula);
                       setModoConfirmed(true);
                     }}
-                    className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors text-sm font-medium">
+                    className="flex-1 px-4 py-2 rounded-lg bg-card-secondary text-white hover:bg-secondary transition-colors text-sm font-medium">
                     Manter
                   </button>
                 )}
@@ -256,8 +256,8 @@ export function CreateMonthDialog({
           )}
 
           {modoConfirmed && (
-            <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-              <p className="text-xs text-slate-400">
+            <div className="p-3 bg-card-secondary/50 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground">
                 Modo de cálculo: <span className="text-cyan-400 font-semibold">{modoCelula === "tvoo" ? "TEMPO DE VOO (DEP→POU)" : "TEMPO TOTAL (AC→COR)"}</span>
               </p>
             </div>
@@ -271,15 +271,15 @@ export function CreateMonthDialog({
             </Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Mês</Label>
+                <Label className="text-xs text-muted-foreground">Mês</Label>
                 <Select 
                   value={selectedMonth.toString()} 
                   onValueChange={(v) => setSelectedMonth(parseInt(v))}
                 >
-                  <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+                  <SelectTrigger className="bg-background border-border text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-700">
+                  <SelectContent className="bg-card border-border">
                     {MONTHS.map((m, idx) => (
                       <SelectItem key={idx} value={(idx + 1).toString()} className="text-white">
                         {m}
@@ -289,15 +289,15 @@ export function CreateMonthDialog({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Ano</Label>
+                <Label className="text-xs text-muted-foreground">Ano</Label>
                 <Select 
                   value={selectedYear.toString()} 
                   onValueChange={(v) => setSelectedYear(parseInt(v))}
                 >
-                  <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+                  <SelectTrigger className="bg-background border-border text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-700">
+                  <SelectContent className="bg-card border-border">
                     {years.map((y) => (
                       <SelectItem key={y} value={y.toString()} className="text-white">
                         {y}
@@ -307,7 +307,7 @@ export function CreateMonthDialog({
                 </Select>
               </div>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               O diário começará a partir de <span className="text-sky-400 font-semibold">{MONTHS[selectedMonth - 1]}/{selectedYear}</span>. Não é necessário ter registros de meses anteriores.
             </p>
           </div>
@@ -323,10 +323,10 @@ export function CreateMonthDialog({
               step="0.01"
               value={formData.celula_anterior || ""}
               onChange={(e) => setFormData({ ...formData, celula_anterior: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-900 border-emerald-500/50 text-white text-lg font-semibold focus:ring-emerald-500"
+              className="bg-card border-emerald-500/50 text-white text-lg font-semibold focus:ring-emerald-500"
               placeholder="Ex: 3250.50"
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               {previousMonthData?.celula_atual_ttotal
                 ? `Preenchido automaticamente com o valor de "Célula Atual" do mês anterior: ${previousMonthData.celula_atual_ttotal.toFixed(2)}h`
                 : 'Total de horas de célula da aeronave no início deste mês'}
@@ -344,10 +344,10 @@ export function CreateMonthDialog({
               step="0.01"
               value={formData.celula_prox_revisao || ""}
               onChange={(e) => setFormData({ ...formData, celula_prox_revisao: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-900 border-orange-500/50 text-white text-lg font-semibold focus:ring-orange-500"
+              className="bg-card border-orange-500/50 text-white text-lg font-semibold focus:ring-orange-500"
               placeholder="Ex: 3500.00"
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               {previousMonthData?.celula_prox_revisao_ttotal
                 ? `Valor anterior sugerido: ${previousMonthData.celula_prox_revisao_ttotal.toFixed(2)}h - Altere se necessário`
                 : 'Horas de célula previstas para a próxima revisão da aeronave'}
@@ -365,7 +365,7 @@ export function CreateMonthDialog({
               step="0.1"
               value={formData.horimetro_inicio || ""}
               onChange={(e) => setFormData({ ...formData, horimetro_inicio: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-950 border-slate-700 text-white"
+              className="bg-background border-border text-white"
               placeholder="0.0"
             />
           </div>
@@ -383,7 +383,7 @@ export function CreateMonthDialog({
               placeholder="Selecione o aeródromo base"
               searchPlaceholder="Buscar aeródromo..."
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               {previousMonthData?.aerodromo_base
                 ? ` ${previousMonthData.aerodromo_base} - Editar se necessário`
                 : 'Selecione o aeródromo base da aeronave'}
@@ -400,10 +400,10 @@ export function CreateMonthDialog({
               type="text"
               value={formData.fuel_consumption}
               onChange={(e) => setFormData({ ...formData, fuel_consumption: e.target.value })}
-              className="bg-slate-900 border-amber-500/50 text-white focus:ring-amber-500"
+              className="bg-card border-amber-500/50 text-white focus:ring-amber-500"
               placeholder="Ex: 45"
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               {previousMonthData?.consumo_combustivel
                 ? ` ${previousMonthData.consumo_combustivel} L/H - Editar se necessário`
                 : 'Consumo de combustível médio da aeronave (litros por hora)'}
@@ -418,7 +418,7 @@ export function CreateMonthDialog({
                   <DollarSign className="w-4 h-4" />
                   Esta aeronave possui sistema de diárias?
                 </Label>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {previousMonthData?.tem_tarifa_diaria !== undefined
                     ? ` ${previousMonthData.tem_tarifa_diaria ? 'Ativado' : 'Desativado'} - Alterar se necessário`
                     : 'Ative se deseja calcular diárias para voos fora da base'}
@@ -432,17 +432,17 @@ export function CreateMonthDialog({
 
             {formData.has_daily_rate && (
               <div className="space-y-2 pt-2 border-t border-green-500/30">
-                <Label className="text-xs text-slate-400">Valor da Diária (R$)</Label>
+                <Label className="text-xs text-muted-foreground">Valor da Diária (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.daily_rate || ""}
                   onChange={(e) => setFormData({ ...formData, daily_rate: parseFloat(e.target.value) || 0 })}
-                  className="bg-slate-900 border-green-500/50 text-white focus:ring-green-500"
+                  className="bg-card border-green-500/50 text-white focus:ring-green-500"
                   placeholder="0.00"
                 />
                 {previousMonthData?.tarifa_diaria && (
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-muted-foreground">
                     Valor anterior: R$ {previousMonthData.tarifa_diaria.toFixed(2)}
                   </p>
                 )}
@@ -452,8 +452,8 @@ export function CreateMonthDialog({
 
           {/* Preview das Horas Disponíveis */}
           {formData.celula_anterior > 0 && formData.celula_prox_revisao > 0 && (
-            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-              <p className="text-xs text-slate-500 uppercase font-bold mb-2">Horas Disponíveis para Voo</p>
+            <div className="p-4 bg-background rounded-xl border border-border">
+              <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Horas Disponíveis para Voo</p>
               <p className={`text-3xl font-black ${
                 (formData.celula_prox_revisao - formData.celula_anterior) < 0 
                   ? 'text-red-400' 
@@ -463,18 +463,18 @@ export function CreateMonthDialog({
               }`}>
                 {(formData.celula_prox_revisao - formData.celula_anterior).toFixed(2)}h
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 = Próxima Revisão ({formData.celula_prox_revisao.toFixed(2)}) - Célula Anterior ({formData.celula_anterior.toFixed(2)})
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            className="border-border text-muted-foreground hover:bg-card-secondary"
           >
             Cancelar
           </Button>

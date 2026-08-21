@@ -101,7 +101,7 @@ function VideoTile({
   }, [stream]);
 
   return (
-    <div className="group relative aspect-video overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0c1424] shadow-xl shadow-slate-950/20">
+    <div className="group relative aspect-video overflow-hidden rounded-2xl border border-border/80 bg-[#0c1424] shadow-xl shadow-slate-950/20">
       {stream && cameraOn ? (
         <video
           ref={videoRef}
@@ -117,7 +117,7 @@ function VideoTile({
           </span>
         </div>
       )}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent px-3 pb-3 pt-8">
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-background/90 via-slate-950/30 to-transparent px-3 pb-3 pt-8">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-white">
           <span className="truncate">{label}</span>
           {isHost && (
@@ -126,7 +126,7 @@ function VideoTile({
             </Badge>
           )}
         </div>
-        <span className="text-slate-300">
+        <span className="text-muted-foreground">
           {cameraOn ? (
             <Camera className="size-4" />
           ) : (
@@ -655,7 +655,7 @@ export function MeetingRoom({
               {formatMeetingStatus(meeting.status)}
             </Badge>
           </div>
-          <p className="mt-1 max-w-2xl text-sm text-slate-400">
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             {meeting.descricao || "Sala aberta para treinamento da equipe."}
           </p>
         </div>
@@ -663,7 +663,7 @@ export function MeetingRoom({
           type="button"
           variant="outline"
           size="sm"
-          className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
+          className="border-border bg-transparent text-muted-foreground hover:bg-card-secondary hover:text-white"
           onClick={copyMeetingLink}
         >
           {isCopied ? (
@@ -689,8 +689,8 @@ export function MeetingRoom({
               />
             ))}
             {currentParticipants.length === 0 && (
-              <Card className="border-slate-700 bg-slate-900/60">
-                <CardContent className="py-12 text-center text-sm text-slate-400">
+              <Card className="border-border bg-card/60">
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
                   Aguardando participantes…
                 </CardContent>
               </Card>
@@ -724,17 +724,17 @@ export function MeetingRoom({
         </section>
 
         <aside className="space-y-4">
-          <Card className="border-slate-700/80 bg-slate-900/75 text-slate-100">
+          <Card className="border-border/80 bg-card/75 text-foreground">
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Users className="size-4 text-amber-300" /> Participantes
                 </div>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-muted-foreground">
                   {currentParticipants.length} online
                 </span>
               </div>
-              <Separator className="bg-slate-700" />
+              <Separator className="bg-secondary" />
               <div className="space-y-3">
                 {currentParticipants.map((participant) => (
                   <div
@@ -742,21 +742,21 @@ export function MeetingRoom({
                     className="flex items-center justify-between gap-3"
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-amber-200">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-card-secondary text-xs font-semibold text-amber-200">
                         {participant.nome.slice(0, 1).toUpperCase()}
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
                           {participant.nome}
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-muted-foreground">
                           {participant.isHost
                             ? "Administração da sala"
                             : "Participante"}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-slate-400">
+                    <div className="flex items-center gap-1 text-muted-foreground">
                       {participant.microphoneOn ? (
                         <Volume2 className="size-3.5" />
                       ) : (
@@ -774,17 +774,17 @@ export function MeetingRoom({
             </CardContent>
           </Card>
 
-          <Card className="border-slate-700/80 bg-slate-900/75 text-slate-100">
+          <Card className="border-border/80 bg-card/75 text-foreground">
             <CardContent className="space-y-3 p-5">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Cast className="size-4 text-amber-300" /> Recursos da sala
               </div>
-              <p className="text-xs leading-5 text-slate-400">
+              <p className="text-xs leading-5 text-muted-foreground">
                 A câmera pode ser desativada individualmente. O host controla o
                 compartilhamento de tela e os desenhos na lousa.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Badge className="border-slate-700 bg-slate-800 text-slate-300">
+                <Badge className="border-border bg-card-secondary text-muted-foreground">
                   {isConnected ? "Realtime conectado" : "Conectando…"}
                 </Badge>
                 {isHost && (
@@ -804,11 +804,11 @@ export function MeetingRoom({
         </p>
       )}
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/95 p-3 shadow-2xl shadow-slate-950/40 backdrop-blur">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border/80 bg-background/95 p-3 shadow-2xl shadow-slate-950/40 backdrop-blur">
         <Button
           type="button"
           variant="outline"
-          className="border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+          className="border-border bg-card text-foreground hover:bg-card-secondary"
           onClick={() => void toggleMicrophone()}
         >
           {microphoneOn ? (
@@ -821,7 +821,7 @@ export function MeetingRoom({
         <Button
           type="button"
           variant="outline"
-          className="border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+          className="border-border bg-card text-foreground hover:bg-card-secondary"
           onClick={() => void toggleCamera()}
         >
           {cameraOn ? (
@@ -835,7 +835,7 @@ export function MeetingRoom({
           <Button
             type="button"
             variant="outline"
-            className={`border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 ${screenStream ? "border-amber-300/50 text-amber-100" : ""}`}
+            className={`border-border bg-card text-foreground hover:bg-card-secondary ${screenStream ? "border-amber-300/50 text-amber-100" : ""}`}
             onClick={() => void toggleScreenShare()}
           >
             <ScreenShare className="size-4" />

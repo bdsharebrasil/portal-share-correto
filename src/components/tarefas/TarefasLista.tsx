@@ -547,14 +547,14 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
       <style>{checklistStyles}</style>
       
       {/* Contêiner principal com paleta azul/slate moderna, bordas arredondadas e sombra */}
-      <div className="w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-[rgba(5,11,25,0.8)] text-slate-200 shadow-xl backdrop-blur-sm">
+      <div className="w-full overflow-hidden rounded-2xl border border-border/50 bg-[rgba(5,11,25,0.8)] text-foreground shadow-xl backdrop-blur-sm">
         {/* Header com espaçamento corrigido (padding maior) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-slate-800/40 px-6 py-5 sm:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card-secondary/40 px-6 py-5 sm:px-8">
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
             </h1>
-            <p className="mt-1 text-sm font-medium text-slate-400">
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
               {myView
                 ? "Tarefas privadas criadas por você"
                 : actualIsManager
@@ -575,7 +575,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         {/* Content com margens confortáveis */}
         <div className="space-y-6 p-6 sm:p-8">
           {visibleTasks.length === 0 ? (
-            <div className="rounded-xl border-2 border-dashed border-slate-700 bg-slate-800/20 px-4 py-12 text-center text-slate-400">
+            <div className="rounded-xl border-2 border-dashed border-border bg-card-secondary/20 px-4 py-12 text-center text-muted-foreground">
               Nenhuma tarefa cadastrada
             </div>
           ) : (
@@ -589,8 +589,8 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                     key={task.id}
                     className={`group flex items-center gap-3 rounded-xl border px-5 py-4 transition-all ${
                       isCompleted
-                        ? "border-slate-700/40 bg-slate-900/50 hover:border-emerald-500/30"
-                        : "border-slate-700/60 bg-slate-800/40 hover:border-cyan-500/50 hover:bg-slate-800/60"
+                        ? "border-border/40 bg-card/50 hover:border-emerald-500/30"
+                        : "border-border/60 bg-card-secondary/40 hover:border-cyan-500/50 hover:bg-card-secondary/60"
                     }`}
                   >
                     <div className="tl-check">
@@ -603,7 +603,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                       <label htmlFor={`tl-${task.id}`} className="tl-label min-w-0 flex-1">
                         <span
                           className={`block truncate font-medium transition-colors ${
-                            isCompleted ? "text-slate-500 line-through" : "text-slate-200"
+                            isCompleted ? "text-muted-foreground line-through" : "text-foreground"
                           }`}
                         >
                           {task.titulo}
@@ -611,7 +611,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                         {task.descricao && (
                           <span
                             className={`mt-0.5 block line-clamp-1 text-sm transition-opacity ${
-                              isCompleted ? "opacity-50 text-slate-500 line-through" : "text-slate-400"
+                              isCompleted ? "opacity-50 text-muted-foreground line-through" : "text-muted-foreground"
                             }`}
                           >
                             {task.descricao}
@@ -623,7 +623,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                     <button
                       onClick={() => setDetailTask(task)}
                       className={`shrink-0 transition-colors ${
-                        isCompleted ? "text-slate-600 hover:text-emerald-400" : "text-slate-500 hover:text-cyan-400"
+                        isCompleted ? "text-muted-foreground hover:text-emerald-400" : "text-muted-foreground hover:text-cyan-400"
                       }`}
                       title="Abrir detalhes"
                     >
@@ -633,7 +633,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                     {task.prazo && (
                       <span
                         className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${
-                          isCompleted ? "bg-slate-900 text-slate-600" : "bg-slate-800/80 text-slate-400"
+                          isCompleted ? "bg-card text-muted-foreground" : "bg-card-secondary/80 text-muted-foreground"
                         }`}
                       >
                         {new Date(task.prazo).toLocaleDateString("pt-BR", {
@@ -646,7 +646,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                     {canDelete && (
                       <button
                         onClick={() => void handleDelete(task.id)}
-                        className="shrink-0 p-1.5 text-slate-500 opacity-0 transition-colors hover:text-rose-400 group-hover:opacity-100"
+                        className="shrink-0 p-1.5 text-muted-foreground opacity-0 transition-colors hover:text-rose-400 group-hover:opacity-100"
                         title="Excluir"
                       >
                         <Trash2 size={18} />
@@ -712,24 +712,24 @@ function CreateListaModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-slate-700 bg-slate-900 text-slate-200">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-border bg-card text-foreground">
         <DialogHeader>
           <DialogTitle className="text-white">Nova Tarefa</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div>
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Título *
             </label>
             <input
               value={form.titulo}
               onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
               placeholder="Descreva a tarefa..."
-              className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors"
+              className="w-full mt-1 bg-card-secondary border border-border focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Descrição
             </label>
             <textarea
@@ -737,18 +737,18 @@ function CreateListaModal({
               onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
               placeholder="Detalhes (opcional)"
               rows={2}
-              className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors"
+              className="w-full mt-1 bg-card-secondary border border-border focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
                 Prioridade
               </label>
               <select
                 value={form.prioridade}
                 onChange={(e) => setForm((p) => ({ ...p, prioridade: e.target.value }))}
-                className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 outline-none transition-colors"
+                className="w-full mt-1 bg-card-secondary border border-border focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-foreground outline-none transition-colors"
               >
                 <option value="baixa">Baixa</option>
                 <option value="media">Média</option>
@@ -757,21 +757,21 @@ function CreateListaModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
                 Prazo
               </label>
               <input
                 type="date"
                 value={form.prazo}
                 onChange={(e) => setForm((p) => ({ ...p, prazo: e.target.value }))}
-                className="w-full mt-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-slate-200 outline-none transition-colors"
+                className="w-full mt-1 bg-card-secondary border border-border focus:border-cyan-500 rounded-md px-3 py-2 text-sm text-foreground outline-none transition-colors"
               />
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="outline" className="border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white" onClick={onClose}>
+          <Button variant="outline" className="border-border bg-card-secondary hover:bg-secondary hover:text-white" onClick={onClose}>
             Cancelar
           </Button>
           <Button
@@ -920,52 +920,52 @@ function DetailDialog({
 
   return (
     <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-slate-700 bg-slate-900 text-slate-200">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 border-border bg-card text-foreground">
         <DialogHeader>
           <DialogTitle className="truncate text-white">{task.titulo}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 text-sm mt-2">
           {task.descricao && (
-            <p className="text-slate-400 whitespace-pre-wrap">
+            <p className="text-muted-foreground whitespace-pre-wrap">
               {task.descricao}
             </p>
           )}
 
-          <div className="flex flex-wrap gap-4 rounded-lg bg-slate-800/50 p-4 border border-slate-700/50 text-xs text-slate-300">
+          <div className="flex flex-wrap gap-4 rounded-lg bg-card-secondary/50 p-4 border border-border/50 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-400">Atribuído:</span>
+              <span className="font-semibold text-muted-foreground">Atribuído:</span>
               <Avatar user={assigned} size={22} />
               <span>{assigned ? (assigned.full_name || assigned.display_name || assigned.email) : "—"}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-400">Criado por:</span>
+              <span className="font-semibold text-muted-foreground">Criado por:</span>
               <Avatar user={creator} size={22} />
               <span>{creator ? (creator.full_name || creator.display_name || creator.email) : "—"}</span>
             </div>
             {task.prazo && (
               <div className="flex items-center gap-1.5">
-                 <span className="font-semibold text-slate-400">Prazo:</span>
+                 <span className="font-semibold text-muted-foreground">Prazo:</span>
                 📅 {new Date(task.prazo).toLocaleDateString("pt-BR")}
               </div>
             )}
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-400">Status:</span>
-              <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              <span className="font-semibold text-muted-foreground">Status:</span>
+              <span className="px-2 py-0.5 rounded-full bg-card-secondary border border-border">
                 {task.status === "concluido" || task.status === "concluído" ? "✅ Concluída" : task.status?.toLowerCase().includes("em") ? "⏳ Em Andamento" : "⏳ Pendente"}
               </span>
             </div>
           </div>
 
           {/* Progresso da tarefa */}
-          <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-4">
+          <div className="rounded-lg border border-border/50 bg-card-secondary/30 p-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
                 Progresso
               </label>
-              <span className="text-xs font-semibold text-slate-200">{progresso}%</span>
+              <span className="text-xs font-semibold text-foreground">{progresso}%</span>
             </div>
-            <div className="mt-3 h-2.5 w-full rounded-full bg-slate-700 overflow-hidden">
+            <div className="mt-3 h-2.5 w-full rounded-full bg-secondary overflow-hidden">
               <div
                 className="h-full rounded-full bg-cyan-500 transition-all shadow-[0_0_10px_rgba(6,182,212,0.4)]"
                 style={{ width: `${progresso}%` }}
@@ -993,15 +993,15 @@ function DetailDialog({
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                 <MessageSquare size={14} /> Comentários ({comments.length})
               </label>
             </div>
             <div className="max-h-64 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
               {loading ? (
-                <div className="text-xs text-slate-500 text-center py-4">Carregando...</div>
+                <div className="text-xs text-muted-foreground text-center py-4">Carregando...</div>
               ) : comments.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-4 border border-dashed border-slate-700 rounded-lg">
+                <div className="text-xs text-muted-foreground text-center py-4 border border-dashed border-border rounded-lg">
                   Nenhum comentário ainda.
                 </div>
               ) : (
@@ -1011,15 +1011,15 @@ function DetailDialog({
                   return (
                     <div
                       key={c.id}
-                      className="flex gap-3 items-start p-3 rounded-xl bg-slate-800/50 border border-slate-700/30"
+                      className="flex gap-3 items-start p-3 rounded-xl bg-card-secondary/50 border border-border/30"
                     >
                       <Avatar user={u} size={28} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-xs font-bold text-slate-300 truncate">
+                          <span className="text-xs font-bold text-muted-foreground truncate">
                             {u ? (u.full_name || u.display_name || u.email) : "—"}
                           </span>
-                          <span className="text-[10px] text-slate-500 font-medium">
+                          <span className="text-[10px] text-muted-foreground font-medium">
                             {c.criado_em
                               ? new Date(c.criado_em).toLocaleString("pt-BR", {
                                   day: "2-digit",
@@ -1030,14 +1030,14 @@ function DetailDialog({
                               : ""}
                           </span>
                         </div>
-                        <div className="text-sm text-slate-300 whitespace-pre-wrap break-words">
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
                           {c.comentario}
                         </div>
                       </div>
                       {(mine || canManage) && (
                         <button
                           onClick={() => void handleDeleteComment(c.id)}
-                          className="text-slate-500 hover:text-rose-400 transition-colors pt-0.5"
+                          className="text-muted-foreground hover:text-rose-400 transition-colors pt-0.5"
                           aria-label="Excluir comentário"
                         >
                           <Trash2 size={14} />
@@ -1060,7 +1060,7 @@ function DetailDialog({
                   }
                 }}
                 placeholder="Escreva um comentário..."
-                className="flex-1 bg-slate-800 border border-slate-700 focus:border-cyan-500 rounded-lg pl-4 pr-12 py-2.5 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500"
+                className="flex-1 bg-card-secondary border border-border focus:border-cyan-500 rounded-lg pl-4 pr-12 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground"
               />
               <Button 
                 onClick={() => void handleSend()} 

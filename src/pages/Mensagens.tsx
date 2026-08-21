@@ -165,7 +165,7 @@ export default function Mensagens() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-foreground">
-                <span className="rounded-xl bg-slate-800/80 p-2.5 ring-1 ring-sky-500/25">
+                <span className="rounded-xl bg-card-secondary/80 p-2.5 ring-1 ring-sky-500/25">
                   <Mail className="h-5 w-5 text-sky-300" />
                 </span>
                 Mensagens
@@ -179,7 +179,7 @@ export default function Mensagens() {
                 setReplyTo(null);
                 setComposeOpen(true);
               }}
-              className="h-10 rounded-xl bg-sky-700 px-4 font-semibold text-slate-100 shadow-sm transition-colors hover:bg-sky-600 active:scale-[0.98]"
+              className="h-10 rounded-xl bg-sky-700 px-4 font-semibold text-foreground shadow-sm transition-colors hover:bg-sky-600 active:scale-[0.98]"
             >
               <PenSquare className="mr-2 h-4 w-4" /> Nova mensagem
             </Button>
@@ -249,14 +249,14 @@ export default function Mensagens() {
                       }}
                       className={`flex w-full shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${
                           active
-                          ? "bg-slate-800/90 text-sky-200 ring-1 ring-sky-500/25"
-                          : "text-muted-foreground hover:bg-slate-800/60 hover:text-slate-200"
+                          ? "bg-card-secondary/90 text-sky-200 ring-1 ring-sky-500/25"
+                          : "text-muted-foreground hover:bg-card-secondary/60 hover:text-foreground"
                       }`}
                     >
                           <n.icon className={`h-3.5 w-3.5 ${active ? "text-sky-300" : ""}`} />
                       {n.label}
                       {!!n.badge && (
-                        <span className="rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-bold text-slate-200">
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-bold text-foreground">
                           {n.badge}
                         </span>
                       )}
@@ -346,7 +346,7 @@ export default function Mensagens() {
             <section className="portal-card flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
               {!selected ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-muted-foreground">
-                  <div className="rounded-2xl bg-slate-800/80 p-5 ring-1 ring-sky-500/20">
+                  <div className="rounded-2xl bg-card-secondary/80 p-5 ring-1 ring-sky-500/20">
                     <Mail className="h-8 w-8 text-sky-300" />
                   </div>
                   <p className="text-sm text-muted-foreground/80">Selecione uma mensagem para ler</p>

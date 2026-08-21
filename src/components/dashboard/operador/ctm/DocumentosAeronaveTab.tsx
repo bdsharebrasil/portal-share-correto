@@ -83,9 +83,9 @@ const FOLDER_COLORS: Record<ExpiryStatus, { border: string; bg: string; icon: st
     ring: "",
   },
   none: {
-    border: "border-slate-700/50",
-    bg: "bg-slate-900/30",
-    icon: "text-slate-400",
+    border: "border-border/50",
+    bg: "bg-card/30",
+    icon: "text-muted-foreground",
     ring: "",
   },
 };
@@ -94,7 +94,7 @@ const STATUS_BADGE: Record<ExpiryStatus, string> = {
   expired: "bg-red-500/15 text-red-400 border-red-500/30",
   warning: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   valid: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  none: "bg-slate-700/30 text-slate-400 border-slate-600/40",
+  none: "bg-secondary/30 text-muted-foreground border-border/40",
 };
 
 function formatDate(v: string | null): string {
@@ -259,7 +259,7 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatChip label="Total" value={stats.total} icon={FileText} color="text-slate-300" />
+        <StatChip label="Total" value={stats.total} icon={FileText} color="text-muted-foreground" />
         <StatChip label="Vencidos" value={stats.expired} icon={AlertTriangle} color="text-red-400" />
         <StatChip label="Próximos" value={stats.warning} icon={Clock} color="text-amber-400" />
         <StatChip label="Válidos" value={stats.valid} icon={CheckCircle2} color="text-emerald-400" />
@@ -317,7 +317,7 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-sm text-foreground capitalize">{label}</p>
-                      <span className="rounded-full bg-slate-800/60 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                      <span className="rounded-full bg-card-secondary/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         {docsInGroup.length} {docsInGroup.length === 1 ? "doc" : "docs"}
                       </span>
                       {folderStatus === "expired" && (
@@ -357,7 +357,7 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
                           className={cn(
                             "group flex items-center gap-3 rounded-xl border p-3 transition-all duration-200",
                             docColors.border,
-                            "bg-slate-950/40 hover:bg-slate-900/60",
+                            "bg-background/40 hover:bg-card/60",
                           )}
                         >
                           {/* File icon */}
@@ -399,28 +399,28 @@ export function DocumentosAeronaveTab({ aircraftId }: DocumentosAeronaveTabProps
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => setPreviewDoc(doc)}
-                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-primary"
+                              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-card-secondary hover:text-primary"
                               title="Visualizar"
                             >
                               <Eye className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDownload(doc)}
-                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-primary"
+                              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-card-secondary hover:text-primary"
                               title="Baixar"
                             >
                               <Download className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => { setEditingDoc(doc); setFormOpen(true); }}
-                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-amber-400"
+                              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-card-secondary hover:text-amber-400"
                               title="Editar"
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(doc)}
-                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400"
+                              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-card-secondary hover:text-red-400"
                               title="Excluir"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -464,10 +464,10 @@ function StatChip({ label, value, icon: Icon, color }: {
   label: string; value: number; icon: typeof FileText; color: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3 transition-all duration-300 hover:border-slate-700/80 hover:bg-slate-900/80">
+    <div className="rounded-xl border border-border/60 bg-card/40 px-4 py-3 transition-all duration-300 hover:border-border/80 hover:bg-card/80">
       <div className="flex items-center gap-2">
         <Icon className={cn("h-4 w-4", color)} />
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
       </div>
       <p className="mt-1 text-xl font-bold text-white tracking-tight">{value}</p>
     </div>
@@ -586,23 +586,23 @@ function DocumentForm({ aircraftId, editingDoc, onClose, onSaved }: {
     }
   };
 
-  const inputCls = "w-full rounded-xl bg-slate-950/80 border border-slate-700/60 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-slate-600 shadow-inner";
-  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2";
+  const inputCls = "w-full rounded-xl bg-background/80 border border-border/60 px-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-muted-foreground shadow-inner";
+  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md" style={{ background: "rgba(2,6,23,0.90)" }} onClick={onClose}>
       <div
-        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/50 bg-card shadow-[0_0_50px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-5 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-border bg-card/80 px-6 py-5 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
               {isEditing ? <Pencil className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
             </div>
             <div>
-              <div className="text-base font-bold text-slate-100 tracking-wide">
+              <div className="text-base font-bold text-foreground tracking-wide">
                 {isEditing ? "Editar Documento" : "Adicionar Documento"}
               </div>
               <div className="text-[11px] font-medium uppercase tracking-widest text-teal-500/70">
@@ -610,7 +610,7 @@ function DocumentForm({ aircraftId, editingDoc, onClose, onSaved }: {
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-400">
+          <button onClick={onClose} className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-400">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -691,12 +691,12 @@ function DocumentForm({ aircraftId, editingDoc, onClose, onSaved }: {
                 className={inputCls}
               />
               {file && (
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {file.name} ({formatFileSize(file.size)})
                 </p>
               )}
               {isEditing && !file && (
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Arquivo atual: {editingDoc?.caminho_arquivo.split("/").pop()}
                 </p>
               )}
@@ -708,11 +708,11 @@ function DocumentForm({ aircraftId, editingDoc, onClose, onSaved }: {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 border-t border-slate-800 px-6 py-4">
+        <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 text-sm text-slate-400 transition-colors hover:text-foreground"
+            className="px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Cancelar
           </button>
@@ -745,18 +745,18 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md" style={{ background: "rgba(2,6,23,0.92)" }} onClick={onClose}>
       <div
-        className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900 shadow-[0_0_60px_rgba(0,0,0,0.6)]"
+        className="relative flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border/50 bg-card shadow-[0_0_60px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-slate-800 bg-slate-900/80 px-6 py-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-border bg-card/80 px-6 py-4 backdrop-blur-sm">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
               <FileText className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="truncate font-bold text-slate-100">{doc.nome}</p>
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400 flex-wrap">
+              <p className="truncate font-bold text-foreground">{doc.nome}</p>
+              <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
                 {doc.tipo_documento && (
                   <span className="capitalize">{DOCUMENT_TYPE_LABELS[doc.tipo_documento] || doc.tipo_documento}</span>
                 )}
@@ -774,13 +774,13 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onDownload}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-card-secondary"
             >
               <Download className="h-4 w-4" /> Baixar
             </button>
             <button
               onClick={onClose}
-              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-400"
+              className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -788,7 +788,7 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
         </div>
 
         {/* Preview content */}
-        <div className="flex-1 overflow-auto bg-slate-950/50 custom-scrollbar">
+        <div className="flex-1 overflow-auto bg-background/50 custom-scrollbar">
           {(() => {
             const path = (doc.caminho_arquivo || doc.nome || "").toLowerCase();
             const isPdf = doc.tipo_arquivo === "application/pdf" || path.endsWith(".pdf");
@@ -807,7 +807,7 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
                   <iframe
                     src={`${fileUrl}#toolbar=1&view=FitH`}
                     title={doc.nome}
-                    className="h-[75vh] w-full rounded-xl border border-slate-800 bg-white"
+                    className="h-[75vh] w-full rounded-xl border border-border bg-white"
                   />
                   <div className="mt-2 text-center">
                     <a
@@ -825,8 +825,8 @@ function DocumentPreviewModal({ doc, onClose, onDownload }: {
             return (
               <div className="flex h-full min-h-[300px] items-center justify-center p-8">
                 <div className="text-center">
-                  <FileText className="mx-auto mb-4 h-12 w-12 text-slate-600" />
-                  <p className="text-sm text-slate-400 mb-4">Pré-visualização não disponível para este tipo de arquivo</p>
+                  <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-4">Pré-visualização não disponível para este tipo de arquivo</p>
                   <button
                     onClick={onDownload}
                     className="inline-flex items-center gap-2 rounded-lg bg-ctm-teal px-4 py-2 text-sm font-semibold text-[hsl(var(--ctm-navy))]"

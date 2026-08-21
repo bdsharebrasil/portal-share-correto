@@ -37,21 +37,21 @@ export class ErrorBoundary extends Component<Props, State> {
         this.state.error?.message?.includes('CORS');
 
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-900 rounded-lg border border-slate-700 p-8 text-center space-y-6">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-card rounded-lg border border-border p-8 text-center space-y-6">
             <div className="flex justify-center">
               <AlertCircle className="h-16 w-16 text-red-500" />
             </div>
             
             <div className="space-y-2">
               <h1 className="text-2xl font-bold text-white">Oops!</h1>
-              <p className="text-slate-300">
+              <p className="text-muted-foreground">
                 {isNetworkError 
                   ? 'Parece que há um problema de conexão. Verifique sua internet e tente novamente.'
                   : 'Desculpe, ocorreu um erro inesperado.'}
               </p>
               {import.meta.env.DEV && this.state.error && (
-                <p className="text-xs text-slate-500 mt-4 font-mono break-all">
+                <p className="text-xs text-muted-foreground mt-4 font-mono break-all">
                   {this.state.error.message}
                 </p>
               )}

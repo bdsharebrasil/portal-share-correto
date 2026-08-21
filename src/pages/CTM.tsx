@@ -90,10 +90,10 @@ function EmptyState({ text }: { text: string }) {
 
 function Row({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
   return (
-    <div className="group flex items-center justify-between gap-4 rounded-xl border border-slate-800/50 bg-slate-900/40 px-4 py-3 transition-all duration-300 hover:border-slate-700/60 hover:bg-slate-900/80 hover:shadow-sm">
+    <div className="group flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/40 px-4 py-3 transition-all duration-300 hover:border-border/60 hover:bg-card/80 hover:shadow-sm">
       <div className="min-w-0 transition-transform duration-300 group-hover:translate-x-0.5">
-        <p className="truncate text-sm font-semibold text-slate-200 transition-colors group-hover:text-white">{title}</p>
-        {subtitle && <p className="truncate text-xs text-slate-400/80 transition-colors group-hover:text-slate-300">{subtitle}</p>}
+        <p className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-white">{title}</p>
+        {subtitle && <p className="truncate text-xs text-muted-foreground/80 transition-colors group-hover:text-muted-foreground">{subtitle}</p>}
       </div>
       <div className="shrink-0">{right}</div>
     </div>
@@ -130,9 +130,9 @@ function MaintenanceForecast({ statuses }: { statuses: StatusPrograma[] }) {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Radar de manutenção</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Próximas ações da aeronave</h2>
-          <p className="mt-1 text-sm text-slate-400">Acompanhe primeiro o que precisa ser feito, antes de navegar pelos registros.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Acompanhe primeiro o que precisa ser feito, antes de navegar pelos registros.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Cálculo baseado no uso registrado</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Cálculo baseado no uso registrado</div>
       </div>
 
       {items.length === 0 ? (
@@ -143,15 +143,15 @@ function MaintenanceForecast({ statuses }: { statuses: StatusPrograma[] }) {
             const style = NIVEL_STYLE[status.nivel];
             const dimension = status.critica;
             return (
-              <div key={status.item.id} className={cn("group rounded-2xl border bg-slate-950/70 p-4 shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900", style.border)}>
+              <div key={status.item.id} className={cn("group rounded-2xl border bg-background/70 p-4 shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:bg-card", style.border)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className={cn("rounded-xl p-2", style.bg, style.text)}><ForecastIcon tipo={dimension?.tipo} /></div>
                   <span className={cn("rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider", style.border, style.bg, style.text)}>{style.label}</span>
                 </div>
                 <h3 className="mt-4 text-sm font-semibold leading-snug text-white">{status.item.item}</h3>
                 <p className={cn("mt-1 text-lg font-bold tracking-tight", style.text)}>{dimension?.restanteLabel ?? status.resumo}</p>
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-500"><span>Próximo marco</span><span className="font-medium text-slate-300">{dimension?.proximo ?? "—"}</span></div>
-                {status.previsaoData && <div className="mt-1 flex items-center justify-between text-xs text-slate-500"><span>Previsão por uso</span><span className="font-medium text-slate-300">{dt(status.previsaoData)}</span></div>}
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>Próximo marco</span><span className="font-medium text-muted-foreground">{dimension?.proximo ?? "—"}</span></div>
+                {status.previsaoData && <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground"><span>Previsão por uso</span><span className="font-medium text-muted-foreground">{dt(status.previsaoData)}</span></div>}
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/5"><div className={cn("h-full rounded-full transition-all", style.bar)} style={{ width: `${Math.max(5, Math.min(100, dimension?.progresso ?? 0))}%` }} /></div>
               </div>
             );
@@ -205,10 +205,10 @@ function AircraftGrid() {
               key={a.id}
               onClick={() => navigate(`/ctm/${a.id}`)}
               // Adicionado cursor-pointer, borda translúcida e transição mais longa (duration-500)
-              className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/80 shadow-md transition-all duration-500 ease-out hover:-translate-y-1 hover:border-slate-600/50 hover:bg-slate-900 hover:shadow-xl hover:shadow-black/20"
+              className="group cursor-pointer overflow-hidden rounded-2xl border border-border/60 bg-background/80 shadow-md transition-all duration-500 ease-out hover:-translate-y-1 hover:border-border/50 hover:bg-card hover:shadow-xl hover:shadow-black/20"
             >
               {/* Altura reduzida de h-44 para h-40 */}
-              <div className="relative h-40 overflow-hidden bg-slate-900">
+              <div className="relative h-40 overflow-hidden bg-card">
                 <img
                   src={a.url_imagem || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length]}
                   alt={a.matricula}
@@ -217,7 +217,7 @@ function AircraftGrid() {
                   onError={(e) => { (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length]; }}
                 />
                 {/* Degradê mais escuro na base para integrar melhor com o fundo do card */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-90" />
                 
                 {/* Badge menor e mais discreta */}
                
@@ -226,10 +226,10 @@ function AircraftGrid() {
               <CardContent className="p-3.5">
                 {/* Legenda com animação de movimento e cor no hover do card */}
                 <div className="transition-all duration-500 ease-out group-hover:translate-x-1">
-                  <p className="text-base font-bold text-slate-200 transition-colors duration-500 group-hover:text-white">
+                  <p className="text-base font-bold text-foreground transition-colors duration-500 group-hover:text-white">
                     {a.matricula}
                   </p>
-                  <p className="text-xs text-slate-500 transition-colors duration-500 group-hover:text-slate-300">
+                  <p className="text-xs text-muted-foreground transition-colors duration-500 group-hover:text-muted-foreground">
                     {[a.fabricante, a.modelo].filter(Boolean).join(" ") || "—"}
                   </p>
                 </div>
@@ -393,7 +393,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       <Button
         variant="ghost"
         size="sm"
-        className="group -ml-2 gap-2 text-slate-400 transition-colors duration-300 hover:bg-slate-900 hover:text-white"
+        className="group -ml-2 gap-2 text-muted-foreground transition-colors duration-300 hover:bg-card hover:text-white"
         onClick={() => navigate("/ctm")}
       >
         <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -401,7 +401,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       </Button>
 
       {/* Header Principal da Aeronave */}
-      <Card className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-cyan-950/20 shadow-2xl shadow-black/20 backdrop-blur-md transition-all duration-300 hover:border-cyan-400/20">
+      <Card className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-card/95 via-slate-950/90 to-cyan-950/20 shadow-2xl shadow-black/20 backdrop-blur-md transition-all duration-300 hover:border-cyan-400/20">
         <CardContent className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           
           {/* Informações da Aeronave */}
@@ -413,13 +413,13 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
               <div className="flex items-center gap-2.5">
                 <h1 className="text-2xl font-bold tracking-tight text-white">{aircraft?.matricula ?? "—"}</h1>
               </div>
-              <p className="text-sm font-medium text-slate-400">
+              <p className="text-sm font-medium text-muted-foreground">
                 {[aircraft?.fabricante, aircraft?.modelo].filter(Boolean).join(" ")}
                 {aircraft?.ano ? ` · ${aircraft.ano}` : ""}
               </p>
               {aircraft?.numero_serie && (
-                <p className="text-xs font-mono text-slate-500">
-                  S/N: <span className="text-slate-400">{aircraft.numero_serie}</span>
+                <p className="text-xs font-mono text-muted-foreground">
+                  S/N: <span className="text-muted-foreground">{aircraft.numero_serie}</span>
                 </p>
               )}
             </div>
@@ -434,7 +434,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
               >
                 <div className="flex items-center gap-2">
                   <s.icon className={cn("h-4 w-4 transition-transform duration-300 group-hover:scale-110", s.color)} />
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{s.label}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{s.label}</p>
                 </div>
                 <p className="mt-1 text-lg font-bold text-white tracking-tight">{s.value}</p>
               </div>
@@ -444,8 +444,8 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       </Card>
 
       {/* Navegação por Abas (Tabs) com Scroll Suave */}
-      <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-2 shadow-xl shadow-black/10">
-        <div className="mb-2 flex items-center gap-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Navegação técnica da aeronave</div>
+      <div className="rounded-2xl border border-white/10 bg-background/55 p-2 shadow-xl shadow-black/10">
+        <div className="mb-2 flex items-center gap-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Navegação técnica da aeronave</div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {TABS.map((t) => {
           const isActive = tab === t.id;
@@ -457,10 +457,10 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
                 "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all duration-300 ease-out",
                 isActive
                   ? "border-cyan-300/45 bg-cyan-400/12 text-cyan-200 shadow-lg shadow-cyan-950/20"
-                  : "border-white/10 bg-white/[0.025] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-400/[0.07] hover:text-white"
+                  : "border-white/10 bg-white/[0.025] text-muted-foreground hover:border-cyan-300/25 hover:bg-cyan-400/[0.07] hover:text-white"
               )}
             >
-              <t.icon className={cn("h-3.5 w-3.5 transition-colors", isActive ? "text-cyan-200" : "text-slate-400")} />
+              <t.icon className={cn("h-3.5 w-3.5 transition-colors", isActive ? "text-cyan-200" : "text-muted-foreground")} />
               {t.label}
             </button>
           );
@@ -472,22 +472,22 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       <div className="space-y-3 transition-all duration-300">
         {tab === "visao" && (
           <div className="space-y-5">
-            <Card className="overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-slate-950/80 to-slate-950 shadow-2xl shadow-primary/5">
+            <Card className="overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-slate-950/80 to-background shadow-2xl shadow-primary/5">
               <CardContent className="p-5 sm:p-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="max-w-xl"><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Visão operacional</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Antecipe o próximo serviço</h2><p className="mt-2 text-sm leading-6 text-slate-400">A aeronave está sendo monitorada por horas, pousos, ciclos e validade documental para priorizar a rotina da equipe.</p></div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Itens no radar</p><p className="mt-1 text-2xl font-bold text-white">{maintenanceStatuses.length}</p></div><div className="rounded-2xl border border-red-400/20 bg-red-400/5 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Críticos</p><p className="mt-1 text-2xl font-bold text-red-300">{maintenanceStatuses.filter((item) => item.nivel === "vencido" || item.nivel === "critico").length}</p></div><div className="hidden rounded-2xl border border-white/10 bg-black/10 px-4 py-3 sm:block"><p className="text-[10px] uppercase tracking-wider text-slate-500">Seguro</p><p className="mt-1 text-2xl font-bold text-white">{insurance?.data_validade ? `${Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))}d` : "—"}</p></div></div>
+                  <div className="max-w-xl"><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Visão operacional</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Antecipe o próximo serviço</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">A aeronave está sendo monitorada por horas, pousos, ciclos e validade documental para priorizar a rotina da equipe.</p></div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Itens no radar</p><p className="mt-1 text-2xl font-bold text-white">{maintenanceStatuses.length}</p></div><div className="rounded-2xl border border-red-400/20 bg-red-400/5 px-4 py-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Críticos</p><p className="mt-1 text-2xl font-bold text-red-300">{maintenanceStatuses.filter((item) => item.nivel === "vencido" || item.nivel === "critico").length}</p></div><div className="hidden rounded-2xl border border-white/10 bg-black/10 px-4 py-3 sm:block"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Seguro</p><p className="mt-1 text-2xl font-bold text-white">{insurance?.data_validade ? `${Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))}d` : "—"}</p></div></div>
                 </div>
               </CardContent>
             </Card>
             <MaintenanceForecast statuses={maintenanceStatuses} />
-            {insurance && <Card className="rounded-2xl border border-amber-400/25 bg-amber-400/5"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-amber-400/10 p-2.5 text-amber-300"><ShieldAlert className="h-5 w-5" /></div><div><p className="text-sm font-semibold text-white">Seguro da aeronave</p><p className="text-xs text-slate-400">Validade em {dt(insurance.data_validade)} · {insurance.nome || insurance.tipo_documento}</p></div></div><Badge className="w-fit border-amber-400/30 bg-amber-400/10 text-amber-200">{Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))} dias restantes</Badge></CardContent></Card>}
+            {insurance && <Card className="rounded-2xl border border-amber-400/25 bg-amber-400/5"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-amber-400/10 p-2.5 text-amber-300"><ShieldAlert className="h-5 w-5" /></div><div><p className="text-sm font-semibold text-white">Seguro da aeronave</p><p className="text-xs text-muted-foreground">Validade em {dt(insurance.data_validade)} · {insurance.nome || insurance.tipo_documento}</p></div></div><Badge className="w-fit border-amber-400/30 bg-amber-400/10 text-amber-200">{Math.max(0, Math.ceil((new Date(insurance.data_validade).getTime() - Date.now()) / 86400000))} dias restantes</Badge></CardContent></Card>}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card className="rounded-2xl border border-slate-800/70 bg-slate-950/60 backdrop-blur-sm shadow-md">
+            <Card className="rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm shadow-md">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center justify-between pb-1">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">OAS Recentes</h2>
-                  <Badge variant="outline" className="border-slate-800 text-[10px] text-slate-400">Últimas 5</Badge>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">OAS Recentes</h2>
+                  <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">Últimas 5</Badge>
                 </div>
                 {(oas.data ?? []).slice(0, 5).map((o: any) => (
                   <Row key={o.id} title={`OAS #${o.numero ?? "—"}`} subtitle={`${o.tipo_manutencao ?? "—"} · ${o.oficina_nome ?? "N/A"}`} right={<StatusBadge status={o.status} />} />
@@ -496,11 +496,11 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border border-slate-800/70 bg-slate-950/60 backdrop-blur-sm shadow-md">
+            <Card className="rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm shadow-md">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center justify-between pb-1">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">RAS Recentes</h2>
-                  <Badge variant="outline" className="border-slate-800 text-[10px] text-slate-400">Últimos 5</Badge>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">RAS Recentes</h2>
+                  <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">Últimos 5</Badge>
                 </div>
                 {(ras.data ?? []).slice(0, 5).map((r: any) => (
                   <Row key={r.id} title={`RAS #${r.numero ?? "—"}`} subtitle={`${r.tipo_manutencao ?? "—"} · ${brl(r.total_geral)}`} right={<StatusBadge status={r.status} />} />

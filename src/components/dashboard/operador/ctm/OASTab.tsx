@@ -76,7 +76,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/60 p-5 shadow-xl md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-card/80 to-background/60 p-5 shadow-xl md:flex-row md:items-center md:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-ctm-teal"><Wrench className="h-4 w-4" /> Centro de manutenção</div>
           <h2 className="text-2xl font-bold tracking-tight">Ordens de Acompanhamento de Serviço</h2>
@@ -92,7 +92,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
 
       {showForm && <NovaOASForm aircraftId={aircraftId} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); loadOAS(); }} />}
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/50 p-3 md:flex-row md:items-center">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-card/50 p-3 md:flex-row md:items-center">
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} className="ctm-input w-full pl-9" placeholder="Buscar por número, tipo, oficina, mecânico ou objetivo..." /></div>
         <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground"><ListFilter className="h-4 w-4" /> {filteredList.length} lançamento(s)</div>
       </div>
@@ -130,7 +130,7 @@ function OASYearView({ year, oasList, onBack, onSelect }: {
 }) {
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 rounded-2xl border border-blue-300/15 bg-gradient-to-br from-blue-950/55 to-slate-950/70 p-5 shadow-xl sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-blue-300/15 bg-gradient-to-br from-blue-950/55 to-background/70 p-5 shadow-xl sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <button type="button" onClick={onBack} className="mt-0.5 rounded-lg border border-blue-200/20 p-2 text-blue-100 transition hover:bg-blue-400/10" aria-label="Voltar para as pastas">
             <ArrowLeft className="h-5 w-5" />
@@ -878,7 +878,7 @@ async function sincronizarProgramaComOAS({
 
 function MetricCard({ icon: Icon, label, value, tone = 'teal' }: { icon: any; label: string; value: string; tone?: 'teal' | 'emerald' | 'blue' }) {
   const colors = { teal: 'text-ctm-teal bg-ctm-teal/10', emerald: 'text-emerald-300 bg-emerald-500/10', blue: 'text-blue-300 bg-blue-500/10' };
-  return <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-4 shadow-lg"><div className="flex items-center gap-3"><div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colors[tone])}><Icon className="h-5 w-5" /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></div></div>;
+  return <div className="rounded-2xl border border-white/10 bg-card/45 p-4 shadow-lg"><div className="flex items-center gap-3"><div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colors[tone])}><Icon className="h-5 w-5" /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></div></div>;
 }
 
 function OASListCard({ oas, onClick }: { oas: any; onClick: () => void }) {

@@ -393,7 +393,7 @@ export function FlightCycleDetail({
         {/* ====================================================
             HERO
         ===================================================== */}
-        <section className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-[0_20px_70px_-30px_rgba(15,23,42,0.55)] sm:p-8">
+        <section className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-card to-card-secondary p-6 text-white shadow-[0_20px_70px_-30px_rgba(15,23,42,0.55)] sm:p-8">
           <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
 
@@ -424,7 +424,7 @@ export function FlightCycleDetail({
                         </Badge>
                       </div>
 
-                      <p className="mt-2 text-sm font-medium text-slate-300 sm:text-base">
+                      <p className="mt-2 text-sm font-medium text-muted-foreground sm:text-base">
                         {clientName}
                       </p>
 
@@ -460,7 +460,7 @@ export function FlightCycleDetail({
                   </div>
 
                   <div className="xl:text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Conclusão
                     </p>
 
@@ -475,7 +475,7 @@ export function FlightCycleDetail({
                       {completionPercentage}%
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {completedExpenses} de {expenses.length} despesas
                     </p>
                   </div>
@@ -821,8 +821,8 @@ export function FlightCycleDetail({
 
 function HeroMeta({ icon: Icon, value }: { icon: React.ElementType; value: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
-      <Icon className="h-3.5 w-3.5 text-slate-400" />
+    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-muted-foreground">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
       <span>{value}</span>
     </div>
   );
@@ -843,16 +843,16 @@ function DarkInfo({
 }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-slate-300">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-muted-foreground">
         <Icon className="h-4 w-4" />
       </div>
 
       <div className="min-w-0">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
           {label}
         </p>
 
-        <p className="mt-0.5 truncate text-xs font-semibold text-slate-200">{value}</p>
+        <p className="mt-0.5 truncate text-xs font-semibold text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -1123,7 +1123,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Configuração do ciclo
         </p>
 
@@ -1132,7 +1132,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-2">
-          <Label className="text-slate-300">Cliente</Label>
+          <Label className="text-muted-foreground">Cliente</Label>
 
           <Select
             value={editData.client_id}
@@ -1167,7 +1167,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
 
       {partners.length > 0 && (
         <div className="space-y-2">
-          <Label className="text-slate-300">Sócio / Partner</Label>
+          <Label className="text-muted-foreground">Sócio / Partner</Label>
 
           <Select
             value={editData.partner_id}
@@ -1192,7 +1192,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label className="text-slate-300">Origem · ICAO</Label>
+          <Label className="text-muted-foreground">Origem · ICAO</Label>
 
           <Input
             value={editData.origin_icao}
@@ -1209,7 +1209,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
         </div>
 
         <div className="space-y-2">
-          <Label className="text-slate-300">Destino · ICAO</Label>
+          <Label className="text-muted-foreground">Destino · ICAO</Label>
 
           <Input
             value={editData.destination_icao}
@@ -1256,7 +1256,7 @@ function EditPanel({ editData, setEditData, clients, partners, crewMembers }: an
 function CrewSelect({ label, value, members, onChange }: any) {
   return (
     <div className="space-y-2">
-      <Label className="text-slate-300">{label}</Label>
+      <Label className="text-muted-foreground">{label}</Label>
 
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-11 rounded-xl border-white/10 bg-white/5 text-white">

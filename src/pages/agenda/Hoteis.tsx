@@ -22,9 +22,9 @@ import { HotelSolicitacaoReservas } from "@/components/agenda/HotelSolicitacaoRe
 
 
 const FIELD =
-  "bg-slate-950/60 border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 " +
+  "bg-background/60 border-border rounded-lg text-foreground placeholder:text-muted-foreground " +
   "focus-visible:border-cyan-500/60 focus-visible:ring-1 focus-visible:ring-cyan-500/30";
-const LABEL = "text-slate-300 font-medium mb-1.5 block text-xs";
+const LABEL = "text-muted-foreground font-medium mb-1.5 block text-xs";
 
 interface HotelRow {
   id: string;
@@ -202,8 +202,8 @@ export default function Hoteis() {
     <div className="space-y-6 py-2">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-100">Hotéis</h1>
-          <p className="mt-1 text-sm text-slate-400">Rede de hospedagem e contatos de reservas</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hotéis</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Rede de hospedagem e contatos de reservas</p>
         </div>
         <Button onClick={() => openDialog()} className="w-full gap-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 sm:w-auto">
           <Plus className="h-4 w-4" /> Novo Hotel
@@ -212,7 +212,7 @@ export default function Hoteis() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-md w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, cidade ou contato..."
             value={search}
@@ -231,12 +231,12 @@ export default function Hoteis() {
           </SelectContent>
         </Select>
 
-        <div className="inline-flex rounded-lg border border-slate-800 bg-slate-900/60 p-1">
+        <div className="inline-flex rounded-lg border border-border bg-card/60 p-1">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
             className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
-              viewMode === "grid" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+              viewMode === "grid" ? "bg-cyan-600 text-white" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -246,7 +246,7 @@ export default function Hoteis() {
             type="button"
             onClick={() => setViewMode("list")}
             className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
-              viewMode === "list" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+              viewMode === "list" ? "bg-cyan-600 text-white" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <List className="h-4 w-4" />
@@ -256,15 +256,15 @@ export default function Hoteis() {
       </div>
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-slate-400">Carregando hotéis...</p>
+        <p className="py-16 text-center text-sm text-muted-foreground">Carregando hotéis...</p>
       ) : filtered.length === 0 ? (
-        <Card className="border-dashed border-slate-800 bg-slate-900/40">
+        <Card className="border-dashed border-border bg-card/40">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
-              <Hotel className="h-8 w-8 text-slate-400" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-card-secondary">
+              <Hotel className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-slate-100">Nenhum hotel cadastrado</h3>
-            <p className="mb-4 text-sm text-slate-400">Cadastre os hotéis parceiros da operação</p>
+            <h3 className="mb-1 text-lg font-semibold text-foreground">Nenhum hotel cadastrado</h3>
+            <p className="mb-4 text-sm text-muted-foreground">Cadastre os hotéis parceiros da operação</p>
             <Button onClick={() => openDialog()} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" /> Cadastrar Hotel
             </Button>
@@ -276,12 +276,12 @@ export default function Hoteis() {
             const hasReservaEmail = Boolean(hotel.email_reservas || hotel.email);
 
             return (
-            <Card key={hotel.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
+            <Card key={hotel.id} className="group border-border/80 bg-card/50 transition-colors hover:border-cyan-500/40">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold text-slate-100">{hotel.nome}</h3>
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-300">
+                    <h3 className="truncate text-base font-semibold text-foreground">{hotel.nome}</h3>
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5 shrink-0 text-red-500" />
                       {[hotel.endereco, [hotel.cidade, hotel.uf].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Local não informado"}
                     </p>
@@ -311,7 +311,7 @@ export default function Hoteis() {
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+                <div className="space-y-2 border-t border-border/80 pt-3 text-xs">
                   <ContactLine label="Telefone" phone={hotel.telefone} email={hotel.email} onCopy={copyToClipboard} />
                   <ContactLine label="Reservas" phone={hotel.telefone_reservas} email={hotel.email_reservas} onCopy={copyToClipboard} />
                   <ContactLine
@@ -322,14 +322,14 @@ export default function Hoteis() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 border-t border-slate-800/80 pt-3">
-                  <div className="rounded-lg bg-slate-950/50 p-2 text-center">
-                    <p className="text-[10px] uppercase tracking-wide text-slate-500">Single</p>
-                    <p className="text-sm font-semibold text-slate-100">{brl(hotel.preco_single)}</p>
+                <div className="grid grid-cols-2 gap-2 border-t border-border/80 pt-3">
+                  <div className="rounded-lg bg-background/50 p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Single</p>
+                    <p className="text-sm font-semibold text-foreground">{brl(hotel.preco_single)}</p>
                   </div>
-                  <div className="rounded-lg bg-slate-950/50 p-2 text-center">
-                    <p className="text-[10px] uppercase tracking-wide text-slate-500">Duplo</p>
-                    <p className="text-sm font-semibold text-slate-100">{brl(hotel.preco_duplo)}</p>
+                  <div className="rounded-lg bg-background/50 p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Duplo</p>
+                    <p className="text-sm font-semibold text-foreground">{brl(hotel.preco_duplo)}</p>
                   </div>
                 </div>
 
@@ -356,11 +356,11 @@ export default function Hoteis() {
             const hasReservaEmail = Boolean(hotel.email_reservas || hotel.email);
 
             return (
-            <Card key={hotel.id} className="group border-slate-800/80 bg-slate-900/50 transition-colors hover:border-cyan-500/40">
+            <Card key={hotel.id} className="group border-border/80 bg-card/50 transition-colors hover:border-cyan-500/40">
               <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-slate-100">{hotel.nome}</h3>
+                    <h3 className="text-base font-semibold text-foreground">{hotel.nome}</h3>
                     {hotel.convenio && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                         <BadgeCheck className="h-3 w-3" /> Convênio
@@ -368,7 +368,7 @@ export default function Hoteis() {
                     )}
                   </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5 shrink-0 text-red-500" />
                       {[hotel.endereco, [hotel.cidade, hotel.uf].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Local não informado"}
@@ -383,7 +383,7 @@ export default function Hoteis() {
                     </span>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-300">
+                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     {hotel.telefone && <span>{hotel.telefone}</span>}
                     {hotel.email && <span>{hotel.email}</span>}
                   </div>
@@ -391,13 +391,13 @@ export default function Hoteis() {
 
                 <div className="flex flex-col items-stretch gap-2 md:min-w-[260px]">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-slate-950/50 p-2 text-center">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500">Single</p>
-                      <p className="text-sm font-semibold text-slate-100">{brl(hotel.preco_single)}</p>
+                    <div className="rounded-lg bg-background/50 p-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Single</p>
+                      <p className="text-sm font-semibold text-foreground">{brl(hotel.preco_single)}</p>
                     </div>
-                    <div className="rounded-lg bg-slate-950/50 p-2 text-center">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500">Duplo</p>
-                      <p className="text-sm font-semibold text-slate-100">{brl(hotel.preco_duplo)}</p>
+                    <div className="rounded-lg bg-background/50 p-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Duplo</p>
+                      <p className="text-sm font-semibold text-foreground">{brl(hotel.preco_duplo)}</p>
                     </div>
                   </div>
 
@@ -503,8 +503,8 @@ export default function Hoteis() {
               <Label className={LABEL}>Tarifa duplo (R$)</Label>
               <Input className={FIELD} type="number" step="0.01" value={form.preco_duplo} onChange={(e) => setForm({ ...form, preco_duplo: e.target.value })} />
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 sm:col-span-2">
-              <Label className="text-sm text-slate-300">Possui convênio</Label>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-3 py-2 sm:col-span-2">
+              <Label className="text-sm text-muted-foreground">Possui convênio</Label>
               <Switch checked={form.convenio} onCheckedChange={(v) => setForm({ ...form, convenio: v })} />
             </div>
             <div className="sm:col-span-2">
@@ -552,14 +552,14 @@ function ContactLine({
   return (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-        {phone && <p className="truncate text-slate-300">{phone}</p>}
-        {email && <p className="truncate text-slate-400">{email}</p>}
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        {phone && <p className="truncate text-muted-foreground">{phone}</p>}
+        {email && <p className="truncate text-muted-foreground">{email}</p>}
       </div>
       <button
         type="button"
         onClick={() => onCopy(email || phone)}
-        className="rounded p-1 text-slate-500 transition hover:text-cyan-400"
+        className="rounded p-1 text-muted-foreground transition hover:text-cyan-400"
         aria-label={`Copiar contato ${label}`}
       >
         <Copy className="h-3.5 w-3.5" />

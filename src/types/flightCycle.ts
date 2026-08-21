@@ -90,7 +90,7 @@ export interface ExpenseDeadlineConfig {
 
 // Status configurations
 export const FLIGHT_STATUS_CONFIG: Record<FlightCycleStatus, { label: string; color: string; bgColor: string }> = {
-  planejado: { label: 'Planejado', color: 'text-slate-400', bgColor: 'bg-slate-500/20' },
+  planejado: { label: 'Planejado', color: 'text-muted-foreground', bgColor: 'bg-slate-500/20' },
   confirmado: { label: 'Confirmado', color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
   em_execucao: { label: 'Em Execução', color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
   concluido: { label: 'Concluído', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
@@ -102,7 +102,7 @@ export const FLIGHT_STATUS_CONFIG: Record<FlightCycleStatus, { label: string; co
 };
 
 export const EXPENSE_STATUS_CONFIG: Record<ExpenseStatus, { label: string; icon: string; color: string; bgColor: string }> = {
-  aguardando: { label: 'Aguardando', icon: '⏳', color: 'text-slate-400', bgColor: 'bg-slate-500/20' },
+  aguardando: { label: 'Aguardando', icon: '⏳', color: 'text-muted-foreground', bgColor: 'bg-slate-500/20' },
   recebida: { label: 'Recebida', icon: '📋', color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
   enviada: { label: 'Enviada ao Cliente', icon: '✅', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
   paga: { label: 'Paga', icon: '💰', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },

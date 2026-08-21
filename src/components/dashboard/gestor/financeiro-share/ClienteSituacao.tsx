@@ -192,10 +192,10 @@ export default function ClienteSituacao({
     if (!d) return "—";
     return (
       <div className="flex flex-col">
-        <span className="font-medium text-slate-200">
+        <span className="font-medium text-foreground">
           {new Date(d + "T00:00:00").toLocaleDateString("pt-BR")}
         </span>
-        <span className="text-[9px] uppercase text-slate-500 tracking-wider">
+        <span className="text-[9px] uppercase text-muted-foreground tracking-wider">
           {tipo}
         </span>
       </div>
@@ -204,17 +204,17 @@ export default function ClienteSituacao({
 
   if (!clienteId)
     return (
-      <div className="rounded-3xl border border-dashed border-slate-700/60 bg-slate-900/30 p-12 text-center backdrop-blur-sm">
+      <div className="rounded-3xl border border-dashed border-border/60 bg-card/30 p-12 text-center backdrop-blur-sm">
         <WalletCards className="mx-auto h-12 w-12 text-cyan-500/60" />
-        <h3 className="mt-4 text-xl font-bold text-slate-200">Situação do Cliente</h3>
-        <p className="mt-2 text-sm text-slate-400">
+        <h3 className="mt-4 text-xl font-bold text-foreground">Situação do Cliente</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
           Selecione um cliente para abrir a conta corrente financeira.
         </p>
         <div className="mx-auto mt-6 max-w-md">
           <select
             value={clienteId}
             onChange={(e) => alterarCliente(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20"
           >
             <option value="">Selecione um cliente...</option>
             {clientes.filter((c) => c.id !== CLIENTE_DGA_ID).map((c) => (
@@ -230,18 +230,18 @@ export default function ClienteSituacao({
   return (
     <div className="space-y-6">
       {/* HEADER & FILTROS GLOBAIS */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-2xl bg-slate-900/40 p-5 border border-white/5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-2xl bg-card/40 p-5 border border-white/5">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-500/80 mb-1">
             Cliente selecionado
           </div>
-          <div className="text-2xl font-bold text-slate-100">{cliente?.nome}</div>
+          <div className="text-2xl font-bold text-foreground">{cliente?.nome}</div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={clienteId}
             onChange={(e) => alterarCliente(e.target.value)}
-            className="rounded-xl border border-slate-700/80 bg-slate-950 px-4 py-2.5 text-sm text-slate-200 shadow-sm outline-none focus:border-cyan-500"
+            className="rounded-xl border border-border/80 bg-background px-4 py-2.5 text-sm text-foreground shadow-sm outline-none focus:border-cyan-500"
           >
             <option value="">Trocar cliente</option>
             {clientes.filter((c) => c.id !== CLIENTE_DGA_ID).map((c) => (
@@ -251,7 +251,7 @@ export default function ClienteSituacao({
           <select
             value={mes}
             onChange={(e) => setMes(e.target.value)}
-            className="rounded-xl border border-slate-700/80 bg-slate-950 px-4 py-2.5 text-sm text-slate-200 shadow-sm outline-none focus:border-cyan-500"
+            className="rounded-xl border border-border/80 bg-background px-4 py-2.5 text-sm text-foreground shadow-sm outline-none focus:border-cyan-500"
           >
             <option value="">Todos os meses</option>
             {meses.map((m) => (
@@ -263,7 +263,7 @@ export default function ClienteSituacao({
 
       {/* KPIS */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <Kpi label="Despesas" value={resumo.despesas} tone="text-slate-100" />
+        <Kpi label="Despesas" value={resumo.despesas} tone="text-foreground" />
         <Kpi label="Share antecipou" value={resumo.sharePagou} tone="text-amber-400" />
         <Kpi label="Cliente pagou direto" value={resumo.clientePagouDireto} tone="text-blue-400" />
         <Kpi label="Cliente pagou Share" value={resumo.recebidoShare} tone="text-emerald-400" />
@@ -271,29 +271,29 @@ export default function ClienteSituacao({
       </div>
 
       {/* EVOLUÇÃO MENSAL (RECOLHÍVEL) */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="rounded-2xl border border-border bg-card/60 overflow-hidden shadow-lg backdrop-blur-sm">
         <div 
-          className="flex cursor-pointer items-center justify-between border-b border-slate-800 p-4 hover:bg-slate-800/30 transition"
+          className="flex cursor-pointer items-center justify-between border-b border-border p-4 hover:bg-card-secondary/30 transition"
           onClick={() => setShowEvolucao(!showEvolucao)}
         >
           <div>
-            <div className="font-bold text-slate-200 flex items-center gap-2">
+            <div className="font-bold text-foreground flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-cyan-500" /> Evolução mensal
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-muted-foreground mt-0.5">
               A dívida acumulada considera apenas despesas do cliente pagas antecipadamente pela Share.
             </div>
           </div>
-          <button className="text-slate-400 hover:text-white">
+          <button className="text-muted-foreground hover:text-white">
             {showEvolucao ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
           </button>
         </div>
         
         {showEvolucao && (
-          <div className="overflow-x-auto bg-slate-950/30">
+          <div className="overflow-x-auto bg-background/30">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
                   <th className="text-left px-5 py-3.5">Mês</th>
                   <th className="text-right px-5 py-3.5">Despesas</th>
                   <th className="text-right px-5 py-3.5">Share pagou</th>
@@ -304,9 +304,9 @@ export default function ClienteSituacao({
               </thead>
               <tbody>
                 {mensal.map((r) => (
-                  <tr key={r.periodo} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition">
-                    <td className="px-5 py-3 font-semibold text-slate-300">{r.periodo}</td>
-                    <td className="px-5 py-3 text-right text-slate-300">{formatBRL(r.despesas)}</td>
+                  <tr key={r.periodo} className="border-b border-border/50 hover:bg-card-secondary/20 transition">
+                    <td className="px-5 py-3 font-semibold text-muted-foreground">{r.periodo}</td>
+                    <td className="px-5 py-3 text-right text-muted-foreground">{formatBRL(r.despesas)}</td>
                     <td className="px-5 py-3 text-right text-amber-400/90">{formatBRL(r.sharePagou)}</td>
                     <td className="px-5 py-3 text-right text-blue-400/90">{formatBRL(r.clientePagouDireto)}</td>
                     <td className="px-5 py-3 text-right text-emerald-400/90">{formatBRL(r.recebidoShare)}</td>
@@ -315,7 +315,7 @@ export default function ClienteSituacao({
                 ))}
                 {mensal.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-xs text-slate-500">Nenhum dado mensal encontrado.</td>
+                    <td colSpan={6} className="py-6 text-center text-xs text-muted-foreground">Nenhum dado mensal encontrado.</td>
                   </tr>
                 )}
               </tbody>
@@ -325,32 +325,32 @@ export default function ClienteSituacao({
       </div>
 
       {/* EXTRATO E FERRAMENTAS */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="rounded-2xl border border-border bg-card/60 overflow-hidden shadow-lg backdrop-blur-sm">
         
         {/* Barra de Ferramentas */}
-        <div className="flex flex-col gap-4 border-b border-slate-800 p-5 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border p-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-lg font-bold text-slate-100">Extrato do cliente</div>
-            <div className="text-[11px] text-slate-500 mt-1">Gerencie, filtre e some lançamentos específicos</div>
+            <div className="text-lg font-bold text-foreground">Extrato do cliente</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Gerencie, filtre e some lançamentos específicos</div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar despesa..."
-                className="w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-4 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500"
+                className="w-full min-w-[200px] rounded-xl border border-border bg-background pl-9 pr-4 py-2.5 text-sm text-foreground outline-none focus:border-cyan-500"
               />
             </div>
             
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={categoriaFiltro}
                 onChange={(e) => setCategoriaFiltro(e.target.value)}
-                className="rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-4 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 appearance-none"
+                className="rounded-xl border border-border bg-background pl-9 pr-4 py-2.5 text-sm text-foreground outline-none focus:border-cyan-500 appearance-none"
               >
                 <option value="">Todas as categorias</option>
                 {categorias.map((c: any) => (
@@ -359,19 +359,19 @@ export default function ClienteSituacao({
               </select>
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5">
-              <span className="text-[10px] uppercase font-bold text-slate-500">Ordenar por:</span>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">Ordenar por:</span>
               <select 
                 value={sortField} 
                 onChange={e => setSortField(e.target.value as any)} 
-                className="bg-transparent text-sm text-slate-200 outline-none"
+                className="bg-transparent text-sm text-foreground outline-none"
               >
                 <option value="data">Data</option>
                 <option value="valor">Valor</option>
               </select>
               <button 
                 onClick={() => setSortOrder(s => s === "asc" ? "desc" : "asc")}
-                className="p-1 text-slate-400 hover:text-cyan-400 transition bg-slate-800 rounded-md"
+                className="p-1 text-muted-foreground hover:text-cyan-400 transition bg-card-secondary rounded-md"
                 title="Inverter ordem"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" />
@@ -396,11 +396,11 @@ export default function ClienteSituacao({
           </div>
         )}
 
-        <div className="overflow-x-auto bg-slate-950/30">
+        <div className="overflow-x-auto bg-background/30">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/60 text-[10px] uppercase tracking-wider text-slate-400">
-                <th className="w-10 px-4 py-4"><input type="checkbox" checked={selecionados.length === lista.length && lista.length > 0} onChange={handleSelectAll} className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500" aria-label="Selecionar todos" /></th>
+              <tr className="border-b border-border bg-background/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <th className="w-10 px-4 py-4"><input type="checkbox" checked={selecionados.length === lista.length && lista.length > 0} onChange={handleSelectAll} className="h-4 w-4 rounded border-border bg-card accent-cyan-500" aria-label="Selecionar todos" /></th>
                 <th className="w-8 px-1 py-4"></th>
                 <SortableHeader label="Data" active={sortField === "data"} order={sortOrder} onClick={() => ordenarPor("data")} />
                 <SortableHeader label="Descrição" active={sortField === "descricao"} order={sortOrder} onClick={() => ordenarPor("descricao")} />
@@ -422,8 +422,8 @@ export default function ClienteSituacao({
                   <Fragment key={m.id}>
                     <tr
                       onClick={() => alternarExpandido(m.id)}
-                      className={`cursor-pointer border-b border-slate-800/50 transition ${
-                        isSelected ? "bg-cyan-500/10" : expandido ? "bg-slate-800/35" : "hover:bg-slate-800/20"
+                      className={`cursor-pointer border-b border-border/50 transition ${
+                        isSelected ? "bg-cyan-500/10" : expandido ? "bg-card-secondary/35" : "hover:bg-card-secondary/20"
                       }`}
                     >
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
@@ -431,19 +431,19 @@ export default function ClienteSituacao({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleSelect(m.id)}
-                          className="h-4 w-4 rounded border-slate-700 bg-slate-900 accent-cyan-500"
+                          className="h-4 w-4 rounded border-border bg-card accent-cyan-500"
                         />
                       </td>
-                      <td className="px-1 py-3.5 text-slate-500">
+                      <td className="px-1 py-3.5 text-muted-foreground">
                         {expandido ? <ChevronDown className="h-4 w-4 text-cyan-400" /> : <ChevronRight className="h-4 w-4" />}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">{renderData(m)}</td>
                       <td className="px-4 py-3.5">
-                        <div className="font-semibold text-slate-200">{m.descricao || "—"}</div>
-                        <div className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-500">{m.categoria_nome || "Sem Categoria"}</div>
+                        <div className="font-semibold text-foreground">{m.descricao || "—"}</div>
+                        <div className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{m.categoria_nome || "Sem Categoria"}</div>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-300">{m.fornecedor_nome || "—"}</td>
-                      <td className="px-4 py-3.5 text-right font-bold tabular-nums text-slate-100">{formatBRL(valueOf(m))}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{m.fornecedor_nome || "—"}</td>
+                      <td className="px-4 py-3.5 text-right font-bold tabular-nums text-foreground">{formatBRL(valueOf(m))}</td>
                       <td className="px-4 py-3.5 text-center">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${paidByShareForClient(m) ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>
                           {clienteDividaLabel(m)}
@@ -459,20 +459,20 @@ export default function ClienteSituacao({
                           <button onClick={() => setAttachment(anexos[0])} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-cyan-300 hover:bg-cyan-500/10" title="Abrir anexo no modal">
                             <Paperclip className="h-3.5 w-3.5" /><span className="text-[10px] font-semibold">{anexos.length}</span>
                           </button>
-                        ) : <span className="text-slate-600">—</span>}
+                        ) : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => setEditMov(m)} className="mr-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-cyan-500/10 hover:text-cyan-400" title="Editar lançamento"><Edit2 className="h-4 w-4" /></button>
-                        <button onClick={() => handleDelete(m.id)} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-400" title="Excluir lançamento"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => setEditMov(m)} className="mr-1 rounded-lg p-1.5 text-muted-foreground transition hover:bg-cyan-500/10 hover:text-cyan-400" title="Editar lançamento"><Edit2 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDelete(m.id)} className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-400" title="Excluir lançamento"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                     {expandido && (
-                      <tr className="border-b border-slate-800/50 bg-slate-950/45">
+                      <tr className="border-b border-border/50 bg-background/45">
                         <td colSpan={10} className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
                           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <div>
                               <div className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-400">Detalhamento da despesa</div>
-                              <div className="mt-1 text-xs text-slate-400">Todas as informações registradas para este lançamento.</div>
+                              <div className="mt-1 text-xs text-muted-foreground">Todas as informações registradas para este lançamento.</div>
                             </div>
                             {anexos.length > 0 && <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-semibold text-cyan-300"><Paperclip className="h-3 w-3" /> {anexos.length} anexo(s)</span>}
                           </div>
@@ -494,12 +494,12 @@ export default function ClienteSituacao({
                             <DetailItem label="Observações" value={m.observacoes || m.observacao || "—"} />
                           </div>
                           {rateioItens.length > 0 && (
-                            <div className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/45">
-                              <div className="border-b border-slate-800 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-cyan-300">Composição do rateio</div>
-                              <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-500"><th className="px-4 py-2.5">Cotista / referência</th><th className="px-4 py-2.5">Tipo</th><th className="px-4 py-2.5 text-right">Percentual</th><th className="px-4 py-2.5 text-right">Valor</th><th className="px-4 py-2.5">Status</th></tr></thead><tbody>{rateioItens.map((rateio: any, index: number) => <tr key={rateio.id || index} className="border-b border-slate-800/50 last:border-0"><td className="px-4 py-2.5 text-slate-200">{rateio.socio_nome || rateio.socios_nome || rateio.nome_socio || rateio.socio_id || "Rateio"}</td><td className="px-4 py-2.5 text-slate-400">{rateio.tipo_rateio || rateio.periodicidade || "—"}</td><td className="px-4 py-2.5 text-right text-slate-300">{rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual != null ? `${rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual}%` : "—"}</td><td className="px-4 py-2.5 text-right font-semibold text-slate-100">{rateio.valor_rateado != null ? formatBRL(Number(rateio.valor_rateado)) : rateio.valor != null ? formatBRL(Number(rateio.valor)) : "—"}</td><td className="px-4 py-2.5 text-slate-400">{rateio.status || "—"}</td></tr>)}</tbody></table></div>
+                            <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card/45">
+                              <div className="border-b border-border px-4 py-3 text-[10px] font-black uppercase tracking-wider text-cyan-300">Composição do rateio</div>
+                              <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2.5">Cotista / referência</th><th className="px-4 py-2.5">Tipo</th><th className="px-4 py-2.5 text-right">Percentual</th><th className="px-4 py-2.5 text-right">Valor</th><th className="px-4 py-2.5">Status</th></tr></thead><tbody>{rateioItens.map((rateio: any, index: number) => <tr key={rateio.id || index} className="border-b border-border/50 last:border-0"><td className="px-4 py-2.5 text-foreground">{rateio.socio_nome || rateio.socios_nome || rateio.nome_socio || rateio.socio_id || "Rateio"}</td><td className="px-4 py-2.5 text-muted-foreground">{rateio.tipo_rateio || rateio.periodicidade || "—"}</td><td className="px-4 py-2.5 text-right text-muted-foreground">{rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual != null ? `${rateio.percentual_sociedade ?? rateio.percentual_uso ?? rateio.percentual}%` : "—"}</td><td className="px-4 py-2.5 text-right font-semibold text-foreground">{rateio.valor_rateado != null ? formatBRL(Number(rateio.valor_rateado)) : rateio.valor != null ? formatBRL(Number(rateio.valor)) : "—"}</td><td className="px-4 py-2.5 text-muted-foreground">{rateio.status || "—"}</td></tr>)}</tbody></table></div>
                             </div>
                           )}
-                          {anexos.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{anexos.map((anexo) => <button key={anexo.url} onClick={() => setAttachment(anexo)} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 transition hover:border-cyan-500/50 hover:bg-cyan-500/10"><Eye className="h-3.5 w-3.5 text-cyan-300" />{anexo.title}</button>)}</div>}
+                          {anexos.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{anexos.map((anexo) => <button key={anexo.url} onClick={() => setAttachment(anexo)} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground transition hover:border-cyan-500/50 hover:bg-cyan-500/10"><Eye className="h-3.5 w-3.5 text-cyan-300" />{anexo.title}</button>)}</div>}
                         </td>
                       </tr>
                     )}
@@ -510,7 +510,7 @@ export default function ClienteSituacao({
           </table>
         </div>
         {lista.length === 0 && (
-          <div className="p-12 text-center text-sm text-slate-500 bg-slate-950/30">
+          <div className="p-12 text-center text-sm text-muted-foreground bg-background/30">
             <Calculator className="mx-auto h-8 w-8 opacity-20 mb-3" />
             Nenhum lançamento encontrado para os filtros selecionados.
           </div>
@@ -539,7 +539,7 @@ function SortableHeader({ label, active, order, onClick, align = "left" }: { lab
     <th className={`px-4 py-4 ${align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"}`}>
       <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 font-black transition hover:text-cyan-300">
         {label}
-        <ArrowUpDown className={`h-3.5 w-3.5 ${active ? "text-cyan-400" : "text-slate-600"}`} />
+        <ArrowUpDown className={`h-3.5 w-3.5 ${active ? "text-cyan-400" : "text-muted-foreground"}`} />
         {active && <span className="sr-only">Ordenação {order === "asc" ? "crescente" : "decrescente"}</span>}
       </button>
     </th>
@@ -548,17 +548,17 @@ function SortableHeader({ label, active, order, onClick, align = "left" }: { lab
 
 function DetailItem({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="min-h-[58px] rounded-xl border border-slate-800 bg-slate-900/55 px-3 py-2.5">
-      <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`mt-1 break-words text-xs ${strong ? "font-black text-cyan-300" : "font-medium text-slate-200"}`}>{value}</div>
+    <div className="min-h-[58px] rounded-xl border border-border bg-card/55 px-3 py-2.5">
+      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`mt-1 break-words text-xs ${strong ? "font-black text-cyan-300" : "font-medium text-foreground"}`}>{value}</div>
     </div>
   );
 }
 
 function Kpi({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-sm backdrop-blur-sm">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+    <div className="rounded-2xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur-sm">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div className={`mt-1.5 text-xl font-black ${tone}`}>

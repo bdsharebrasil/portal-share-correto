@@ -22,8 +22,8 @@ interface Props {
 }
 
 const inputCls =
-  "w-full rounded-lg bg-slate-950/60 border border-slate-700/70 px-3 py-2 text-[13px] text-slate-100 outline-none transition focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-500/60 placeholder:text-slate-600";
-const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5";
+  "w-full rounded-lg bg-background/60 border border-border/70 px-3 py-2 text-[13px] text-foreground outline-none transition focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-500/60 placeholder:text-muted-foreground";
+const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5";
 
 const FORMAS_PGTO = [
   { id: "PIX", label: "Pix" }, { id: "TED", label: "TED" },
@@ -47,10 +47,10 @@ const numOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
 
 function Section({ icon, title, accent, children }: any) {
   return (
-    <section className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-slate-900/50 to-slate-900/20 p-4 md:p-5">
+    <section className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-card/50 to-card/20 p-4 md:p-5">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `${accent}1A`, color: accent }}>{icon}</div>
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">{title}</h3>
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-foreground">{title}</h3>
         <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
       </div>
       {children}
@@ -194,16 +194,16 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto p-3 sm:p-6 backdrop-blur-sm" style={{ background: "rgba(2,6,23,0.85)" }} onClick={onClose}>
-      <div className="relative m-auto flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-emerald-950/40" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 px-6 py-4">
+      <div className="relative m-auto flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-background shadow-2xl shadow-emerald-950/40" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-card via-card to-emerald-950/40 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-300"><Wallet className="h-4 w-4" /></div>
             <div>
-              <div className="text-sm font-bold text-slate-100">Editar Lançamento — Caixa Share</div>
-              <div className="text-[10.5px] text-slate-500">Movimentação da Share Brasil</div>
+              <div className="text-sm font-bold text-foreground">Editar Lançamento — Caixa Share</div>
+              <div className="text-[10.5px] text-muted-foreground">Movimentação da Share Brasil</div>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-500/15 hover:text-red-300"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/15 hover:text-red-300"><X className="h-4 w-4" /></button>
         </div>
 
         <div className="flex-1 space-y-4 overflow-auto p-5 md:p-6">
@@ -251,18 +251,18 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
 
           <Section icon={<RefreshCcw className="h-4 w-4" />} title="Reembolso" accent="#fbbf24">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-2.5 rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2.5 cursor-pointer hover:bg-slate-900/50">
+              <label className="flex items-center gap-2.5 rounded-lg border border-border bg-background/50 px-3 py-2.5 cursor-pointer hover:bg-card/50">
                 <input type="checkbox" className="h-4 w-4 accent-amber-500" checked={!!mov.reembolsavel} onChange={(e) => setM("reembolsavel", e.target.checked)} />
                 <div>
-                  <div className="text-xs font-semibold text-slate-100">Despesa reembolsável</div>
-                  <div className="text-[10.5px] text-slate-500">A Share pagou e vai receber do cliente</div>
+                  <div className="text-xs font-semibold text-foreground">Despesa reembolsável</div>
+                  <div className="text-[10.5px] text-muted-foreground">A Share pagou e vai receber do cliente</div>
                 </div>
               </label>
-              <label className="flex items-center gap-2.5 rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2.5 cursor-pointer hover:bg-slate-900/50">
+              <label className="flex items-center gap-2.5 rounded-lg border border-border bg-background/50 px-3 py-2.5 cursor-pointer hover:bg-card/50">
                 <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={!!mov.reembolso_quitado} onChange={(e) => setM("reembolso_quitado", e.target.checked)} />
                 <div>
-                  <div className="text-xs font-semibold text-slate-100">Reembolso quitado</div>
-                  <div className="text-[10.5px] text-slate-500">Cliente já pagou a Share</div>
+                  <div className="text-xs font-semibold text-foreground">Reembolso quitado</div>
+                  <div className="text-[10.5px] text-muted-foreground">Cliente já pagou a Share</div>
                 </div>
               </label>
             </div>
@@ -300,8 +300,8 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
           </Section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-800 bg-slate-900/60 px-6 py-3.5">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">Cancelar</button>
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-card/60 px-6 py-3.5">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-card-secondary">Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-2 text-xs font-bold text-white shadow-lg hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-50">
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Salvar
           </button>

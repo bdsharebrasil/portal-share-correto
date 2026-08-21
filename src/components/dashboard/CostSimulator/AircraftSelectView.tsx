@@ -27,35 +27,35 @@ export function AircraftSelectView({ onBack }: Props) {
   }, [data, query]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className="bg-slate-900/80 backdrop-blur-lg border-b border-slate-700/50 sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
+      <div className="bg-card/80 backdrop-blur-lg border-b border-border/50 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="text-slate-300 hover:text-white">
+          <Button variant="ghost" size="icon" onClick={onBack} className="text-muted-foreground hover:text-white">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h2 className="text-lg font-bold text-white">Selecionar Aeronave</h2>
-            <p className="text-xs text-slate-400">Digite ou escolha um modelo</p>
+            <p className="text-xs text-muted-foreground">Digite ou escolha um modelo</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por modelo ou matrícula..."
-            className="pl-10 bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500"
+            className="pl-10 bg-card-secondary/50 border-border text-white placeholder:text-muted-foreground"
           />
         </div>
 
         {isLoading ? (
-          <p className="text-slate-400 text-sm text-center py-8">Carregando aeronaves...</p>
+          <p className="text-muted-foreground text-sm text-center py-8">Carregando aeronaves...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-slate-400 text-sm text-center py-8">Nenhuma aeronave encontrada.</p>
+          <p className="text-muted-foreground text-sm text-center py-8">Nenhuma aeronave encontrada.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {filtered.map((a) => {
@@ -71,13 +71,13 @@ export function AircraftSelectView({ onBack }: Props) {
                     set("maintenanceHourlyBRL", defaults.maintenanceHourlyBRL);
                     onBack();
                   }}
-                  className="text-left rounded-xl border border-slate-700/60 bg-slate-800/40 hover:bg-slate-700/50 hover:border-amber-500/50 transition-all overflow-hidden group"
+                  className="text-left rounded-xl border border-border/60 bg-card-secondary/40 hover:bg-secondary/50 hover:border-amber-500/50 transition-all overflow-hidden group"
                 >
-                  <div className="h-28 bg-slate-900/60 flex items-center justify-center overflow-hidden">
+                  <div className="h-28 bg-card/60 flex items-center justify-center overflow-hidden">
                     {a.image ? (
                       <img src={a.image} alt={a.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
                     ) : (
-                      <Plane className="h-10 w-10 text-slate-600" />
+                      <Plane className="h-10 w-10 text-muted-foreground" />
                     )}
                   </div>
                   <div className="p-3 space-y-1">
@@ -87,8 +87,8 @@ export function AircraftSelectView({ onBack }: Props) {
                         {cat}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-400 font-mono">{a.matricula}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground font-mono">{a.matricula}</p>
+                    <p className="text-xs text-muted-foreground">
                       {a.cruiseKts} kts · {a.fuelBurnLph} L/h
                     </p>
                   </div>

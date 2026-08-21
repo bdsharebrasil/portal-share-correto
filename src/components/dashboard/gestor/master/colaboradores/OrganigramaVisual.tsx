@@ -118,7 +118,7 @@ export function OrganigramaVisual() {
               key={membro.id}
               className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 mt-2"
             >
-              <div className="h-8 w-8 rounded-full bg-slate-800 text-xs font-bold text-white flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full bg-card-secondary text-xs font-bold text-white flex items-center justify-center">
                 {membro.colaborador ? membro.colaborador.full_name.slice(0, 2).toUpperCase() : "?"}
               </div>
               <div className="min-w-0">
@@ -126,7 +126,7 @@ export function OrganigramaVisual() {
                   {membro.colaborador?.full_name || "Colaborador"}
                 </p>
                 {membro.cargo && (
-                  <p className="text-[11px] text-slate-300 truncate">{membro.cargo}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{membro.cargo}</p>
                 )}
               </div>
             </div>

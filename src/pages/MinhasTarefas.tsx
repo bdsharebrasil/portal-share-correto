@@ -51,7 +51,7 @@ export default function MinhasTarefas() {
 
   return (
     <Layout>
-      <div className="w-full max-w-full space-y-6 pb-8 text-slate-200">
+      <div className="w-full max-w-full space-y-6 pb-8 text-foreground">
         
         {/* Cabeçalho Principal Estilo Imagem */}
         <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6 pb-2">
@@ -59,7 +59,7 @@ export default function MinhasTarefas() {
           {/* Esquerda: Título e Badges */}
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
             <div className="flex flex-col px-[28px]">
-              <span className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
                 {layout}
               </span>
               <h1 className="text-2xl font-semibold text-white tracking-tight">Painel de Tarefas</h1>
@@ -72,14 +72,14 @@ export default function MinhasTarefas() {
             
             {/* Seletor de Visualização de Pessoas (Seu Menu Original) */}
             {isManager && (
-              <div className="inline-flex rounded-full border border-slate-700/50 bg-slate-900/50 p-1">
+              <div className="inline-flex rounded-full border border-border/50 bg-card/50 p-1">
                 <button
                   onClick={() => setView("minhas")}
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                     view === "minhas"
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-secondary text-white shadow-sm"
+                      : "text-muted-foreground hover:text-white"
                   )}
                 >
                   <User className="h-3.5 w-3.5" />
@@ -90,8 +90,8 @@ export default function MinhasTarefas() {
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                     view === "equipe"
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-secondary text-white shadow-sm"
+                      : "text-muted-foreground hover:text-white"
                   )}
                 >
                   <Users className="h-3.5 w-3.5" />
@@ -101,14 +101,14 @@ export default function MinhasTarefas() {
             )}
 
             {/* Seletor de Layout (Seu Menu Original) */}
-            <div className="inline-flex rounded-full border border-slate-700/50 bg-slate-900/50 p-1">
+            <div className="inline-flex rounded-full border border-border/50 bg-card/50 p-1">
               <button
                 onClick={() => setLayout("kanban")}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "kanban"
-                    ? "bg-slate-700 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-secondary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-white"
                 )}
                 title="Visualização Kanban"
               >
@@ -120,8 +120,8 @@ export default function MinhasTarefas() {
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "lista"
-                    ? "bg-slate-700 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-secondary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-white"
                 )}
                 title="Visualização em Lista"
               >
@@ -133,8 +133,8 @@ export default function MinhasTarefas() {
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   layout === "calendario"
-                    ? "bg-slate-700 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-secondary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-white"
                 )}
                 title="Visualização em Calendário"
               >

@@ -21,7 +21,7 @@ export function ClientDataDisplay({
   }
 
   return (
-    <Card className="bg-slate-900 border-slate-700">
+    <Card className="bg-card border-border">
       <CardContent className="p-6 space-y-6">
         {/* Nome da Empresa e CNPJ/CPF */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -29,7 +29,7 @@ export function ClientDataDisplay({
             <label className="text-sm font-medium text-white mb-3 block">
               Nome da Empresa <span className="text-red-500">*</span>
             </label>
-            <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+            <div className="bg-card-secondary border border-border rounded px-3 py-2 text-white">
               {nome}
             </div>
           </div>
@@ -38,7 +38,7 @@ export function ClientDataDisplay({
               <label className="text-sm font-medium text-white mb-3 block">
                 CNPJ/CPF
               </label>
-              <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+              <div className="bg-card-secondary border border-border rounded px-3 py-2 text-white">
                 {documento}
               </div>
             </div>
@@ -51,7 +51,7 @@ export function ClientDataDisplay({
             <label className="text-sm font-medium text-white mb-3 block">
               Endereço
             </label>
-            <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+            <div className="bg-card-secondary border border-border rounded px-3 py-2 text-white">
               {endereco}
             </div>
           </div>
@@ -65,7 +65,7 @@ export function ClientDataDisplay({
                 <label className="text-sm font-medium text-white mb-3 block">
                   Cidade
                 </label>
-                <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+                <div className="bg-card-secondary border border-border rounded px-3 py-2 text-white">
                   {cidade}
                 </div>
               </div>
@@ -75,7 +75,7 @@ export function ClientDataDisplay({
                 <label className="text-sm font-medium text-white mb-3 block">
                   UF
                 </label>
-                <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white">
+                <div className="bg-card-secondary border border-border rounded px-3 py-2 text-white">
                   {uf}
                 </div>
               </div>

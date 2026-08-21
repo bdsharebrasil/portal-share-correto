@@ -102,8 +102,8 @@ export default function PrestadoresPJTab() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-slate-100">Prestadores PJ</h2>
-        <p className="text-xs text-slate-400">Cadastro de prestadores de serviço e notas fiscais.</p>
+        <h2 className="text-lg font-bold text-foreground">Prestadores PJ</h2>
+        <p className="text-xs text-muted-foreground">Cadastro de prestadores de serviço e notas fiscais.</p>
       </div>
       {/* sub-tabs */}
       <div className="flex gap-2">
@@ -112,7 +112,7 @@ export default function PrestadoresPJTab() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 ${
             sub === "prestadores"
               ? "text-slate-950"
-              : "border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800"
+              : "border border-border bg-card/70 text-foreground hover:bg-card-secondary"
           }`}
           style={sub === "prestadores" ? { background: "#06b6d4" } : undefined}
         >
@@ -123,7 +123,7 @@ export default function PrestadoresPJTab() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 ${
             sub === "notas"
               ? "text-slate-950"
-              : "border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800"
+              : "border border-border bg-card/70 text-foreground hover:bg-card-secondary"
           }`}
           style={sub === "notas" ? { background: "#06b6d4" } : undefined}
         >
@@ -230,13 +230,13 @@ function PrestadoresPanel() {
     } finally { setDeleting(false); }
   };
 
-  const inputCls = "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+  const inputCls = "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <button onClick={fetchP} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
+        <button onClick={fetchP} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
@@ -254,9 +254,9 @@ function PrestadoresPanel() {
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : prestadores.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400"
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           Nenhum prestador cadastrado.
         </div>
@@ -267,8 +267,8 @@ function PrestadoresPanel() {
               style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-100 truncate">{p.nome || "—"}</div>
-                  <div className="text-xs text-slate-400 truncate">{p.cpf_cnpj || "Sem documento"}</div>
+                  <div className="text-sm font-bold text-foreground truncate">{p.nome || "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{p.cpf_cnpj || "Sem documento"}</div>
                 </div>
                 {p.ativo === false && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
@@ -277,19 +277,19 @@ function PrestadoresPanel() {
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-300 space-y-0.5">
+              <div className="text-xs text-muted-foreground space-y-0.5">
                 {p.email && <div>{p.email}</div>}
                 {p.telefone && <div>{p.telefone}</div>}
                 {p.cidade && <div>{p.cidade}{p.uf ? ` - ${p.uf}` : ""}</div>}
               </div>
               {p.banco && (
-                <div className="text-[11px] text-slate-400 border-t border-slate-800 pt-1.5">
-                  Banco: <span className="text-slate-200">{p.banco}</span>
+                <div className="text-[11px] text-muted-foreground border-t border-border pt-1.5">
+                  Banco: <span className="text-foreground">{p.banco}</span>
                   {p.conta && <span> · Conta: {p.conta}</span>}
                 </div>
               )}
-              <div className="flex justify-end gap-2 pt-1 border-t border-slate-800">
-                <button onClick={() => openEdit(p)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1">
+              <div className="flex justify-end gap-2 pt-1 border-t border-border">
+                <button onClick={() => openEdit(p)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1">
                   <Pencil className="h-3.5 w-3.5" /> Editar
                 </button>
                 <button onClick={() => setDeleteId(p.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1">
@@ -304,10 +304,10 @@ function PrestadoresPanel() {
       {/* modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-100">{editingId ? "Editar Prestador" : "Novo Prestador"}</h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200"><X className="h-4 w-4" /></button>
+              <h3 className="text-base font-bold text-foreground">{editingId ? "Editar Prestador" : "Novo Prestador"}</h3>
+              <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2"><label className={labelCls}>Nome *</label>
@@ -342,11 +342,11 @@ function PrestadoresPanel() {
                 <textarea className={inputCls} rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
               <div className="md:col-span-2 flex items-center gap-2">
                 <input id="ativo" type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} className="h-4 w-4 accent-cyan-400" />
-                <label htmlFor="ativo" className="text-sm text-slate-200">Ativo</label>
+                <label htmlFor="ativo" className="text-sm text-foreground">Ativo</label>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={() => setShowModal(false)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: "#06b6d4" }}>
                 {saving ? "Salvando..." : "Salvar"}
               </button>
@@ -358,14 +358,14 @@ function PrestadoresPanel() {
       {/* delete modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center"><Trash2 className="h-5 w-5 text-red-400" /></div>
-              <h3 className="text-base font-bold text-slate-100">Excluir prestador</h3>
+              <h3 className="text-base font-bold text-foreground">Excluir prestador</h3>
             </div>
-            <p className="text-sm text-slate-300">Tem certeza que deseja excluir este prestador? Esta ação não pode ser desfeita.</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este prestador? Esta ação não pode ser desfeita.</p>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setDeleteId(null)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={() => setDeleteId(null)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={confirmDelete} disabled={deleting} className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleting ? "Excluindo..." : "Excluir"}
               </button>
@@ -606,8 +606,8 @@ function NotasPanel() {
     } finally { setDeleting(false); }
   };
 
-  const inputCls = "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
+  const inputCls = "border border-border bg-background/70 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1";
   const anos = Array.from({ length: 6 }, (_, i) => now.getFullYear() - 2 + i);
 
   return (
@@ -624,7 +624,7 @@ function NotasPanel() {
           return (
             <div key={c.label} className="rounded-2xl p-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{c.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</span>
                 <Icon className="h-4 w-4" style={{ color: c.color }} />
               </div>
               <div className="text-lg font-bold mt-1" style={{ color: c.color }}>{c.value}</div>
@@ -658,7 +658,7 @@ function NotasPanel() {
           </select></div>
         <div className="flex-1 min-w-[180px]"><label className={labelCls}>Buscar</label>
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input className={inputCls + " pl-8"} placeholder="Número, descrição..." onChange={() => {}} />
           </div></div>
         <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
@@ -677,9 +677,9 @@ function NotasPanel() {
 
       {/* table */}
       {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400"
+        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground"
           style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           Nenhuma nota fiscal encontrada.
         </div>
@@ -687,7 +687,7 @@ function NotasPanel() {
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-3 py-2">Número</th>
                 <th className="px-3 py-2">Prestador</th>
                 <th className="px-3 py-2">Descrição</th>
@@ -700,15 +700,15 @@ function NotasPanel() {
             </thead>
             <tbody>
               {filtered.map((n) => (
-                <tr key={n.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2 text-slate-200">{n.numero_nota || "—"}</td>
-                  <td className="px-3 py-2 text-slate-200">{prestadorNome(n.prestador_id)}</td>
-                  <td className="px-3 py-2 text-slate-300 max-w-[200px] truncate">{n.descricao || "—"}</td>
-                  <td className="px-3 py-2 text-slate-400">
+                <tr key={n.id} className="border-b border-border hover:bg-card-secondary/30">
+                  <td className="px-3 py-2 text-foreground">{n.numero_nota || "—"}</td>
+                  <td className="px-3 py-2 text-foreground">{prestadorNome(n.prestador_id)}</td>
+                  <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">{n.descricao || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
                     {n.mes_referencia ? `${String(n.mes_referencia).padStart(2, "0")}/${n.ano_referencia ?? ""}` : "—"}
                   </td>
                   <td className="px-3 py-2 text-right font-semibold text-cyan-300">{formatBRL(num(n.valor))}</td>
-                  <td className="px-3 py-2 text-slate-300">{n.data_vencimento || "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{n.data_vencimento || "—"}</td>
                   <td className="px-3 py-2"><StatusBadgeNF status={n.status} /></td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
@@ -718,7 +718,7 @@ function NotasPanel() {
                           {payingId === n.id ? "..." : "Pagar"}
                         </button>
                       )}
-                      <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                      <button onClick={() => openEdit(n)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
@@ -736,10 +736,10 @@ function NotasPanel() {
       {/* modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-100">{editingId ? "Editar Nota Fiscal" : "Nova Nota Fiscal"}</h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200"><X className="h-4 w-4" /></button>
+              <h3 className="text-base font-bold text-foreground">{editingId ? "Editar Nota Fiscal" : "Nova Nota Fiscal"}</h3>
+              <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2"><label className={labelCls}>Prestador *</label>
@@ -784,7 +784,7 @@ function NotasPanel() {
                 <textarea className={inputCls} rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={() => setShowModal(false)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: "#06b6d4" }}>
                 {saving ? "Salvando..." : "Salvar"}
               </button>
@@ -796,14 +796,14 @@ function NotasPanel() {
       {/* delete modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center"><Trash2 className="h-5 w-5 text-red-400" /></div>
-              <h3 className="text-base font-bold text-slate-100">Excluir nota fiscal</h3>
+              <h3 className="text-base font-bold text-foreground">Excluir nota fiscal</h3>
             </div>
-            <p className="text-sm text-slate-300">Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita.</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita.</p>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setDeleteId(null)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={() => setDeleteId(null)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={confirmDelete} disabled={deleting} className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleting ? "Excluindo..." : "Excluir"}
               </button>

@@ -129,11 +129,11 @@ export default function Aniversarios() {
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 text-primary shadow-inner">
               <Cake className="h-6 w-6" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-100">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Aniversários
             </h1>
           </div>
-          <p className="text-slate-400 text-sm pl-1">
+          <p className="text-muted-foreground text-sm pl-1">
             Acompanhe e comemore as datas especiais dos seus contatos
           </p>
         </div>
@@ -161,19 +161,19 @@ export default function Aniversarios() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card
           onClick={() => setFilter("month")}
-          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-background/60 backdrop-blur-md border ${
             filter === "month"
-              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
-              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-card/60"
+              : "border-border/60 hover:border-border hover:bg-card/40"
           }`}
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Este Mês
                 </p>
-                <p className="text-3xl font-extrabold text-slate-100">
+                <p className="text-3xl font-extrabold text-foreground">
                   {birthdaysThisMonth}
                 </p>
               </div>
@@ -186,19 +186,19 @@ export default function Aniversarios() {
 
         <Card
           onClick={() => setFilter("next7")}
-          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-background/60 backdrop-blur-md border ${
             filter === "next7"
-              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
-              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-card/60"
+              : "border-border/60 hover:border-border hover:bg-card/40"
           }`}
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Próximos 7 dias
                 </p>
-                <p className="text-3xl font-extrabold text-slate-100">
+                <p className="text-3xl font-extrabold text-foreground">
                   {birthdaysNextSevenDays}
                 </p>
               </div>
@@ -211,19 +211,19 @@ export default function Aniversarios() {
 
         <Card
           onClick={() => setFilter("all")}
-          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-slate-950/60 backdrop-blur-md border ${
+          className={`cursor-pointer transition-all duration-300 rounded-2xl bg-background/60 backdrop-blur-md border ${
             filter === "all"
-              ? "border-primary/80 ring-1 ring-primary/40 bg-slate-900/60"
-              : "border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/40"
+              ? "border-primary/80 ring-1 ring-primary/40 bg-card/60"
+              : "border-border/60 hover:border-border hover:bg-card/40"
           }`}
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Total Geral
                 </p>
-                <p className="text-3xl font-extrabold text-slate-100">
+                <p className="text-3xl font-extrabold text-foreground">
                   {totalBirthdays}
                 </p>
               </div>
@@ -236,9 +236,9 @@ export default function Aniversarios() {
       </div>
 
       {/* Main List Card */}
-      <Card className="border border-slate-800/80 bg-slate-950/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
-        <CardHeader className="border-b border-slate-800/60 pb-5 pt-6 px-6">
-          <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-100">
+      <Card className="border border-border/80 bg-background/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
+        <CardHeader className="border-b border-border/60 pb-5 pt-6 px-6">
+          <CardTitle className="flex items-center gap-3 text-lg font-semibold text-foreground">
             <Cake className="h-5 w-5 text-primary" />
             {filter === "next7"
               ? "Aniversários - Próximos 7 dias"
@@ -249,21 +249,21 @@ export default function Aniversarios() {
         </CardHeader>
         <CardContent className="p-6">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-3 animate-pulse">
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="p-4 rounded-full bg-card border border-border mb-3 animate-pulse">
                 <Cake className="h-8 w-8 text-primary animate-bounce" />
               </div>
               <p className="text-sm">Carregando aniversariantes...</p>
             </div>
           ) : filteredBirthdays.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <div className="p-4 rounded-full bg-slate-900 border border-slate-800 mb-3">
-                <Cake className="h-8 w-8 text-slate-500" />
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="p-4 rounded-full bg-card border border-border mb-3">
+                <Cake className="h-8 w-8 text-muted-foreground" />
               </div>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-foreground">
                 Nenhum aniversário encontrado
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Clique em "Novo Aniversário" para cadastrar um contato.
               </p>
             </div>
@@ -275,28 +275,28 @@ export default function Aniversarios() {
                 return (
                   <div
                     key={birthday.id}
-                    className="group relative flex items-center justify-between p-4 rounded-xl border border-slate-800/70 bg-slate-900/40 hover:bg-slate-900/80 hover:border-slate-700/80 transition-all duration-200 shadow-sm"
+                    className="group relative flex items-center justify-between p-4 rounded-xl border border-border/70 bg-card/40 hover:bg-card/80 hover:border-border/80 transition-all duration-200 shadow-sm"
                   >
                     {/* User Info & Avatar */}
                     <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <Avatar className="h-12 w-12 border border-slate-700/60 shadow-inner flex-shrink-0 group-hover:border-primary/50 transition-colors">
+                      <Avatar className="h-12 w-12 border border-border/60 shadow-inner flex-shrink-0 group-hover:border-primary/50 transition-colors">
                         <AvatarImage
                           src={birthday.avatar_url || undefined}
                           alt={birthday.nome}
                           className="object-cover"
                         />
-                        <AvatarFallback className="bg-slate-800 text-slate-200 font-semibold text-sm">
+                        <AvatarFallback className="bg-card-secondary text-foreground font-semibold text-sm">
                           {getInitials(birthday.nome)}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-slate-100 text-base truncate group-hover:text-primary transition-colors">
+                        <h3 className="font-semibold text-foreground text-base truncate group-hover:text-primary transition-colors">
                           {birthday.nome}
                         </h3>
                         {birthday.empresa && (
-                          <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                            <Building2 className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                             {birthday.empresa}
                           </p>
                         )}
@@ -305,7 +305,7 @@ export default function Aniversarios() {
 
                     {/* Date & Category Badge */}
                     <div className="flex flex-col items-end gap-1.5 pl-3">
-                      <span className="text-base font-bold text-slate-100 tracking-tight">
+                      <span className="text-base font-bold text-foreground tracking-tight">
                         {birthday.displayDate}
                       </span>
                       {categoryBadge && (
@@ -320,11 +320,11 @@ export default function Aniversarios() {
 
                     {/* Quick Actions (On Hover) */}
                     {birthday.source !== "user_profiles" && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-lg p-1 shadow-lg">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-card/90 backdrop-blur-md border border-border/80 rounded-lg p-1 shadow-lg">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md"
+                          className="h-7 w-7 text-muted-foreground hover:text-white hover:bg-card-secondary rounded-md"
                           onClick={() => {
                             setEditingBirthday(birthday);
                             setFormData({
@@ -385,7 +385,7 @@ export default function Aniversarios() {
 
       {/* Modal Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-slate-100 rounded-2xl">
+        <DialogContent className="sm:max-w-md bg-background border-border text-foreground rounded-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2 mb-1">
               <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-primary">
@@ -395,7 +395,7 @@ export default function Aniversarios() {
                 {editingBirthday ? "Editar Aniversário" : "Novo Aniversário"}
               </DialogTitle>
             </div>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription className="text-muted-foreground text-xs">
               {editingBirthday
                 ? "Atualize os dados do aniversário do seu contato."
                 : "Preencha os campos abaixo para cadastrar um novo aniversário."}
@@ -404,7 +404,7 @@ export default function Aniversarios() {
 
           <div className="space-y-4 py-2">
             <div>
-              <Label htmlFor="nome" className="text-xs font-medium text-slate-300">
+              <Label htmlFor="nome" className="text-xs font-medium text-muted-foreground">
                 Nome completo *
               </Label>
               <Input
@@ -412,27 +412,27 @@ export default function Aniversarios() {
                 value={formData.nome}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 placeholder="Ex: Maria Silva"
-                className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
+                className="mt-1.5 bg-card border-border focus:border-primary text-foreground"
               />
             </div>
 
             <div>
-              <Label htmlFor="data_aniversario" className="text-xs font-medium text-slate-300">
+              <Label htmlFor="data_aniversario" className="text-xs font-medium text-muted-foreground">
                 Data de Aniversário *
               </Label>
               <Popover open={birthdayDateOpen} onOpenChange={setBirthdayDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal mt-1.5 bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+                    className="w-full justify-start text-left font-normal mt-1.5 bg-card border-border text-foreground hover:bg-card-secondary"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                     {formData.data_aniversario
                       ? format(new Date(formData.data_aniversario), "dd/MM/yyyy", { locale: ptBR })
                       : "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-800" align="start">
+                <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
                   <UICalendar
                     mode="single"
                     selected={formData.data_aniversario ? new Date(formData.data_aniversario) : undefined}
@@ -453,7 +453,7 @@ export default function Aniversarios() {
             </div>
 
             <div>
-              <Label htmlFor="avatar_url" className="text-xs font-medium text-slate-300">
+              <Label htmlFor="avatar_url" className="text-xs font-medium text-muted-foreground">
                 URL da Foto de Perfil (Opcional)
               </Label>
               <Input
@@ -461,13 +461,13 @@ export default function Aniversarios() {
                 value={formData.avatar_url}
                 onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                 placeholder="https://exemplo.com/foto.jpg"
-                className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
+                className="mt-1.5 bg-card border-border focus:border-primary text-foreground"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="empresa" className="text-xs font-medium text-slate-300">
+                <Label htmlFor="empresa" className="text-xs font-medium text-muted-foreground">
                   Empresa
                 </Label>
                 <Input
@@ -475,22 +475,22 @@ export default function Aniversarios() {
                   value={formData.empresa}
                   onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
                   placeholder="Nome da empresa"
-                  className="mt-1.5 bg-slate-900 border-slate-800 focus:border-primary text-slate-100"
+                  className="mt-1.5 bg-card border-border focus:border-primary text-foreground"
                 />
               </div>
 
               <div>
-                <Label htmlFor="categoria" className="text-xs font-medium text-slate-300">
+                <Label htmlFor="categoria" className="text-xs font-medium text-muted-foreground">
                   Categoria *
                 </Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
-                  <SelectTrigger className="mt-1.5 bg-slate-900 border-slate-800 text-slate-100 focus:ring-primary">
+                  <SelectTrigger className="mt-1.5 bg-card border-border text-foreground focus:ring-primary">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-100">
+                  <SelectContent className="bg-card border-border text-foreground">
                     <SelectItem value="cliente">Cliente</SelectItem>
                     <SelectItem value="colaborador">Colaborador</SelectItem>
                     <SelectItem value="fornecedor">Fornecedor</SelectItem>
@@ -505,7 +505,7 @@ export default function Aniversarios() {
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
-              className="border-slate-800 text-slate-300 hover:bg-slate-900"
+              className="border-border text-muted-foreground hover:bg-card"
             >
               Cancelar
             </Button>
