@@ -40,7 +40,7 @@ export function AbastecimentosPendentesAlert({
       if (ids.length === 0) return [];
       const { data } = await db
         .from("abastecimentos")
-        .select("id, trecho, data, valor_total, status, tipo_faturamento, prazo, id_clientes, aeronave_id, data_vencimento_boleto, nf, nota_url, boleto_url, comanda, comanda_url, comprovante_pagamento, comprovante_url, clientes:id_clientes(razao_social)")
+        .select("id, trecho, data, numero_voo, valor_total, status, tipo_faturamento, prazo, id_clientes, aeronave_id, data_vencimento_boleto, nf, nota_url, boleto_url, comanda, comanda_url, comprovante_pagamento, comprovante_url, clientes:id_clientes(razao_social)")
         .in("id", ids)
         .neq("status", "pago")
         .order("data", { ascending: false });
@@ -169,6 +169,7 @@ export function AbastecimentosPendentesAlert({
             modo: modoSelecionado,
             reference_type: "abastecimento",
             reference_id: abastecimentoSelecionado?.id,
+            numero_voo: abastecimentoSelecionado?.numero_voo,
             tipo_despesa_label: "COMBUSTÍVEIS",
             valor_total_despesa: abastecimentoSelecionado?.valor_total,
             descricao: abastecimentoSelecionado?.trecho,

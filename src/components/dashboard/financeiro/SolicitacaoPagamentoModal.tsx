@@ -1693,6 +1693,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 reference_type: referenciaTipo || "solicitacao_pagamento",
                 reference_id: referenciaTipo && referenciaId ? referenciaId : null,
                 criado_por: userId,
+                numero_voo: initialData?.numero_voo || null,
               });
               movimentacaoIdsCriadas.push(movId);
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
@@ -1723,6 +1724,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
+              numero_voo: initialData?.numero_voo || null,
             };
           });
 
@@ -1830,6 +1832,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, comanda_url: comandaUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
+              numero_voo: initialData?.numero_voo || null,
             };
           });
 
