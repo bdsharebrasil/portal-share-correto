@@ -28,13 +28,13 @@ export function DashboardHero() {
   };
 
   return (
-    <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
+    <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-border/70 shadow-elevated h-32 md:h-40 lg:h-48">
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-overlay"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-85 mix-blend-normal"
         style={{ backgroundImage: `url(${aviationHero})` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-background/45 to-background/15" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/30 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-background/45 via-background/15 to-transparent dark:from-background/75 dark:via-background/40 dark:to-background/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-background/15 to-transparent dark:from-background/75 dark:via-background/30 dark:to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
         <div className="relative z-10 flex flex-col gap-2">
           <div className="flex items-center gap-2 mb-0.5">

@@ -17,16 +17,16 @@
 
     color-scheme: light;
 
-    --background: 220 24% 97%;
+    --background: 210 29% 93%;
     --foreground: 220 27% 16%;
 
     --card: 0 0% 100%;
     --card-foreground: 220 27% 16%;
-    --card-secondary: 220 22% 98%;
+    --card-secondary: 210 28% 97%;
 
-    --surface: 220 22% 95%;
+    --surface: 210 29% 93%;
     --surface-raised: 0 0% 100%;
-    --surface-hover: 220 24% 94%;
+    --surface-hover: 210 27% 90%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 220 27% 16%;
@@ -37,13 +37,13 @@
     --primary-dark: 212 68% 36%;
     --primary-muted: 211 69% 44% / 0.08;
 
-    --secondary: 220 18% 93%;
+    --secondary: 210 25% 90%;
     --secondary-foreground: 220 25% 22%;
 
-    --muted: 220 18% 94%;
+    --muted: 210 24% 91%;
     --muted-foreground: 218 13% 44%;
 
-    --accent: 211 25% 91%;
+    --accent: 210 26% 89%;
     --accent-foreground: 220 27% 16%;
 
     --border: 218 20% 86%;
@@ -85,14 +85,14 @@
       linear-gradient(
         180deg,
         hsl(0 0% 100%),
-        hsl(220 24% 98%)
+        hsl(210 28% 97%)
       );
 
     --gradient-subtle:
       linear-gradient(
         180deg,
         hsl(var(--background)),
-        hsl(220 23% 95%)
+        hsl(210 27% 91%)
       );
 
     /* Shadows */
