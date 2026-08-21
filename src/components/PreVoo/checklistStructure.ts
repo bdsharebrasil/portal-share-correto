@@ -9,6 +9,8 @@ export interface ChecklistItem {
   id: string;
   label: string;
   kind?: ItemKind;
+  /** Quando informado, o item só aparece para estas matrículas. */
+  apenasParaAeronaves?: string[];
 }
 
 export interface ChecklistSection {
@@ -22,7 +24,7 @@ export interface DocSubGroup {
   id: string;
   title: string;
   question: string;
-  items: { id: string; label: string }[];
+  items: { id: string; label: string; apenasParaAeronaves?: string[] }[];
 }
 
 export const PRE_VOO_SECTIONS: ChecklistSection[] = [
@@ -57,7 +59,7 @@ export const PRE_VOO_SECTIONS: ChecklistSection[] = [
       { id: "desp_calcos", label: "Calços (retirar e guardar)" },
       { id: "desp_dreno_combustivel", label: "Dreno do combustível (drenar e guardar)" },
       { id: "desp_tampas", label: "Verificar tampas de óleo e de combustível" },
-      { id: "desp_tesoura", label: "Fixação da tesoura (somente no PT-OPC)" },
+      { id: "desp_tesoura", label: "Fixação da tesoura", apenasParaAeronaves: ["PT-OPC"] },
     ],
   },
   {
@@ -129,7 +131,7 @@ export const DOC_SUBGROUPS: DocSubGroup[] = [
       { id: "lim_fone", label: "Limpeza interna do fone de ouvido" },
       { id: "lim_aspirador_banco", label: "Passar aspirador no banco da aeronave" },
       { id: "lim_aspirador_chao", label: "Passar aspirador no chão da aeronave" },
-      { id: "lim_banheiro", label: "Limpeza do banheiro (PT-OPC)" },
+      { id: "lim_banheiro", label: "Limpeza do banheiro", apenasParaAeronaves: ["PT-OPC"] },
     ],
   },
   {

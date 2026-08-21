@@ -10,21 +10,32 @@ interface Props {
   docs: Record<string, "sim" | "nao">;
   onChange: (docs: Record<string, "sim" | "nao">) => void;
   readOnly?: boolean;
+  aeronaveMatricula?: string | null;
 }
 
-export const TOTAL_DOCS = DOC_SUBGROUPS.reduce((acc, g) => acc + g.items.length, 0);
+const itensAplicaveis = (aeronaveMatricula?: string | null) => {
+  const matricula = String(aeronaveMatricula || "").trim().toUpperCase();
+  return DOC_SUBGROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      !item.apenasParaAeronaves?.length || item.apenasParaAeronaves.includes(matricula),
+    ),
+  }));
+};
 
-export function docsCompletos(docs: Record<string, "sim" | "nao">) {
-  return DOC_SUBGROUPS.every((g) => g.items.every((i) => !!docs[i.id]));
+export function docsCompletos(docs: Record<string, "sim" | "nao">, aeronaveMatricula?: string | null) {
+  return itensAplicaveis(aeronaveMatricula).every((g) => g.items.every((i) => !!docs[i.id]));
 }
 
-export function DocumentosAeronaveDialog({ open, onOpenChange, docs, onChange, readOnly }: Props) {
+export function DocumentosAeronaveDialog({ open, onOpenChange, docs, onChange, readOnly, aeronaveMatricula }: Props) {
+  const gruposAplicaveis = itensAplicaveis(aeronaveMatricula);
+  const totalDocs = gruposAplicaveis.reduce((acc, group) => acc + group.items.length, 0);
   const set = (id: string, value: "sim" | "nao") => {
     if (readOnly) return;
     onChange({ ...docs, [id]: value });
   };
 
-  const respondidos = Object.keys(docs).filter((k) => docs[k]).length;
+  const respondidos = gruposAplicaveis.reduce((total, group) => total + group.items.filter((item) => !!docs[item.id]).length, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,14 +48,14 @@ export function DocumentosAeronaveDialog({ open, onOpenChange, docs, onChange, r
             <div>
               <DialogTitle className="text-lg sm:text-xl">Documentos na aeronave</DialogTitle>
               <DialogDescription className="mt-1 text-xs sm:text-sm">
-                {respondidos} de {TOTAL_DOCS} itens respondidos
+                {respondidos} de {totalDocs} itens respondidos
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
-          {DOC_SUBGROUPS.map((g) => (
+          {gruposAplicaveis.map((g) => (
             <section key={g.id} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
               <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">{g.title}</h3>
@@ -92,7 +103,7 @@ export function DocumentosAeronaveDialog({ open, onOpenChange, docs, onChange, r
 
         <DialogFooter className="border-t border-border/60 bg-card/95 px-4 py-3 sm:px-6">
           <Button onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
-            {docsCompletos(docs) ? "Concluir verificação" : "Fechar"}
+            {docsCompletos(docs, aeronaveMatricula) ? "Concluir verificação" : "Fechar"}
           </Button>
         </DialogFooter>
       </DialogContent>

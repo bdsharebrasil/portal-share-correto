@@ -16,7 +16,6 @@ import { toast } from "sonner";
 
 import {
   PRE_VOO_SECTIONS,
-  TOTAL_ITENS,
   type ChecklistItem,
 } from "@/components/PreVoo/checklistStructure";
 
@@ -131,6 +130,20 @@ export default function ChecklistPreVoo() {
   const draftLoadedRef = useRef(false);
 
   const readOnly = checklist?.status === "concluido";
+  const matriculaAeronave = String(voo?.aeronave?.matricula || "").trim().toUpperCase();
+  const itemAplicavel = (item: ChecklistItem) =>
+    !item.apenasParaAeronaves?.length || item.apenasParaAeronaves.includes(matriculaAeronave);
+  const sectionsAplicaveis = useMemo(
+    () => PRE_VOO_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter(itemAplicavel),
+    })),
+    [matriculaAeronave],
+  );
+  const totalItens = useMemo(
+    () => sectionsAplicaveis.reduce((total, section) => total + section.items.length, 0),
+    [sectionsAplicaveis],
+  );
 
   /*
    * =========================================================
@@ -311,7 +324,7 @@ export default function ChecklistPreVoo() {
     }
 
     if (item.kind === "documentos") {
-      return docsCompletos(respostas.docs || {});
+      return docsCompletos(respostas.docs || {}, matriculaAeronave);
     }
 
     const r = respostas.itens?.[item.id];
@@ -422,7 +435,7 @@ export default function ChecklistPreVoo() {
    * =========================================================
    */
   const sectionCompleta = (index: number) =>
-    PRE_VOO_SECTIONS[index].items.every((item) =>
+    sectionsAplicaveis[index].items.every((item) =>
       itemOk(item)
     );
 
@@ -436,7 +449,7 @@ export default function ChecklistPreVoo() {
 
   const concluidos = useMemo(
     () =>
-      PRE_VOO_SECTIONS.reduce(
+      sectionsAplicaveis.reduce(
         (acc, section) =>
           acc +
           section.items.filter((item) =>
@@ -452,18 +465,18 @@ export default function ChecklistPreVoo() {
   );
 
   const progresso =
-    TOTAL_ITENS > 0
+      totalItens > 0
       ? Math.round(
-          (concluidos / TOTAL_ITENS) * 100
+          (concluidos / totalItens) * 100
         )
       : 0;
 
   const tudoConcluido =
-    concluidos === TOTAL_ITENS;
+      concluidos === totalItens;
 
   const alertas = useMemo(
     () =>
-      PRE_VOO_SECTIONS.flatMap((section) =>
+      sectionsAplicaveis.flatMap((section) =>
         section.items
           .filter(
             (item) =>
@@ -481,7 +494,7 @@ export default function ChecklistPreVoo() {
 
   const naoFeitos = useMemo(
     () =>
-      PRE_VOO_SECTIONS.flatMap((section) =>
+      sectionsAplicaveis.flatMap((section) =>
         section.items
           .filter(
             (item) =>
@@ -754,7 +767,7 @@ export default function ChecklistPreVoo() {
                           </span>
 
                           <span className="text-sm font-bold text-primary">
-                            {concluidos}/{TOTAL_ITENS}
+                            {concluidos}/{totalItens}
                           </span>
                         </div>
 
@@ -770,7 +783,7 @@ export default function ChecklistPreVoo() {
                         <p className="mt-2 text-xs text-muted-foreground">
                           {tudoConcluido
                             ? "Todos os itens estão completos."
-                            : `${TOTAL_ITENS - concluidos} item(ns) ainda pendente(s).`}
+                            : `${totalItens - concluidos} item(ns) ainda pendente(s).`}
                         </p>
                       </div>
                     </div>
@@ -923,7 +936,7 @@ export default function ChecklistPreVoo() {
           ================================================= */}
           <div className="space-y-4">
 
-            {PRE_VOO_SECTIONS.map(
+            {sectionsAplicaveis.map(
               (section, index) => {
                 const liberada =
                   sectionLiberada(index);
@@ -1662,7 +1675,7 @@ export default function ChecklistPreVoo() {
 
                   {tudoConcluido
                     ? "Concluir checklist"
-                    : `${TOTAL_ITENS - concluidos} pendente(s)`}
+                    : `${totalItens - concluidos} pendente(s)`}
                 </Button>
               </div>
             </div>
@@ -1715,6 +1728,7 @@ export default function ChecklistPreVoo() {
           }))
         }
         readOnly={readOnly}
+        aeronaveMatricula={matriculaAeronave}
       />
     </Layout>
   );
