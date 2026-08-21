@@ -33,7 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { formatBRL } from "@/lib/format";
 import { deleteMovimentacao, fetchFinanceiroData } from "@/services/financeiroService";
-import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, paidByShareForClient, valueOf } from "@/utils/financeiroRules";
+import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, valueOf } from "@/utils/financeiroRules";
 
 type TipoData = "vencimento" | "pagamento";
 type Ordem = "asc" | "desc";
@@ -177,15 +177,6 @@ export default function FluxoCaixaTab() {
   }, [movs, selecionados]);
 
 
-  const resumo = useMemo(() => {
-    const entradas = data.movimentacoes.filter((m: any) => !isDga(m) && isEntrada(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const saidas = data.movimentacoes.filter((m: any) => !isDga(m) && !isEntrada(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const adiantado = data.movimentacoes.filter((m: any) => paidByShareForClient(m)).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const recebido = data.movimentacoes.filter((m: any) => !isDga(m) && isEntrada(m) && m.clientes_id).reduce((s:number, m:any) => s + valueOf(m), 0);
-    const aReceber = Math.max(0, adiantado - recebido);
-    return { entradas, saidas, aReceber };
-  }, [data.movimentacoes]);
-
   const visaoGeral = useMemo(() => {
     const contasTotal = contasAPagar.reduce((sum: number, conta: any) => sum + Number(conta?.valor || 0), 0);
     const inadimplenciaTotal = inadimplencias.reduce((sum: number, item: any) => sum + Number(item?.valor || 0), 0);
@@ -263,10 +254,8 @@ export default function FluxoCaixaTab() {
               <div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-400">Resumo do caixa</div><h3 className="mt-0.5 text-sm font-black text-slate-100">Posição financeira consolidada</h3></div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Acompanhamento de lançamentos</div>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-y divide-slate-800/90 md:grid-cols-3 md:divide-y-0">
-              <ResumoKpi label="Entradas realizadas" value={formatBRL(resumo.entradas)} tone="green" note="Caixa recebido" />
-              <ResumoKpi label="Saídas realizadas" value={formatBRL(resumo.saidas)} tone="red" note="Despesas registradas" />
-              <ResumoKpi label="A receber da Share" value={formatBRL(resumo.aReceber)} tone="amber" note="Antecipações" />
+            <div className="border-t border-slate-800/80 px-3 py-3 text-xs text-slate-500">
+              Consulte as abas operacionais para lançar despesas, acompanhar pagamentos e revisar cobranças. Os valores consolidados do caixa não são exibidos nesta visão.
             </div>
           </section>
 
