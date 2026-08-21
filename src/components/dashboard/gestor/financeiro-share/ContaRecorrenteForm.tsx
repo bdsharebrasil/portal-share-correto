@@ -29,6 +29,11 @@ const frequencias = [
 ];
 
 const diasDoMes = Array.from({ length: 31 }, (_, i) => i + 1);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const normalizeUuid = (value: unknown): string | null => {
+  const normalized = String(value ?? "").trim();
+  return UUID_RE.test(normalized) ? normalized : null;
+};
 
 const TIPOS_DESPESA = [
   { value: "DESPESAS EMPRESA", label: "EMPRESA" },
@@ -154,6 +159,12 @@ export function ContaRecorrenteForm({
     }
 
     try {
+      const userId = normalizeUuid(user.id);
+      if (!userId) {
+        toast.error("Não foi possível identificar o usuário autenticado. Faça login novamente e tente de novo.");
+        return;
+      }
+
       let valor = null;
       if (formData.valor) {
         valor = parseFloat(formData.valor);
@@ -166,17 +177,14 @@ export function ContaRecorrenteForm({
       const data = {
         descricao: formData.descricao,
         fornecedor: formData.fornecedor,
-        fornecedor_favorito_id: selectedFornecedorId || null,
-        conta_pagamento: contaPagamento || null,
         valor: valor !== null ? valor : null,
         categoria: formData.categoria || null,
-        tipo_despesa: tipoDespesa || null,
         status: formData.status,
         frequencia_recorrencia: formData.frequencia_recorrencia,
         dia_recorrencia: formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
         lembrete_antecipado: formData.lembrete_antecipado || false,
         notas: formData.notas || null,
-        atualizado_por: user.id,
+        atualizado_por: userId,
       };
 
       if (conta?.id) {
@@ -195,7 +203,7 @@ export function ContaRecorrenteForm({
           .from("contas_recorrentes")
           .insert({
             ...data,
-            criado_por: user.id
+            criado_por: userId
           } as any);
 
         if (error) {
