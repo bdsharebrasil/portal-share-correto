@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type ThemePreference = "light" | "dark";
 
+// Tipagem corrigida
 type ThemeContextValue = {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => Promise<void>;
@@ -12,15 +13,16 @@ type ThemeContextValue = {
   isThemeSaving: boolean;
 };
 
+// Contexto corrigido
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-// Novo padrão visual: light executivo. A preferência salva do usuário continua tendo prioridade.
 const fallbackTheme: ThemePreference = "light";
 
 function applyTheme(theme: ThemePreference) {
   const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.classList.toggle("light", theme === "light");
+  // Limpa classes anteriores para evitar conflito
+  root.classList.remove("light", "dark");
+  root.classList.add(theme);
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
 }
@@ -36,23 +38,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
     const localTheme = window.localStorage.getItem(localKey);
     const initial = localTheme === "light" || localTheme === "dark" ? localTheme : fallbackTheme;
+    
     setThemeState(initial);
     applyTheme(initial);
 
     if (!user?.id) {
       setIsThemeLoading(false);
-      return () => { ativo = false; };
+      return;
     }
 
     setIsThemeLoading(true);
     void (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("user_profiles")
         .select("tema_preferido")
         .eq("id", user.id)
         .maybeSingle();
+      
       if (!ativo) return;
-      const saved = data?.tema_preferido === "light" || data?.tema_preferido === "dark" ? data.tema_preferido : initial;
+      
+      const saved = data?.tema_preferido === "light" || data?.tema_preferido === "dark" 
+        ? data.tema_preferido 
+        : initial;
+
       setThemeState(saved);
       window.localStorage.setItem(localKey, saved);
       applyTheme(saved);
@@ -67,15 +75,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyTheme(next);
     const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
     window.localStorage.setItem(localKey, next);
+    
     if (!user?.id) return;
 
     setIsThemeSaving(true);
     try {
-      const { error } = await (supabase as any)
+      await supabase
         .from("user_profiles")
         .update({ tema_preferido: next, updated_at: new Date().toISOString() })
         .eq("id", user.id);
-      if (error) throw error;
     } finally {
       setIsThemeSaving(false);
     }
@@ -85,7 +93,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await setTheme(theme === "dark" ? "light" : "dark");
   }, [setTheme, theme]);
 
-  const value = useMemo(() => ({ theme, setTheme, toggleTheme, isThemeLoading, isThemeSaving }), [theme, setTheme, toggleTheme, isThemeLoading, isThemeSaving]);
+  const value = useMemo(() => ({ 
+    theme, setTheme, toggleTheme, isThemeLoading, isThemeSaving 
+  }), [theme, setTheme, toggleTheme, isThemeLoading, isThemeSaving]);
+
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
