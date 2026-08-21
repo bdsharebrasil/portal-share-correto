@@ -77,13 +77,12 @@ export async function syncSalaryPaymentToFinancial(
       if (valor <= 0) return null;
       return {
         descricao: `${component.label} — ${employeeName}`,
-        tipo: "despesa",
+        fluxo: "despesa",
         tipo_caixa: "share",
         categoria_id: categoryIds.get(component.categoria) ?? null,
         categoria_nome: component.categoria,
-        grupo_custo: "FOLHA DE PAGAMENTO",
+        grupo_categoria: "FOLHA DE PAGAMENTO",
         valor_rateado: valor,
-        valor_original: valor,
         data_emissao: dataPagamento,
         data_pagamento: dataPagamento,
         status: "pago",
