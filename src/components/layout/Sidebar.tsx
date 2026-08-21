@@ -183,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
       ) : (
-        <aside className="hidden md:fixed md:left-0 md:top-16 md:w-20 md:h-[calc(100vh-4rem)] bg-gradient-to-b from-card/95 via-slate-950/95 to-background/95 backdrop-blur-sm border-r border-border/50 z-50 md:flex flex-col items-center py-4 gap-3 bg-[#0f121a] transition-all duration-200 ease-linear">
+        <aside className="hidden md:fixed md:left-0 md:top-16 md:w-20 md:h-[calc(100vh-4rem)] bg-noite-950 dark:bg-noite-950 backdrop-blur-sm border-r border-white/5 z-50 md:flex flex-col items-center py-4 gap-3 transition-all duration-200 ease-linear overflow-y-auto custom-scrollbar">
           <button aria-label="Fechar menu" onClick={() => setCollapsed(true)} className="w-9 h-9 rounded-full bg-card-secondary/70 border border-border/50 flex items-center justify-center text-foreground hover:bg-card-secondary/90 transition-colors mb-2">
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -192,9 +192,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <nav className="flex flex-col items-center gap-3 w-full px-1 overflow-visible">
             {allItems.map((item) => {
               const iconEl = item.icon ? <item.icon className="h-5 w-5" /> : null;
-              const baseCircle = "relative w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-200 group";
-              const inactive = "bg-card-secondary/50 border-border/60 text-foreground hover:bg-card-secondary/90 hover:border-primary/50 hover:text-primary hover:scale-105";
-              const active = "bg-primary/20 border-primary/60 text-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]";
+              const baseCircle = "sidebar-dot-icon relative group";
+              const inactive = "bg-white/5 border-white/10 text-noite-300 hover:bg-brand-500/10 hover:border-brand-500 hover:text-brand-400 hover:scale-105";
+              const active = "active bg-brand-500/10 border-brand-500 text-brand-400 shadow-[0_0_15px_rgba(51,134,213,0.3)]";
 
               const tooltip = (
                 <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-card/95 border border-border/60 px-2.5 py-1 text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-[60] shadow-lg">
@@ -238,7 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <Sheet open={isOpen} onOpenChange={(open) => { if (!open && onClose) onClose(); }}>
-        <SheetContent side="left" className="w-80 bg-gradient-to-b from-card/98 via-slate-950/98 to-background/98 border-r border-border/50 p-0">
+        <SheetContent side="left" className="w-80 bg-noite-950 border-r border-white/5 p-0">
           <div className="h-full overflow-y-auto custom-scrollbar p-4 pt-6">
             {renderMenuContent()}
           </div>
