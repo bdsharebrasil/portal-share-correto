@@ -83,7 +83,12 @@ export default function FluxoCaixaTab() {
       return contas;
     },
   });
-  const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({ diasAtrasoMinimo: 6 });
+  const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({
+    diasAtrasoMinimo: 6,
+    // O cartão precisa refletir o mesmo Caixa Cliente exibido em ClienteSituacao.
+    // Registros legados de despesas_cliente_direto não entram nessa fonte.
+    incluirDespesasDiretas: false,
+  });
   const { data: reembolsosAReceber = [], isLoading: reembolsosAReceberLoading, error: reembolsosAReceberError } = useQuery({
     queryKey: ["contas-areceber-reembolsos-share"],
     queryFn: async () => {

@@ -20,16 +20,19 @@ export interface InadimplenciaItem {
 interface UseInadimplenciaOptions {
   clienteId?: string;
   diasAtrasoMinimo?: number;
+  /** Inclui a tabela legada despesas_cliente_direto quando necessário. */
+  incluirDespesasDiretas?: boolean;
 }
 
-const queryKey = (clienteId?: string, diasAtrasoMinimo = 1) => [
+const queryKey = (clienteId?: string, diasAtrasoMinimo = 1, incluirDespesasDiretas = true) => [
   "inadimplencia",
   clienteId,
   diasAtrasoMinimo,
+  incluirDespesasDiretas,
 ];
 
 export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
-  const { clienteId, diasAtrasoMinimo = 1 } = options;
+  const { clienteId, diasAtrasoMinimo = 1, incluirDespesasDiretas = true } = options;
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
   }, [queryClient]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKey(clienteId, diasAtrasoMinimo),
+    queryKey: queryKey(clienteId, diasAtrasoMinimo, incluirDespesasDiretas),
     queryFn: async () => {
       const hoje = new Date().toISOString().split("T")[0];
       let movimentacoesQuery = supabase
@@ -85,7 +88,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
 
       const [movimentacoesResult, despesasDiretasResult, contasAReceberResult] = await Promise.all([
         movimentacoesQuery,
-        despesasDiretasQuery,
+        incluirDespesasDiretas ? despesasDiretasQuery : Promise.resolve({ data: [], error: null }),
         contasAReceberQuery,
       ]);
       if (movimentacoesResult.error) throw movimentacoesResult.error;
@@ -93,7 +96,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       if (contasAReceberResult.error) throw contasAReceberResult.error;
 
       const isPendente = (status: string | null | undefined) =>
-        !["pago", "recebido", "cancelado", "pagamento_validado", "reembolsado"].includes((status || "").toLowerCase());
+        !["pago", "recebido", "cancelado", "pagamento_validado", "reembolsado", "comprovante_recebido", "comprovante_pago", "quitado", "quitada"].includes((status || "").toLowerCase());
       const movimentacoes = (movimentacoesResult.data || []) as any[];
       const idsMovimentacoes = new Set(movimentacoes.map((movimentacao) => movimentacao.id));
       const idsContasVinculadas = new Set(
