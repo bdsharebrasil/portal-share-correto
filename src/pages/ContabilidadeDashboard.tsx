@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,19 @@ const initials = (name: string) => name.split(" ").map((part) => part[0]).join("
 const money = (value: unknown) => formatBRL(Number(value) || 0);
 
 export default function ContabilidadeDashboard() {
+  const { theme, setTheme } = useTheme();
+  const previousTheme = useRef(theme);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (theme !== "dark") void setTheme("dark");
+    return () => {
+      if (previousTheme.current !== "dark") void setTheme(previousTheme.current);
+    };
+    // A preferência é capturada somente ao montar para não haver alternância durante a página.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setTheme]);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["accounting-employees"],

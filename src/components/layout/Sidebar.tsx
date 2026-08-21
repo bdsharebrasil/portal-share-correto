@@ -122,10 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             { title: "Painel contábil", icon: Landmark, href: "/contabilidade", isMain: true },
           ],
         },
-        {
-          title: "Ajuda",
-          items: baseMenuGroups.find((group) => group.title === "Ajuda")?.items || [],
-        },
       ];
     }
 
