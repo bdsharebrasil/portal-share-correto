@@ -10,6 +10,15 @@
     <meta name="author" content="Share Brasil" />
 
     <meta name="theme-color" content="#e8edf3" />
+    <script>
+      const savedTheme = localStorage.getItem('share-theme:guest');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.classList.add(savedTheme);
+        document.documentElement.dataset.theme = savedTheme;
+        document.documentElement.style.colorScheme = savedTheme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', savedTheme === 'dark' ? '#0f172a' : '#e8edf3');
+      }
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Share Brasil" />

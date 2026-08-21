@@ -80,6 +80,7 @@ export function classify(m: any): { caixa: CaixaTipo; natureza: NaturezaFinancei
 export function fornecedorStatus(m: any) {
   const s = norm(m?.status);
   if (["cancelado", "rejeitado"].includes(s)) return "cancelado";
+  if (s === "aguardando_reembolso") return "Reembolso pendente";
   if (m?.data_pagamento || ["pago","quitado","confirmado","reembolsado","recebido"].includes(s)) return "pago";
   if (m?.data_vencimento && m.data_vencimento < new Date().toISOString().slice(0,10)) return "vencido";
   return "pendente";

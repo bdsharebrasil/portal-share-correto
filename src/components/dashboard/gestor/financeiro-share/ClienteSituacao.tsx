@@ -468,7 +468,7 @@ export default function ClienteSituacao({
                       <td className="px-4 py-3.5 text-muted-foreground">{m.fornecedor_nome || "—"}</td>
                       <td className="px-4 py-3.5 text-right font-bold tabular-nums text-foreground">{formatBRL(valueOf(m))}</td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${paidByShareForClient(m) ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>
+                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase leading-3 tracking-wide ${paidByShareForClient(m) ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>
                           {clienteDividaLabel(m) === "Deve à Share" ? "Reembolso pendente" : clienteDividaLabel(m)}
                         </span>
                       </td>
