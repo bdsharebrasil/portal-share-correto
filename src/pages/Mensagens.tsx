@@ -161,12 +161,12 @@ export default function Mensagens() {
         <div className="pointer-events-none absolute -top-32 left-1/4 h-72 w-72 rounded-full bg-primary/20 blur-[120px]" />
         <div className="pointer-events-none absolute bottom-0 right-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
 
-        <div className="relative flex h-[calc(100vh-73px)] min-h-[680px] flex-col gap-5 p-4 md:p-6 lg:p-7">
+        <div className="relative flex h-[calc(100vh-73px)] min-h-[680px] min-w-0 flex-col gap-4 overflow-hidden p-3 sm:gap-5 sm:p-5 lg:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-foreground">
-                <span className="rounded-xl bg-cyan-500/10 p-2.5 ring-1 ring-cyan-400/25 shadow-[0_8px_24px_rgba(34,211,238,0.08)]">
-                  <Mail className="h-5 w-5 text-cyan-300" />
+                <span className="rounded-xl bg-slate-800/80 p-2.5 ring-1 ring-sky-500/25">
+                  <Mail className="h-5 w-5 text-sky-300" />
                 </span>
                 Mensagens
               </h1>
@@ -179,16 +179,16 @@ export default function Mensagens() {
                 setReplyTo(null);
                 setComposeOpen(true);
               }}
-              className="h-10 rounded-xl bg-cyan-300 px-4 font-semibold text-slate-950 shadow-[0_10px_28px_rgba(103,221,217,0.18)] transition-transform hover:bg-cyan-200 active:scale-[0.98]"
+              className="h-10 rounded-xl bg-sky-700 px-4 font-semibold text-slate-100 shadow-sm transition-colors hover:bg-sky-600 active:scale-[0.98]"
             >
               <PenSquare className="mr-2 h-4 w-4" /> Nova mensagem
             </Button>
           </div>
 
           {/* 2 colunas: lista + leitor */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[350px_minmax(0,1fr)]">
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-[minmax(280px,350px)_minmax(0,1fr)]">
             {/* LISTA (estilo caixa de e-mail) */}
-            <section className="portal-card flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-0 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
+            <section className="portal-card flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-0 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
               {/* Busca */}
               <div className="flex items-center gap-2 border-b border-border/50 bg-muted/15 px-4 py-3.5">
                 <Search className="h-4 w-4 text-muted-foreground" />
@@ -237,7 +237,7 @@ export default function Mensagens() {
               </p>
 
               {/* Abas compactas (Inbox / Unread / Starred / Sent / Archived / Trash) */}
-              <div className="flex min-h-0 items-center gap-1 overflow-x-auto border-b border-border/50 px-4 pb-3 no-scrollbar">
+              <div className="flex max-h-44 min-h-0 flex-col items-stretch gap-1 overflow-y-auto border-b border-border/50 px-4 pb-3 pr-2 no-scrollbar">
                 {navTabs.map((n) => {
                   const active = view === n.key;
                   return (
@@ -247,16 +247,16 @@ export default function Mensagens() {
                         setView(n.key);
                         setSelectedId(null);
                       }}
-                      className={`my-1 flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                      className={`flex w-full shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${
                           active
-                          ? "bg-cyan-400/10 text-cyan-200 ring-1 ring-cyan-400/25"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? "bg-slate-800/90 text-sky-200 ring-1 ring-sky-500/25"
+                          : "text-muted-foreground hover:bg-slate-800/60 hover:text-slate-200"
                       }`}
                     >
-                          <n.icon className={`h-3.5 w-3.5 ${active ? "text-cyan-300" : ""}`} />
+                          <n.icon className={`h-3.5 w-3.5 ${active ? "text-sky-300" : ""}`} />
                       {n.label}
                       {!!n.badge && (
-                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
+                        <span className="rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-bold text-slate-200">
                           {n.badge}
                         </span>
                       )}
@@ -346,8 +346,8 @@ export default function Mensagens() {
             <section className="portal-card flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-[0_18px_50px_rgba(2,8,23,0.18)] backdrop-blur-xl">
               {!selected ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-muted-foreground">
-                  <div className="rounded-2xl bg-cyan-400/10 p-5 ring-1 ring-cyan-400/20 shadow-[0_12px_32px_rgba(34,211,238,0.08)]">
-                    <Mail className="h-8 w-8 text-cyan-300" />
+                  <div className="rounded-2xl bg-slate-800/80 p-5 ring-1 ring-sky-500/20">
+                    <Mail className="h-8 w-8 text-sky-300" />
                   </div>
                   <p className="text-sm text-muted-foreground/80">Selecione uma mensagem para ler</p>
                 </div>
