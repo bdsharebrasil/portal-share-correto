@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { AnimatedFolder } from '@/components/AnimatedFolder';
 import { toast } from 'sonner';
+import { OASItensManager } from './OASItensManager';
 
 interface OASTabProps { aircraftId: string; }
 
@@ -388,7 +389,9 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
             />
           )}
 
-          {/* Serviços */}
+          <OASItensManager oasId={oas.id} aircraftId={aircraftId} onChanged={recarregar} />
+
+          {/* Registros antigos de execução */}
           {execucoes?.length > 0 && (
             <div className="ctm-card p-5">
               <h3 className="font-semibold mb-3 teal-text">Serviços / Mão de Obra</h3>
