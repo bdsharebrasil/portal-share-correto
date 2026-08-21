@@ -15,14 +15,14 @@ import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { UpdateNotificationModal } from "@/components/UpdateNotificationModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Layout as Layout } from "@/components/layout/Layout";
+import { Layout } from "@/components/layout/Layout";
 import { RouteChangeListener } from "@/components/RouteChangeListener";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-dom";
 
-// Import das páginas
 import AgendaHub from "./pages/AgendaHub";
 import ChecklistPreVoo from "./pages/ChecklistPreVoo";
+import CiclosVoo from "./pages/CiclosVoo";
 
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
@@ -71,7 +71,6 @@ import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share
 import Master from "./components/dashboard/gestor/master/Master";
 import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
 import CriarProposta from "./components/dashboard/gestor/master/CriarProposta";
-
 import ComparativoAeronaves from "./pages/gestor/ComparativoAeronaves";
 
 import DashboardOperacoes from "./pages/DashboardOperacoes";
@@ -91,8 +90,6 @@ import SalaReuniao from "./pages/centro-treinamento/SalaReuniao";
 import SalaReuniaoRoom from "./pages/centro-treinamento/SalaReuniaoRoom";
 import TreinamentoCentro from "./pages/centro-treinamento/TreinamentoCentro";
 
-// Componentes wrapper definidos FORA do App para evitar conflitos com hooks
-
 const HomeRedirect = () => {
   const { roles, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -111,7 +108,6 @@ const HomeRedirect = () => {
     } else if (roles.includes("contabilidade")) {
       navigate("/contabilidade", { replace: true });
     } else {
-      // coordenador_de_voo, piloto_chefe, tripulante e demais
       navigate("/operacoes", { replace: true });
     }
   }, [roles, isLoading, navigate]);
@@ -119,9 +115,7 @@ const HomeRedirect = () => {
   return <GlobalLoader />;
 };
 
-const DiarioBordoWrapper = () => {
-  return <DiarioBordo />;
-};
+const DiarioBordoWrapper = () => <DiarioBordo />;
 
 const BancoHorasWrapper = () => {
   const { aircraftId } = useParams<{ aircraftId: string }>();
@@ -157,209 +151,197 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider>
-          <LoadingProvider>
-            <ViewModeProvider>
-              <VencimentosSyncProvider>
-                <ExpirationAlertsProvider>
-                  <AnniversaryAlertsProvider>
-                    <UpdateCheckProvider>
-                      <TooltipProvider>
-                        <Toaster />
-                        <GlobalLoader />
-                        <InstallPrompt />
-                        <UpdateNotificationModal />
-                        <HashRouter>
-                        <RouteChangeListener />
-                        <Routes>
-                          <Route path="/login" element={<Login />} />
-                          <Route path="/" element={renderProtected(<HomeRedirect />)} />
-                          <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
-                          <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
-                          <Route path="/contabilidade" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["contabilidade"]}>
-                                <ContabilidadeDashboard />
-                              </RoleProtected>
-                            )
-                          } />
+            <LoadingProvider>
+              <ViewModeProvider>
+                <VencimentosSyncProvider>
+                  <ExpirationAlertsProvider>
+                    <AnniversaryAlertsProvider>
+                      <UpdateCheckProvider>
+                        <TooltipProvider>
+                          <Toaster />
+                          <GlobalLoader />
+                          <InstallPrompt />
+                          <UpdateNotificationModal />
+                          <HashRouter>
+                            <RouteChangeListener />
+                            <Routes>
+                              <Route path="/login" element={<Login />} />
+                              <Route path="/" element={renderProtected(<HomeRedirect />)} />
+                              <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
+                              <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
+                              <Route path="/contabilidade" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["contabilidade"]}>
+                                    <ContabilidadeDashboard />
+                                  </RoleProtected>
+                                )
+                              } />
 
-                          <Route path="/gestor" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <DashboardGestorPage />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/simulador-custos" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <Layout>
-                                  <CostSimulator />
-                                </Layout>
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/aprovacoes-orcamentos" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <Layout>
-                                  <AprovacoesOrcamentos />
-                                </Layout>
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/financeiro-share" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoFiscal />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/funcionarios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoFuncionarios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/configuracoes" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <ConfiguracoesFiscais />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/financeiro-cotistas" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <FinanceiroCotistas />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/financeiro-cotistas/:clienteId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <FinanceiroCotistaDetalhe />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/lancamento/:clienteId/:aeronaveId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <LancamentoForm />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/master" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
-                                <Master />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/master/colaboradores" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
-                                <MasterColaboradores />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/master/relatorios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <MasterRelatorios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/master/aeronaves" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <ComparativoAeronaves />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestor/master/proposta" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <CriarProposta />
-                              </RoleProtected>
-                            )
-                          } />
+                              <Route path="/gestor" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <DashboardGestorPage />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/simulador-custos" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <Layout><CostSimulator /></Layout>
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/aprovacoes-orcamentos" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <Layout><AprovacoesOrcamentos /></Layout>
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/financeiro-share" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <GestaoFiscal />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/funcionarios" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <GestaoFuncionarios />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/configuracoes" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <ConfiguracoesFiscais />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/financeiro-cotistas" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <FinanceiroCotistas />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/financeiro-cotistas/:clienteId" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <FinanceiroCotistaDetalhe />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/lancamento/:clienteId/:aeronaveId" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <LancamentoForm />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/master" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master"]}>
+                                    <Master />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/master/colaboradores" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master"]}>
+                                    <MasterColaboradores />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/master/relatorios" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <MasterRelatorios />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/master/aeronaves" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <ComparativoAeronaves />
+                                  </RoleProtected>
+                                )
+                              } />
+                              <Route path="/gestor/master/proposta" element={
+                                renderProtected(
+                                  <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                    <CriarProposta />
+                                  </RoleProtected>
+                                )
+                              } />
 
+                              <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
+                              <Route path="/documentos" element={renderProtected(<Documentos />)} />
+                              <Route path="/senhas" element={renderProtected(<Senhas />)} />
+                              <Route path="/mensagens" element={renderProtected(<Mensagens />)} />
+                              <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
+                              <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
+                              <Route path="/pre-voo/:solicitacaoId" element={renderProtected(<ChecklistPreVoo />)} />
+                              <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
+                              <Route path="/planos-voo-salvos" element={renderProtected(<PlanosVooSalvos />)} />
+                              <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />
+                              <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
+                              <Route path="/financeiro/emails" element={renderProtected(<EmailsPage />)} />
+                              <Route path="/financeiro/historico-programacao-pagamentos" element={renderProtected(<HistoricoProgramacaoPagamentos />)} />
+                              <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
+                              <Route path="/financeiro/relatorio-viagem" element={renderProtected(<RelatorioViagem />)} />
+                              <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
+                              <Route path="/financeiro/relatorios-cliente/:clientId" element={renderProtected(<RelatoriosClienteDetalhes />)} />
+                              <Route path="/financeiro/compras" element={renderProtected(<SolicitacaoCompras />)} />
+                              <Route path="/financeiro/agendamento-contas" element={renderProtected(<AgendamentoPagamentos />)} />
+                              <Route path="/financeiro/notas-fiscais" element={renderProtected(<Invoices />)} />
+                              <Route path="/ciclo-voo" element={renderProtected(<CiclosVoo />)} />
+                              <Route path="/historico-ponto" element={renderProtected(<Invoices />)} />
 
-                          <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
-                          <Route path="/documentos" element={renderProtected(<Documentos />)} />
-                          <Route path="/senhas" element={renderProtected(<Senhas />)} />
-                          <Route path="/mensagens" element={renderProtected(<Mensagens />)} />
-                          <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
-                         <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
-                         <Route path="/pre-voo/:solicitacaoId" element={renderProtected(<ChecklistPreVoo />)} />
-                          <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
-                          <Route path="/planos-voo-salvos" element={renderProtected(<PlanosVooSalvos />)} />
-                          <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />
-                          <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
-                          <Route path="/financeiro/emails" element={renderProtected(<EmailsPage />)} />
-                          <Route path="/financeiro/historico-programacao-pagamentos" element={renderProtected(<HistoricoProgramacaoPagamentos />)} />
-                          <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
-                          <Route path="/financeiro/relatorio-viagem" element={renderProtected(<RelatorioViagem />)} />
-                          <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
-                          <Route path="/financeiro/relatorios-cliente/:clientId" element={renderProtected(<RelatoriosClienteDetalhes />)} />
-                          <Route path="/financeiro/compras" element={renderProtected(<SolicitacaoCompras />)} />
-                          <Route path="/financeiro/agendamento-contas" element={renderProtected(<AgendamentoPagamentos />)} />
-                          <Route path="/financeiro/notas-fiscais" element={renderProtected(<Invoices />)} />
-                          <Route path="/ciclo-voo" element={renderProtected(<Invoices />)} />
-                          <Route path="/historico-ponto" element={renderProtected(<Invoices />)} />
+                              <Route path="/cartoes-corporativos" element={renderProtected(<CartoesCorporativos />)} />
+                              <Route path="/cartao/alimentacao" element={renderProtected(<ValeAlimentacao />)} />
+                              <Route path="/cartao/combustivel" element={renderProtected(<ValeCombustivel />)} />
+                              <Route path="/recados" element={renderProtected(<Recados />)} />
+                              <Route path="/minhas-tarefas" element={renderProtected(<MinhasTarefas />)} />
+                              <Route path="/perfil" element={renderProtected(<Perfil />)} />
+                              <Route path="/portal-cliente" element={renderProtected(<PortalCliente />)} />
+                              <Route path="/portal-cliente/dashboard" element={renderProtected(<PortalCliente />)} />
+                              <Route path="/tripulacao" element={renderProtected(<GestaoTripulacao />)} />
+                              <Route path="/tripulacao/:id" element={renderProtected(<TripulanteDetalhes />)} />
+                              <Route path="/gerenciar-usuarios" element={renderProtected(<GerenciarUsuarios />)} />
+                              <Route path="/gestao-salarios" element={renderProtected(<GestaoSalarios />)} />
+                              <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
 
-                          <Route path="/cartoes-corporativos" element={renderProtected(<CartoesCorporativos />)} />
-                          <Route path="/cartao/alimentacao" element={renderProtected(<ValeAlimentacao />)} />
-                          <Route path="/cartao/combustivel" element={renderProtected(<ValeCombustivel />)} />
-                          <Route path="/recados" element={renderProtected(<Recados />)} />
-                          <Route path="/minhas-tarefas" element={renderProtected(<MinhasTarefas />)} />
-                          <Route path="/perfil" element={renderProtected(<Perfil />)} />
-                          <Route path="/portal-cliente" element={renderProtected(<PortalCliente />)} />
-                          <Route path="/portal-cliente/dashboard" element={renderProtected(<PortalCliente />)} />
-                          <Route path="/tripulacao" element={renderProtected(<GestaoTripulacao />)} />
-                          <Route path="/tripulacao/:id" element={renderProtected(<TripulanteDetalhes />)} />
-                          <Route path="/gerenciar-usuarios" element={renderProtected(<GerenciarUsuarios />)} />
-                          <Route path="/gestao-salarios" element={renderProtected(<GestaoSalarios />)} />
-                          <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
+                              <Route path="/diario-bordo" element={renderProtected(<DiarioBordoWrapper />)} />
+                              <Route path="/diario-bordo/:aircraftId" element={renderProtected(<DiarioBordoDetalhes />)} />
+                              <Route path="/hora-banco/:aircraftId" element={renderProtected(<BancoHorasWrapper />)} />
 
-                          {/* Diário de Bordo */}
-                          <Route
-                            path="/diario-bordo"
-                            element={renderProtected(<DiarioBordoWrapper />)}
-                          />
-                          <Route
-                            path="/diario-bordo/:aircraftId"
-                            element={renderProtected(<DiarioBordoDetalhes />)}
-                          />
-                          <Route path="/hora-banco/:aircraftId" element={renderProtected(<BancoHorasWrapper />)} />
-
-                          <Route path="/ctm" element={renderProtected(<CTM />)} />
-                          <Route path="/ctm/:aircraftId" element={renderProtected(<CTM />)} />
-                          <Route path="/aerodromos" element={renderProtected(<Aerodromos />)} />
-                          <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
-                          <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
-                          <Route path="/vencimentos" element={renderProtected(<ControleVencimentos />)} />
-                          <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
-                          <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
-                          <Route path="/ferias" element={renderProtected(<Ferias />)} />
-                          <Route path="/centro-treinamento" element={renderProtected(<CentroTreinamento />)} />
-                          <Route path="/centro-treinamento/sala-reuniao" element={renderProtected(<SalaReuniao />)} />
-                          <Route path="/centro-treinamento/sala-reuniao/:id" element={renderProtected(<SalaReuniaoRoom />)} />
-                          <Route path="/centro-treinamento/treinamento" element={renderProtected(<TreinamentoCentro />)} />
-                          <Route path="/centro-treinamento/manual" element={renderProtected(<ManualSistema />)} />
-                          <Route path="/manual" element={renderProtected(<ManualSistema />)} />
-                          <Route path="*" element={renderProtected(<NotFound />)} />
-                        </Routes>
-                        </HashRouter>
-                      </TooltipProvider>
-                    </UpdateCheckProvider>
-                  </AnniversaryAlertsProvider>
-                </ExpirationAlertsProvider>
-              </VencimentosSyncProvider>
-            </ViewModeProvider>
-          </LoadingProvider>
+                              <Route path="/ctm" element={renderProtected(<CTM />)} />
+                              <Route path="/ctm/:aircraftId" element={renderProtected(<CTM />)} />
+                              <Route path="/aerodromos" element={renderProtected(<Aerodromos />)} />
+                              <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
+                              <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
+                              <Route path="/vencimentos" element={renderProtected(<ControleVencimentos />)} />
+                              <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
+                              <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
+                              <Route path="/ferias" element={renderProtected(<Ferias />)} />
+                              <Route path="/centro-treinamento" element={renderProtected(<CentroTreinamento />)} />
+                              <Route path="/centro-treinamento/sala-reuniao" element={renderProtected(<SalaReuniao />)} />
+                              <Route path="/centro-treinamento/sala-reuniao/:id" element={renderProtected(<SalaReuniaoRoom />)} />
+                              <Route path="/centro-treinamento/treinamento" element={renderProtected(<TreinamentoCentro />)} />
+                              <Route path="/centro-treinamento/manual" element={renderProtected(<ManualSistema />)} />
+                              <Route path="/manual" element={renderProtected(<ManualSistema />)} />
+                              <Route path="*" element={renderProtected(<NotFound />)} />
+                            </Routes>
+                          </HashRouter>
+                        </TooltipProvider>
+                      </UpdateCheckProvider>
+                    </AnniversaryAlertsProvider>
+                  </ExpirationAlertsProvider>
+                </VencimentosSyncProvider>
+              </ViewModeProvider>
+            </LoadingProvider>
           </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
