@@ -3,8 +3,9 @@ export const OPENWEATHER_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/openweathe
 
 export type OpenWeatherLayer = 'clouds_new' | 'precipitation_new' | 'pressure_new' | 'wind_new' | 'temp_new';
 
-export function openWeatherTileUrl(layer: OpenWeatherLayer) {
-  return `${OPENWEATHER_FUNCTION_URL}?mode=tile&layer=${layer}&z={z}&x={x}&y={y}`;
+export function openWeatherTileUrl(layer: OpenWeatherLayer, cacheKey?: string) {
+  const suffix = cacheKey ? `&v=${encodeURIComponent(cacheKey)}` : '';
+  return `${OPENWEATHER_FUNCTION_URL}?mode=tile&layer=${layer}&z={z}&x={x}&y={y}${suffix}`;
 }
 
 export interface OpenWeatherPoint {
@@ -19,7 +20,11 @@ export interface OpenWeatherPoint {
 }
 
 export async function fetchOpenWeatherPointDirect(lat: number, lon: number): Promise<OpenWeatherPoint> {
-  const response = await fetch(`${OPENWEATHER_FUNCTION_URL}?mode=point&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+  const cacheBust = Date.now();
+  const response = await fetch(
+    `${OPENWEATHER_FUNCTION_URL}?mode=point&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&_=${cacheBust}`,
+    { cache: 'no-store' },
+  );
   const body = await response.json();
   if (!response.ok) throw new Error(body?.error || 'Não foi possível consultar a meteorologia.');
   return body;
