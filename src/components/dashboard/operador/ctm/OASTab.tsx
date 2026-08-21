@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileText, Plus, Eye, Calendar, Clock, ChevronRight, Paperclip, X, Save, Loader2, Pencil, Search, FolderOpen, Wrench, ListFilter } from 'lucide-react';
+import { FileText, Plus, Eye, Calendar, Clock, ChevronRight, ArrowLeft, Paperclip, X, Save, Loader2, Pencil, Search, FolderOpen, Wrench, ListFilter } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
 import { AnimatedFolder } from '@/components/AnimatedFolder';
@@ -22,7 +22,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
   const [selected, setSelected] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
-  const [openYears, setOpenYears] = useState<Record<string, boolean>>({});
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   async function loadOAS() {
     setLoading(true);
@@ -47,7 +47,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
     const rows = data ?? [];
     setList(rows);
     const years = [...new Set(rows.map((oas: any) => getOASYear(oas)))];
-    setOpenYears((current) => Object.fromEntries(years.map((year) => [year, current[year] ?? false])));
+    if (selectedYear && !years.includes(selectedYear)) setSelectedYear(null);
     setLoading(false);
   }
 
@@ -69,6 +69,10 @@ export function OASTab({ aircraftId }: OASTabProps) {
 
   if (loading) return <LoadingSpinner />;
   if (selected) return <OASDetail oas={selected} onBack={() => { setSelected(null); loadOAS(); }} aircraftId={aircraftId} />;
+  if (selectedYear) {
+    const yearOAS = groupedByYear[selectedYear] ?? [];
+    return <OASYearView year={selectedYear} oasList={yearOAS} onBack={() => setSelectedYear(null)} onSelect={setSelected} />;
+  }
 
   return (
     <div className="space-y-5">
@@ -96,7 +100,6 @@ export function OASTab({ aircraftId }: OASTabProps) {
       {list.length === 0 && !showForm ? <EmptySection icon={FileText} text="Nenhuma OAS registrada" /> : years.length === 0 ? <EmptySection icon={Search} text="Nenhuma OAS encontrada para essa busca" /> : (
         <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
           {years.map((year) => {
-            const opened = openYears[year] ?? false;
             const yearOAS = groupedByYear[year];
             return (
               <React.Fragment key={year}>
@@ -106,20 +109,43 @@ export function OASTab({ aircraftId }: OASTabProps) {
                     theme="blue"
                     showPreviewCards={false}
                     projects={yearOAS.map((oas: any) => ({ id: oas.id, image: "", title: `OAS #${oas.numero}` }))}
-                    onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))}
+                    onClick={() => setSelectedYear(year)}
                     className="min-h-[190px] w-full border-blue-300/20 bg-blue-950/20 p-3 shadow-lg shadow-blue-950/20"
                   />
-                  {opened && (
-                    <div className="mt-4 space-y-3 rounded-xl border border-blue-300/10 bg-blue-950/10 p-3">
-                      {yearOAS.map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => setSelected(oas)} />)}
-                    </div>
-                  )}
                 </div>
               </React.Fragment>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function OASYearView({ year, oasList, onBack, onSelect }: {
+  year: string;
+  oasList: any[];
+  onBack: () => void;
+  onSelect: (oas: any) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 rounded-2xl border border-blue-300/15 bg-gradient-to-br from-blue-950/55 to-slate-950/70 p-5 shadow-xl sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <button type="button" onClick={onBack} className="mt-0.5 rounded-lg border border-blue-200/20 p-2 text-blue-100 transition hover:bg-blue-400/10" aria-label="Voltar para as pastas">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ctm-teal">Histórico de OAS</div>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight">OAS de {year}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{oasList.length} ordem(ns) registrada(s).</p>
+          </div>
+        </div>
+        <div className="rounded-full border border-blue-300/15 bg-blue-400/10 px-3 py-1.5 text-sm text-blue-100">Aeronave selecionada</div>
+      </div>
+      <div className="space-y-3">
+        {oasList.map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => onSelect(oas)} />)}
+      </div>
     </div>
   );
 }
