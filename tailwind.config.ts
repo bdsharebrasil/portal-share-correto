@@ -3,224 +3,297 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
+
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
   ],
+
   prefix: "",
+
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: "1.5rem",
       screens: {
-        '2xl': '1400px'
-      }
+        "2xl": "1400px",
+      },
     },
+
     extend: {
       colors: {
-        // Suas novas cores adicionadas aqui
+        /* =========================================================
+           SHARE — PALETA PRINCIPAL
+           ========================================================= */
+
+        brand: {
+          50: "#eff8ff",
+          100: "#dceeff",
+          200: "#bfe0ff",
+          300: "#8ec5f4",
+          400: "#5aa5e8",
+          500: "#3386d5",
+          600: "#2872bd",
+          700: "#205b97",
+          800: "#1d4b7b",
+          900: "#1c4166",
+          950: "#112a43",
+        },
+
         azul: {
-          50: '#eaf1ff',
-          100: '#d3e2ff',
-          200: '#a9c5ff',
-          300: '#7ba3fb',
-          400: '#5484f4',
-          500: '#3767e8',
-          600: '#2a51cf',
-          700: '#2340a6',
-          800: '#1d3480',
-          900: '#182a63',
-          950: '#0f1c45',
+          50: "#eef6ff",
+          100: "#dcecff",
+          200: "#bddcff",
+          300: "#8ec4f1",
+          400: "#5ba4df",
+          500: "#347fc8",
+          600: "#2869aa",
+          700: "#24578d",
+          800: "#234a74",
+          900: "#223f60",
+          950: "#142b43",
         },
+
+        /* Azul escuro corporativo */
         noite: {
-          950: '#050a1a',
-          900: '#08102a',
-          850: '#0b1636',
-          800: '#101d44',
-          700: '#152556',
-          600: '#1d3170',
-          500: '#2a4290',
-          400: '#6d86c4',
-          300: '#9db2e0',
-          200: '#c9d7f5',
-          100: '#e6edff',
+          950: "#070c15",
+          900: "#0a1020",
+          850: "#0e1625",
+          800: "#111b2b",
+          700: "#172337",
+          600: "#1d2c42",
+          500: "#2a3d57",
+          400: "#647793",
+          300: "#92a2b8",
+          200: "#c2ccda",
+          100: "#e7edf5",
         },
-        
-        // Suas cores originais mantidas
+
+        /* Mantemos compatibilidade com componentes existentes */
         ctm: {
-          teal: '#2dd4bf',
-          'teal-light': '#5eead4',
-          navy: '#0f1628'
+          teal: "#35b7cf",
+          "teal-light": "#61c9dc",
+          navy: "#0a1020",
         },
-        border: {
-          DEFAULT: 'hsl(var(--border))',
-          subtle: '#1a2540'
-        },
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        ink: {
-          DEFAULT: '#c3d0e8',
-          bright: '#eaf1fb',
-          muted: '#7f92b3',
-          faint: '#5a6c8a'
-        },
-        bg: {
-          card: '#0f1628',
-          surface: '#141d33',
-          raised: '#111a2e',
-          hover: '#1a2540'
-        },
-        danger: '#ef4444',
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-          glow: 'hsl(var(--primary-glow))',
-          dark: 'hsl(var(--primary-dark))',
-          light: '#5a9aee',
-          dim: '#2a5fa8',
-          accent: '#3b7dd8',
-          muted: 'rgba(59, 125, 216, 0.15)'
-        },
-        secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))'
-        },
-        destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))'
-        },
-        muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))'
-        },
-        accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))'
-        },
-        popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))'
-        },
+
+        /* =========================================================
+           TOKENS SEMÂNTICOS
+           ========================================================= */
+
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-          secondary: 'hsl(var(--card-secondary))'
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+          secondary: "hsl(var(--card-secondary))",
         },
+
+        border: {
+          DEFAULT: "hsl(var(--border))",
+          subtle: "hsl(var(--border-subtle))",
+        },
+
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
+          dark: "hsl(var(--primary-dark))",
+          light: "#5a9ed8",
+          dim: "#2b6a9f",
+          accent: "#3a7fbd",
+          muted: "hsl(var(--primary-muted))",
+        },
+
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+
         sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          primary: 'hsl(var(--sidebar-primary))',
-          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
-          ring: 'hsl(var(--sidebar-ring))'
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
         },
-        'folder-back': 'hsl(var(--folder-back))',
-        'folder-tab': 'hsl(var(--folder-tab))',
-        'folder-front': 'hsl(var(--folder-front))',
-        success: 'hsl(var(--success))',
-        warning: 'hsl(var(--warning))',
+
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+
+        danger: "#dc4f4f",
+
+        /*
+         * Compatibilidade com componentes antigos
+         */
+        bg: {
+          card: "hsl(var(--card))",
+          surface: "hsl(var(--surface))",
+          raised: "hsl(var(--surface-raised))",
+          hover: "hsl(var(--surface-hover))",
+        },
+
+        ink: {
+          DEFAULT: "hsl(var(--text-primary))",
+          bright: "hsl(var(--text-bright))",
+          muted: "hsl(var(--text-muted))",
+          faint: "hsl(var(--text-faint))",
+        },
+
         navy: {
-          950: '#080c14',
-          900: '#0f1623',
-          850: '#111827',
-          800: '#131d2e',
-          700: '#1c293f',
+          950: "#080d16",
+          900: "#0d1521",
+          850: "#101927",
+          800: "#152033",
+          700: "#1b2940",
         },
+
+        /* Cyan deve ser detalhe, não cor dominante */
         cyan: {
-          DEFAULT: '#22d3ee',
-          dim: '#06b6d4',
-          faint: 'rgba(34,211,238,0.12)',
-        }
+          DEFAULT: "#35b7cf",
+          dim: "#258ca4",
+          faint: "rgba(53, 183, 207, 0.08)",
+        },
       },
+
       fontFamily: {
-        // Fonte sans atualizada para incluir a sua lista completa de fallbacks
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Inter', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif",
+        ],
+        display: ["Inter", "sans-serif"],
+        body: ["Inter", "sans-serif"],
       },
+
       backgroundImage: {
-        'gradient-primary': 'var(--gradient-primary)',
-        'gradient-card': 'var(--gradient-card)',
-        'gradient-subtle': 'var(--gradient-subtle)'
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-card": "var(--gradient-card)",
+        "gradient-subtle": "var(--gradient-subtle)",
       },
+
       boxShadow: {
-        'primary': 'var(--shadow-primary)',
-        'card': 'var(--shadow-card)',
-        'elevated': 'var(--shadow-elevated)'
+        primary: "var(--shadow-primary)",
+        card: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        soft: "var(--shadow-soft)",
       },
+
       transitionTimingFunction: {
-        'smooth': 'var(--transition-smooth)',
-        'bounce': 'var(--transition-bounce)'
+        smooth: "var(--transition-smooth)",
       },
+
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
-        DEFAULT: '0.5rem'
+        xl: "14px",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+        DEFAULT: "10px",
       },
+
       keyframes: {
-        'accordion-down': {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' }
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
-        'accordion-up': {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' }
+
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
-        'scroll-left': {
-          from: { transform: 'translateX(100%)' },
-          to: { transform: 'translateX(-100%)' }
+
+        "slide-in-from-top": {
+          from: {
+            transform: "translateY(-10px)",
+            opacity: "0",
+          },
+          to: {
+            transform: "translateY(0)",
+            opacity: "1",
+          },
         },
-        'scroll-right': {
-          from: { transform: 'translateX(-100%)' },
-          to: { transform: 'translateX(100%)' }
+
+        "slide-out-to-top": {
+          from: {
+            transform: "translateY(0)",
+            opacity: "1",
+          },
+          to: {
+            transform: "translateY(-10px)",
+            opacity: "0",
+          },
         },
-        'plane-float': {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-8px)' }
+
+        "fade-in": {
+          from: {
+            opacity: "0",
+            transform: "translateY(4px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
         },
-        'dash': {
-          to: { strokeDashoffset: '-1000' }
+
+        "fade-out": {
+          from: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+          to: {
+            opacity: "0",
+            transform: "translateY(4px)",
+          },
         },
-        'slide-in-from-top': {
-          from: { transform: 'translateY(-100%)', opacity: '0' },
-          to: { transform: 'translateY(0)', opacity: '1' }
-        },
-        'slide-out-to-top': {
-          from: { transform: 'translateY(0)', opacity: '1' },
-          to: { transform: 'translateY(-100%)', opacity: '0' }
-        },
-        'fade-in': {
-          from: { opacity: '0', transform: 'scale(0.95)' },
-          to: { opacity: '1', transform: 'scale(1)' }
-        },
-        'fade-out': {
-          from: { opacity: '1', transform: 'scale(1)' },
-          to: { opacity: '0', transform: 'scale(0.95)' }
-        }
       },
+
       animation: {
-        'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out',
-        'scroll-left': 'scroll-left 8s linear infinite',
-        'scroll-right': 'scroll-right 10s linear infinite',
-        'plane-float': 'plane-float 3s ease-in-out infinite',
-        'route-dash': 'dash 60s linear infinite',
-        'slide-in-from-top': 'slide-in-from-top 0.3s cubic-bezier(0.21, 1.02, 0.73, 1)',
-        'slide-out-to-top': 'slide-out-to-top 0.25s cubic-bezier(0.21, 1.02, 0.73, 1)',
-        'fade-in': 'fade-in 0.2s ease-out',
-        'fade-out': 'fade-out 0.2s ease-out'
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "slide-in-from-top":
+          "slide-in-from-top 0.25s ease-out",
+        "slide-out-to-top":
+          "slide-out-to-top 0.2s ease-in",
+        "fade-in": "fade-in 0.2s ease-out",
+        "fade-out": "fade-out 0.15s ease-in",
       },
+
       scale: {
-        '102': '1.02'
-      }
-    }
+        102: "1.02",
+      },
+    },
   },
+
   plugins: [tailwindcssAnimate],
 } satisfies Config;
