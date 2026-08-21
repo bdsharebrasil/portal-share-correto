@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { API_ENDPOINTS } from "@/config/api";
 import {
   atualizarStatusReuniao,
   sairDaReuniaoTreinamento,
@@ -43,7 +44,7 @@ function getRtcConfiguration(): RTCConfiguration {
   return { iceServers: [...DEFAULT_STUN_SERVERS, ...turnServers], iceCandidatePoolSize: 10 };
 }
 
-const RTC_CONFIGURATION = getRtcConfiguration();
+const FALLBACK_RTC_CONFIGURATION = getRtcConfiguration();
 
 function getVideoProfile(participantCount: number) {
   if (participantCount >= 10) return { maxBitrate: 180_000, scaleResolutionDownBy: 2.5, maxFramerate: 15 };
@@ -151,6 +152,7 @@ export function MeetingRoom({
   onLeave,
 }: MeetingRoomProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const rtcConfigurationRef = useRef<RTCConfiguration>(FALLBACK_RTC_CONFIGURATION);
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
   const remoteStreamsRef = useRef(new Map<string, MediaStream>());
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -172,6 +174,7 @@ export function MeetingRoom({
   const [strokes, setStrokes] = useState<WhiteboardStroke[]>([]);
   const [isCopied, setIsCopied] = useState(false);
   const [participantCount, setParticipantCount] = useState(1);
+  const [turnReady, setTurnReady] = useState(false);
 
   useEffect(() => {
     presenceRef.current = {
@@ -244,7 +247,7 @@ export function MeetingRoom({
       const existing = peersRef.current.get(remoteId);
       if (existing) return existing;
 
-      const connection = new RTCPeerConnection(RTC_CONFIGURATION);
+      const connection = new RTCPeerConnection(rtcConfigurationRef.current);
       const remoteStream =
         remoteStreamsRef.current.get(remoteId) ?? new MediaStream();
       remoteStreamsRef.current.set(remoteId, remoteStream);
@@ -371,6 +374,25 @@ export function MeetingRoom({
 
   useEffect(() => {
     let cancelled = false;
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const response = await fetch(API_ENDPOINTS.turnIceServers, { headers: { Authorization: `Bearer ${token}` } });
+          if (response.ok) {
+            const payload = await response.json() as { iceServers?: RTCIceServer[] };
+            if (Array.isArray(payload.iceServers) && payload.iceServers.length > 0) {
+              rtcConfigurationRef.current = { ...FALLBACK_RTC_CONFIGURATION, iceServers: payload.iceServers, iceCandidatePoolSize: 10 };
+            }
+          }
+        }
+      } catch {
+        // O STUN local continua como fallback quando o TURN não responde.
+      } finally {
+        if (!cancelled) setTurnReady(true);
+      }
+    })();
     const streamPromise = navigator.mediaDevices?.getUserMedia({
       video: { width: { ideal: 640, max: 1280 }, height: { ideal: 360, max: 720 }, frameRate: { ideal: 20, max: 24 } },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -414,6 +436,7 @@ export function MeetingRoom({
   }, []);
 
   useEffect(() => {
+    if (!turnReady) return;
     let disposed = false;
     const channel = supabase.channel(`treinamento-sala-${meeting.id}`, {
       config: {
@@ -497,6 +520,7 @@ export function MeetingRoom({
     onLeave,
     refreshParticipants,
     userId,
+    turnReady,
   ]);
 
   useEffect(() => {

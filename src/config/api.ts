@@ -85,6 +85,9 @@ export const API_ENDPOINTS = {
   // Alternados próximos
   geilocNearby: (lat: number, lon: number) =>
     `${_base}${_prefix}/geiloc/nearby?lat=${lat}&lon=${lon}`,
+
+  // Credenciais TURN temporárias para reuniões WebRTC
+  turnIceServers: `${_base}${_prefix}/turn/ice-servers` as string,
 } as const
 
 // ─── Debug ────────────────────────────────────────────────────────────────────
