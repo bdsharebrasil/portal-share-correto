@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   ArrowDown,
@@ -41,6 +41,7 @@ type Ordem = "asc" | "desc";
 export default function FluxoCaixaTab() {
   const [data, setData] = useState<any>({ movimentacoes: [], rateios: [], clientes: [], socios: [], categorias: [] });
   const [loading, setLoading] = useState(true);
+  const dadosCarregadosRef = useRef(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("visao");
   
@@ -85,9 +86,12 @@ export default function FluxoCaixaTab() {
   const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({ diasAtrasoMinimo: 6 });
 
   const load = useCallback(async () => {
-    setLoading(true); setErro(null);
+    // Mantém a tela montada durante refresh para preservar filtros, mês e ordenação.
+    if (!dadosCarregadosRef.current) setLoading(true);
+    setErro(null);
     try {
       setData(await fetchFinanceiroData());
+      dadosCarregadosRef.current = true;
       await queryClient.invalidateQueries({ queryKey: ["contas-apagar-proximas"] });
       await queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
     } catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); }

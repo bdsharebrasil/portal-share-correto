@@ -173,7 +173,9 @@ export default function DgaSituacao({
   const [mesSelecionado, setMesSelecionado] = useState("");
   const [editMovId, setEditMovId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [modoData, setModoData] = useState<ModoData>("pagamento");
+  // No DGA, pendências devem ser agrupadas pela data de vencimento por padrão.
+  // Pagamento continua disponível para conferência de lançamentos quitados.
+  const [modoData, setModoData] = useState<ModoData>("vencimento");
   const [campoOrdenacao, setCampoOrdenacao] = useState<CampoOrdenacao>("data");
   const [direcao, setDirecao] = useState<Direcao>("desc");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
