@@ -58,6 +58,7 @@ import AeronaveDetalhes from "./pages/AeronaveDetalhes";
 import GestaoSalarios from "./pages/GestaoSalarios";
 import GerenciarUsuarios from "./pages/GerenciarUsuarios";
 import GestaoFuncionarios from "./pages/GestaoFuncionarios";
+import ContabilidadeDashboard from "./pages/ContabilidadeDashboard";
 import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
@@ -107,6 +108,8 @@ const HomeRedirect = () => {
       navigate("/gestor", { replace: true });
     } else if (roles.includes("financeiro")) {
       navigate("/financeiro", { replace: true });
+    } else if (roles.includes("contabilidade")) {
+      navigate("/contabilidade", { replace: true });
     } else {
       // coordenador_de_voo, piloto_chefe, tripulante e demais
       navigate("/operacoes", { replace: true });
@@ -172,6 +175,13 @@ const App = () => {
                           <Route path="/" element={renderProtected(<HomeRedirect />)} />
                           <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
                           <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
+                          <Route path="/contabilidade" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["contabilidade"]}>
+                                <ContabilidadeDashboard />
+                              </RoleProtected>
+                            )
+                          } />
 
                           <Route path="/gestor" element={
                             renderProtected(

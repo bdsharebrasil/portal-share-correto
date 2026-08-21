@@ -106,7 +106,7 @@ export function VacationManagement() {
   }, [allRequests, userProfiles]);
 
   // Filter requests
-  const pendingRequests = enrichedRequests.filter(r => r.statuscao === "pending");
+  const pendingRequests = enrichedRequests.filter(r => r.status === "pending");
   const approvedRequests = enrichedRequests.filter(r => r.status === "approved");
   const rejectedRequests = enrichedRequests.filter(r => r.status === "rejected");
 
@@ -131,15 +131,20 @@ export function VacationManagement() {
 
       if (requestError) throw requestError;
 
-      // Update employee status to "ferias"
-      const { error: profileError } = await supabase
-        .from("user_profiles")
-        .update({ employment_status: "ferias" })
-        .eq("id", request.user_id);
+      // A aprovação cria/atualiza o período oficial do colaborador.
+      // Não alteramos employment_status aqui: uma aprovação futura não significa
+      // que o colaborador já entrou em férias.
+      const { error: configError } = await (supabase as any)
+        .from("employee_vacation_config")
+        .upsert({
+          user_profile: request.user_id,
+          year: new Date(`${request.start_date}T00:00:00`).getFullYear(),
+          scheduled_date: request.start_date,
+          total_vacation_days: request.days,
+          payment_status: "agendado",
+        }, { onConflict: "user_profile,year" });
 
-      if (profileError) {
-        console.error("Erro ao atualizar status do funcionário:", profileError);
-      }
+      if (configError) throw configError;
 
       // Create notification - messages table disabled
       // const { error: notificationError } = await supabase
@@ -159,7 +164,9 @@ export function VacationManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vacation-requests-management"] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success("Férias aprovadas com sucesso! O colaborador foi notificado.");
+      queryClient.invalidateQueries({ queryKey: ["vacation-history"] });
+      queryClient.invalidateQueries({ queryKey: ["colaboradores-ferias"] });
+      toast.success("Férias aprovadas e período agendado com sucesso!");
       setShowApproveDialog(false);
       setSelectedRequest(null);
     },

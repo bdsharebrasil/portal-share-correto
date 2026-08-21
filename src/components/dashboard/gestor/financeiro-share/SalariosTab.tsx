@@ -21,6 +21,7 @@ import { formatBRL } from "@/lib/format";
 import { syncSalaryPaymentToFinancial } from "@/services/financialSyncClient";
 import { readHolerite } from "@/lib/holeriteOCR";
 import { calcularValorFerias } from "@/lib/feriasCalculator";
+import { getPayslipPublicUrl } from "@/hooks/usePayslips";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -452,7 +453,21 @@ export default function SalariosTab() {
         if (!salariosMap[s.user_id]) salariosMap[s.user_id] = s;
       });
 
-      // 3. Busca histórico de pagamentos salvos
+      // 3. Busca holerite mensal enviado pela contabilidade para pré-preenchimento
+      const { data: holeritesData, error: he } = await (supabase as any)
+        .from("employee_payslips")
+        .select("employee_id, month, year, file_path, salario_bruto, salario_liquido, desconto_inss, desconto_irrf, outros_descontos, valor_ferias, total_descontos, ocr_status, ocr_confidence")
+        .in("employee_id", userIds)
+        .eq("month", mes)
+        .eq("year", ano);
+      if (he) throw he;
+
+      const holeriteMap: Record<string, any> = {};
+      (holeritesData ?? []).forEach((h: any) => {
+        holeriteMap[h.employee_id] = h;
+      });
+
+      // 4. Busca histórico de pagamentos salvos
       const { data: pags, error: pe } = await (supabase as any)
         .from("historico_pagamentos_funcionarios")
         .select("*")
@@ -474,6 +489,7 @@ export default function SalariosTab() {
 
       userList.forEach((u) => {
         const p = pagMap[u.id] ?? null;
+        const holerite = holeriteMap[u.id] ?? null;
         const salVigente = salariosMap[u.id];
 
         if (p) {
@@ -517,6 +533,22 @@ export default function SalariosTab() {
             comprovante_url: p.url_comprovante ?? "",
             show13: has13,
             showFerias: hasFerias,
+          };
+        } else if (holerite) {
+          const bruto = holerite.salario_bruto ?? salVigente?.salario_bruto ?? "";
+          const liquido = holerite.salario_liquido ?? salVigente?.salario_liquido ?? "";
+          const totalDescontos = holerite.total_descontos ?? "";
+          formMap[u.id] = {
+            ...emptyForm,
+            base_salary_holerite: String(bruto),
+            salario_bruto: String(bruto),
+            salario_liquido: String(liquido),
+            desconto_inss: holerite.desconto_inss != null ? String(holerite.desconto_inss) : "",
+            desconto_irrf: holerite.desconto_irrf != null ? String(holerite.desconto_irrf) : "",
+            desconto_outros: holerite.outros_descontos != null ? String(holerite.outros_descontos) : (totalDescontos ? String(totalDescontos) : ""),
+            ferias: holerite.valor_ferias != null ? moneyInput(holerite.valor_ferias) : "",
+            holerite_url: getPayslipPublicUrl(holerite.file_path),
+            benefit: salVigente?.beneficios ?? "",
           };
         } else {
           formMap[u.id] = {
@@ -1275,7 +1307,7 @@ export default function SalariosTab() {
                                   className={inputCls}
                                   placeholder="Ex.: 10"
                                   value={f.ferias_dias_comprados}
-                                  onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_dias_comprados: e.target.value.replace(/\\D/g, "").slice(0, 2) } }))}
+                                  onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_dias_comprados: e.target.value.replace(/\D/g, "").slice(0, 2) } }))}
                                 />
                               </div>
                             </div>

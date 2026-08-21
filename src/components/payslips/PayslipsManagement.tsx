@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { usePayslips, getPayslipPublicUrl } from "@/hooks/usePayslips";
+import { readHolerite } from "@/lib/holeriteOCR";
 import { toast } from "sonner";
 import { Upload, Trash2, Eye, Loader2, AlertCircle } from "lucide-react";
 
@@ -20,10 +21,15 @@ interface PayslipUploadData {
   file: File | null;
 }
 
-export function PayslipsManagement() {
+interface PayslipsManagementProps {
+  employeeId?: string;
+  employeeName?: string;
+}
+
+export function PayslipsManagement({ employeeId, employeeName }: PayslipsManagementProps = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [selectedEmployee, setSelectedEmployee] = useState<string>(employeeId || "");
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -82,7 +88,8 @@ export function PayslipsManagement() {
     },
   });
 
-  const { data: payslips = [] } = usePayslips(selectedEmployee || undefined);
+  const activeEmployeeId = employeeId || selectedEmployee;
+  const { data: payslips = [] } = usePayslips(activeEmployeeId || undefined);
 
   const uploadPayslipMutation = useMutation({
     mutationFn: async (uploadData: PayslipUploadData) => {
@@ -102,7 +109,7 @@ export function PayslipsManagement() {
         .from("holerites")
         .getPublicUrl(fileName);
 
-      const { error: dbError } = await supabase
+      const { data: savedPayslip, error: dbError } = await (supabase as any)
         .from("employee_payslips")
         .upsert({
           employee_id: uploadData.employee_id,
@@ -111,18 +118,48 @@ export function PayslipsManagement() {
           file_path: fileName,
           uploaded_at: new Date().toISOString(),
           uploaded_by: user?.id,
+          ocr_status: "processando",
         }, {
           onConflict: "employee_id,month,year",
-        });
+        })
+        .select("id")
+        .single();
 
       if (dbError) throw dbError;
+
+      try {
+        const extraction = await readHolerite(uploadData.file);
+        const { error: ocrError } = await (supabase as any)
+          .from("employee_payslips")
+          .update({
+            salario_bruto: extraction.salarioBruto,
+            salario_liquido: extraction.salarioLiquido,
+            desconto_inss: extraction.descontoInss,
+            desconto_irrf: extraction.descontoIrrf,
+            outros_descontos: extraction.outrosDescontos,
+            valor_ferias: extraction.valorFerias,
+            total_descontos: extraction.totalDescontos,
+            ocr_raw_text: extraction.rawText,
+            ocr_confidence: extraction.confidence,
+            ocr_status: "concluido",
+            ocr_processed_at: new Date().toISOString(),
+          })
+          .eq("id", savedPayslip.id);
+        if (ocrError) throw ocrError;
+      } catch (ocrError) {
+        await (supabase as any)
+          .from("employee_payslips")
+          .update({ ocr_status: "erro", ocr_processed_at: new Date().toISOString() })
+          .eq("id", savedPayslip.id);
+        throw new Error(`Holerite enviado, mas não foi possível concluir a leitura: ${(ocrError as Error)?.message || "erro no OCR"}`);
+      }
 
       return publicUrl;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payslips"] });
       setUploadFile(null);
-      toast.success("Holerite enviado com sucesso!");
+      toast.success("Holerite enviado e lido com sucesso!");
     },
     onError: (error: any) => {
       toast.error(`Erro ao enviar holerite: ${error.message}`);
@@ -158,13 +195,13 @@ export function PayslipsManagement() {
   });
 
   const handleUpload = async () => {
-    if (!selectedEmployee || !uploadFile || !selectedMonth || !selectedYear) {
+    if (!activeEmployeeId || !uploadFile || !selectedMonth || !selectedYear) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
     uploadPayslipMutation.mutate({
-      employee_id: selectedEmployee,
+      employee_id: activeEmployeeId,
       month: parseInt(selectedMonth),
       year: parseInt(selectedYear),
       file: uploadFile,
@@ -188,8 +225,8 @@ export function PayslipsManagement() {
           <CardTitle>Gerenciar Holerites</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          <div className={`grid grid-cols-1 ${employeeId ? "md:grid-cols-2" : "md:grid-cols-3"} gap-4`}>
+            {!employeeId && <div>
               <Label htmlFor="employee-select">Funcionário</Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                 <SelectTrigger id="employee-select" className="mt-2">
@@ -203,7 +240,11 @@ export function PayslipsManagement() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
+            {employeeId && <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Colaborador</p>
+              <p className="mt-1 font-semibold text-foreground">{employeeName || "Colaborador selecionado"}</p>
+            </div>}
 
             <div>
               <Label htmlFor="month-select">Mês</Label>
@@ -251,7 +292,7 @@ export function PayslipsManagement() {
               />
               <Button
                 onClick={handleUpload}
-                disabled={!selectedEmployee || !uploadFile || uploadPayslipMutation.isPending}
+                disabled={!activeEmployeeId || !uploadFile || uploadPayslipMutation.isPending}
                 className="gap-2"
               >
                 {uploadPayslipMutation.isPending ? (
@@ -274,11 +315,11 @@ export function PayslipsManagement() {
         </CardContent>
       </Card>
 
-      {selectedEmployee && (
+      {activeEmployeeId && (
         <Card>
           <CardHeader>
             <CardTitle>
-              Holerites de {employees.find((e: any) => e.id === selectedEmployee)?.full_name}
+              Holerites de {employeeName || employees.find((e: any) => e.id === activeEmployeeId)?.full_name}
             </CardTitle>
           </CardHeader>
           <CardContent>

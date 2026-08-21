@@ -19,7 +19,6 @@ import { GestaoSalariosContent } from "./GestaoSalarios";
 import { Suspense } from "react";
 import { TimeEntriesTable } from "@/components/ponto/TimeEntriesTable";
 import { DocumentUploadWidget } from "@/components/profile/DocumentUploadWidget";
-import { ThirteenthSalaryManager } from "@/components/vencimentos/ThirteenthSalaryManager";
 import { VacationManagement } from "@/components/Ferias/VacationManagement";
 import { EmployeeVacationTab } from "@/components/Ferias/EmployeeVacationTab";
 import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt, UserPlus } from "lucide-react";
@@ -600,12 +599,6 @@ export default function GestaoFuncionarios() {
                 <DollarSign className="w-4 h-4 mr-2" />
                 Salários
               </TabsTrigger>
-              <TabsTrigger value="decimo" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
-                  data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                  data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
-                <DollarSign className="w-4 h-4 mr-2" />
-                13º Salário
-              </TabsTrigger>
               <TabsTrigger value="ferias" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                   data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
                   data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
@@ -692,10 +685,6 @@ export default function GestaoFuncionarios() {
             <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-200px)]"><p className="text-muted-foreground">Carregando Gestão de Salários...</p></div>}>
               <GestaoSalariosContent />
             </Suspense>
-          </TabsContent>
-
-          <TabsContent value="decimo" className="mt-0">
-            <ThirteenthSalaryManager />
           </TabsContent>
 
           <TabsContent value="ferias" className="mt-0">

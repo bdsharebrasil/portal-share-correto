@@ -150,14 +150,45 @@ export function FeriasDecimosTab() {
   const addVacationMutation = useMutation({
     mutationFn: async (data: typeof newVacation) => {
       if (!selectedColaboradorId) throw new Error("Selecione um colaborador");
-      const { error } = await supabase.from("employee_vacation_config").insert({
+
+      const year = Number(data.year);
+      const rawDate = data.scheduled_date.trim();
+      const scheduledDate = rawDate
+        ? /^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)
+          ? `${rawDate.slice(6, 10)}-${rawDate.slice(3, 5)}-${rawDate.slice(0, 2)}`
+          : rawDate
+        : null;
+      const totalDays = Number(data.total_vacation_days);
+
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        throw new Error("Informe um ano válido");
+      }
+      if (scheduledDate && !/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+        throw new Error("A data deve estar no formato DD/MM/AAAA ou AAAA-MM-DD");
+      }
+      if (!Number.isFinite(totalDays) || totalDays <= 0) {
+        throw new Error("Informe uma quantidade válida de dias");
+      }
+
+      const { data: existing, error: lookupError } = await (supabase as any)
+        .from("employee_vacation_config")
+        .select("id, payment_status")
+        .eq("user_profile", selectedColaboradorId)
+        .eq("year", year)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      const payload = {
         user_profile: selectedColaboradorId,
-        year: parseInt(data.year),
-        scheduled_date: data.scheduled_date || null,
-        total_vacation_days: parseInt(data.total_vacation_days),
-        payment_status: "pendente",
-      });
-      if (error) throw error;
+        year,
+        scheduled_date: scheduledDate,
+        total_vacation_days: totalDays,
+      };
+
+      const result = existing
+        ? await (supabase as any).from("employee_vacation_config").update(payload).eq("id", existing.id)
+        : await (supabase as any).from("employee_vacation_config").insert({ ...payload, payment_status: "pendente" });
+      if (result.error) throw result.error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vacation-history", selectedColaboradorId] });
@@ -165,7 +196,7 @@ export function FeriasDecimosTab() {
       setNewVacation({ scheduled_date: "", total_vacation_days: "30", year: currentYear.toString() });
       toast.success("Férias registradas!");
     },
-    onError: () => toast.error("Erro ao registrar férias"),
+    onError: (error: any) => toast.error(error?.message || "Erro ao registrar férias"),
   });
 
   const addThirteenthMutation = useMutation({

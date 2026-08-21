@@ -292,23 +292,25 @@ export function calcularValorFerias({
     calcularINSS(brutoTributavel);
 
   /**
-   * Base do IRRF pelas deduções legais:
-   *
-   * rendimento tributável
-   * - INSS
+   * Base do IRRF após o INSS e o desconto simplificado mensal.
+   * Como este calculador não recebe dependentes, pensão ou outras
+   * deduções legais, o desconto simplificado de R$ 607,20 é a dedução
+   * aplicável nesta simulação, conforme a tabela oficial de 2026.
    */
   const baseCalculoIRRF = Math.max(
     0,
-    brutoTributavel - descontoInss,
+    brutoTributavel - descontoInss - DESCONTO_SIMPLIFICADO_IRRF_2026,
   );
 
   /**
-   * Para a redução de 2026 usamos o rendimento tributável,
-   * enquanto a tabela progressiva utiliza a base após o INSS.
+   * A redução usa o rendimento tributável mensal do colaborador.
+   * Neste fluxo, o salário-base representa esse rendimento mensal;
+   * a tabela progressiva continua usando a base das férias após INSS
+   * e desconto simplificado.
    */
   const descontoIrrf =
     calcularIRRFSimplificado(
-      brutoTributavel,
+      salario,
       baseCalculoIRRF,
     );
 
