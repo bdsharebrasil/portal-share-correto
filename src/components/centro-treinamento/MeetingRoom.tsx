@@ -28,12 +28,28 @@ import {
 } from "./trainingService";
 import { Whiteboard, type WhiteboardStroke } from "./Whiteboard";
 
-const RTC_CONFIGURATION: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ],
-};
+const DEFAULT_STUN_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
+function getRtcConfiguration(): RTCConfiguration {
+  const turnUrls = String(import.meta.env.VITE_TURN_URLS ?? "").split(",").map((url) => url.trim()).filter(Boolean);
+  const username = String(import.meta.env.VITE_TURN_USERNAME ?? "").trim();
+  const credential = String(import.meta.env.VITE_TURN_CREDENTIAL ?? "").trim();
+  const turnServers: RTCIceServer[] = turnUrls.length && username && credential
+    ? [{ urls: turnUrls, username, credential }]
+    : [];
+  return { iceServers: [...DEFAULT_STUN_SERVERS, ...turnServers], iceCandidatePoolSize: 10 };
+}
+
+const RTC_CONFIGURATION = getRtcConfiguration();
+
+function getVideoProfile(participantCount: number) {
+  if (participantCount >= 10) return { maxBitrate: 180_000, scaleResolutionDownBy: 2.5, maxFramerate: 15 };
+  if (participantCount >= 7) return { maxBitrate: 300_000, scaleResolutionDownBy: 2, maxFramerate: 18 };
+  return { maxBitrate: 500_000, scaleResolutionDownBy: 1.5, maxFramerate: 24 };
+}
 
 type PresencePayload = {
   userId: string;
@@ -155,6 +171,7 @@ export function MeetingRoom({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [strokes, setStrokes] = useState<WhiteboardStroke[]>([]);
   const [isCopied, setIsCopied] = useState(false);
+  const [participantCount, setParticipantCount] = useState(1);
 
   useEffect(() => {
     presenceRef.current = {
@@ -199,7 +216,20 @@ export function MeetingRoom({
             : (remoteStreamsRef.current.get(item.userId) ?? null),
       }));
     setParticipants(next);
+    setParticipantCount(Math.max(1, next.length));
   }, [userId]);
+
+  useEffect(() => {
+    const profile = getVideoProfile(participantCount);
+    [...peersRef.current.values()].forEach((connection) => {
+      const sender = connection.getSenders().find((item) => item.track?.kind === "video");
+      if (!sender) return;
+      const parameters = sender.getParameters();
+      parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+      parameters.encodings[0] = { ...parameters.encodings[0], maxBitrate: profile.maxBitrate, maxFramerate: profile.maxFramerate, scaleResolutionDownBy: profile.scaleResolutionDownBy };
+      void sender.setParameters(parameters).catch(() => undefined);
+    });
+  }, [participantCount]);
 
   const getCurrentVideoTrack = useCallback(() => {
     return (
@@ -235,6 +265,16 @@ export function MeetingRoom({
         void existingVideoSender.replaceTrack(currentVideo);
       }
 
+      const applyVideoProfile = async () => {
+        const sender = connection.getSenders().find((item) => item.track?.kind === "video");
+        if (!sender) return;
+        const profile = getVideoProfile(participantCount);
+        const parameters = sender.getParameters();
+        parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+        parameters.encodings[0] = { ...parameters.encodings[0], maxBitrate: profile.maxBitrate, maxFramerate: profile.maxFramerate, scaleResolutionDownBy: profile.scaleResolutionDownBy };
+        await sender.setParameters(parameters);
+      };
+      void applyVideoProfile().catch(() => undefined);
       connection.onicecandidate = (event) => {
         if (!event.candidate) return;
         void sendBroadcast("webrtc-signal", {
@@ -265,7 +305,7 @@ export function MeetingRoom({
       peersRef.current.set(remoteId, connection);
       return connection;
     },
-    [getCurrentVideoTrack, refreshParticipants, sendBroadcast, userId],
+    [getCurrentVideoTrack, participantCount, refreshParticipants, sendBroadcast, userId],
   );
 
   const replaceVideoTrackForPeers = useCallback(
@@ -332,8 +372,8 @@ export function MeetingRoom({
   useEffect(() => {
     let cancelled = false;
     const streamPromise = navigator.mediaDevices?.getUserMedia({
-      video: true,
-      audio: true,
+      video: { width: { ideal: 640, max: 1280 }, height: { ideal: 360, max: 720 }, frameRate: { ideal: 20, max: 24 } },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
     if (!streamPromise) {
       setConnectionError(
