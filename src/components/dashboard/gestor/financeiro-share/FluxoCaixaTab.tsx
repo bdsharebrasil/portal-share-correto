@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { formatBRL } from "@/lib/format";
 import { deleteMovimentacao, fetchFinanceiroData } from "@/services/financeiroService";
-import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, valueOf } from "@/utils/financeiroRules";
+import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, paidByShareForClient, valueOf } from "@/utils/financeiroRules";
 
 type TipoData = "vencimento" | "pagamento";
 type Ordem = "asc" | "desc";
@@ -73,11 +73,10 @@ export default function FluxoCaixaTab() {
     queryFn: async () => {
       const { data: contas, error } = await supabase
         .from("contas_apagar")
-        .select("id, descricao, fornecedor_nome, categoria, valor, data_vencimento, status")
+        .select("id, descricao, fornecedor_nome, categoria, valor, data_vencimento, status, cliente_id, movimentacao_id, clientes:cliente_id(id, razao_social, proprietario)")
         .gte("data_vencimento", hoje)
         .lte("data_vencimento", limiteContasAPagar)
-        .neq("status", "paga")
-        .neq("status", "cancelada")
+        .not("status", "in", "(paga,pago,quitada,liquidada,recebida,recebido,cancelada,cancelado)")
         .order("data_vencimento", { ascending: true });
 
       if (error) throw error;
@@ -123,9 +122,10 @@ export default function FluxoCaixaTab() {
   // pertence ao grupo "Reembolsáveis". Essas despesas só devem aparecer na aba
   // "Despesas Reembolsáveis" — nunca na aba "Caixa".
   const isReembolsavel = useCallback((m: any) => {
-    if (!isShare(m) || isEntrada(m)) return false;
+    if (isEntrada(m)) return false;
     const grupo = String(grupoDe(m) || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return grupo.includes("reembolsav");
+    return paidByShareForClient({ ...m, grupo_categoria: m?.grupo_categoria || grupo }) ||
+      (isShare(m) && grupo.includes("reembolsav"));
   }, [grupoDe]);
 
   const movs = useMemo(() => {

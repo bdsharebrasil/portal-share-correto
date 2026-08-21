@@ -4,6 +4,7 @@ import { Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SectionCard, EmptyState } from "@/components/dashboard/gestor/master/ui/Premium";
 import { setCategoriaMap, getCategoriaMap } from "@/components/dashboard/gestor/master/MasterRelatorios";
+import { paidByShareForClient, isEntrada } from "@/utils/financeiroRules";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -37,7 +38,7 @@ export default function DespesasReembolsaveisTab() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria, grupo_categoria, clientes_id, clientes_nome",
+            "id, descricao, fluxo, valor_rateado, valor_total, data_emissao, data_pagamento, data_vencimento, criado_em, status, tipo_caixa, categoria_id, categoria_nome, conta_bancaria, grupo_categoria, clientes_id, clientes_nome, pago_por, pago_diretamente, reembolsavel, reference_type, contas_apagar_id",
           )
           .neq("status", "cancelado")
           .order("criado_em", { ascending: false })
@@ -66,13 +67,10 @@ export default function DespesasReembolsaveisTab() {
       });
       setCategoriaMap(catMap);
       return (movRes.data || [])
-        .filter((m: any) => {
-          const caixa = String(m.tipo_caixa || "").toLowerCase();
-          return caixa === "share" || caixa === "";
-        })
+        .filter((m: any) => !isEntrada(m) && paidByShareForClient(m))
         .map((m: any) => {
           const dataReferencia = String(m.data_emissao || m.data_pagamento || "").trim();
-          const grupo = m.grupo_categoria || catMap.get(m.categoria_id)?.grupo || "";
+          const grupo = m.grupo_categoria || catMap.get(m.categoria_id)?.grupo || (String(m.reference_type || "").toLowerCase() === "travel_expense_report" ? "DESPESAS REEMBOLSÁVEIS" : "");
           return {
             ...m,
             cliente: m.clientes_nome || clientesMap.get(m.clientes_id) || "Cliente não identificado",
@@ -126,14 +124,13 @@ function DetalhamentoReembolsaveisGrid({
 
   const normalize = (v?: string | null) =>
     String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-  const isEntrada = (m: any) => ["entrada", "receita"].includes(normalize(m.fluxo));
   const val = (m: any) => Number(m.valor_rateado ?? m.valor_total ?? 0);
 
   const isReembolsavel = (m: any) => {
     const catMap = getCategoriaMap();
     const catInfo = m.categoria_id ? catMap.get(m.categoria_id) : undefined;
     const grupo = normalize(m.grupo_categoria || catInfo?.grupo);
-    return grupo.includes("reembolsav");
+    return paidByShareForClient({ ...m, grupo_categoria: m?.grupo_categoria || grupo }) || grupo.includes("reembolsav");
   };
 
   const rows: ReembolsavelRow[] = useMemo(() => {

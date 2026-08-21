@@ -43,7 +43,11 @@ export const paidByShareForClient = (m: any) => {
   if (isDga(m) || isEntrada(m) || !m?.clientes_id) return false;
   if (paidByClientDirect(m)) return false;
   const payer = norm(m?.pago_por);
-  return payer === "share" || payer === "share brasil" || Boolean(m?.reembolsavel) || norm(m?.status) === "aguardando_reembolso";
+  const referenceType = norm(m?.reference_type);
+  const grupo = norm(m?.grupo_categoria);
+  const isTravelExpensePayable = referenceType === "travel_expense_report";
+  return payer === "share" || payer === "share brasil" || Boolean(m?.reembolsavel) ||
+    norm(m?.status) === "aguardando_reembolso" || isTravelExpensePayable || grupo.includes("reembolsav");
 };
 
 export const isDgaCotistaOutOfPocket = (m: any) => {
