@@ -88,10 +88,15 @@ const formatTime = (minutes: number) => {
 
 const formatBearing = (deg: number) => `${Math.round(deg).toString().padStart(3, '0')}°`;
 
+// `sticky top-0` faz o cabeçalho da etapa atual "grudar" no topo da área
+// rolável enquanto o usuário navega o formulário — em telas pequenas o
+// sidebar vira uma folha longa e é fácil perder a noção de em qual etapa
+// se está; isso dá a mesma orientação que uma lista com seções (padrão
+// nativo iOS/Android).
 const SectionHeader: React.FC<{ step: number; title: string; icon: React.ReactNode; done?: boolean }> = ({ step, title, icon, done }) => (
-  <div className="flex items-center gap-2 pt-1">
+  <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-border/40 bg-card/95 px-4 py-2 pt-1 backdrop-blur-xl">
     <span className={cn(
-      'h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center border',
+      'h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center border shrink-0',
       done ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border',
     )}>
       {step}
@@ -198,7 +203,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   }, [localHeuristic?.suggestedRoute]);
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-2xl shadow-black/20 backdrop-blur-xl">
+    <aside className="flex h-full w-full flex-col overflow-hidden bg-card/95 shadow-2xl shadow-black/20 backdrop-blur-xl lg:border-r lg:border-border/70">
       {/* Header */}
       <div className="shrink-0 border-b border-border/70 bg-background/80 px-4 py-3.5 backdrop-blur-xl">
         <div className="flex items-center justify-between">
@@ -207,14 +212,14 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             <h2 className="font-bold text-foreground">Plano de Voo</h2>
           </div>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onLoadPlan} title="Carregar Plano">
+            <Button variant="ghost" size="icon" className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground lg:h-7 lg:w-7" onClick={onLoadPlan} title="Carregar Plano">
               <FolderOpen className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onSavePlan} title="Salvar Plano">
+            <Button variant="ghost" size="icon" className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground lg:h-7 lg:w-7" onClick={onSavePlan} title="Salvar Plano">
               <Save className="w-4 h-4" />
             </Button>
             {onCollapse && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onCollapse} title="Recolher painel">
+              <Button variant="ghost" size="icon" className="h-10 w-10 touch-manipulation text-muted-foreground hover:text-foreground lg:h-7 lg:w-7" onClick={onCollapse} title="Recolher painel">
                 <PanelLeftClose className="w-4 h-4" />
               </Button>
             )}
@@ -252,7 +257,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             <Plane className="w-3 h-3" /> Aeronave
           </label>
           <Select value={formData.aeronaveId} onValueChange={handleAircraftChange}>
-            <SelectTrigger className="bg-background border-border text-foreground h-9">
+            <SelectTrigger className="h-11 bg-background border-border text-base text-foreground lg:h-9 lg:text-sm">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent>
@@ -271,7 +276,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             <User className="w-3 h-3" /> PIC
           </label>
           <Select value={formData.picId} onValueChange={(v) => onFormChange({ picId: v })}>
-            <SelectTrigger className="bg-background border-border text-foreground h-9">
+            <SelectTrigger className="h-11 bg-background border-border text-base text-foreground lg:h-9 lg:text-sm">
               <SelectValue placeholder="Piloto em Comando..." />
             </SelectTrigger>
             <SelectContent>
@@ -327,7 +332,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               <Route className="w-3 h-3" /> Regra de Voo
             </label>
             <Select value={formData.flightRule} onValueChange={(v) => onFormChange({ flightRule: v as any })}>
-              <SelectTrigger className="bg-background border-border text-foreground h-9">
+              <SelectTrigger className="h-11 bg-background border-border text-base text-foreground lg:h-9 lg:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -354,7 +359,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                 carregando={altitudeLoading}
                 erro={altitudeError}
               />
-              <div className="rounded-md border border-primary/40 bg-primary/10 p-2 space-y-2">
+              <div className="rounded-md border border-primary/40 bg-primary/10 p-2.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
                     <Wand2 className="w-3 h-3" /> Nível sugerido
@@ -370,25 +375,25 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                   <p className="text-[10px] text-muted-foreground leading-tight">{localHeuristic.rationale}</p>
                 )}
                 {localHeuristic && localHeuristic.alternatives.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {localHeuristic.alternatives.map((alt) => (
                       <button
                         key={alt.altitudeFt}
                         type="button"
                         onClick={() => { setAutoAltitude(false); onFormChange({ altitude: alt.altitudeFt }); }}
-                        className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted/40 hover:bg-muted text-foreground"
+                        className="min-h-[2rem] touch-manipulation rounded border border-border bg-muted/40 px-2 py-1.5 font-mono text-[10px] text-foreground hover:bg-muted"
                       >
                         {alt.label}
                       </button>
                     ))}
                   </div>
                 )}
-                <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+                <label className="flex min-h-[1.75rem] items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
                   <input
                     type="checkbox"
                     checked={autoAltitude}
                     onChange={(e) => setAutoAltitude(e.target.checked)}
-                    className="accent-primary"
+                    className="h-4 w-4 accent-primary"
                   />
                   Aplicar nível automaticamente
                 </label>
@@ -401,9 +406,10 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               <label className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider block mb-1">Spd (kt)</label>
               <Input
                 type="number"
+                inputMode="numeric"
                 value={formData.cruiseSpeed || ''}
                 onChange={(e) => onFormChange({ cruiseSpeed: Number(e.target.value) })}
-                className="bg-background border-border text-foreground font-mono h-8 text-center"
+                className="h-11 bg-background border-border text-foreground font-mono text-base text-center lg:h-8 lg:text-sm"
               />
               {formData.cruiseSpeed > 0 && (
                 <p className="text-[9px] text-muted-foreground mt-0.5 font-mono text-center">
@@ -415,9 +421,10 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               <label className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider block mb-1">Alt (ft)</label>
               <Input
                 type="number"
+                inputMode="numeric"
                 value={formData.altitude || ''}
                 onChange={(e) => { setAutoAltitude(false); onFormChange({ altitude: Number(e.target.value) }); }}
-                className="bg-background border-border text-foreground font-mono h-8 text-center"
+                className="h-11 bg-background border-border text-foreground font-mono text-base text-center lg:h-8 lg:text-sm"
                 step={500}
               />
             </div>
@@ -425,9 +432,10 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               <label className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider block mb-1">Fuel (L)</label>
               <Input
                 type="number"
+                inputMode="numeric"
                 value={formData.fuelOnBoard || ''}
                 onChange={(e) => onFormChange({ fuelOnBoard: Number(e.target.value) })}
-                className="bg-background border-border text-foreground font-mono h-8 text-center"
+                className="h-11 bg-background border-border text-foreground font-mono text-base text-center lg:h-8 lg:text-sm"
               />
             </div>
           </div>
@@ -438,7 +446,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               value={formData.route}
               onChange={(e) => onFormChange({ route: e.target.value.toUpperCase() })}
               placeholder="DCT ou via pontos"
-              className="bg-background border-border text-foreground font-mono h-8 text-xs"
+              className="h-11 bg-background border-border text-foreground font-mono text-base lg:h-8 lg:text-xs"
             />
             <p className="text-[9px] text-muted-foreground leading-tight">
               Códigos ICAO de aeródromo digitados aqui são plotados no mapa como waypoints da rota.
@@ -457,7 +465,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                     key={i}
                     onClick={() => onFormChange({ route: r.route })}
                     className={cn(
-                      'w-full text-left p-2 rounded border text-xs font-mono transition-colors',
+                      'w-full touch-manipulation text-left p-2.5 rounded border text-xs font-mono transition-colors',
                       formData.route === r.route
                         ? 'bg-primary/20 border-primary/50 text-primary'
                         : 'bg-muted/30 border-border text-foreground hover:bg-muted/50'
@@ -480,14 +488,14 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
               type="datetime-local"
               value={formData.departure}
               onChange={(e) => onFormChange({ departure: e.target.value })}
-              className="bg-background border-border text-foreground h-8 text-xs"
+              className="h-11 bg-background border-border text-base text-foreground lg:h-8 lg:text-xs"
             />
           </div>
         </div>
       </div>
 
       {/* Calculations Summary */}
-      <div className="shrink-0 border-t border-border/70 bg-background/95 px-4 py-4 text-[rgba(179,195,230,1)] backdrop-blur-xl">
+      <div className="shrink-0 border-t border-border/70 bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 text-[rgba(179,195,230,1)] backdrop-blur-xl">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <div className="text-[10px] uppercase text-muted-foreground">Distance</div>
@@ -533,16 +541,16 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
 
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <Button
-            className="flex-1 bg-primary hover:bg-primary/90"
+            className="h-12 flex-1 touch-manipulation bg-primary hover:bg-primary/90 lg:h-10"
             onClick={onCalculate}
             disabled={!formData.origin || !formData.destination || isCalculating}
           >
             {isCalculating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
             Gerar Plano de Voo
           </Button>
-          <Button variant="outline" className="flex-1" onClick={onSavePlan}>
-            <Save className="w-4 h-4 mr-1" />
-            Salvar
+          <Button variant="outline" className="h-12 touch-manipulation px-3 lg:h-10" onClick={onSavePlan}>
+            <Save className="w-4 h-4 sm:mr-1" />
+            <span className="hidden sm:inline">Salvar</span>
           </Button>
         </div>
       </div>
