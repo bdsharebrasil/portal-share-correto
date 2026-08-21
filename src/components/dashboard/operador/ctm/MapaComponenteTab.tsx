@@ -54,7 +54,7 @@ export function MapaComponenteTab({ aircraftId }: MapaComponenteTabProps) {
         </div>
         <button
           onClick={() => { setEditing(null); setShowForm(true); }}
-          className="flex items-center gap-2 whitespace-nowrap rounded-full border border-[#45d1b5] bg-transparent px-4 py-1.5 text-sm font-medium text-[#45d1b5] transition-colors hover:bg-[#45d1b5]/10"
+          className="flex items-center gap-2 whitespace-nowrap rounded-full border border-cyan-400/35 bg-transparent px-4 py-1.5 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-400/10"
         >
           <Plus className="h-4 w-4" /> Novo Componente
         </button>

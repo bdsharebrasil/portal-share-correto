@@ -345,7 +345,7 @@ function OASDetail({ oas: oasInicial, onBack, aircraftId }: { oas: any; onBack: 
                 <OASStatusBadge status={oas.status} aprovStatus={oas.status_aprovacao} />
                 <button
                   onClick={() => setEditando(v => !v)}
-                  className="flex items-center gap-1.5 rounded-full border border-[#45d1b5] px-3 py-1 text-xs font-medium text-[#45d1b5] hover:bg-[#45d1b5]/10 transition-colors"
+                  className="flex items-center gap-1.5 rounded-full border border-cyan-400/35 px-3 py-1 text-xs font-medium text-cyan-300 hover:bg-cyan-400/10 transition-colors"
                 >
                   <Pencil className="h-3.5 w-3.5" /> {editando ? 'Fechar edição' : 'Editar OAS'}
                 </button>

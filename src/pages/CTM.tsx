@@ -388,7 +388,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
   }, [ras.data]);
 
   return (
-    <div className="space-y-6">
+    <div className="ctm-shell space-y-6">
       {/* Botão Voltar */}
       <Button
         variant="ghost"
@@ -401,8 +401,8 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       </Button>
 
       {/* Header Principal da Aeronave */}
-      <Card className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/70 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-slate-700/60">
-        <CardContent className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:justify-between">
+      <Card className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-cyan-950/20 shadow-2xl shadow-black/20 backdrop-blur-md transition-all duration-300 hover:border-cyan-400/20">
+        <CardContent className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           
           {/* Informações da Aeronave */}
           <div className="flex items-center gap-4">
@@ -430,7 +430,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
             {stats.map((s) => (
               <div
                 key={s.label}
-                className="group rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-3 transition-all duration-300 hover:border-slate-700/80 hover:bg-slate-900/80 hover:shadow-md"
+                className="group rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 transition-all duration-300 hover:border-cyan-400/20 hover:bg-cyan-400/[0.06] hover:shadow-md"
               >
                 <div className="flex items-center gap-2">
                   <s.icon className={cn("h-4 w-4 transition-transform duration-300 group-hover:scale-110", s.color)} />
@@ -444,7 +444,9 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       </Card>
 
       {/* Navegação por Abas (Tabs) com Scroll Suave */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-2 shadow-xl shadow-black/10">
+        <div className="mb-2 flex items-center gap-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Navegação técnica da aeronave</div>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {TABS.map((t) => {
           const isActive = tab === t.id;
           return (
@@ -452,17 +454,18 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all duration-300 ease-out",
+                "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all duration-300 ease-out",
                 isActive
-                  ? "border-primary/50 bg-primary/10 text-primary shadow-sm shadow-primary/10 font-semibold"
-                  : "border-slate-800/60 bg-slate-950/40 text-slate-400 hover:border-slate-700/60 hover:bg-slate-900/60 hover:text-slate-200"
+                  ? "border-cyan-300/45 bg-cyan-400/12 text-cyan-200 shadow-lg shadow-cyan-950/20"
+                  : "border-white/10 bg-white/[0.025] text-slate-300 hover:border-cyan-300/25 hover:bg-cyan-400/[0.07] hover:text-white"
               )}
             >
-              <t.icon className={cn("h-3.5 w-3.5 transition-colors", isActive ? "text-primary" : "text-slate-400")} />
+              <t.icon className={cn("h-3.5 w-3.5 transition-colors", isActive ? "text-cyan-200" : "text-slate-400")} />
               {t.label}
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* Conteúdo das Abas */}
