@@ -5,6 +5,7 @@ import {
   RefreshCw,
   CheckCircle2,
   Save,
+  Pencil,
   Calendar,
   Upload,
   FileText,
@@ -64,6 +65,10 @@ interface PagamentoSalario {
   ferias_referencia?: string | null;
   ferias_modalidade?: string | null;
   ferias_dias_comprados?: number | string | null;
+  ferias_inicio?: string | null;
+  ferias_fim?: string | null;
+  ferias_dias?: number | null;
+  ferias_valor_holerite?: number | string | null;
   adicionais: string | null;
   observacoes: string | null;
   banco_pagamento: string | null;
@@ -113,6 +118,10 @@ interface FormState {
   ferias_referencia: string;
   ferias_modalidade: string;
   ferias_dias_comprados: string;
+  ferias_inicio: string;
+  ferias_fim: string;
+  ferias_dias: string;
+  ferias_valor_holerite: string;
   banco: string;
   data_pagamento: string;
   obs: string;
@@ -142,6 +151,10 @@ const emptyForm: FormState = {
   ferias_referencia: "",
   ferias_modalidade: "",
   ferias_dias_comprados: "",
+  ferias_inicio: "",
+  ferias_fim: "",
+  ferias_dias: "",
+  ferias_valor_holerite: "",
   banco: "",
   data_pagamento: "",
   obs: "",
@@ -209,6 +222,20 @@ const isCrewDepartamento = (departamento: string | null | undefined) => {
   return d === "TRIPULANTE" || d === "PILOTO_CHEFE";
 };
 
+const calculateVacationDays = (start: string, end: string): number => {
+  if (!start || !end) return 0;
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) return 0;
+  return Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+};
+
+const formatDateRangeBR = (start: string, end: string): string => {
+  if (!start || !end) return "";
+  const toBR = (value: string) => value.split("-").reverse().join("/");
+  return `${toBR(start)} a ${toBR(end)}`;
+};
+
 const getMonthYearFromDate = (dateString: string): { month: number; year: number } => {
   const date = new Date(dateString);
   return {
@@ -231,6 +258,7 @@ export default function SalariosTab() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<string, FormState>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<{ userId: string; field: "holerite" | "comprovante" } | null>(null);
@@ -295,6 +323,7 @@ export default function SalariosTab() {
               desconto_inss: extraction.descontoInss != null ? String(extraction.descontoInss) : current.desconto_inss,
               desconto_irrf: extraction.descontoIrrf != null ? String(extraction.descontoIrrf) : current.desconto_irrf,
               desconto_outros: extraction.outrosDescontos != null ? String(extraction.outrosDescontos) : current.desconto_outros,
+              ferias_valor_holerite: extraction.valorFerias != null ? String(extraction.valorFerias) : current.ferias_valor_holerite,
             },
           };
         });
@@ -474,6 +503,10 @@ export default function SalariosTab() {
             ferias_referencia: p.ferias_referencia ?? "",
             ferias_modalidade: p.ferias_modalidade === "gozo_parcial" ? "ferias_coletivas" : (p.ferias_modalidade ?? ""),
             ferias_dias_comprados: p.ferias_dias_comprados != null ? String(p.ferias_dias_comprados) : "",
+            ferias_inicio: p.ferias_inicio ?? "",
+            ferias_fim: p.ferias_fim ?? "",
+            ferias_dias: p.ferias_dias != null ? String(p.ferias_dias) : "",
+            ferias_valor_holerite: p.ferias_valor_holerite != null ? String(p.ferias_valor_holerite) : "",
             banco: p.banco_pagamento ?? "",
             data_pagamento: p.data_pagamento ?? "",
             obs: p.observacoes ?? "",
@@ -613,6 +646,10 @@ export default function SalariosTab() {
         ferias_referencia: f.showFerias ? f.ferias_referencia.trim() || null : null,
         ferias_modalidade: f.showFerias ? f.ferias_modalidade || null : null,
         ferias_dias_comprados: f.showFerias && f.ferias_dias_comprados ? Number(f.ferias_dias_comprados) : null,
+        ferias_inicio: f.showFerias ? f.ferias_inicio || null : null,
+        ferias_fim: f.showFerias ? f.ferias_fim || null : null,
+        ferias_dias: f.showFerias && f.ferias_dias ? Number(f.ferias_dias) : null,
+        ferias_valor_holerite: f.showFerias && f.ferias_valor_holerite ? num(f.ferias_valor_holerite) : null,
         banco_pagamento: f.banco || null,
         data_pagamento: f.data_pagamento || null,
         observacoes: f.obs.trim() || null,
@@ -661,6 +698,7 @@ export default function SalariosTab() {
       );
       if (!syncResult.success) throw new Error(syncResult.error || "Pagamento salvo, mas não foi sincronizado no Financeiro Share.");
       setToast({ type: "ok", text: `Pagamento salvo. Líquido: ${formatBRL(resumo.liquido)} · Custo total: ${formatBRL(resumo.custoTotal)}.` });
+      setEditingId(null);
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao salvar pagamento." });
     } finally {
@@ -766,6 +804,7 @@ export default function SalariosTab() {
             const pago = !!pagamentos[u.id];
             const f = forms[u.id] ?? emptyForm;
             const crew = isCrewDepartamento(u.departamento);
+            const isReadonly = pago && editingId !== u.id;
             const { detalhado: horasDetalhado, total: horasTotal } = crew
               ? calculadoraHoras(u.id)
               : { detalhado: [], total: 0 };
@@ -778,7 +817,11 @@ export default function SalariosTab() {
               >
                 {/* Cabeçalho da Linha */}
                 <button
-                  onClick={() => setExpandedId(expanded ? null : u.id)}
+                  onClick={() => {
+                    const nextExpandedId = expanded ? null : u.id;
+                    setExpandedId(nextExpandedId);
+                    if (nextExpandedId !== u.id) setEditingId(null);
+                  }}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-secondary/40"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -824,6 +867,7 @@ export default function SalariosTab() {
                 {/* Form Expandido */}
                 {expanded && (
                   <div className="px-4 pb-4 pt-3 border-t border-border space-y-4">
+                    <fieldset disabled={isReadonly} className="contents">
                     {/* Bloco de Dados Bancários do Colaborador */}
                     <div className="p-3 bg-card/60 rounded-xl border border-border text-xs flex flex-wrap items-center justify-between gap-3 text-muted-foreground">
                       <div className="flex items-center gap-2">
@@ -1123,53 +1167,132 @@ export default function SalariosTab() {
                           </>
                         )}
                         {f.showFerias && (
-                          <>
-                            <div>
-                              <label className={labelCls}>Referência das férias</label>
-                              <input
-                                type="text"
-                                className={inputCls}
-                                placeholder="Ex.: período aquisitivo 2025/2026"
-                                value={f.ferias_referencia}
-                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_referencia: e.target.value } }))}
-                              />
+                          <div className="col-span-full space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className={labelCls}>Modalidade das férias</label>
+                                <select
+                                  className={inputCls + " cursor-pointer"}
+                                  value={f.ferias_modalidade}
+                                  onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_modalidade: e.target.value, ferias_dias_comprados: e.target.value === "compra_10_dias" ? (f.ferias_dias_comprados || "10") : f.ferias_dias_comprados } }))}
+                                >
+                                  <option value="">Selecione</option>
+                                  <option value="gozo_integral">Gozo integral</option>
+                                  <option value="ferias_coletivas">Férias coletivas</option>
+                                  <option value="compra_10_dias">Compra de 10 dias (abono pecuniário)</option>
+                                  <option value="compra_outros_dias">Compra de outros dias</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className={labelCls}>Início das férias</label>
+                                <input
+                                  type="date"
+                                  className={inputCls}
+                                  value={f.ferias_inicio}
+                                  onChange={(e) => {
+                                    const inicio = e.target.value;
+                                    const dias = calculateVacationDays(inicio, f.ferias_fim);
+                                    setForms((prev) => ({
+                                      ...prev,
+                                      [u.id]: {
+                                        ...f,
+                                        ferias_inicio: inicio,
+                                        ferias_dias: dias > 0 ? String(dias) : "",
+                                        ferias_referencia: formatDateRangeBR(inicio, f.ferias_fim),
+                                      },
+                                    }));
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Fim das férias</label>
+                                <input
+                                  type="date"
+                                  className={inputCls}
+                                  value={f.ferias_fim}
+                                  onChange={(e) => {
+                                    const fim = e.target.value;
+                                    const dias = calculateVacationDays(f.ferias_inicio, fim);
+                                    setForms((prev) => ({
+                                      ...prev,
+                                      [u.id]: {
+                                        ...f,
+                                        ferias_fim: fim,
+                                        ferias_dias: dias > 0 ? String(dias) : "",
+                                        ferias_referencia: formatDateRangeBR(f.ferias_inicio, fim),
+                                      },
+                                    }));
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className={labelCls}>Modalidade das férias</label>
-                              <select
-                                className={inputCls + " cursor-pointer"}
-                                value={f.ferias_modalidade}
-                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_modalidade: e.target.value, ferias_dias_comprados: e.target.value === "compra_10_dias" ? (f.ferias_dias_comprados || "10") : f.ferias_dias_comprados } }))}
-                              >
-                                <option value="">Selecione</option>
-                                <option value="gozo_integral">Gozo integral</option>
-                                <option value="ferias_coletivas">Férias coletivas</option>
-                                <option value="compra_10_dias">Compra de 10 dias (abono pecuniário)</option>
-                                <option value="compra_outros_dias">Compra de outros dias</option>
-                              </select>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className={labelCls}>Referência (automática)</label>
+                                <input
+                                  type="text"
+                                  className={inputCls + " bg-card/20"}
+                                  readOnly
+                                  placeholder="Ex.: 22/12/2025 a 05/01/2026"
+                                  value={f.ferias_referencia}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Dias corridos</label>
+                                <input
+                                  type="text"
+                                  className={inputCls + " bg-card/20"}
+                                  readOnly
+                                  placeholder="Calculado"
+                                  value={f.ferias_dias ? `${f.ferias_dias} dias` : ""}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Dias comprados</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  className={inputCls}
+                                  placeholder="Ex.: 10"
+                                  value={f.ferias_dias_comprados}
+                                  onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_dias_comprados: e.target.value.replace(/\\D/g, "").slice(0, 2) } }))}
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className={labelCls}>Dias comprados</label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                className={inputCls}
-                                placeholder="Ex.: 10"
-                                value={f.ferias_dias_comprados}
-                                onChange={(e) => setForms((prev) => ({ ...prev, [u.id]: { ...f, ferias_dias_comprados: e.target.value.replace(/\\D/g, "").slice(0, 2) } }))}
-                              />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className={labelCls}>Valor das férias (pagamento)</label>
+                                <input
+                                  type="text" inputMode="decimal"
+                                  className={inputCls}
+                                  placeholder="R$ 0,00"
+                                  value={f.ferias}
+                                  onChange={(e) => setMoneyField(u.id, "ferias", e.target.value)}
+                                />
+                              </div>
+                              {f.ferias_valor_holerite && (
+                                <div className="flex flex-col justify-end pb-1">
+                                  <div className={`p-2 rounded-lg border text-xs flex items-center gap-2 ${
+                                    Math.abs(num(f.ferias) - num(f.ferias_valor_holerite)) < 0.01
+                                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                      : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                  }`}>
+                                    {Math.abs(num(f.ferias) - num(f.ferias_valor_holerite)) < 0.01 ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <FileText className="h-3.5 w-3.5" />
+                                    )}
+                                    <span>
+                                      Valor no holerite: <strong>{formatBRL(num(f.ferias_valor_holerite))}</strong>
+                                      {Math.abs(num(f.ferias) - num(f.ferias_valor_holerite)) >= 0.01 && " (confira a diferença)"}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <label className={labelCls}>Valor das férias</label>
-                              <input
-                                type="text" inputMode="decimal"
-                                className={inputCls}
-                                placeholder="R$ 0,00"
-                                value={f.ferias}
-                                onChange={(e) => setMoneyField(u.id, "ferias", e.target.value)}
-                              />
-                            </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1281,20 +1404,33 @@ export default function SalariosTab() {
                       />
                     </div>
 
+                    </fieldset>
+
                     <div className="flex items-center justify-between pt-2">
                       <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         Total Final: <span className="text-cyan-300 font-bold ml-1">{formatBRL(totalFuncionario(u.id))}</span>
                       </div>
-                      <button
-                        onClick={() => saveRow(u.id)}
-                        disabled={savingId === u.id || uploadingField !== null}
-                        className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
-                        style={{ background: "#06b6d4" }}
-                      >
-                        <Save className="h-4 w-4" />
-                        {savingId === u.id ? "Salvando..." : "Salvar"}
-                      </button>
+                      {isReadonly ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(u.id)}
+                          className="rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 inline-flex items-center gap-2 hover:bg-cyan-400/20 transition-colors"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Editar pagamento
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => saveRow(u.id)}
+                          disabled={savingId === u.id || uploadingField !== null}
+                          className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+                          style={{ background: "#06b6d4" }}
+                        >
+                          <Save className="h-4 w-4" />
+                          {savingId === u.id ? "Salvando..." : pago ? "Salvar alterações" : "Salvar"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

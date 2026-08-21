@@ -20,6 +20,7 @@ const PROMPT = `Você é um especialista em leitura de holerites brasileiros. An
   "desconto_irrf": number|null,
   "total_descontos": number|null,
   "outros_descontos": number|null,
+  "valor_ferias": number|null,
   "raw_text": string,
   "confidence": number|null
 }
@@ -32,6 +33,7 @@ Regras:
 - Para INSS e IRRF, use o valor efetivamente descontado, não a alíquota ou a base de cálculo.
 - "total_descontos" deve ser o total de descontos quando estiver explícito.
 - "outros_descontos" é a diferença entre o total de descontos e INSS + IRRF quando houver total confiável; caso contrário use null.
+- "valor_ferias" deve ser o valor total do evento de férias/abono de férias quando estiver discriminado; não confunda com salário bruto ou líquido. Se não houver evento de férias, use null.
 - "raw_text" deve conter o texto legível relevante do documento, sem inventar informações.
 - "confidence" deve ser um número de 0 a 100 refletindo a confiança geral na leitura.
 - Quando um campo não existir ou não puder ser identificado com segurança, use null.`;
@@ -116,6 +118,7 @@ Deno.serve(async (req) => {
       descontoInss: numberOrNull(parsed.desconto_inss),
       descontoIrrf: numberOrNull(parsed.desconto_irrf),
       outrosDescontos: numberOrNull(parsed.outros_descontos),
+      valorFerias: numberOrNull(parsed.valor_ferias),
       totalDescontos: numberOrNull(parsed.total_descontos),
       confidence: numberOrNull(parsed.confidence),
     });

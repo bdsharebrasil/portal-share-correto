@@ -7,6 +7,7 @@ export interface HoleriteExtraction {
   descontoInss: number | null;
   descontoIrrf: number | null;
   outrosDescontos: number | null;
+  valorFerias: number | null;
   totalDescontos: number | null;
   confidence: number | null;
 }
@@ -51,6 +52,7 @@ export function parseHoleriteText(rawText: string, confidence: number | null = n
   const descontoInss = amountAfterLabel(text, ["INSS"]);
   const descontoIrrf = amountAfterLabel(text, ["IRRF", "Imposto de Renda"]);
   const totalDescontos = amountAfterLabel(text, ["Total de Descontos", "Total dos Descontos"]);
+  const valorFerias = amountAfterLabel(text, ["Férias", "Ferias", "Abono de Férias"]);
   const salarioLiquido = amountAfterLabel(text, ["Valor Liquido", "Liquido a Receber", "Liquido"]);
   const salarioBruto = firstPositive(
     amountAfterLabel(text, ["Total de Vencimentos", "Total dos Vencimentos"]),
@@ -69,6 +71,7 @@ export function parseHoleriteText(rawText: string, confidence: number | null = n
     descontoInss,
     descontoIrrf,
     outrosDescontos,
+    valorFerias,
     totalDescontos,
     confidence,
   };
@@ -116,6 +119,7 @@ export async function readHolerite(file: File, onProgress?: (value: number) => v
     descontoInss: typeof (data as any).descontoInss === "number" ? (data as any).descontoInss : null,
     descontoIrrf: typeof (data as any).descontoIrrf === "number" ? (data as any).descontoIrrf : null,
     outrosDescontos: typeof (data as any).outrosDescontos === "number" ? (data as any).outrosDescontos : null,
+    valorFerias: typeof (data as any).valorFerias === "number" ? (data as any).valorFerias : null,
     totalDescontos: typeof (data as any).totalDescontos === "number" ? (data as any).totalDescontos : null,
     confidence: typeof (data as any).confidence === "number" ? (data as any).confidence : null,
   };
