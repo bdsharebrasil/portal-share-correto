@@ -68,8 +68,8 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
     const nextX = e.clientX - bounds.left - dragRef.current.dx;
     const nextY = e.clientY - bounds.top - dragRef.current.dy;
     if (Math.abs(nextX - pos.x) > 3 || Math.abs(nextY - pos.y) > 3) movedRef.current = true;
-    const maxX = Math.max(0, bounds.width - (collapsed ? 44 : width) - 8);
-    const maxY = Math.max(0, bounds.height - 52);
+    const maxX = Math.max(0, bounds.width - (collapsed ? 48 : width) - 8);
+    const maxY = Math.max(0, bounds.height - 56);
     setPos({ x: Math.min(maxX, Math.max(0, nextX)), y: Math.min(maxY, Math.max(0, nextY)) });
   }, [collapsed, pos.x, pos.y, width]);
 
@@ -78,12 +78,32 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
     dragRef.current = null;
   }, []);
 
+  const stopPanelEvent = useCallback((e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const collapsePanel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsed(true);
+  }, []);
+
+  const closePanel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    dragRef.current = null;
+    setVisible(false);
+    onClose?.();
+  }, [onClose]);
+
   if (!visible) return null;
 
   return (
     <div
       className="absolute z-[1200] max-w-[calc(100%-1rem)] select-none touch-none"
       style={{ left: pos.x, top: pos.y, width: collapsed ? undefined : width }}
+      onPointerDown={stopPanelEvent}
+      onPointerMove={stopPanelEvent}
+      onPointerUp={stopPanelEvent}
+      onPointerCancel={stopPanelEvent}
     >
       {collapsed ? (
         <button
@@ -92,14 +112,18 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             if (movedRef.current) {
               movedRef.current = false;
               return;
             }
             setCollapsed(false);
           }}
-          onDoubleClick={() => setCollapsed(false)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setCollapsed(false);
+          }}
           title={title}
           className={cn(
             'h-12 w-12 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none',
@@ -125,7 +149,8 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
             </span>
             <button
               type="button"
-              onClick={() => setCollapsed(true)}
+              onPointerDown={stopPanelEvent}
+              onClick={collapsePanel}
               title="Recolher"
               className="h-9 w-9 rounded hover:bg-muted flex items-center justify-center text-muted-foreground touch-manipulation"
             >
@@ -133,14 +158,13 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setVisible(false);
-                onClose?.();
-              }}
-              title="Remover do mapa"
-              className="h-9 w-9 rounded hover:bg-muted flex items-center justify-center text-muted-foreground touch-manipulation"
+              onPointerDown={stopPanelEvent}
+              onClick={closePanel}
+              title="Fechar painel"
+              aria-label={`Fechar ${title}`}
+              className="h-9 w-9 rounded hover:bg-destructive/15 hover:text-destructive flex items-center justify-center text-muted-foreground touch-manipulation"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
           <div className="max-h-[55vh] overflow-y-auto p-2 sm:max-h-[45vh]">{children}</div>
