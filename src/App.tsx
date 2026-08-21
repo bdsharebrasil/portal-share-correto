@@ -84,6 +84,10 @@ import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashb
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
 import ManualSistema from "./pages/ManualSistema";
+import CentroTreinamento from "./pages/CentroTreinamento";
+import SalaReuniao from "./pages/SalaReuniao";
+import SalaReuniaoRoom from "./pages/SalaReuniaoRoom";
+import TreinamentoCentro from "./pages/TreinamentoCentro";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -328,6 +332,11 @@ const App = () => {
                           <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
                           <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />
+                          <Route path="/centro-treinamento" element={renderProtected(<CentroTreinamento />)} />
+                          <Route path="/centro-treinamento/sala-reuniao" element={renderProtected(<SalaReuniao />)} />
+                          <Route path="/centro-treinamento/sala-reuniao/:id" element={renderProtected(<SalaReuniaoRoom />)} />
+                          <Route path="/centro-treinamento/treinamento" element={renderProtected(<TreinamentoCentro />)} />
+                          <Route path="/centro-treinamento/manual" element={renderProtected(<ManualSistema />)} />
                           <Route path="/manual" element={renderProtected(<ManualSistema />)} />
                           <Route path="*" element={renderProtected(<NotFound />)} />
                         </Routes>

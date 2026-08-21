@@ -14,7 +14,7 @@ import {
   Menu,
   Wallet,
   CheckSquare,
-  BookOpen
+  GraduationCap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ const baseMenuGroups: MenuGroup[] = [
   {
     title: "Ajuda",
     items: [
-      { title: "Manual do Sistema", icon: BookOpen, href: "/manual" },
+      { title: "Centro Treinamento", icon: GraduationCap, href: "/centro-treinamento" },
     ],
   },
 ];
