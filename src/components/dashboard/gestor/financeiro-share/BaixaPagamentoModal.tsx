@@ -115,7 +115,7 @@ function SearchableCombobox({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground outline-none transition hover:border-border"
+        className="flex items-center gap-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition hover:border-border"
       >
         <Icon className="h-4 w-4 text-cyan-400" />
         <span className="flex-1 text-left">{selected?.label || "Selecione..."}</span>
@@ -124,14 +124,14 @@ function SearchableCombobox({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-xl">
+          <div className="absolute z-[100] mt-1 w-full rounded-lg border border-border bg-popover text-popover-foreground shadow-xl">
             <div className="p-2">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full rounded border border-border bg-card-secondary px-2 py-1.5 text-xs text-foreground outline-none focus:border-cyan-500"
+                className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-cyan-500"
               />
             </div>
             <div className="max-h-40 overflow-y-auto">
