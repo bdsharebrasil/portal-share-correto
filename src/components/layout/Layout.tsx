@@ -18,9 +18,9 @@ export const Layout: React.FC<LayoutProps> = ({
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="flex-1 w-full md:ml-20 p-3 md:p-6 custom-scrollbar overflow-x-auto overflow-y-auto transition-all duration-300">
-        <div className="min-h-full flex flex-col min-w-0">
-          <div className="bg-card dark:bg-card rounded-2xl shadow-elevated border border-border overflow-hidden w-full min-h-[calc(100vh-8rem)]">
-            <div className="min-w-0 w-full px-4 py-5 md:p-6">
+        <div className="min-h-full flex flex-col min-w-0 -mx-2">
+          <div className="bg-card dark:bg-card rounded-2xl shadow-elevated border border-border overflow-hidden w-full min-h-[calc(100vh-8rem)] -mx-2 px-0">
+            <div className="min-w-0 w-full px-4 py-5 md:p-6 -mx-7">
               {children}
             </div>
           </div>
