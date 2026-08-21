@@ -95,7 +95,7 @@ export default function FluxoCaixaTab() {
       const { data: contas, error } = await supabase
         .from("contas_areceber")
         .select("id, cliente_nome, cliente_id, aeronave, descricao, valor, data_vencimento, status, reference_type, movimentacao_id, reference_id")
-        .eq("reference_type", "reembolso_share")
+        .in("reference_type", ["reembolso_share", "travel_report", "travel_expense_report"])
         .is("data_recebimento", null)
         .not("status", "in", "(recebido,recebida,quitado,quitada,cancelado,cancelada)")
         .order("data_vencimento", { ascending: true, nullsFirst: false })

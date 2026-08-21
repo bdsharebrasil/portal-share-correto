@@ -112,6 +112,7 @@ interface Movimentacao {
   descricao: string | null;
   tipo: string | null;
   valor_rateado: string | number | null;
+  valor_total: string | number | null;
   valor_original: string | number | null;
   valor_pago_real: string | number | null;
   data_emissao: string | null;
@@ -340,7 +341,7 @@ function PortalClienteDashboard() {
         const { data, error: err } = await supabase
           .from("contas_areceber")
           .select("id, cliente_id, cliente_nome, valor, descricao, status, reference_type, reference_id, movimentacao_id, aeronave, data_vencimento, data_pagamento, data_recebimento")
-          .eq("reference_type", "reembolso_share")
+          .in("reference_type", ["reembolso_share", "travel_report", "travel_expense_report"])
           .is("data_recebimento", null)
           .order("data_vencimento", { ascending: true, nullsFirst: false });
         if (err) throw err;
@@ -518,7 +519,9 @@ const alerts = useMemo(() => {
           id: m.id,
           descricao: m.descricao || "Despesa paga pela Share",
           cotista: cotista?.nome || m.fornecedor_nome || "—",
-          valor: Number(m.valor_rateado) || Number(m.valor_original) || Number(m.valor_pago_real) || 0,
+          // Para a dívida da Share, o valor devido é o total da despesa.
+          // valor_rateado pode ser zero quando o rateio por cotista ainda não foi calculado.
+          valor: Number(m.valor_total) || Number(m.valor_original) || Number(m.valor_pago_real) || Number(m.valor_rateado) || 0,
           dataVencimento: m.data_vencimento,
           dataPagamento: m.data_pagamento,
           status: "Pendente",
