@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents,
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Map as MapIcon, Wind, CloudRain, Thermometer, Gauge, RefreshCw } from 'lucide-react';
+import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Wind, CloudRain, Thermometer, Gauge, RefreshCw } from 'lucide-react';
 import { WeatherPanel } from './WeatherPanel';
 import { FloatingPanel } from './FloatingPanel';
 import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProjectionOverlay';
@@ -13,7 +13,6 @@ import type { AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchOpenWeatherPointDirect, openWeatherTileUrl, type OpenWeatherLayer, type OpenWeatherPoint } from '@/services/openweatherMap';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default icons
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -29,12 +28,7 @@ export interface RoutePoint {
   type: 'departure' | 'arrival' | 'alternate' | 'waypoint';
 }
 
-interface LegCalc {
-  from: string;
-  to: string;
-  distanceNM: number;
-  bearing: number;
-}
+interface LegCalc { from: string; to: string; distanceNM: number; bearing: number; }
 
 interface SkyVectorMapProps {
   waypoints: RoutePoint[];
@@ -43,17 +37,12 @@ interface SkyVectorMapProps {
   destWeather: AISWebMETARData | null;
   loadingWeather?: boolean;
   weatherError?: string | null;
-  /**
-   * Cartas já resolvidas por ICAO (maiúsculo), vindas de `useFlightIntelligence`.
-   * O mapa NÃO busca cartas por conta própria — isso evitava um fetch duplicado
-   * do mesmo dado que já é buscado uma vez lá em cima, em `PlanoVoo.tsx`.
-   */
   charts: Record<string, ChartData[]>;
   chartsLoading?: boolean;
   chartsError?: string | null;
 }
 
-const createWaypointIcon = (type: 'departure' | 'arrival' | 'alternate' | 'waypoint') => {
+const createWaypointIcon = (type: RoutePoint['type']) => {
   const colors = {
     departure: { fill: '#22c55e', stroke: '#16a34a', label: 'D' },
     arrival: { fill: '#ef4444', stroke: '#dc2626', label: 'A' },
@@ -61,98 +50,50 @@ const createWaypointIcon = (type: 'departure' | 'arrival' | 'alternate' | 'waypo
     waypoint: { fill: '#3b82f6', stroke: '#2563eb', label: 'W' },
   };
   const { fill, stroke, label } = colors[type];
-
   return L.divIcon({
     className: 'waypoint-marker',
-    html: `<div style="display:flex;flex-direction:column;align-items:center;">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="12" fill="${fill}" stroke="${stroke}" stroke-width="2"/>
-        <text x="14" y="18" text-anchor="middle" fill="white" font-size="${label.length > 1 ? '8' : '12'}" font-weight="bold">${label}</text>
-      </svg>
-    </div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    html: `<div style="display:flex;flex-direction:column;align-items:center;"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" fill="${fill}" stroke="${stroke}" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="white" font-size="${label.length > 1 ? '8' : '12'}" font-weight="bold">${label}</text></svg></div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14],
   });
 };
 
-const createPlaneIcon = (rotation: number) => {
-  return L.divIcon({
-    className: 'plane-marker',
-    html: `<div style="transform:rotate(${rotation}deg);display:flex;align-items:center;justify-content:center;">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-        <path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" stroke-width="0.5"/>
-      </svg>
-    </div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-  });
-};
+const createPlaneIcon = (rotation: number) => L.divIcon({
+  className: 'plane-marker',
+  html: `<div style="transform:rotate(${rotation}deg);display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" stroke-width="0.5"/></svg></div>`,
+  iconSize: [32, 32], iconAnchor: [16, 16],
+});
 
 const FitBounds: React.FC<{ waypoints: RoutePoint[] }> = ({ waypoints }) => {
   const map = useMap();
   useEffect(() => {
     if (waypoints.length > 0) {
-      const bounds = L.latLngBounds(waypoints.map(w => [w.lat, w.lng] as LatLngExpression));
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(L.latLngBounds(waypoints.map(w => [w.lat, w.lng] as LatLngExpression)), { padding: [50, 50] });
     }
   }, [waypoints, map]);
   return null;
 };
 
 const CHART_TYPE_LABEL: Record<ChartData['type'], string> = {
-  SID: 'SID',
-  STAR: 'STAR',
-  APPROACH: 'Aprox.',
-  DEPARTURE: 'Partida',
-  IFR: 'IFR',
-  VFR: 'VFR',
-  IAP: 'IAP',
-  AIRPORT: 'Aeródromo',
+  SID: 'SID', STAR: 'STAR', APPROACH: 'Aprox.', DEPARTURE: 'Partida', IFR: 'IFR', VFR: 'VFR', IAP: 'IAP', AIRPORT: 'Aeródromo',
 };
 
-const ChartsList: React.FC<{
-  icao: string;
-  charts: ChartData[];
-  loading: boolean;
-  error: string | null;
-  onProject: (chart: ChartProjectionItem) => void;
-}> = ({ icao, charts, loading, error, onProject }) => {
+const ChartsList: React.FC<{ icao: string; charts: ChartData[]; loading: boolean; error: string | null; onProject: (chart: ChartProjectionItem) => void; }> = ({ icao, charts, loading, error, onProject }) => {
   if (loading) return <div className="text-xs text-muted-foreground">Carregando cartas de {icao}...</div>;
   if (error) return <div className="text-xs text-destructive">Erro ao buscar cartas de {icao}: {error}</div>;
   if (charts.length === 0) return <div className="text-xs text-muted-foreground">Nenhuma carta encontrada para {icao}.</div>;
-
-  return (
-    <div className="space-y-1">
-      {charts.map((chart, i) => (
-        <div key={i} className="flex items-center justify-between gap-1 text-[11px]">
-          <button
-            type="button"
-            disabled={!chart.url}
-            onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url, format: chart.format })}
-            className={`flex-1 text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`}
-            title="Projetar carta sobre o mapa"
-          >
-            <span className="font-mono text-[9px] opacity-70 mr-1">[{CHART_TYPE_LABEL[chart.type]}]</span>
-            {chart.title}
-          </button>
-          {chart.url && (
-            <a href={chart.url} target="_blank" rel="noopener noreferrer" title="Abrir em nova aba">
-              <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground hover:text-foreground" />
-            </a>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  return <div className="space-y-1">{charts.map((chart, i) => <div key={i} className="flex items-center justify-between gap-1 text-[11px]">
+    <button type="button" disabled={!chart.url} onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url, format: chart.format })} className={`flex-1 text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`} title="Projetar carta sobre o mapa">
+      <span className="font-mono text-[9px] opacity-70 mr-1">[{CHART_TYPE_LABEL[chart.type]}]</span>{chart.title}
+    </button>
+    {chart.url && <a href={chart.url} target="_blank" rel="noopener noreferrer" title="Abrir em nova aba"><ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground hover:text-foreground" /></a>}
+  </div>)}</div>;
 };
 
-const MapContainerAny = MapContainer as any;
 const useMapEventsAny = useMapEvents as any;
 const LayersControlAny = LayersControl as any;
 const TileLayerAny = TileLayer as any;
 const MarkerAny = Marker as any;
 const WMSTileLayerAny = WMSTileLayer as any;
-
 const WeatherMapClick: React.FC<{ onSelect: (point: { lat: number; lon: number }) => void }> = ({ onSelect }) => {
   useMapEventsAny({ click: (event: any) => onSelect({ lat: event.latlng.lat, lon: event.latlng.lng }) });
   return null;
@@ -170,100 +111,89 @@ const WeatherLayersControl: React.FC = () => {
   const map = useMap();
   const layersRef = useRef<Partial<Record<OpenWeatherLayer, L.TileLayer>>>({});
   const [activeLayers, setActiveLayers] = useState<OpenWeatherLayer[]>(['wind_new', 'precipitation_new', 'clouds_new']);
+  const [refreshToken, setRefreshToken] = useState(() => Date.now());
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const refreshLayers = useCallback(() => {
+    setRefreshing(true);
+    setRefreshToken(Date.now());
+    setLastUpdated(new Date());
+    window.setTimeout(() => setRefreshing(false), 450);
+  }, []);
 
   useEffect(() => {
     const next = new Set(activeLayers);
-    for (const option of WEATHER_LAYERS) {
-      const existing = layersRef.current[option.id];
-      if (next.has(option.id) && !existing) {
-        const layer = L.tileLayer(openWeatherTileUrl(option.id), {
-          opacity: option.id === 'wind_new' ? 0.62 : option.id === 'precipitation_new' ? 0.58 : option.id === 'clouds_new' ? 0.48 : 0.42,
-          zIndex: 450 + WEATHER_LAYERS.findIndex((item) => item.id === option.id),
-          attribution: '&copy; OpenWeather',
-          crossOrigin: true,
-        });
-        layer.on('tileerror', (event: any) => console.warn(`[OpenWeather] Falha no tile ${option.id}`, event?.error ?? event));
-        layer.addTo(map);
-        layersRef.current[option.id] = layer;
-      } else if (!next.has(option.id) && existing) {
-        existing.removeFrom(map);
-        delete layersRef.current[option.id];
+    const current = layersRef.current;
+    Object.entries(current).forEach(([id, layer]) => {
+      if (layer && (!next.has(id as OpenWeatherLayer) || refreshToken)) {
+        layer.removeFrom(map);
+        delete current[id as OpenWeatherLayer];
       }
+    });
+    for (const option of WEATHER_LAYERS) {
+      if (!next.has(option.id)) continue;
+      const layer = L.tileLayer(openWeatherTileUrl(option.id, String(refreshToken)), {
+        opacity: option.id === 'wind_new' ? 0.62 : option.id === 'precipitation_new' ? 0.58 : option.id === 'clouds_new' ? 0.48 : 0.42,
+        zIndex: 450 + WEATHER_LAYERS.findIndex((item) => item.id === option.id),
+        attribution: '&copy; OpenWeather',
+        crossOrigin: true,
+      });
+      layer.on('tileerror', (event: any) => console.warn(`[OpenWeather] Falha no tile ${option.id}`, event?.error ?? event));
+      layer.addTo(map);
+      current[option.id] = layer;
     }
-  }, [activeLayers, map]);
+  }, [activeLayers, map, refreshToken]);
 
   useEffect(() => () => {
     Object.values(layersRef.current).forEach((layer) => layer?.removeFrom(map));
     layersRef.current = {};
   }, [map]);
 
-  const toggleLayer = (layer: OpenWeatherLayer) => {
-    setActiveLayers((current) => current.includes(layer) ? current.filter((item) => item !== layer) : [...current, layer]);
-  };
+  useEffect(() => {
+    const interval = window.setInterval(refreshLayers, 2 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [refreshLayers]);
 
-  return (
-    <div className="absolute right-2 top-2 z-[1000] w-[min(15rem,calc(100%-1rem))] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm sm:min-w-[12rem] sm:w-auto">
-      <div className="border-b border-slate-200 px-3 py-2 font-semibold">Meteorologia — OpenWeather</div>
-      <div className="space-y-1 p-2">
-        {WEATHER_LAYERS.map((option) => (
-          <label key={option.id} className="flex min-h-10 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100 touch-manipulation">
-            <input type="checkbox" checked={activeLayers.includes(option.id)} onChange={() => toggleLayer(option.id)} className="h-3.5 w-3.5 accent-sky-600" />
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
+  const toggleLayer = (layer: OpenWeatherLayer) => setActiveLayers(current => current.includes(layer) ? current.filter(item => item !== layer) : [...current, layer]);
+
+  return <div className="absolute right-2 top-2 z-[1000] w-[min(16rem,calc(100%-1rem))] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm sm:w-auto sm:min-w-[13rem]">
+    <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
+      <div className="font-semibold">Meteorologia — OpenWeather</div>
+      <Button type="button" size="icon" variant="ghost" onClick={refreshLayers} disabled={refreshing} title="Atualizar meteorologia" className="h-8 w-8 text-slate-600 hover:text-sky-700">
+        <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+      </Button>
     </div>
-  );
+    <div className="space-y-1 p-2">
+      {WEATHER_LAYERS.map(option => <label key={option.id} className="flex min-h-10 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100 touch-manipulation">
+        <input type="checkbox" checked={activeLayers.includes(option.id)} onChange={() => toggleLayer(option.id)} className="h-3.5 w-3.5 accent-sky-600" />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} /><span>{option.label}</span>
+      </label>)}
+    </div>
+    <div className="border-t border-slate-200 px-3 py-1.5 text-[10px] text-slate-500">Atualização automática a cada 2 min{lastUpdated ? ` · ${lastUpdated.toLocaleTimeString('pt-BR')}` : ''}</div>
+  </div>;
 };
 
 const weatherNumber = (value: number | undefined, digits = 0) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
 
-const WeatherPointCard: React.FC<{
-  point: { lat: number; lon: number } | null;
-  data: OpenWeatherPoint | null;
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => void;
-}> = ({ point, data, loading, error, onRefresh }) => {
+const WeatherPointCard: React.FC<{ point: { lat: number; lon: number } | null; data: OpenWeatherPoint | null; loading: boolean; error: string | null; onRefresh: () => void; }> = ({ point, data, loading, error, onRefresh }) => {
   if (!point) return null;
-  return (
-    <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-background/90 p-3 text-foreground shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div>
-          <div className="mt-1 font-mono text-[10px] text-muted-foreground">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div>
-        </div>
-        <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-      {loading && <div className="mt-3 text-xs text-muted-foreground">Atualizando dados da OpenWeather...</div>}
-      {error && <div className="mt-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-xs text-red-200">{error}</div>}
-      {data && !loading && (
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Thermometer className="h-3.5 w-3.5" /> Temperatura</div><strong className="font-mono text-base">{weatherNumber(data.main?.temp, 1)}°C</strong></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Wind className="h-3.5 w-3.5" /> Vento</div><strong className="font-mono text-base">{weatherNumber(data.wind?.speed, 1)} m/s</strong><span className="block text-[10px] text-muted-foreground">{weatherNumber(data.wind?.deg)}°</span></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><CloudRain className="h-3.5 w-3.5" /> Nuvens</div><strong className="font-mono text-base">{weatherNumber(data.clouds?.all)}%</strong></div>
-          <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Gauge className="h-3.5 w-3.5" /> Pressão</div><strong className="font-mono text-base">{weatherNumber(data.main?.pressure)} hPa</strong></div>
-        </div>
-      )}
-      {data?.weather?.[0]?.description && <div className="mt-2 text-xs capitalize text-muted-foreground">{data.weather[0].description}</div>}
-    </Card>
-  );
+  return <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-background/90 p-3 text-foreground shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
+    <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div><div className="mt-1 font-mono text-[10px] text-muted-foreground">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div></div>
+      <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></Button></div>
+    {loading && <div className="mt-3 text-xs text-muted-foreground">Atualizando dados da OpenWeather...</div>}
+    {error && <div className="mt-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-xs text-red-200">{error}</div>}
+    {data && !loading && <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Thermometer className="h-3.5 w-3.5" /> Temperatura</div><strong className="font-mono text-base">{weatherNumber(data.main?.temp, 1)}°C</strong></div>
+      <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Wind className="h-3.5 w-3.5" /> Vento</div><strong className="font-mono text-base">{weatherNumber(data.wind?.speed, 1)} m/s</strong><span className="block text-[10px] text-muted-foreground">{weatherNumber(data.wind?.deg)}°</span></div>
+      <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><CloudRain className="h-3.5 w-3.5" /> Nuvens</div><strong className="font-mono text-base">{weatherNumber(data.clouds?.all)}%</strong></div>
+      <div className="rounded-md bg-white/5 p-2"><div className="flex items-center gap-1 text-muted-foreground"><Gauge className="h-3.5 w-3.5" /> Pressão</div><strong className="font-mono text-base">{weatherNumber(data.main?.pressure)} hPa</strong></div>
+    </div>}
+    {data?.weather?.[0]?.description && <div className="mt-2 text-xs capitalize text-muted-foreground">{data.weather[0].description}</div>}
+  </Card>;
 };
 
-export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
-  waypoints,
-  legs,
-  originWeather,
-  destWeather,
-  loadingWeather,
-  weatherError,
-  charts,
-  chartsLoading,
-  chartsError,
-}) => {
+export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({ waypoints, legs, originWeather, destWeather, loadingWeather, weatherError, charts, chartsLoading, chartsError }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [projectedChart, setProjectedChart] = useState<ChartProjectionItem | null>(null);
@@ -274,40 +204,29 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
 
   const loadWeatherPoint = useCallback(async (point: { lat: number; lon: number }) => {
     setWeatherPoint(point);
+    setWeatherPointData(null);
     setWeatherPointLoading(true);
     setWeatherPointError(null);
-    try {
-      const data = await fetchOpenWeatherPointDirect(point.lat, point.lon);
-      setWeatherPointData(data);
-    } catch (error: any) {
-      setWeatherPointData(null);
-      setWeatherPointError(error?.message || 'Não foi possível carregar a meteorologia deste ponto.');
-    } finally {
-      setWeatherPointLoading(false);
-    }
+    try { setWeatherPointData(await fetchOpenWeatherPointDirect(point.lat, point.lon)); }
+    catch (error: any) { setWeatherPointError(error?.message || 'Não foi possível carregar a meteorologia deste ponto.'); }
+    finally { setWeatherPointLoading(false); }
   }, []);
 
-  // Todos os pontos não-alternativa, na ordem em que vêm de PlanoVoo.tsx:
-  // partida -> waypoints intermediários resolvidos da rota -> destino.
-  const routePositions = useMemo(() => {
-    return waypoints.filter(w => w.type !== 'alternate').map(w => [w.lat, w.lng] as [number, number]);
-  }, [waypoints]);
+  useEffect(() => {
+    if (!weatherPoint) return;
+    const interval = window.setInterval(() => { void loadWeatherPoint(weatherPoint); }, 2 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [weatherPoint, loadWeatherPoint]);
 
+  const routePositions = useMemo(() => waypoints.filter(w => w.type !== 'alternate').map(w => [w.lat, w.lng] as [number, number]), [waypoints]);
   const alternateRoute = useMemo((): [number, number][] => {
-    const arrival = waypoints.find(w => w.type === 'arrival');
-    const alt = waypoints.find(w => w.type === 'alternate');
-    if (arrival && alt) return [[arrival.lat, arrival.lng], [alt.lat, alt.lng]];
-    return [];
+    const arrival = waypoints.find(w => w.type === 'arrival'); const alt = waypoints.find(w => w.type === 'alternate');
+    return arrival && alt ? [[arrival.lat, arrival.lng], [alt.lat, alt.lng]] : [];
   }, [waypoints]);
 
   useEffect(() => {
     if (!isSimulating) return;
-    const interval = setInterval(() => {
-      setSimulationProgress(prev => {
-        if (prev >= 1) { setIsSimulating(false); return 0; }
-        return prev + 0.005;
-      });
-    }, 100);
+    const interval = setInterval(() => setSimulationProgress(prev => { if (prev >= 1) { setIsSimulating(false); return 0; } return prev + 0.005; }), 100);
     return () => clearInterval(interval);
   }, [isSimulating]);
 
@@ -317,16 +236,12 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
     const progressPerSegment = 1 / totalSegments;
     const currentSegment = Math.min(Math.floor(simulationProgress / progressPerSegment), totalSegments - 1);
     const segmentProgress = (simulationProgress - currentSegment * progressPerSegment) / progressPerSegment;
-    const start = routePositions[currentSegment];
-    const end = routePositions[currentSegment + 1];
+    const start = routePositions[currentSegment]; const end = routePositions[currentSegment + 1];
     if (!start || !end) return null;
     const lat = start[0] + (end[0] - start[0]) * segmentProgress;
     const lng = start[1] + (end[1] - start[1]) * segmentProgress;
-    const dLon = (end[1] - start[1]) * Math.PI / 180;
-    const lat1 = start[0] * Math.PI / 180;
-    const lat2 = end[0] * Math.PI / 180;
-    const y = Math.sin(dLon) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    const dLon = (end[1] - start[1]) * Math.PI / 180; const lat1 = start[0] * Math.PI / 180; const lat2 = end[0] * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2); const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
     const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
     return { lat, lng, bearing };
   }, [routePositions, simulationProgress, isSimulating]);
@@ -335,192 +250,45 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   const hasRoute = waypoints.length > 0;
   const departure = waypoints.find(w => w.type === 'departure');
   const arrival = waypoints.find(w => w.type === 'arrival');
+  const departureCharts = { charts: charts[departure?.icao ?? ''] ?? [], loading: !!chartsLoading, error: chartsError ?? null };
+  const arrivalCharts = { charts: charts[arrival?.icao ?? ''] ?? [], loading: !!chartsLoading, error: chartsError ?? null };
 
-  const departureCharts = {
-    charts: charts[departure?.icao ?? ''] ?? [],
-    loading: !!chartsLoading,
-    error: chartsError ?? null,
-  };
-  const arrivalCharts = {
-    charts: charts[arrival?.icao ?? ''] ?? [],
-    loading: !!chartsLoading,
-    error: chartsError ?? null,
-  };
+  return <div data-flight-map className="relative h-full min-h-[24rem] w-full touch-manipulation overflow-hidden">
+    <MapContainer center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
+      <WeatherMapClick onSelect={loadWeatherPoint} />
+      <WeatherLayersControl />
+      <LayersControlAny position="topright">
+        <LayersControl.BaseLayer checked name="CartoDB Dark"><TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="OpenStreetMap"><TileLayerAny url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Satélite (Google)"><TileLayerAny url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="&copy; Google" /></LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Terreno"><TileLayerAny url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" /></LayersControl.BaseLayer>
+        <LayersControl.Overlay checked name="Espaço aéreo (CTR/CTA/ATZ/TMA)"><WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} /></LayersControl.Overlay>
+        <LayersControl.Overlay checked name="Cartas WAC (DECEA)"><WMSTileLayerAny url={DECEA_WMS_URL} layers={WAC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={400} /></LayersControl.Overlay>
+        <LayersControl.Overlay name="Corredores Visuais / REA (DECEA)"><WMSTileLayerAny url={DECEA_WMS_URL} layers={REA_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={401} /></LayersControl.Overlay>
+        <LayersControl.Overlay name="Cartas de Área ARC (DECEA)"><WMSTileLayerAny url={DECEA_WMS_URL} layers={ARC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={402} /></LayersControl.Overlay>
+        <LayersControl.Overlay name="Cartas de Navegação CNAV (DECEA)"><WMSTileLayerAny url={DECEA_WMS_URL} layers={CNAV_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={403} /></LayersControl.Overlay>
+      </LayersControlAny>
+      {hasRoute && <FitBounds waypoints={waypoints} />}
+      {routePositions.length > 1 && <Polyline positions={routePositions} pathOptions={{ color: '#ff00ff', weight: 3, dashArray: '10, 5', opacity: 0.8 }} />}
+      {alternateRoute.length > 0 && <Polyline positions={alternateRoute} pathOptions={{ color: '#f59e0b', weight: 2, dashArray: '5, 10', opacity: 0.6 }} />}
+      {waypoints.map((wp, index) => <MarkerAny key={`${wp.icao}-${index}`} position={[wp.lat, wp.lng]} icon={createWaypointIcon(wp.type)}><Popup><div className="font-mono font-bold text-primary">{wp.icao}</div><div className="text-sm text-muted-foreground">{wp.name}</div><div className="text-xs capitalize">{wp.type === 'departure' ? 'Partida' : wp.type === 'arrival' ? 'Destino' : wp.type === 'alternate' ? 'Alternativa' : 'Waypoint'}</div></Popup></MarkerAny>)}
+      {planePosition && <MarkerAny position={[planePosition.lat, planePosition.lng]} icon={createPlaneIcon(planePosition.bearing)} />}
+    </MapContainer>
 
-  return (
-    <div data-flight-map className="relative h-full min-h-[24rem] w-full touch-manipulation overflow-hidden">
-      <MapContainerAny center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
-        <WeatherMapClick onSelect={loadWeatherPoint} />
-        <WeatherLayersControl />
-        <LayersControlAny position="topright">
-          <LayersControl.BaseLayer checked name="CartoDB Dark">
-            <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="OpenStreetMap">
-            <TileLayerAny url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satélite (Google)">
-            <TileLayerAny url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="&copy; Google" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Terreno">
-            <TileLayerAny url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" attribution="&copy; OpenTopoMap" />
-          </LayersControl.BaseLayer>
+    <WeatherPointCard point={weatherPoint} data={weatherPointData} loading={weatherPointLoading} error={weatherPointError} onRefresh={() => weatherPoint && loadWeatherPoint(weatherPoint)} />
 
-          {/*
-            IMPORTANTE: antes NENHUMA dessas overlays tinha `checked`, então as
-            cartas do DECEA nunca apareciam por padrão — o usuário precisava
-            abrir o controle de camadas manualmente e marcar cada uma.
-            Deixamos Espaço Aéreo e WAC ligadas por padrão (mais relevantes e
-            leves); REA/ARC/CNAV continuam opcionais para não sobrecarregar o
-            mapa com várias camadas raster grandes ao mesmo tempo.
-          */}
-          <LayersControl.Overlay checked name="Espaço aéreo (CTR/CTA/ATZ/TMA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={AIRSPACE_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.7} zIndex={404} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay checked name="Cartas WAC (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={WAC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={400} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Corredores Visuais / REA (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={REA_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={401} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Cartas de Área ARC (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={ARC_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={402} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Cartas de Navegação CNAV (DECEA)">
-            <WMSTileLayerAny url={DECEA_WMS_URL} layers={CNAV_LAYERS} format="image/png" transparent version="1.1.1" attribution="© DECEA" opacity={0.9} zIndex={403} />
-          </LayersControl.Overlay>
-        </LayersControlAny>
+    {hasRoute && routePositions.length > 1 && <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto"><Card className="w-full p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto"><div className="flex items-center gap-2"><Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => { if (simulationProgress >= 1) setSimulationProgress(0); setIsSimulating(prev => !prev); }}>{isSimulating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button><Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}><RotateCcw className="h-4 w-4" /></Button><div className="ml-2 text-sm text-foreground"><span className="text-muted-foreground">Progresso:</span>{' '}<span className="font-mono font-medium">{Math.round(simulationProgress * 100)}%</span></div></div><div className="mt-2 h-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary transition-all duration-100" style={{ width: `${simulationProgress * 100}%` }} /></div></Card></div>}
 
-        {hasRoute && <FitBounds waypoints={waypoints} />}
+    {departure && <>
+      <FloatingPanel id="wx-dep" title={`METAR ${departure.icao}`} icon={<CloudSun className="w-5 h-5 text-green-400" />} defaultPosition={{ x: 16, y: 16 }} defaultCollapsed={true}><WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} /></FloatingPanel>
+      <FloatingPanel id="charts-dep" title={`Cartas ${departure.icao}`} icon={<FileText className="w-5 h-5 text-green-400" />} defaultPosition={{ x: 16, y: 76 }} defaultCollapsed={true} width={280}><ChartsList icao={departure.icao} {...departureCharts} onProject={setProjectedChart} /></FloatingPanel>
+    </>}
+    {arrival && <>
+      <FloatingPanel id="wx-arr" title={`METAR ${arrival.icao}`} icon={<CloudSun className="w-5 h-5 text-red-400" />} defaultPosition={{ x: 76, y: 16 }} defaultCollapsed={true}><WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} error={weatherError} /></FloatingPanel>
+      <FloatingPanel id="charts-arr" title={`Cartas ${arrival.icao}`} icon={<FileText className="w-5 h-5 text-red-400" />} defaultPosition={{ x: 76, y: 76 }} defaultCollapsed={true} width={280}><ChartsList icao={arrival.icao} {...arrivalCharts} onProject={setProjectedChart} /></FloatingPanel>
+    </>}
 
-        {routePositions.length > 1 && (
-          <Polyline positions={routePositions} pathOptions={{ color: '#ff00ff', weight: 3, dashArray: '10, 5', opacity: 0.8 }} />
-        )}
-
-        {alternateRoute.length > 0 && (
-          <Polyline positions={alternateRoute} pathOptions={{ color: '#f59e0b', weight: 2, dashArray: '5, 10', opacity: 0.6 }} />
-        )}
-
-        {waypoints.map((wp, index) => (
-          <MarkerAny key={`${wp.icao}-${index}`} position={[wp.lat, wp.lng]} icon={createWaypointIcon(wp.type)}>
-            <Popup>
-              <div className="font-mono font-bold text-primary">{wp.icao}</div>
-              <div className="text-sm text-muted-foreground">{wp.name}</div>
-              <div className="text-xs capitalize">{wp.type === 'departure' ? 'Partida' : wp.type === 'arrival' ? 'Destino' : wp.type === 'alternate' ? 'Alternativa' : 'Waypoint'}</div>
-            </Popup>
-          </MarkerAny>
-        ))}
-
-        {planePosition && (
-          <MarkerAny position={[planePosition.lat, planePosition.lng]} icon={createPlaneIcon(planePosition.bearing)} />
-        )}
-      </MapContainerAny>
-
-      <WeatherPointCard
-        point={weatherPoint}
-        data={weatherPointData}
-        loading={weatherPointLoading}
-        error={weatherPointError}
-        onRefresh={() => weatherPoint && loadWeatherPoint(weatherPoint)}
-      />
-
-      {hasRoute && routePositions.length > 1 && (
-        <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto">
-          <Card className="w-full p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => {
-                if (simulationProgress >= 1) setSimulationProgress(0);
-                setIsSimulating(prev => !prev);
-              }}>
-                {isSimulating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
-              <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}>
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-              <div className="ml-2 text-sm text-foreground">
-                <span className="text-muted-foreground">Progresso:</span>{' '}
-                <span className="font-mono font-medium">{Math.round(simulationProgress * 100)}%</span>
-              </div>
-            </div>
-            <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary transition-all duration-100" style={{ width: `${simulationProgress * 100}%` }} />
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Painéis flutuantes arrastáveis. As cartas começam recolhidas para não
-          ocupar o mapa automaticamente; o usuário expande pelo ícone. */}
-      {departure && (
-        <>
-          <FloatingPanel
-            id={`wx-dep`}
-            title={`METAR ${departure.icao}`}
-            icon={<CloudSun className="w-5 h-5 text-green-400" />}
-            defaultPosition={{ x: 16, y: 16 }}
-            defaultCollapsed={true}
-          >
-            <WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} />
-          </FloatingPanel>
-          <FloatingPanel
-            id={`charts-dep`}
-            title={`Cartas ${departure.icao}`}
-            icon={<FileText className="w-5 h-5 text-green-400" />}
-            defaultPosition={{ x: 16, y: 76 }}
-            defaultCollapsed={true}
-            width={280}
-          >
-            <ChartsList icao={departure.icao} {...departureCharts} onProject={setProjectedChart} />
-          </FloatingPanel>
-        </>
-      )}
-      {arrival && (
-        <>
-          <FloatingPanel
-            id={`wx-arr`}
-            title={`METAR ${arrival.icao}`}
-            icon={<CloudSun className="w-5 h-5 text-red-400" />}
-            defaultPosition={{ x: 76, y: 16 }}
-            defaultCollapsed={true}
-          >
-            <WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} error={weatherError} />
-          </FloatingPanel>
-          <FloatingPanel
-            id={`charts-arr`}
-            title={`Cartas ${arrival.icao}`}
-            icon={<FileText className="w-5 h-5 text-red-400" />}
-            defaultPosition={{ x: 76, y: 76 }}
-            defaultCollapsed={true}
-            width={280}
-          >
-            <ChartsList icao={arrival.icao} {...arrivalCharts} onProject={setProjectedChart} />
-          </FloatingPanel>
-        </>
-      )}
-
-      {projectedChart && (
-        <ChartProjectionOverlay chart={projectedChart} onClose={() => setProjectedChart(null)} />
-      )}
-
-      {legs.length > 0 && (
-        <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-auto sm:right-4">
-          <Card className="max-h-40 w-full max-w-xs overflow-hidden p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto">
-            <div className="text-[10px] uppercase text-muted-foreground font-bold mb-2 flex items-center gap-1">
-              <Navigation className="w-3 h-3" /> Route Info
-            </div>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {legs.map((leg, i) => (
-                <div key={i} className="flex items-center justify-between text-xs gap-4">
-                  <span className="font-mono text-primary">{leg.from}→{leg.to}</span>
-                  <span className="font-mono text-foreground">
-                    {Math.round(leg.bearing).toString().padStart(3, '0')}° {leg.distanceNM.toFixed(0)}nm
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      )}
-    </div>
-  );
+    {projectedChart && <ChartProjectionOverlay chart={projectedChart} onClose={() => setProjectedChart(null)} />}
+    {legs.length > 0 && <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-auto sm:right-4"><Card className="max-h-40 w-full max-w-xs overflow-hidden p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto"><div className="text-[10px] uppercase text-muted-foreground font-bold mb-2 flex items-center gap-1"><Navigation className="w-3 h-3" /> Route Info</div><div className="space-y-1 max-h-32 overflow-y-auto">{legs.map((leg, i) => <div key={i} className="flex items-center justify-between text-xs gap-4"><span className="font-mono text-primary">{leg.from}→{leg.to}</span><span className="font-mono text-foreground">{Math.round(leg.bearing).toString().padStart(3, '0')}° {leg.distanceNM.toFixed(0)}nm</span></div>)}</div></Card></div>}
+  </div>;
 };
