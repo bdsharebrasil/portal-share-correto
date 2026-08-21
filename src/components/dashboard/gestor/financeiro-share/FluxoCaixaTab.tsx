@@ -49,7 +49,7 @@ export default function FluxoCaixaTab() {
   // Filtros
   const [busca, setBusca] = useState("");
   const [mes, setMes] = useState("");
-  const [caixa, setCaixa] = useState<"todos" | "share" | "cliente" | "dga">("share");
+  const [caixa, setCaixa] = useState<"todos" | "share" | "cliente" | "dga">("todos");
   const [grupoFiltro, setGrupoFiltro] = useState("");
   const [tipoData, setTipoData] = useState<TipoData>("vencimento");
   const [ordem, setOrdem] = useState<Ordem>("desc");
@@ -116,6 +116,10 @@ export default function FluxoCaixaTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (aba === "reembolsaveis") setCaixa("todos");
+  }, [aba]);
+
   const catMap = useMemo(() => {
     const m = new Map<string, any>();
     (data.categorias || []).forEach((c: any) => { m.set(c.id, c); m.set(String(c.nome || "").toLowerCase(), c); });
@@ -150,8 +154,11 @@ export default function FluxoCaixaTab() {
 
       const reembolsavel = isReembolsavel(m);
 
-      // Aba "Despesas Reembolsáveis": mostra só as reembolsáveis.
-      if (aba === "reembolsaveis" && !reembolsavel) return false;
+      // Aba "Despesas Reembolsáveis": mostra todos os reembolsos ainda pendentes.
+      if (
+        aba === "reembolsaveis" &&
+        (!reembolsavel || m.reembolso_quitado || ["reembolsado", "quitado"].includes(String(m.status || "").toLowerCase()))
+      ) return false;
       // Aba "Caixa": nunca mostra reembolsáveis (elas ficam só na aba própria).
       if (aba === "caixa" && reembolsavel) return false;
 
@@ -303,11 +310,11 @@ export default function FluxoCaixaTab() {
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
       {(aba === "caixa" || aba === "reembolsaveis") && (
         <div className="space-y-4">
-          <DuplicidadeAlertasPanel fluxo={aba === "reembolsaveis" ? "reembolsaveis" : "caixa"} items={data.movimentacoes.filter((m: any) => aba === "reembolsaveis" ? isReembolsavel(m) : isShare(m) && !isDga(m) && !isReembolsavel(m))} onOpen={setEditMovId} onDelete={onDelete} />
+          <DuplicidadeAlertasPanel fluxo={aba === "reembolsaveis" ? "reembolsaveis" : "caixa"} items={aba === "reembolsaveis" ? movs : data.movimentacoes.filter((m: any) => isShare(m) && !isDga(m) && !isReembolsavel(m))} onOpen={setEditMovId} onDelete={onDelete} />
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-background/55 p-2.5">
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               <span>Caixa</span>
-              <select value={caixa} onChange={e => setCaixa(e.target.value as any)} className="h-8 rounded-lg border border-border bg-card px-2.5 text-[11px] text-foreground outline-none focus:border-cyan-500">
+              <select value={aba === "reembolsaveis" ? "todos" : caixa} onChange={e => setCaixa(e.target.value as any)} disabled={aba === "reembolsaveis"} className="h-8 rounded-lg border border-border bg-card px-2.5 text-[11px] text-foreground outline-none focus:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-70">
                 <option value="todos">Todos os caixas</option>
                 <option value="share">Caixa Share</option>
                 <option value="cliente">Caixas Cliente</option>
@@ -446,7 +453,9 @@ export default function FluxoCaixaTab() {
                               ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
                               : statusExibicao(m) === "Entrada"
                                 ? "border-sky-500/20 bg-sky-500/10 text-sky-300"
-                                : "border-rose-500/20 bg-rose-500/10 text-rose-400"
+                                : statusExibicao(m) === "Reembolso pendente"
+                                  ? "border-amber-500/20 bg-amber-500/10 text-amber-400"
+                                  : "border-rose-500/20 bg-rose-500/10 text-rose-400"
                           }`}>
                             {statusExibicao(m)}
                          </span>

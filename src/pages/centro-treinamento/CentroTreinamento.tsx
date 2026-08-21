@@ -57,6 +57,10 @@ const menuCards = [
     icon: Video,
     iconClass:
       "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-400/15",
+    cardClass:
+      "bg-[rgba(6,92,70,1)] border border-[rgba(3,15,8,1)] rounded-[11px] overflow-hidden",
+    innerCardClass:
+      "bg-[rgba(18,31,33,1)] border-[rgba(15,27,46,1)] rounded-[9px] overflow-hidden",
   },
   {
     title: "Treinamento",
@@ -67,6 +71,9 @@ const menuCards = [
     icon: GraduationCap,
     iconClass:
       "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-muted-foreground dark:border-slate-400/15",
+    cardClass:
+      "bg-[rgba(79,15,134,1)] border border-[rgba(41,13,109,1)] rounded-[5px] overflow-hidden",
+    innerCardClass: "",
   },
   {
     title: "Manual do sistema",
@@ -77,6 +84,9 @@ const menuCards = [
     icon: BookOpen,
     iconClass:
       "bg-sky-50 text-sky-700 border-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-400/15",
+    cardClass:
+      "bg-[rgba(14,116,138,1)] border border-[rgba(4,68,144,1)] rounded-[8px] overflow-hidden",
+    innerCardClass: "",
   },
 ] as const;
 
@@ -266,7 +276,7 @@ export default function CentroTreinamento() {
             RESUMO
             ====================================================== */}
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mx-auto flex flex-row items-center justify-center gap-[38px] overflow-auto">
           <div className="share-card">
             <div className="flex items-center gap-4 p-5">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/15 dark:bg-blue-500/10 dark:text-blue-400">
@@ -305,23 +315,6 @@ export default function CentroTreinamento() {
             </div>
           </div>
 
-          <div className="share-card sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-400">
-                <BookOpen className="size-4.5" />
-              </div>
-
-              <div className="min-w-0">
-                <p className="section-label">Conteúdo</p>
-                <p className="mt-1 text-2xl font-semibold tracking-tight">
-                  3
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  áreas disponíveis no centro
-                </p>
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* ======================================================
@@ -349,9 +342,9 @@ export default function CentroTreinamento() {
                 <Link
                   key={menu.title}
                   to={menu.href}
-                  className="group block"
+                  className={`group block ${menu.cardClass}`}
                 >
-                  <Card className="share-card h-full border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated">
+                  <Card className={`share-card h-full border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated ${menu.innerCardClass}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-4">
                         <div

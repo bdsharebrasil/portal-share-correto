@@ -17,6 +17,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const fallbackTheme: ThemePreference = "light";
 
+function readThemePreference(...keys: string[]): ThemePreference {
+  for (const key of keys) {
+    const theme = window.localStorage.getItem(key);
+    if (theme === "light" || theme === "dark") return theme;
+  }
+  return fallbackTheme;
+}
+
 function applyTheme(theme: ThemePreference) {
   const root = document.documentElement;
   // Limpa classes anteriores para evitar conflito
@@ -30,39 +38,32 @@ function applyTheme(theme: ThemePreference) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [theme, setThemeState] = useState<ThemePreference>(fallbackTheme);
   const [isThemeLoading, setIsThemeLoading] = useState(true);
   const [isThemeSaving, setIsThemeSaving] = useState(false);
 
   useEffect(() => {
-    let ativo = true;
-    const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
-    const localTheme = window.localStorage.getItem(localKey);
-    const initial = localTheme === "light" || localTheme === "dark" ? localTheme : fallbackTheme;
-    
-    setThemeState(initial);
-    applyTheme(initial);
-
-    if (!user?.id) {
-      setIsThemeLoading(false);
+    if (isAuthLoading) {
+      setIsThemeLoading(true);
       return;
     }
 
-    // A tabela user_profiles não possui coluna de preferência de tema no schema atual.
-    // A preferência permanece isolada por usuário neste navegador até existir uma
-    // coluna de tema no banco ou uma tabela de preferências dedicada.
-    if (ativo) setIsThemeLoading(false);
+    const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
+    const initial = readThemePreference(localKey, "share-theme:guest");
 
-    return () => { ativo = false; };
-  }, [user?.id]);
+    setThemeState(initial);
+    applyTheme(initial);
+    setIsThemeLoading(false);
+  }, [user?.id, isAuthLoading]);
 
   const setTheme = useCallback(async (next: ThemePreference) => {
     setThemeState(next);
     applyTheme(next);
     const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
     window.localStorage.setItem(localKey, next);
-    
+    window.localStorage.setItem("share-theme:guest", next);
+
     if (!user?.id) return;
 
     // Persistência local por usuário; tema_preferido não existe em user_profiles.
