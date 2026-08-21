@@ -13,7 +13,9 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const fallbackTheme: ThemePreference = "dark";
+
+// Novo padrão visual: light executivo. A preferência salva do usuário continua tendo prioridade.
+const fallbackTheme: ThemePreference = "light";
 
 function applyTheme(theme: ThemePreference) {
   const root = document.documentElement;
