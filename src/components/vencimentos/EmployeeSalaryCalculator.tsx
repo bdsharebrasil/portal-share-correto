@@ -389,7 +389,7 @@ export function EmployeeSalaryCalculator() {
               placeholder="Selecione um colaborador..."
               searchPlaceholder="Buscar por nome ou email..."
               emptyText="Nenhum colaborador encontrado."
-              className="bg-gray-800 border-gray-700 text-gray-300"
+              className="bg-background border-border text-gray-300"
             />
           </div>
         </CardContent>
@@ -431,10 +431,10 @@ export function EmployeeSalaryCalculator() {
                 Ano
               </Label>
               <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-                <SelectTrigger id="year-select" className="mt-2 bg-gray-800 border-gray-700">
+                <SelectTrigger id="year-select" className="mt-2 bg-background border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent className="bg-popover border-border text-popover-foreground">
                   {years.map((year) => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}
@@ -479,7 +479,7 @@ export function EmployeeSalaryCalculator() {
                         const value = Math.max(1, Math.min(12, parseInt(e.target.value) || 1));
                         setThirteenthForm({ ...thirteenthForm, worked_months: value.toString() });
                       }}
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                     <p className="text-xs text-gray-400 mt-1">Cada mês com 15+ dias = 1 avo</p>
                   </div>
@@ -508,7 +508,7 @@ export function EmployeeSalaryCalculator() {
                         setThirteenthForm({ ...thirteenthForm, gross_value: e.target.value })
                       }
                       placeholder="0.00"
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                   <div>
@@ -524,7 +524,7 @@ export function EmployeeSalaryCalculator() {
                         setThirteenthForm({ ...thirteenthForm, net_value: e.target.value })
                       }
                       placeholder="0.00"
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                 </div>
@@ -541,7 +541,7 @@ export function EmployeeSalaryCalculator() {
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, first_installment_date: e.target.value })
                       }
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                   <div>
@@ -555,7 +555,7 @@ export function EmployeeSalaryCalculator() {
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, second_installment_date: e.target.value })
                       }
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                 </div>
@@ -591,10 +591,10 @@ export function EmployeeSalaryCalculator() {
                       setThirteenthForm({ ...thirteenthForm, payment_status: value })
                     }
                   >
-                    <SelectTrigger id="status-thirteenth" className="mt-2 bg-gray-800 border-gray-700">
+                    <SelectTrigger id="status-thirteenth" className="mt-2 bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
                       <SelectItem value="pending">Pendente</SelectItem>
                       <SelectItem value="partial_paid">Parcialmente Pago</SelectItem>
                       <SelectItem value="paid">Pago</SelectItem>
@@ -661,7 +661,7 @@ export function EmployeeSalaryCalculator() {
                           working_months: Math.min(12, Math.max(1, parseInt(e.target.value) || 1)).toString(),
                         })
                       }
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                   <div>
@@ -677,7 +677,7 @@ export function EmployeeSalaryCalculator() {
                       onChange={(e) =>
                         setVacationForm({ ...vacationForm, total_vacation_days: e.target.value })
                       }
-                      className="mt-2 bg-gray-800 border-gray-700 text-white"
+                      className="mt-2 bg-background border-border text-white"
                     />
                   </div>
                 </div>
@@ -693,7 +693,7 @@ export function EmployeeSalaryCalculator() {
                     onChange={(e) =>
                       setVacationForm({ ...vacationForm, scheduled_date: e.target.value })
                     }
-                    className="mt-2 bg-gray-800 border-gray-700 text-white"
+                    className="mt-2 bg-background border-border text-white"
                   />
                 </div>
 
@@ -773,10 +773,10 @@ export function EmployeeSalaryCalculator() {
                       setVacationForm({ ...vacationForm, payment_status: value })
                     }
                   >
-                    <SelectTrigger id="status-vacation" className="mt-2 bg-gray-800 border-gray-700">
+                    <SelectTrigger id="status-vacation" className="mt-2 bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
                       <SelectItem value="pending">Pendente</SelectItem>
                       <SelectItem value="paid">Pago</SelectItem>
                     </SelectContent>

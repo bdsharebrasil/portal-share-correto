@@ -474,7 +474,7 @@ export function CategoriasCrud() {
               placeholder="Buscar categoria..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/60 focus:border-slate-500/60 transition-colors"
+              className="pl-10 bg-background border-border text-foreground placeholder:text-muted-foreground/60 focus:border-slate-500/60 transition-colors"
             />
           </div>
 
@@ -730,7 +730,7 @@ export function CategoriasCrud() {
                   ...prev,
                   grupo_categoria: e.target.value
                 }))}
-                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-background border-border text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Define o grupo/agrupamento da categoria
@@ -747,7 +747,7 @@ export function CategoriasCrud() {
                   ...prev,
                   nome: e.target.value
                 }))}
-                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-background border-border text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Nome da categoria dentro do grupo
@@ -763,10 +763,10 @@ export function CategoriasCrud() {
                   tipo: value as "receita" | "despesa"
                 }))}
               >
-                <SelectTrigger className="mt-1 bg-card-secondary/50 border-border/60 text-foreground focus:border-blue-500/60 transition-colors">
+                <SelectTrigger className="mt-1 bg-background border-border text-foreground focus:border-blue-500/60 transition-colors">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-card/95 border-border/50 backdrop-blur-xl">
+                <SelectContent className="bg-popover border-border text-popover-foreground">
                   <SelectItem value="receita">
                     <span className="flex items-center gap-2">
                       <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
@@ -794,7 +794,7 @@ export function CategoriasCrud() {
                   descricao: e.target.value
                 }))}
                 rows={3}
-                className="mt-1 bg-card-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+                className="mt-1 bg-background border-border text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
             </div>
 
@@ -808,10 +808,10 @@ export function CategoriasCrud() {
                     reembolsavel: value === "sim"
                   }))}
                 >
-                  <SelectTrigger className="mt-1 bg-card-secondary/50 border-border/60 text-foreground focus:border-amber-600/60 transition-colors">
+                  <SelectTrigger className="mt-1 bg-background border-border text-foreground focus:border-amber-600/60 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card/95 border-border/50 backdrop-blur-xl">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     <SelectItem value="sim">
                       <span className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-amber-500" />

@@ -145,7 +145,7 @@ export function AddLicenseDialog({
             <Input
               value={licenseType}
               onChange={(e) => setLicenseType(e.target.value.toUpperCase())}
-              className="bg-transparent border-[#1d1d72] text-white uppercase"
+              className="bg-background border-border text-foreground uppercase"
             />
           </div>
 
@@ -158,7 +158,7 @@ export function AddLicenseDialog({
                 type="date"
                 value={normalizeDateValue(expiryDate)}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="bg-transparent border-[#1d1d72] text-white"
+                className="bg-background border-border text-foreground"
               />
             </div>
           )}
@@ -170,10 +170,10 @@ export function AddLicenseDialog({
                   Classe do CMA *
                 </Label>
                 <Select value={cmaClass} onValueChange={setCmaClass}>
-                  <SelectTrigger className="bg-transparent border-[#1d1d72] text-white">
+                  <SelectTrigger className="bg-background border-border text-foreground">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#080220] border-[#1d1d72] text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     <SelectItem value="1º classe">1º Classe</SelectItem>
                     <SelectItem value="2º classe">2º Classe</SelectItem>
                   </SelectContent>
@@ -188,7 +188,7 @@ export function AddLicenseDialog({
                   type="date"
                   value={normalizeDateValue(validadeCma)}
                   onChange={(e) => setValidadeCma(e.target.value)}
-                  className="bg-transparent border-[#1d1d72] text-white"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
 
@@ -197,10 +197,10 @@ export function AddLicenseDialog({
                   Tipo Sanguíneo (FS/RH) *
                 </Label>
                 <Select value={fsRh} onValueChange={setFsRh}>
-                  <SelectTrigger className="bg-transparent border-[#1d1d72] text-white">
+                  <SelectTrigger className="bg-background border-border text-foreground">
                     <SelectValue placeholder="Selecione o tipo sanguíneo" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#080220] border-[#1d1d72] text-white">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     <SelectItem value="A+">A+</SelectItem>
                     <SelectItem value="A-">A-</SelectItem>
                     <SelectItem value="B+">B+</SelectItem>
@@ -222,7 +222,7 @@ export function AddLicenseDialog({
             <Textarea
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
-              className="bg-transparent border-[#1d1d72] text-white resize-none"
+              className="bg-background border-border text-foreground resize-none"
             />
           </div>
         </div>

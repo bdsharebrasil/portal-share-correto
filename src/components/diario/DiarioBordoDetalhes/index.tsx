@@ -1695,7 +1695,7 @@ function DateBRInput({ value, onChange }: { value: string; onChange: (iso: strin
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0"><CalendarIcon className="h-3.5 w-3.5" /></Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-border" align="end">
+        <PopoverContent className="w-auto bg-popover p-0 text-popover-foreground !border-border" align="end">
           <CalendarComponent
             mode="single"
             selected={value ? new Date(`${value}T00:00`) : undefined}

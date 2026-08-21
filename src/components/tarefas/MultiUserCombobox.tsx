@@ -49,7 +49,7 @@ export function MultiUserCombobox({
         >
           <span className="flex items-center gap-1.5 truncate">
             {selectedLabels.length === 0 ? (
-              <span className="truncate text-noite-400">{placeholder}</span>
+              <span className="truncate text-muted-foreground">{placeholder}</span>
             ) : selectedLabels.length <= 2 ? (
               <span className="truncate text-sm">{selectedLabels.join(", ")}</span>
             ) : (
@@ -62,23 +62,23 @@ export function MultiUserCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-[10000] w-[var(--radix-popover-trigger-width)] rounded-xl border-noite-600 bg-noite-850 p-0 shadow-lg"
+        className="z-[10000] w-[var(--radix-popover-trigger-width)] rounded-xl border-border bg-popover text-popover-foreground p-0 shadow-lg"
         align="start"
         side="bottom"
       >
-        <Command className="overflow-hidden rounded-xl bg-noite-850" shouldFilter={false}>
-          <div className="flex items-center border-b border-noite-700 px-3">
-            <Search className="mr-2 h-4 w-4 shrink-0 text-noite-400" />
+        <Command className="overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
+          <div className="flex items-center border-b border-border px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}
               onValueChange={setSearchValue}
-              className="flex h-11 w-full rounded-md border-0 bg-transparent py-3 text-sm text-noite-100 outline-none placeholder:text-noite-400 focus:ring-0"
+              className="flex h-11 w-full rounded-md border-0 bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
             />
           </div>
           <CommandList className="max-h-[220px] overflow-y-auto p-1">
             {filteredItems.length === 0 && (
-              <CommandEmpty className="py-6 text-center text-sm text-noite-400">{emptyMessage}</CommandEmpty>
+              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">{emptyMessage}</CommandEmpty>
             )}
             <CommandGroup>
               {filteredItems.map((item) => {
@@ -98,7 +98,7 @@ export function MultiUserCombobox({
                     >
                       {checked && <CheckIcon className="h-3 w-3 text-white" />}
                     </span>
-                    <span className={cn("truncate", checked ? "font-semibold text-noite-100" : "font-medium text-noite-300")}>
+                    <span className={cn("truncate", checked ? "font-semibold text-foreground" : "font-medium text-foreground/80")}>
                       {item.label}
                     </span>
                   </CommandItem>
@@ -107,12 +107,12 @@ export function MultiUserCombobox({
             </CommandGroup>
           </CommandList>
           {selectedLabels.length > 0 && (
-            <div className="flex items-center justify-between border-t border-noite-700 px-3 py-2">
-              <span className="text-[11px] text-noite-400">{selectedLabels.length} selecionado(s)</span>
+            <div className="flex items-center justify-between border-t border-border px-3 py-2">
+              <span className="text-[11px] text-muted-foreground">{selectedLabels.length} selecionado(s)</span>
               <button
                 type="button"
                 onClick={() => onChange([])}
-                className="text-[11px] text-noite-400 transition hover:text-noite-100"
+                className="text-[11px] text-muted-foreground transition hover:text-foreground"
               >
                 Limpar
               </button>

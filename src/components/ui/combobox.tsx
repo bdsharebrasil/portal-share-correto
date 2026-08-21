@@ -104,8 +104,8 @@ export function Combobox({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10000]" align="start" side="bottom">
-        <Command shouldFilter={false}>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] bg-popover p-0 text-popover-foreground z-[10000]" align="start" side="bottom">
+        <Command className="bg-popover text-popover-foreground" shouldFilter={false}>
           <CommandInput 
             placeholder={searchPlaceholder}
             value={searchValue}

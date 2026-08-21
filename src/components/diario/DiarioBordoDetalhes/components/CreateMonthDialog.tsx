@@ -154,7 +154,7 @@ export function CreateMonthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] bg-card border-border text-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] bg-popover border-border text-popover-foreground text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-black flex items-center gap-3">
             <Plane className="w-6 h-6 text-sky-500" />
@@ -279,9 +279,9 @@ export function CreateMonthDialog({
                   <SelectTrigger className="bg-background border-border text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {MONTHS.map((m, idx) => (
-                      <SelectItem key={idx} value={(idx + 1).toString()} className="text-white">
+                      <SelectItem key={idx} value={(idx + 1).toString()} className="text-popover-foreground">
                         {m}
                       </SelectItem>
                     ))}
@@ -297,9 +297,9 @@ export function CreateMonthDialog({
                   <SelectTrigger className="bg-background border-border text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
+                  <SelectContent className="bg-popover border-border text-popover-foreground">
                     {years.map((y) => (
-                      <SelectItem key={y} value={y.toString()} className="text-white">
+                      <SelectItem key={y} value={y.toString()} className="text-popover-foreground">
                         {y}
                       </SelectItem>
                     ))}
