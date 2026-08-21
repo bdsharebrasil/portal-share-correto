@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, X } from "lucide-react";
+import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff, X, Palette, Sun, Moon } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { UserProfile } from "@/hooks/useUserProfile";
@@ -85,6 +86,7 @@ const DEFAULT_CROP_SCALE = 1;
 
 export default function Perfil() {
   const { user, roles } = useAuth();
+  const { theme, setTheme, isThemeSaving } = useTheme();
   const primaryRole = useMemo(() => selectPrimaryRole(roles), [roles]);
   const { toast } = useToast();
   const isAdmin = roles.includes("admin");
@@ -558,6 +560,7 @@ export default function Perfil() {
             <TabsTrigger value="viagens" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Viagens</TabsTrigger>
             <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
             <TabsTrigger value="senha" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Senha</TabsTrigger>
+            <TabsTrigger value="aparencia" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Aparência</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados" className="mt-6 space-y-6">
@@ -709,6 +712,30 @@ export default function Perfil() {
               <CardFooter>
                 <Button onClick={handleVacationRequest} disabled={workingMonths < 12}>Solicitar Férias</Button>
               </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="aparencia" className="mt-6">
+            <Card className="border-border/70 bg-card/80 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5 text-sky-400" /> Aparência do sistema</CardTitle>
+                <CardDescription>Escolha como o sistema será exibido para você.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <button type="button" onClick={() => void setTheme("light")} aria-pressed={theme === "light"} className={`group rounded-xl border p-4 text-left transition-colors ${theme === "light" ? "border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/20" : "border-border/70 bg-background/40 hover:border-sky-500/50"}`}>
+                    <div className="mb-4 flex items-center justify-between"><span className="flex items-center gap-2 font-semibold text-foreground"><Sun className="h-4 w-4 text-amber-500" /> Light</span>{theme === "light" && <CheckCircle className="h-4 w-4 text-sky-500" />}</div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-100 p-3 shadow-sm"><div className="mb-3 h-2 w-24 rounded bg-slate-800" /><div className="grid grid-cols-3 gap-2"><div className="h-12 rounded border border-slate-200 bg-white" /><div className="h-12 rounded border border-slate-200 bg-white" /><div className="h-12 rounded border border-slate-200 bg-white" /></div><div className="mt-3 h-2 w-32 rounded bg-sky-600/70" /></div>
+                    <p className="mt-3 text-xs text-muted-foreground">Fundo claro, cards brancos e contraste suave.</p>
+                  </button>
+                  <button type="button" onClick={() => void setTheme("dark")} aria-pressed={theme === "dark"} className={`group rounded-xl border p-4 text-left transition-colors ${theme === "dark" ? "border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/20" : "border-border/70 bg-background/40 hover:border-sky-500/50"}`}>
+                    <div className="mb-4 flex items-center justify-between"><span className="flex items-center gap-2 font-semibold text-foreground"><Moon className="h-4 w-4 text-sky-400" /> Dark</span>{theme === "dark" && <CheckCircle className="h-4 w-4 text-sky-400" />}</div>
+                    <div className="rounded-lg border border-slate-700 bg-slate-950 p-3 shadow-sm"><div className="mb-3 h-2 w-24 rounded bg-slate-200" /><div className="grid grid-cols-3 gap-2"><div className="h-12 rounded border border-slate-800 bg-slate-900" /><div className="h-12 rounded border border-slate-800 bg-slate-900" /><div className="h-12 rounded border border-slate-800 bg-slate-900" /></div><div className="mt-3 h-2 w-32 rounded bg-sky-500/70" /></div>
+                    <p className="mt-3 text-xs text-muted-foreground">Fundo azul-marinho, cards escuros e azul discreto.</p>
+                  </button>
+                </div>
+                {isThemeSaving && <p className="mt-4 text-xs text-muted-foreground">Salvando preferência...</p>}
+              </CardContent>
             </Card>
           </TabsContent>
 
