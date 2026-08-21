@@ -102,6 +102,7 @@ interface TaxaReciboOption {
 
 interface AbastecimentoLookup {
   id: string;
+  numero_voo?: string | null;
   comanda: string | null;
   nf: string | null;
   data: string | null;
@@ -703,7 +704,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     try {
       let q: any = (supabase as any)
         .from("abastecimentos")
-        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, numero_voo, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .order("data", { ascending: false })
         .limit(1);
       if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
@@ -712,12 +713,31 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const { data } = await q;
       const found = (data && data[0]) as AbastecimentoLookup | undefined;
       if (found) {
-        setFuelLookupResult(found);
-        if (found.valor_total) setValorTotal(String(Number(found.valor_total).toFixed(2)));
+        let abastecimentoComVoo = found;
+        if (!found.numero_voo && found.data && clienteId && clienteId !== "__all__" && aeronaveId) {
+          const { data: voosCompatíveis } = await (supabase as any)
+            .from("solicitacoes_reserva_voo")
+            .select("id, numero_voo")
+            .eq("cliente_id", clienteId)
+            .eq("aeronave_id", aeronaveId)
+            .eq("data_agendada", found.data)
+            .not("numero_voo", "is", null)
+            .limit(2);
+          if (voosCompatíveis?.length === 1 && voosCompatíveis[0]?.numero_voo) {
+            const numeroVoo = String(voosCompatíveis[0].numero_voo).trim().toUpperCase();
+            const { error: atualizacaoError } = await (supabase as any)
+              .from("abastecimentos")
+              .update({ numero_voo: numeroVoo })
+              .eq("id", found.id);
+            if (!atualizacaoError) abastecimentoComVoo = { ...found, numero_voo: numeroVoo };
+          }
+        }
+        setFuelLookupResult(abastecimentoComVoo);
+        if (abastecimentoComVoo.valor_total) setValorTotal(String(Number(abastecimentoComVoo.valor_total).toFixed(2)));
         setReferenciaDuplicada({
           tipo: "abastecimento",
-          id: found.id,
-          mensagem: `✓ Abastecimento encontrado (Comanda ${found.comanda || "—"} / NF ${found.nf || "—"})`,
+          id: abastecimentoComVoo.id,
+          mensagem: `✓ Abastecimento encontrado (Comanda ${abastecimentoComVoo.comanda || "—"} / NF ${abastecimentoComVoo.nf || "—"})${abastecimentoComVoo.numero_voo ? ` · Voo ${abastecimentoComVoo.numero_voo}` : ""}`,
         });
         toast.success("Abastecimento localizado");
       } else {
@@ -804,6 +824,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const supplier = fornecedores.find((f) => f.id === novoAbast.abastecedor_id && f.source === "combustivel");
       const payload: Record<string, unknown> = {
         aeronave_id: aeronaveId,
+        numero_voo: String(initialData?.numero_voo ?? initialData?.numero_agendamento ?? "").trim().toUpperCase() || null,
         id_clientes: clienteId && clienteId !== "__all__" ? clienteId : null,
         data: novoAbast.data,
         data_vencimento_boleto: novoAbast.data_vencimento_boleto || null,
@@ -825,7 +846,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const { data, error } = await (supabase as any)
         .from("abastecimentos")
         .insert(payload)
-        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, numero_voo, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .single();
       if (error) throw error;
       const inserted = data as AbastecimentoLookup;
@@ -1393,6 +1414,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       const dataVenc = format(dataVencimento!, "yyyy-MM-dd");
       const dataComp = format(dataEmissao || new Date(), "yyyy-MM-dd");
+      const numeroVooVinculado = String(initialData?.numero_voo ?? initialData?.numero_agendamento ?? fuelLookupResult?.numero_voo ?? "").trim().toUpperCase() || null;
       const statusMov = rascunho ? "rascunho" : "pendente";
       const statusCP = rascunho ? "rascunho" : "pendente";
       const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
@@ -1693,7 +1715,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 reference_type: referenciaTipo || "solicitacao_pagamento",
                 reference_id: referenciaTipo && referenciaId ? referenciaId : null,
                 criado_por: userId,
-                numero_voo: initialData?.numero_voo || null,
+                numero_voo: numeroVooVinculado,
               });
               movimentacaoIdsCriadas.push(movId);
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
@@ -1724,7 +1746,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
-              numero_voo: initialData?.numero_voo || null,
+              numero_voo: numeroVooVinculado,
             };
           });
 
@@ -1758,6 +1780,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               reference_type: referenciaTipo || "solicitacao_pagamento",
               reference_id: referenciaTipo && referenciaId ? referenciaId : null,
               criado_por: userId,
+              numero_voo: numeroVooVinculado,
             });
           } catch (shareErr) {
             await supabase.from("contas_apagar").delete().eq("id", capId);
@@ -1832,7 +1855,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, comanda_url: comandaUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
-              numero_voo: initialData?.numero_voo || null,
+              numero_voo: numeroVooVinculado,
             };
           });
 
