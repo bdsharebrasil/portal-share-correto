@@ -446,6 +446,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       if (initialData.clientes_nome) setFornecedorNome(initialData.clientes_nome);
       if (initialData.socio_id) setSocioId(initialData.socio_id);
       if (initialData.aeronave_id) setAeronaveId(initialData.aeronave_id);
+      if (initialData.reference_type && initialData.reference_id) {
+        setReferenciaDuplicada({
+          tipo: initialData.reference_type,
+          id: initialData.reference_id,
+          mensagem: initialData.reference_type === "abastecimento" ? "Abastecimento vinculado à programação." : null,
+        });
+      }
       if (initialData.numero_recibo) setReferenciaNumero(initialData.numero_recibo);
       if (initialData.numero_doc) setReferenciaNumero(initialData.numero_doc);
       if (initialData.periodicidade) setPeriodicidade(initialData.periodicidade as Periodicidade);
@@ -538,11 +545,23 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   }, [open, initialData, tiposDespesa]);
 
   useEffect(() => {
+    if (initialData?.reference_type === "abastecimento" && initialData?.reference_id) return;
     setClienteLinhas([]);
     setClienteId("");
     setSocioId("");
     setSociosExcluidos([]);
-  }, [aeronaveId]);
+  }, [aeronaveId, initialData]);
+
+  useEffect(() => {
+    if (initialData?.reference_type !== "abastecimento" || !initialData?.reference_id || !clienteId || clienteLinhas.length > 0) return;
+    setClienteLinhas([{
+      uid: crypto.randomUUID(),
+      clienteId,
+      percentualUsoCliente: "100",
+      overridesSocio: {},
+      valorOverridesSocio: {},
+    }]);
+  }, [initialData, clienteId, clienteLinhas.length]);
 
   useEffect(() => {
     if (!socioId || clienteId || !clientesDaAeronave.length) return;
@@ -1102,6 +1121,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   useEffect(() => {
     const verificarDuplicidade = async () => {
+      if (initialData?.reference_type && initialData?.reference_id) return;
       const tipoNormalizado = normalizarTipoDespesa(tipoDespesaLabel || "");
       if (!clienteIdParaDedup || !tipoDespesaLabel || valorNumerico <= 0) {
         setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
@@ -1162,7 +1182,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     };
     const timer = setTimeout(() => { void verificarDuplicidade(); }, 500);
     return () => clearTimeout(timer);
-  }, [clienteIdParaDedup, dataEmissao, descricao, tipoDespesaLabel, valorNumerico, reciboExistenteId, usarReciboExistente, recibosExistentes]);
+  }, [clienteIdParaDedup, dataEmissao, descricao, tipoDespesaLabel, valorNumerico, reciboExistenteId, usarReciboExistente, recibosExistentes, initialData]);
 
   const isAdmShareType = useMemo(() => {
     const label = (tipoDespesaLabel || "").trim().toUpperCase();
