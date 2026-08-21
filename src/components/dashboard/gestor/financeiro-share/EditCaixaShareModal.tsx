@@ -130,6 +130,10 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
     () => gruposCategoria.find((g) => g.grupo === grupoCategoriaSelecionado)?.categorias ?? [],
     [gruposCategoria, grupoCategoriaSelecionado],
   );
+  const categoriaSelecionada = useMemo(
+    () => categorias.find((categoria: any) => categoria.id === mov.categoria_id) ?? null,
+    [categorias, mov.categoria_id],
+  );
 
   const bancoOptions = bancos.map((b) => ({
     id: b.banco,
@@ -165,9 +169,12 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
         categoria_id: mov.categoria_id || null,
+        categoria_nome: categoriaSelecionada?.nome || null,
+        grupo_categoria: categoriaSelecionada?.grupo_categoria || null,
         data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
-        valor_rateado: numOrNull(mov.valor_rateado),
+        valor_rateado: numOrNull(mov.valor_rateado ?? mov.valor_total ?? mov.valor),
+        valor_pago_real: numOrNull(mov.valor_pago_real ?? mov.valor_rateado ?? mov.valor_total ?? mov.valor),
         status: mov.status,
         forma_pagamento: mov.forma_pagamento,
         conta_bancaria: mov.conta_bancaria,
@@ -228,7 +235,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
                   <SearchableCombobox
                     items={categoriasDoGrupo.map((c: any) => ({ id: c.id, label: c.nome }))}
                     value={mov.categoria_id || ""}
-                    onChange={(v) => setM("categoria_id", v)}
+                      onChange={(v) => setM("categoria_id", v)}
                     placeholder={grupoCategoriaSelecionado ? "Selecione a subcategoria" : "Escolha o grupo primeiro"}
                     searchPlaceholder="Buscar subcategoria..."
                     disabled={!grupoCategoriaSelecionado}
@@ -271,7 +278,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
 
           <Section icon={<Wallet className="h-4 w-4" />} title="Pagamento" accent="#a78bfa">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <div><label className={labelCls}>Valor</label><input type="number" step="0.01" className={inputCls} value={mov.valor ?? ""} onChange={(e) => setM("valor", e.target.value)} /></div>
+              <div><label className={labelCls}>Valor pago</label><input type="number" step="0.01" className={inputCls} value={mov.valor_pago_real ?? mov.valor_rateado ?? mov.valor_total ?? mov.valor ?? ""} onChange={(e) => setM("valor_pago_real", e.target.value)} /></div>
               <div>
                 <label className={labelCls}>Forma</label>
                 <SearchableCombobox items={FORMAS_PGTO} value={mov.forma_pagamento || ""} onChange={(v) => setM("forma_pagamento", v)} placeholder="Forma" icon={<CreditCard className="h-3.5 w-3.5" />} />
