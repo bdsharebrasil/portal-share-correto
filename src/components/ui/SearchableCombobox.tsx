@@ -64,33 +64,33 @@ export function SearchableCombobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full justify-between h-10 px-3 bg-background hover:bg-accent/50 transition-colors",
-            "border-border/60 shadow-sm rounded-lg",
+            "w-full justify-between h-11 px-3 bg-background hover:bg-accent/50 transition-colors touch-manipulation",
+            "border-border/60 shadow-sm rounded-lg lg:h-10",
             // Tipografia mais elegante dependendo do estado
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
           )}
         >
           <div className="flex items-center gap-2 truncate">
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
-            <span className="truncate text-sm tracking-tight">
+            <span className="truncate text-base tracking-tight lg:text-sm">
               {selectedItem ? selectedItem.label : (value ? value : placeholder)}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10000] max-h-[calc(100vh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg" align="start" side="bottom">
-        <Command className="max-h-[calc(100vh-1rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
+      <PopoverContent className="z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg" align="start" side="bottom">
+        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
           <div className="flex items-center border-b border-border/50 px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}
               onValueChange={setSearchValue}
-              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0"
+              className="flex h-12 w-full rounded-md bg-transparent py-3 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
             />
           </div>
-          <CommandList className="max-h-[min(220px,calc(100vh-9rem))] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+          <CommandList className="max-h-[min(50dvh,320px)] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
             {filteredItems.length === 0 && !allowFreeText && (
               <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
@@ -109,11 +109,11 @@ export function SearchableCombobox({
                     setSearchValue("")
                     setOpen(false)
                   }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary transition-colors"
+                  className="flex min-h-[2.75rem] items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary transition-colors touch-manipulation"
                 >
                   <Check
                     className={cn(
-                      "mr-1 h-4 w-4 transition-all",
+                      "mr-1 h-4 w-4 shrink-0 transition-all",
                       value === item.id ? "opacity-100 text-primary scale-100" : "opacity-0 scale-75"
                     )}
                   />
@@ -133,9 +133,9 @@ export function SearchableCombobox({
                     setSearchValue("")
                     setOpen(false)
                   }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                  className="flex min-h-[2.75rem] items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer bg-primary/5 text-primary hover:bg-primary/10 transition-colors touch-manipulation"
                 >
-                  <Check className="mr-1 h-4 w-4 opacity-0 scale-75" />
+                  <Check className="mr-1 h-4 w-4 shrink-0 opacity-0 scale-75" />
                   <span className="truncate font-medium">
                     ➕ Usar: <strong>{searchValue}</strong>
                   </span>
