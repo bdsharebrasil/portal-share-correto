@@ -646,13 +646,13 @@ export default function ChecklistPreVoo() {
    */
   return (
     <Layout>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/[0.035]">
         <div className="mx-auto w-full max-w-[1500px] space-y-4 p-3 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:space-y-5 sm:p-6 sm:pb-28 lg:p-8">
 
           {/* =================================================
               HEADER
           ================================================= */}
-          <header className="overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-sm">
+          <header className="overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-card via-card to-primary/[0.045] shadow-xl shadow-black/10">
             <div className="relative p-4 sm:p-7">
 
               <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.10] via-transparent to-emerald-500/[0.06] pointer-events-none" />
@@ -672,7 +672,7 @@ export default function ChecklistPreVoo() {
 
                   <div className="flex items-start gap-4">
 
-                    <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
+                    <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/12 text-primary shadow-lg shadow-primary/10 sm:flex">
                       <ClipboardCheck className="h-7 w-7" />
                     </div>
 
@@ -737,7 +737,7 @@ export default function ChecklistPreVoo() {
                 {/* PROGRESS CARD */}
                 <div className="w-full xl:w-[360px]">
 
-                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/30 p-4 shadow-inner shadow-black/10">
 
                     <div className="flex items-center gap-4">
 
@@ -957,7 +957,7 @@ export default function ChecklistPreVoo() {
                   <section
                     key={section.id}
                     className={cn(
-                      "overflow-hidden rounded-[24px] border bg-card shadow-sm transition-all",
+                      "overflow-hidden rounded-[24px] border bg-gradient-to-br from-card to-card-secondary shadow-lg shadow-black/10 transition-all",
                       completa
                         ? "border-emerald-500/20"
                         : "border-border/60",
@@ -982,7 +982,7 @@ export default function ChecklistPreVoo() {
                       className={cn(
                         "flex min-h-20 w-full items-center justify-between gap-3 px-4 py-4 text-left transition sm:px-6",
                         liberada
-                          ? "hover:bg-muted/30"
+                          ? "hover:bg-primary/[0.045]"
                           : "cursor-not-allowed"
                       )}
                     >
@@ -1046,7 +1046,7 @@ export default function ChecklistPreVoo() {
                           </div>
                         </div>
 
-                        <div className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-border/60 bg-background text-xs font-bold">
+                        <div className="flex h-9 min-w-9 items-center justify-center rounded-xl border border-white/12 bg-slate-950/40 text-xs font-bold text-slate-200 shadow-inner">
                           {feitos}
                         </div>
 
@@ -1064,8 +1064,8 @@ export default function ChecklistPreVoo() {
                     {/* SECTION BODY */}
                     {!recolhida &&
                       liberada && (
-                        <div className="border-t border-border/50">
-                          <div className="divide-y divide-border/40">
+                        <div className="border-t border-white/8 bg-slate-950/15">
+                          <div className="divide-y divide-white/8">
                             {section.items.map(
                               (item, itemIndex) => {
                                 const ok =
@@ -1089,7 +1089,7 @@ export default function ChecklistPreVoo() {
                                   <div
                                     key={item.id}
                                     className={cn(
-                                      "p-4 transition-colors sm:p-5",
+                                      "px-4 py-5 transition-colors sm:px-5",
                                       ok &&
                                         "bg-emerald-500/[0.018]",
                                       st ===
@@ -1117,7 +1117,7 @@ export default function ChecklistPreVoo() {
                                                 : st ===
                                                     "nao_feito"
                                                   ? "border-rose-500/20 bg-rose-500/10 text-rose-500"
-                                                  : "border-border/60 bg-muted/30 text-muted-foreground"
+                                                  : "border-white/12 bg-slate-950/35 text-slate-300"
                                           )}
                                         >
                                           {ok ? (
@@ -1191,8 +1191,8 @@ export default function ChecklistPreVoo() {
                                               "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "feito"
-                                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                                                : "border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                                                ? "border-emerald-400/40 bg-emerald-400/12 text-emerald-300 shadow-sm shadow-emerald-950/20"
+                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">
@@ -1217,8 +1217,8 @@ export default function ChecklistPreVoo() {
                                               "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "nao_feito"
-                                                ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
-                                                : "border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                                                ? "border-rose-400/40 bg-rose-400/12 text-rose-300 shadow-sm shadow-rose-950/20"
+                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">
@@ -1243,8 +1243,8 @@ export default function ChecklistPreVoo() {
                                               "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "reporte"
-                                                ? "border-amber-500/30 bg-amber-500/10 text-amber-500"
-                                                : "border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                                                ? "border-amber-400/40 bg-amber-400/12 text-amber-300 shadow-sm shadow-amber-950/20"
+                                                : "border-white/12 bg-slate-950/45 text-slate-300 shadow-sm hover:border-primary/35 hover:bg-primary/[0.08] hover:text-foreground"
                                             )}
                                           >
                                             <span className="flex items-center justify-center gap-1.5">
@@ -1429,7 +1429,7 @@ export default function ChecklistPreVoo() {
                                               "rounded-xl border px-4 py-2 text-xs font-semibold transition",
                                               precisaAbastecer ===
                                                 false
-                                                ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
+                                                ? "border-rose-400/40 bg-rose-400/12 text-rose-300 shadow-sm shadow-rose-950/20"
                                                 : "border-border/60 bg-background hover:bg-muted"
                                             )}
                                           >
