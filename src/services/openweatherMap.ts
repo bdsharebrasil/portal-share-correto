@@ -71,6 +71,7 @@ class AnimatedOpenWeatherWindLayer extends L.Layer {
     void this.refreshField();
     this.refreshTimer = window.setInterval(() => void this.refreshField(), REFRESH_MS);
     this.animationFrame = requestAnimationFrame(this.animate);
+    return this;
   }
 
   onRemove(map: L.Map) {
@@ -85,6 +86,7 @@ class AnimatedOpenWeatherWindLayer extends L.Layer {
     this.mapInstance = null;
     this.field = [];
     this.fieldBounds = null;
+    return this;
   }
 
   private ensurePane() {

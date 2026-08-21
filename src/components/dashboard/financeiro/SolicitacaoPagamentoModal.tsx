@@ -1,5 +1,5 @@
 // @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
-import { SetStateAction, useEffect, useMemo, useState } from "react";
+import { SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail, History } from "lucide-react";
 import { format } from "date-fns";
@@ -237,9 +237,9 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
 export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onOpenTravelReports }: SolicitacaoPagamentoModalProps) {
   const [etapaAtual, setEtapaAtual] = useState(initialData ? 1 : 0);
 
-  const initialReferenceId = initialData?.reference_id ?? null;
+    const initialReferenceId = initialData?.reference_id ?? null;
   const initialModo = initialData?.modo ?? null;
-
+  const initialDataHydratedRef = useRef<string | null>(null);
   useEffect(() => {
     if (open) setEtapaAtual(initialData ? 1 : 0);
   }, [open, initialReferenceId, initialModo]);
@@ -433,7 +433,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   }, [open, aeronaveId]);
 
   useEffect(() => {
-    if (!open || !initialData) return;
+    if (!open) {
+      initialDataHydratedRef.current = null;
+      return;
+    }
+    if (!initialData) return;
+    const hydrateKey = `${initialData.reference_type || ""}:${initialData.reference_id || ""}:${initialData.modo || initialData.flow_mode || ""}`;
+    if (initialDataHydratedRef.current === hydrateKey) return;
+    initialDataHydratedRef.current = hydrateKey;
     try {
       const modoPredefinido = resolverModoSolicitacaoPadrao({
         modo: initialData.modo || initialData.flow_mode || null,
@@ -486,7 +493,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         const mapped = initialData.anexos.map((a: any, idx: number) => ({
           id: `prefill-${idx}`,
           tipo: a.tipo || (a.url && a.url.includes("boleto") ? "boleto" : "doc"),
-          numero: a.numero || initialData.numero_recibo || initialData.numero_doc || "",
+              numero: a.numero || initialData.numero_nf || initialData.numero_recibo || initialData.numero_doc || "",
           arquivo: null,
           url: a.url || a.url_boleto || a.url_nf || a.url_pdf || null,
           socioId: a.socioId || null,
@@ -495,7 +502,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       } else {
         const possible = [] as AnexoDoc[];
         if (initialData.boleto_url) possible.push({ id: "prefill-boleto", tipo: "boleto", numero: "", arquivo: null, url: initialData.boleto_url, socioId: null });
-        if (initialData.nf_url) possible.push({ id: "prefill-nf", tipo: "nf", numero: "", arquivo: null, url: initialData.nf_url, socioId: null });
+        if (initialData.nf_url) possible.push({ id: "prefill-nf", tipo: "nf", numero: initialData.numero_nf || "", arquivo: null, url: initialData.nf_url, socioId: null });
         if (initialData.demonstrativo_url) possible.push({ id: "prefill-dem", tipo: "demonstrativo", numero: initialData.numero_doc || "", arquivo: null, url: initialData.demonstrativo_url, socioId: null });
         if (initialData.pdf_url || initialData.recibo_url) possible.push({ id: "prefill-recibo", tipo: "recibo", numero: initialData.numero_recibo || "", arquivo: null, url: initialData.pdf_url || initialData.recibo_url, socioId: null });
         if (possible.length) setAnexos(possible);
@@ -1501,7 +1508,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       const isAbastecimentoVinculado = referenciaTipo === "abastecimento";
       const nfUrl = isAbastecimentoVinculado
-        ? anexosOrigem.nota_url || pickUrl(anexosProc, "nf") || null
+        ? pickUrl(anexosProc, "nf") || anexosOrigem.nota_url || null
         : pickUrl(anexosProc, "nf") || null;
       const taxaReciboSelecionado = isTaxasMode && !isAllClients ? taxaRecibos.find((r) => r.id === taxaReciboId) || null : null;
       const reciboUrl = pickUrl(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.url : null) || (isTaxasMode ? taxaReciboSelecionado?.pdf_url : null) || reciboUrlSelecionado;
@@ -1519,7 +1526,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       
       const nfNum = isAbastecimentoVinculado
-        ? anexosOrigem.nf || pickNumero(anexosProc, "nf") || null
+        ? pickNumero(anexosProc, "nf") || anexosOrigem.nf || null
         : pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
@@ -1533,12 +1540,97 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const subcategoria4Val = isSubcat4Sel ? subcategoriaSel : null;
       const fornecedorNomeFinal = resolverFornecedorSolicitacao({ isViagemMode, fornecedorNome });
 
-      if (!rascunho && referenciaTipo && referenciaId) {
-        const { data: existente } = await (supabase as any).from("movimentacoes").select("id").eq("reference_type", referenciaTipo).eq("reference_id", referenciaId).maybeSingle();
-        if (existente) { toast.info("Já existe uma solicitação de pagamento para essa despesa."); return; }
+      const { data: movimentacaoExistente } = referenciaTipo && referenciaId
+        ? await (supabase as any).from("movimentacoes").select("id, contas_apagar_id, contas_areceber_id, status").eq("reference_type", referenciaTipo).eq("reference_id", referenciaId).maybeSingle()
+        : { data: null };
+      const isEdicaoProgramacaoExistente = Boolean(movimentacaoExistente?.id);
+
+      if (isEdicaoProgramacaoExistente && referenciaTipo === "abastecimento" && referenciaId) {
+        const categoriaAtualizada = modo === "DIRETO" ? tipoDespesa : categoriaContaId;
+        const movimentoUpdate = {
+          descricao: descricao.trim(),
+          categoria_id: categoriaAtualizada || null,
+          categoria_nome: tipoDespesaLabel || null,
+          valor_rateado: valorNumericoFinal,
+          valor_total: valorNumericoFinal,
+          data_emissao: dataComp,
+          data_vencimento: dataVenc,
+          status: statusMov,
+          periodicidade,
+          tipo_rateio: tipoRateioFinal,
+          fornecedor_nome: fornecedorNomeFinal,
+          numero_nf: nfNum,
+          numero_boleto: boletoNum,
+          numero_doc: docNum,
+          nf_url: nfUrl,
+          boleto_url: boletoUrl,
+          comprovante_url: comprovanteUrl,
+          comanda_url: comandaUrl,
+          observacoes: obsFinal || null,
+          numero_voo: numeroVooVinculado,
+          atualizado_em: new Date().toISOString(),
+        };
+        const { error: movimentoUpdateError } = await (supabase as any)
+          .from("movimentacoes")
+          .update(movimentoUpdate)
+          .eq("id", movimentacaoExistente.id);
+        if (movimentoUpdateError) throw movimentoUpdateError;
+
+        const { error: rateioUpdateError } = await (supabase as any)
+          .from("rateio_despesas")
+          .update({
+            data_emissao: dataComp,
+            data_vencimento: dataVenc,
+            numero_nf: nfNum,
+            numero_boleto: boletoNum,
+            numero_doc: docNum,
+            nf_url: nfUrl,
+            boleto_url: boletoUrl,
+            comprovante_url: comprovanteUrl,
+            observacoes: obsFinal || null,
+            numero_voo: numeroVooVinculado,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("despesa_id", movimentacaoExistente.id);
+        if (rateioUpdateError) throw rateioUpdateError;
+
+        if (movimentacaoExistente.contas_apagar_id) {
+          const { error: contaPagarUpdateError } = await (supabase as any)
+            .from("contas_apagar")
+            .update({
+              data_vencimento: dataVenc,
+              data_agendamento: dataVenc,
+              valor: valorNumericoFinal,
+              descricao: descricao.trim(),
+              nf_numero: nfNum,
+              nf_url: nfUrl,
+              boleto_url: boletoUrl,
+              numero_doc: docNum,
+              observacoes: obsFinal || null,
+            })
+            .eq("id", movimentacaoExistente.contas_apagar_id);
+          if (contaPagarUpdateError) throw contaPagarUpdateError;
+        }
+
+        const { error: abastecimentoUpdateError } = await (supabase as any)
+          .from("abastecimentos")
+          .update({
+            nf: nfNum,
+            nota_url: nfUrl,
+            updated_at: new Date().toISOString(),
+            ...(numeroVooVinculado ? { numero_voo: numeroVooVinculado } : {}),
+            ...(!rascunho ? { status: "pago", data_pagamento: dataComp } : {}),
+          })
+          .eq("id", referenciaId);
+        if (abastecimentoUpdateError) throw abastecimentoUpdateError;
+
+        toast.success(rascunho ? "Rascunho da programação atualizado" : "Programação de pagamento atualizada");
+        resetForm();
+        onOpenChange(false);
+        return;
       }
 
-      if (reciboNum) {
+      if (reciboNum && !isEdicaoProgramacaoExistente) {
         const { data: existente } = await (supabase as any).from("movimentacoes").select("id").eq("numero_recibo", reciboNum).maybeSingle();
         if (existente) { toast.error("Já existe um lançamento associado a este recibo."); return; }
       }
