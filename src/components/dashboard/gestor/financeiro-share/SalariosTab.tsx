@@ -592,7 +592,6 @@ export default function SalariosTab() {
         descontos_detalhes: resumo.descontos,
         beneficios_detalhes: resumo.beneficios,
         custo_total_empresa: resumo.custoTotal,
-        valor_total: resumo.custoTotal,
         beneficios: resumo.beneficios.length > 0 ? resumo.beneficios.map((item) => `${item.tipo}: ${formatBRL(item.valor)}`).join("; ") : f.benefit.trim() || null,
         horas_voadas: horasVoadasTexto,
         valor_horas_voo: valorHorasVoo || null,
