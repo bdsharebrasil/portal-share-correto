@@ -182,7 +182,15 @@ const num = (v: string | number | null | undefined) => parseMoney(v);
 
 const moneyInput = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
-  return formatBRL(parseMoney(value));
+
+  // Não formatar como moeda a cada tecla: isso reposiciona o cursor,
+  // impede apagar o conteúdo e causa sensação de travamento no input.
+  return String(value)
+    .replace(/R\$/gi, "")
+    .replace(/\s/g, "")
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/(?!^)-/g, "")
+    .replace(/(,.*),/g, "$1");
 };
 
 const parseJsonArray = (value: unknown): Array<{ tipo?: string; valor?: number | string }> => {
@@ -464,7 +472,7 @@ export default function SalariosTab() {
             decimo_terceiro_referencia: p.decimo_terceiro_referencia ?? "",
             ferias: p.ferias != null ? moneyInput(p.ferias) : "",
             ferias_referencia: p.ferias_referencia ?? "",
-            ferias_modalidade: p.ferias_modalidade ?? "",
+            ferias_modalidade: p.ferias_modalidade === "gozo_parcial" ? "ferias_coletivas" : (p.ferias_modalidade ?? ""),
             ferias_dias_comprados: p.ferias_dias_comprados != null ? String(p.ferias_dias_comprados) : "",
             banco: p.banco_pagamento ?? "",
             data_pagamento: p.data_pagamento ?? "",
@@ -541,6 +549,7 @@ export default function SalariosTab() {
 
   const resumoFolha = useCallback((userId: string) => {
     const f = forms[userId] ?? emptyForm;
+    const crew = isCrewDepartamento(funcionarios.find((employee) => employee.id === userId)?.departamento);
     const bruto = num(f.salario_bruto || f.base_salary_holerite);
     const descontos = [
       { tipo: "INSS", valor: num(f.desconto_inss) },
@@ -554,12 +563,12 @@ export default function SalariosTab() {
       { tipo: "Outros benefícios", valor: num(f.benefit_other) },
     ].filter((item) => item.valor > 0);
     const totalBeneficios = beneficios.reduce((sum, item) => sum + item.valor, 0);
-    const valorHorasVoo = num(f.valor_horas_voo);
+    const valorHorasVoo = crew ? num(f.valor_horas_voo) : 0;
     const bonificacaoExtra = num(f.extra);
     const adicionais = bonificacaoExtra + (f.show13 ? num(f.decimo_terceiro_parcela1) + num(f.decimo_terceiro_parcela2) : 0) + (f.showFerias ? num(f.ferias) : 0);
     const custoTotal = liquido + totalBeneficios + valorHorasVoo + adicionais;
     return { bruto, descontos, totalDescontos, liquido, beneficios, totalBeneficios, valorHorasVoo, bonificacaoExtra, adicionais, custoTotal };
-  }, [forms]);
+  }, [forms, funcionarios]);
 
   const saveRow = async (userId: string) => {
     const f = forms[userId];
@@ -579,7 +588,7 @@ export default function SalariosTab() {
         : f.horas_voo.trim() || null;
 
       const resumo = resumoFolha(userId);
-      const valorHorasVoo = resumo.valorHorasVoo;
+      const valorHorasVoo = crew ? resumo.valorHorasVoo : 0;
       if (resumo.bruto <= 0) throw new Error("Informe o salário bruto do holerite.");
       if (resumo.liquido <= 0) throw new Error("Informe o salário líquido ou preencha descontos válidos.");
       if (resumo.liquido > resumo.bruto && resumo.totalDescontos > 0) throw new Error("O líquido não pode ser maior que o bruto quando existem descontos.");
@@ -907,17 +916,18 @@ export default function SalariosTab() {
                           onChange={(e) => setMoneyField(u.id, "benefit_other", e.target.value)}
                         />
                       </div>
-                      <div>
-                        <label className={labelCls}>Valor horas de voo</label>
-                        <input
-                          type="text" inputMode="decimal"
-                          step="0.01"
-                          className={inputCls + " border-cyan-500/40"}
-                          placeholder="Ex.: 1.250,00"
-                          value={f.valor_horas_voo}
-                          onChange={(e) => setMoneyField(u.id, "valor_horas_voo", e.target.value)}
-                        />
-                      </div>
+                      {crew && (
+                        <div>
+                          <label className={labelCls}>Valor horas de voo</label>
+                          <input
+                            type="text" inputMode="decimal"
+                            className={inputCls + " border-cyan-500/40"}
+                            placeholder="Ex.: 1.250,00"
+                            value={f.valor_horas_voo}
+                            onChange={(e) => setMoneyField(u.id, "valor_horas_voo", e.target.value)}
+                          />
+                        </div>
+                      )}
                       <div>
                         <label className={labelCls}>Bonificação/Extra</label>
                         <input
@@ -961,12 +971,12 @@ export default function SalariosTab() {
                     {(() => {
                       const resumo = resumoFolha(u.id);
                       return (
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 rounded-xl border border-border bg-card/40 p-3">
+                        <div className={`grid grid-cols-2 ${crew ? "md:grid-cols-6" : "md:grid-cols-5"} gap-2 rounded-xl border border-border bg-card/40 p-3`}>
                           <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Bruto</span><strong className="text-sm text-foreground">{formatBRL(resumo.bruto)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Descontos</span><strong className="text-sm text-rose-300">− {formatBRL(resumo.totalDescontos)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Líquido</span><strong className="text-sm text-emerald-300">{formatBRL(resumo.liquido)}</strong></div>
                           <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Benefícios</span><strong className="text-sm text-amber-300">+ {formatBRL(resumo.totalBeneficios)}</strong></div>
-                          <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Horas de voo</span><strong className="text-sm text-cyan-300">+ {formatBRL(resumo.valorHorasVoo)}</strong></div>
+                          {crew && <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Horas de voo</span><strong className="text-sm text-cyan-300">+ {formatBRL(resumo.valorHorasVoo)}</strong></div>}
                           <div><span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Custo empresa</span><strong className="text-sm text-cyan-300">{formatBRL(resumo.custoTotal)}</strong></div>
                         </div>
                       );
@@ -1007,10 +1017,10 @@ export default function SalariosTab() {
                               >
                                 <span className="truncate">
                                   {d.matricula}
-                                  {d.modelo ? ` · ${d.modelo}` : ""}
+                                  {d.modelo ? " - " + d.modelo : ""}
                                 </span>
                                 <span className="text-muted-foreground whitespace-nowrap">
-                                  {d.horas.toFixed(1)}h × {formatBRL(d.taxa)}
+                                  {d.horas.toFixed(1)}h x {formatBRL(d.taxa)}
                                 </span>
                                 <span className="text-cyan-300 font-semibold whitespace-nowrap">
                                   {formatBRL(d.valor)}
@@ -1133,7 +1143,7 @@ export default function SalariosTab() {
                               >
                                 <option value="">Selecione</option>
                                 <option value="gozo_integral">Gozo integral</option>
-                                <option value="gozo_parcial">Gozo parcial</option>
+                                <option value="ferias_coletivas">Férias coletivas</option>
                                 <option value="compra_10_dias">Compra de 10 dias (abono pecuniário)</option>
                                 <option value="compra_outros_dias">Compra de outros dias</option>
                               </select>
