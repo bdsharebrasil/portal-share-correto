@@ -40,30 +40,49 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
     return defaultPosition;
   });
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const [visible, setVisible] = useState(true);
+  const dragRef = useRef<{ dx: number; dy: number; left: number; top: number } | null>(null);
+  const movedRef = useRef(false);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_PREFIX + id, JSON.stringify(pos)); } catch { /* ignore */ }
   }, [id, pos]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const container = (e.currentTarget as HTMLElement).closest('[data-flight-map]')?.getBoundingClientRect();
+    const left = container?.left ?? 0;
+    const top = container?.top ?? 0;
+    movedRef.current = false;
+    dragRef.current = { dx: e.clientX - left - pos.x, dy: e.clientY - top - pos.y, left, top };
   }, [pos]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    setPos({
-      x: Math.max(0, e.clientX - dragRef.current.dx),
-      y: Math.max(0, e.clientY - dragRef.current.dy),
-    });
+    e.preventDefault();
+    e.stopPropagation();
+    const container = (e.currentTarget as HTMLElement).closest('[data-flight-map]')?.getBoundingClientRect();
+    const bounds = container ?? { left: dragRef.current.left, top: dragRef.current.top, width: window.innerWidth, height: window.innerHeight };
+    const nextX = e.clientX - bounds.left - dragRef.current.dx;
+    const nextY = e.clientY - bounds.top - dragRef.current.dy;
+    if (Math.abs(nextX - pos.x) > 3 || Math.abs(nextY - pos.y) > 3) movedRef.current = true;
+    const maxX = Math.max(0, bounds.width - (collapsed ? 44 : width) - 8);
+    const maxY = Math.max(0, bounds.height - 52);
+    setPos({ x: Math.min(maxX, Math.max(0, nextX)), y: Math.min(maxY, Math.max(0, nextY)) });
+  }, [collapsed, pos.x, pos.y, width]);
+
+  const endDrag = useCallback((e?: React.PointerEvent) => {
+    e?.stopPropagation();
+    dragRef.current = null;
   }, []);
 
-  const endDrag = useCallback(() => { dragRef.current = null; }, []);
+  if (!visible) return null;
 
   return (
     <div
-      className="absolute z-[1200] select-none"
+      className="absolute z-[1200] max-w-[calc(100%-1rem)] select-none touch-none"
       style={{ left: pos.x, top: pos.y, width: collapsed ? undefined : width }}
     >
       {collapsed ? (
@@ -73,11 +92,17 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          onClick={() => { if (!dragRef.current) setCollapsed(false); }}
+          onClick={() => {
+            if (movedRef.current) {
+              movedRef.current = false;
+              return;
+            }
+            setCollapsed(false);
+          }}
           onDoubleClick={() => setCollapsed(false)}
           title={title}
           className={cn(
-            'h-11 w-11 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing',
+            'h-12 w-12 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none',
             'bg-card/90 backdrop-blur-md border border-border shadow-lg text-foreground',
             'hover:bg-card transition-colors',
             accentClassName,
@@ -102,22 +127,23 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
               type="button"
               onClick={() => setCollapsed(true)}
               title="Recolher"
-              className="h-5 w-5 rounded hover:bg-muted flex items-center justify-center text-muted-foreground"
+              className="h-9 w-9 rounded hover:bg-muted flex items-center justify-center text-muted-foreground touch-manipulation"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                title="Fechar"
-                className="h-5 w-5 rounded hover:bg-muted flex items-center justify-center text-muted-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setVisible(false);
+                onClose?.();
+              }}
+              title="Remover do mapa"
+              className="h-9 w-9 rounded hover:bg-muted flex items-center justify-center text-muted-foreground touch-manipulation"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="p-2 max-h-[45vh] overflow-y-auto">{children}</div>
+          <div className="max-h-[55vh] overflow-y-auto p-2 sm:max-h-[45vh]">{children}</div>
         </div>
       )}
     </div>

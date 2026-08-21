@@ -202,11 +202,11 @@ const WeatherLayersControl: React.FC = () => {
   };
 
   return (
-    <div className="absolute right-2 top-2 z-[1000] min-w-[12rem] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm">
+    <div className="absolute right-2 top-2 z-[1000] w-[min(15rem,calc(100%-1rem))] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm sm:min-w-[12rem] sm:w-auto">
       <div className="border-b border-slate-200 px-3 py-2 font-semibold">Meteorologia — OpenWeather</div>
       <div className="space-y-1 p-2">
         {WEATHER_LAYERS.map((option) => (
-          <label key={option.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100">
+          <label key={option.id} className="flex min-h-10 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100 touch-manipulation">
             <input type="checkbox" checked={activeLayers.includes(option.id)} onChange={() => toggleLayer(option.id)} className="h-3.5 w-3.5 accent-sky-600" />
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
             <span>{option.label}</span>
@@ -228,13 +228,13 @@ const WeatherPointCard: React.FC<{
 }> = ({ point, data, loading, error, onRefresh }) => {
   if (!point) return null;
   return (
-    <Card className="absolute left-4 top-4 z-[1100] w-[min(21rem,calc(100%-2rem))] border-cyan-400/30 bg-slate-950/90 p-3 text-slate-100 shadow-2xl backdrop-blur-xl">
+    <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-slate-950/90 p-3 text-slate-100 shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div>
           <div className="mt-1 font-mono text-[10px] text-slate-400">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div>
         </div>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-300 hover:text-cyan-300" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
+        <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-300 hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
@@ -348,7 +348,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div data-flight-map className="relative h-full min-h-[24rem] w-full touch-manipulation overflow-hidden">
       <MapContainerAny center={defaultCenter} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
         <WeatherMapClick onSelect={loadWeatherPoint} />
         <WeatherLayersControl />
@@ -425,16 +425,16 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
       />
 
       {hasRoute && routePositions.length > 1 && (
-        <div className="absolute bottom-4 left-4 z-[1000]">
-          <Card className="p-3 bg-card/95 backdrop-blur-sm border-border">
+        <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto">
+          <Card className="w-full p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto">
             <div className="flex items-center gap-2">
-              <Button size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => {
+              <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => {
                 if (simulationProgress >= 1) setSimulationProgress(0);
                 setIsSimulating(prev => !prev);
               }}>
                 {isSimulating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}>
+              <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}>
                 <RotateCcw className="h-4 w-4" />
               </Button>
               <div className="ml-2 text-sm text-foreground">
@@ -458,7 +458,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`METAR ${departure.icao}`}
             icon={<CloudSun className="w-5 h-5 text-green-400" />}
             defaultPosition={{ x: 16, y: 16 }}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           >
             <WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} />
           </FloatingPanel>
@@ -481,7 +481,7 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
             title={`METAR ${arrival.icao}`}
             icon={<CloudSun className="w-5 h-5 text-red-400" />}
             defaultPosition={{ x: 76, y: 16 }}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           >
             <WeatherPanel weather={destWeather} label="Destino" icao={arrival.icao} loading={loadingWeather} error={weatherError} />
           </FloatingPanel>
@@ -503,8 +503,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
       )}
 
       {legs.length > 0 && (
-        <div className="absolute bottom-4 right-4 z-[1000]">
-          <Card className="p-3 bg-card/95 backdrop-blur-sm border-border max-w-xs">
+        <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-auto sm:right-4">
+          <Card className="max-h-40 w-full max-w-xs overflow-hidden p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto">
             <div className="text-[10px] uppercase text-muted-foreground font-bold mb-2 flex items-center gap-1">
               <Navigation className="w-3 h-3" /> Route Info
             </div>

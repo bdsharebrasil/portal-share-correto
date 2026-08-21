@@ -271,16 +271,16 @@ export function FluxoAgendamentoVoo() {
   const busy = confirmMutation.isPending || rejectMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Solicitações de Voo</h2>
+          <h2 className="text-xl font-bold text-foreground sm:text-2xl">Solicitações de Voo</h2>
           <p className="text-sm text-muted-foreground">
             Abra a solicitação, escale a tripulação e confirme — o número do voo e o ciclo são gerados
             automaticamente.
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isRefetching} className="gap-2">
+        <Button variant="outline" onClick={() => refetch()} disabled={isRefetching} className="min-h-11 gap-2 touch-manipulation">
           {isRefetching ? <InlineLottieSpinner size="sm" /> : <RefreshCw className="h-4 w-4" />}
           Atualizar
         </Button>
@@ -374,7 +374,7 @@ export function FluxoAgendamentoVoo() {
       )}
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto rounded-2xl p-4 sm:max-h-[90vh] sm:w-auto sm:p-6">
           {selected && (
             <>
               <DialogHeader>
@@ -392,7 +392,7 @@ export function FluxoAgendamentoVoo() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                 <Info icon={Users} label="Cliente" value={selected.cliente?.razao_social} />
                 <Info icon={Hash} label="Código cliente" value={selected.cliente?.codigo_cliente} />
                 <Info
@@ -495,7 +495,7 @@ export function FluxoAgendamentoVoo() {
                 </div>
               )}
 
-              <DialogFooter className="gap-2">
+              <DialogFooter className="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
                 {selected.status === "pendente" ? (
                   rejectMode ? (
                     <>

@@ -422,9 +422,9 @@ export default function PlanoVooPage() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-4rem)] min-h-0 w-full overflow-hidden rounded-2xl border border-border/60 bg-background/50 shadow-xl">
+      <div className="flex h-[calc(100dvh-4rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/50 shadow-xl lg:h-[calc(100vh-4rem)] lg:flex-row">
         {/* Sidebar */}
-        <div className={isSidebarOpen ? 'w-[22rem] max-w-[calc(100vw-1rem)] shrink-0' : 'w-0 shrink-0'}>
+        <div className={isSidebarOpen ? 'h-[min(58dvh,38rem)] w-full shrink-0 lg:h-full lg:w-[22rem]' : 'hidden h-0 w-0 shrink-0 lg:block'}>
           {isSidebarOpen && (
             <FlightPlanSidebar
               aerodromes={aerodromes}
@@ -457,7 +457,7 @@ export default function PlanoVooPage() {
         </div>
 
         {/* Map */}
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-h-[42dvh] min-w-0 flex-1 lg:min-h-0">
           {!isSidebarOpen && (
             <button
               type="button"
@@ -486,7 +486,7 @@ export default function PlanoVooPage() {
 
       {/* Briefing Dialog */}
       <Dialog open={showBriefing} onOpenChange={setShowBriefing}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto rounded-2xl p-4 sm:max-h-[85vh] sm:w-auto sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plane className="w-5 h-5 text-primary" />
@@ -496,7 +496,7 @@ export default function PlanoVooPage() {
           </DialogHeader>
 
           <Tabs defaultValue="summary" className="mt-4">
-            <TabsList>
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="summary"><Route className="w-4 h-4 mr-1" /> Resumo</TabsTrigger>
               <TabsTrigger value="notam"><Shield className="w-4 h-4 mr-1" /> NOTAMs</TabsTrigger>
               <TabsTrigger value="weather"><CloudRain className="w-4 h-4 mr-1" /> Meteo</TabsTrigger>
@@ -546,7 +546,7 @@ export default function PlanoVooPage() {
                     </div>
                   </Card>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Card className="p-4">
                       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Navegação</h3>
                       <div className="space-y-2 text-sm">

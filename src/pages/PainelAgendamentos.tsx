@@ -260,13 +260,13 @@ export default function PainelAgendamentos() {
 
   return (
     <Layout>
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
 
         {/* ======================================================
             CABEÇALHO
         ====================================================== */}
 
-        <header className="flex flex-wrap items-center justify-between gap-3">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground sm:text-2xl">
               Agendamento de Voos
@@ -279,8 +279,9 @@ export default function PainelAgendamentos() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
+              className="min-h-11 w-full sm:w-auto"
               variant="outline"
               size="sm"
               onClick={() =>
@@ -294,6 +295,7 @@ export default function PainelAgendamentos() {
             </Button>
 
             <Button
+              className="min-h-11 w-full sm:w-auto"
               size="sm"
               onClick={() =>
                 setNovoAberto(true)
@@ -313,7 +315,7 @@ export default function PainelAgendamentos() {
           defaultValue="painel"
           className="space-y-5"
         >
-          <TabsList className="w-full sm:w-auto">
+          <TabsList className="grid h-11 w-full grid-cols-2 sm:inline-flex sm:w-auto">
             <TabsTrigger
               value="painel"
               className="flex-1 sm:flex-none"
@@ -337,7 +339,7 @@ export default function PainelAgendamentos() {
             value="painel"
             className="space-y-5"
           >
-            <div className="grid gap-5 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
 
               <div className="space-y-5 lg:col-span-2">
 

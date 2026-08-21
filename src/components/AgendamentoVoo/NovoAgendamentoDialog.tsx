@@ -98,13 +98,13 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl p-4 sm:max-h-[calc(100vh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:p-6">
         <DialogHeader>
           <DialogTitle>Novo agendamento de voo</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Cliente</Label>
               <Select value={form.cliente_id} onValueChange={(v) => setForm((f) => ({ ...f, cliente_id: v }))}>
@@ -158,7 +158,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Data</Label>
               <Input
@@ -178,7 +178,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
           </div>
 
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Dias de duração</Label>
               <Input
@@ -208,11 +208,11 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:justify-end">
+          <Button className="min-h-11 w-full sm:w-auto" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!camposObrigatoriosOk || criarSolicitacao.isPending} onClick={salvar}>
+          <Button className="min-h-11 w-full sm:w-auto" disabled={!camposObrigatoriosOk || criarSolicitacao.isPending} onClick={salvar}>
             Criar agendamento
           </Button>
         </DialogFooter>

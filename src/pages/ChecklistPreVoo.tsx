@@ -634,13 +634,13 @@ export default function ChecklistPreVoo() {
   return (
     <Layout>
       <div className="min-h-screen bg-background">
-        <div className="mx-auto w-full max-w-[1500px] space-y-5 p-4 pb-28 sm:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-[1500px] space-y-4 p-3 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:space-y-5 sm:p-6 sm:pb-28 lg:p-8">
 
           {/* =================================================
               HEADER
           ================================================= */}
           <header className="overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-sm">
-            <div className="relative p-5 sm:p-7">
+            <div className="relative p-4 sm:p-7">
 
               <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.10] via-transparent to-emerald-500/[0.06] pointer-events-none" />
 
@@ -651,7 +651,7 @@ export default function ChecklistPreVoo() {
                   <button
                     type="button"
                     onClick={() => navigate(-1)}
-                    className="mb-5 inline-flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+                    className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Voltar
@@ -967,7 +967,7 @@ export default function ChecklistPreVoo() {
                         }));
                       }}
                       className={cn(
-                        "flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition sm:px-6",
+                        "flex min-h-20 w-full items-center justify-between gap-3 px-4 py-4 text-left transition sm:px-6",
                         liberada
                           ? "hover:bg-muted/30"
                           : "cursor-not-allowed"
@@ -1160,7 +1160,7 @@ export default function ChecklistPreVoo() {
 
                                       {/* STATUS */}
                                       {!auto && (
-                                        <div className="grid grid-cols-3 gap-2 xl:w-[360px]">
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[360px]">
 
                                           <button
                                             type="button"
@@ -1175,7 +1175,7 @@ export default function ChecklistPreVoo() {
                                               )
                                             }
                                             className={cn(
-                                              "min-h-10 rounded-xl border px-3 text-xs font-semibold transition",
+                                              "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "feito"
                                                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
@@ -1201,7 +1201,7 @@ export default function ChecklistPreVoo() {
                                               )
                                             }
                                             className={cn(
-                                              "min-h-10 rounded-xl border px-3 text-xs font-semibold transition",
+                                              "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "nao_feito"
                                                 ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
@@ -1227,7 +1227,7 @@ export default function ChecklistPreVoo() {
                                               )
                                             }
                                             className={cn(
-                                              "min-h-10 rounded-xl border px-3 text-xs font-semibold transition",
+                                              "min-h-11 w-full rounded-xl border px-3 text-xs font-semibold transition touch-manipulation",
                                               st ===
                                                 "reporte"
                                                 ? "border-amber-500/30 bg-amber-500/10 text-amber-500"
@@ -1329,7 +1329,7 @@ export default function ChecklistPreVoo() {
                                               readOnly
                                             }
                                             placeholder="Ex.: 6 QT"
-                                            className="h-11 rounded-xl"
+                                            className="h-11 w-full rounded-xl touch-manipulation"
                                           />
                                         </div>
 
@@ -1360,7 +1360,7 @@ export default function ChecklistPreVoo() {
                                               readOnly
                                             }
                                             placeholder="Ex.: 6 QT"
-                                            className="h-11 rounded-xl"
+                                            className="h-11 w-full rounded-xl touch-manipulation"
                                           />
                                         </div>
                                       </div>
@@ -1604,8 +1604,8 @@ export default function ChecklistPreVoo() {
             BARRA FIXA INFERIOR
         =================================================== */}
         {!readOnly && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+            <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
 
               <div className="hidden items-center gap-3 sm:flex">
 
@@ -1638,7 +1638,7 @@ export default function ChecklistPreVoo() {
                     handleSalvar(false)
                   }
                   disabled={salvar.isPending}
-                  className="h-11 rounded-xl"
+                  className="h-11 w-full rounded-xl touch-manipulation"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Salvar rascunho
