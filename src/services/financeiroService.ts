@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 export async function fetchFinanceiroData() {
   const [movs, rateios, clientes, socios, categorias] = await Promise.all([
@@ -22,7 +23,10 @@ export async function fetchFinanceiroData() {
   };
 }
 
-export async function updateMovimentacao(id: string, patch: Record<string, any>) {
+export async function updateMovimentacao(
+  id: string,
+  patch: Database["public"]["Tables"]["movimentacoes"]["Update"],
+) {
   const { data, error } = await supabase.from("movimentacoes").update(patch).eq("id", id).select("*").single();
   if (error) throw error;
   return data;

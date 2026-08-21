@@ -560,12 +560,10 @@ function NotasPanel() {
       const prestador = prestadorNome(payingNota.prestador_id);
       const payload = {
         descricao: `Pagamento salário colaborador P.J. — ${prestador}`,
-        tipo: "despesa",
+        fluxo: "saida",
         tipo_caixa: "share",
-        grupo_custo: "e714eeae-7a06-4dc2-a6f2-614b8a773255",
         categoria_nome: "PAGAMENTO SALARIO COLABORADOR P.J",
         valor_rateado: num(payingNota.valor),
-        valor_original: num(payingNota.valor),
         valor_pago_real: num(payingNota.valor),
         data_emissao: paymentForm.data_pagamento,
         data_vencimento: payingNota.data_vencimento || paymentForm.data_pagamento,
