@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { syncSalaryPaymentToFinancial } from "@/services/financialSyncClient";
 import { readHolerite } from "@/lib/holeriteOCR";
+import { calcularValorFerias } from "@/lib/feriasCalculator";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -455,7 +456,9 @@ export default function SalariosTab() {
       const { data: pags, error: pe } = await (supabase as any)
         .from("historico_pagamentos_funcionarios")
         .select("*")
-        .in("id_usuario", userIds);
+        .in("id_usuario", userIds)
+        .eq("mes_referencia", mes)
+        .eq("ano_referencia", ano);
 
       if (pe) throw pe;
 
@@ -580,6 +583,20 @@ export default function SalariosTab() {
     [horasVooPorUsuario, aeronaves, taxaParaAeronave]
   );
 
+  const calculoFeriasEsperado = useCallback((userId: string) => {
+    const f = forms[userId] ?? emptyForm;
+    if (!f.showFerias || !f.ferias_dias) return null;
+
+    const salarioBase = num(f.salario_bruto || f.base_salary_holerite);
+    const diasGozo = Number(f.ferias_dias) || 0;
+    const diasVendidos = f.ferias_modalidade?.startsWith("compra")
+      ? Number(f.ferias_dias_comprados) || 0
+      : 0;
+
+    if (salarioBase <= 0 || diasGozo <= 0) return null;
+    return calcularValorFerias({ salarioBase, diasGozo, diasVendidos });
+  }, [forms]);
+
   const resumoFolha = useCallback((userId: string) => {
     const f = forms[userId] ?? emptyForm;
     const crew = isCrewDepartamento(funcionarios.find((employee) => employee.id === userId)?.departamento);
@@ -628,6 +645,8 @@ export default function SalariosTab() {
 
       const payload = {
         id_usuario: userId,
+        mes_referencia: mes,
+        ano_referencia: ano,
         salario_holerite: resumo.bruto,
         salario_bruto: resumo.bruto,
         salario_liquido: resumo.liquido,
@@ -1272,6 +1291,39 @@ export default function SalariosTab() {
                                   onChange={(e) => setMoneyField(u.id, "ferias", e.target.value)}
                                 />
                               </div>
+                              {(() => {
+                                const calculo = calculoFeriasEsperado(u.id);
+                                if (!calculo) return null;
+                                const valorInformado = num(f.ferias);
+                                const diferenca = Math.abs(valorInformado - calculo.liquido);
+                                return (
+                                  <div className="col-span-full rounded-xl border border-border bg-card/40 p-3 text-xs space-y-2">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                      <span className="font-semibold text-foreground">Valor esperado — cálculo CLT</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setMoneyField(u.id, "ferias", calculo.liquido.toFixed(2).replace(".", ","))}
+                                        className="rounded-lg border border-border bg-secondary px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80"
+                                      >
+                                        Usar {formatBRL(calculo.liquido)}
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-muted-foreground">
+                                      <div>Diária: {formatBRL(calculo.diaria)}</div>
+                                      <div>Dias de gozo: {formatBRL(calculo.valorDiasGozo)}</div>
+                                      <div>1/3 constitucional: {formatBRL(calculo.tercoGozo)}</div>
+                                      {calculo.valorAbono > 0 && (
+                                        <div>Abono + 1/3: {formatBRL(calculo.valorAbono + calculo.tercoAbono)}</div>
+                                      )}
+                                      <div>INSS: − {formatBRL(calculo.descontoInss)}</div>
+                                    </div>
+                                    <div className={diferenca < 0.5 ? "text-emerald-400" : "text-amber-400"}>
+                                      Líquido esperado: <strong>{formatBRL(calculo.liquido)}</strong>
+                                      {diferenca >= 0.5 && valorInformado > 0 && ` · diferença de ${formatBRL(diferenca)} em relação ao valor informado`}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                               {f.ferias_valor_holerite && (
                                 <div className="flex flex-col justify-end pb-1">
                                   <div className={`p-2 rounded-lg border text-xs flex items-center gap-2 ${

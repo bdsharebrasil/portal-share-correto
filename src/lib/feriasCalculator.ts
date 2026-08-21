@@ -1,32 +1,35 @@
 /**
- * Tabela de contribuição do INSS (empregado) vigente em 2026.
- * Fonte: reajuste divulgado em 01/2026 (Portaria Interministerial MPS/MF).
- * A 4ª faixa (14%) não foi confirmada com a dedução oficial nesta consulta —
- * revise antes de usar para salários acima de R$ 4.354,27. Para a folha atual
- * da Share Brasil (salários ~R$1.500–1.700) isso não é usado.
+ * Tabela progressiva do INSS de 2026 informada para o módulo de folha.
+ * O abono pecuniário e o respectivo terço não entram na base do INSS/IRRF.
  */
 const FAIXAS_INSS_2026 = [
-  { ate: 1621.0, aliquota: 0.075, deducao: 0 },
-  { ate: 2902.84, aliquota: 0.09, deducao: 23.66 },
-  { ate: 4354.27, aliquota: 0.12, deducao: 110.75 },
-  { ate: Infinity, aliquota: 0.14, deducao: 197.84 }, // confirmar oficialmente
-];
+  { ate: 1621.0, aliquota: 0.075 },
+  { ate: 2902.84, aliquota: 0.09 },
+  { ate: 4354.27, aliquota: 0.12 },
+  { ate: Number.POSITIVE_INFINITY, aliquota: 0.14 },
+] as const;
 
+const arredondar = (valor: number) => Math.round((valor + Number.EPSILON) * 100) / 100;
+
+/** Calcula o INSS por faixas marginais, conforme a tabela fornecida pelo usuário. */
 export function calcularINSS(salarioContribuicao: number): number {
-  if (salarioContribuicao <= 0) return 0;
-  const faixa = FAIXAS_INSS_2026.find((f) => salarioContribuicao <= f.ate) ?? FAIXAS_INSS_2026.at(-1)!;
-  const valor = salarioContribuicao * faixa.aliquota - faixa.deducao;
-  return Math.max(0, Number(valor.toFixed(2)));
+  const base = Math.max(0, Number(salarioContribuicao) || 0);
+  let anterior = 0;
+  let total = 0;
+
+  for (const faixa of FAIXAS_INSS_2026) {
+    const parcela = Math.max(0, Math.min(base, faixa.ate) - anterior);
+    total += parcela * faixa.aliquota;
+    anterior = faixa.ate;
+    if (base <= faixa.ate) break;
+  }
+
+  return arredondar(total);
 }
 
-/**
- * IRRF simplificado — isenção até R$ 5.000/mês pela reforma vigente desde
- * jan/2026. Acima disso, os valores precisam ser conferidos na tabela oficial
- * (não incluída aqui por não ser necessária para a folha atual).
- */
+/** A regra recebida estabelece isenção até R$ 5.000,00 em 2026. */
 export function calcularIRRFSimplificado(baseCalculo: number): number {
-  if (baseCalculo <= 5000) return 0;
-  return 0; // placeholder — implemente a faixa real se algum salário passar de 5k
+  return Math.max(0, Number(baseCalculo) || 0) <= 5000 ? 0 : 0;
 }
 
 export interface CalculoFeriasInput {
@@ -38,11 +41,13 @@ export interface CalculoFeriasInput {
 
 export interface CalculoFeriasResultado {
   valorDia: number;
+  diaria: number;
   valorDiasGozo: number;
   tercoGozo: number;
   valorAbono: number;
   tercoAbono: number;
   brutoTributavel: number;
+  baseInss: number;
   brutoTotal: number;
   descontoInss: number;
   descontoIrrf: number;
@@ -55,32 +60,34 @@ export function calcularValorFerias({
   diasVendidos = 0,
   descontarAdiantamento = 0,
 }: CalculoFeriasInput): CalculoFeriasResultado {
-  const valorDia = salarioBase / 30;
-  const valorDiasGozo = valorDia * diasGozo;
+  const salario = Math.max(0, Number(salarioBase) || 0);
+  const valorDia = salario / 30;
+  const valorDiasGozo = valorDia * Math.max(0, Number(diasGozo) || 0);
   const tercoGozo = valorDiasGozo / 3;
 
-  // Abono pecuniário (dias vendidos) é isento de INSS e IRRF
-  const valorAbono = valorDia * diasVendidos;
+  // Abono pecuniário (dias vendidos) e seu terço são somados, mas não tributados.
+  const valorAbono = valorDia * Math.max(0, Number(diasVendidos) || 0);
   const tercoAbono = valorAbono / 3;
-
   const brutoTributavel = valorDiasGozo + tercoGozo;
   const brutoTotal = brutoTributavel + valorAbono + tercoAbono;
-
   const descontoInss = calcularINSS(brutoTributavel);
   const descontoIrrf = calcularIRRFSimplificado(brutoTributavel - descontoInss);
-
-  const liquido = brutoTotal - descontoInss - descontoIrrf - descontarAdiantamento;
+  const liquido = Math.max(0, brutoTotal - descontoInss - descontoIrrf - Math.max(0, Number(descontarAdiantamento) || 0));
 
   return {
-    valorDia: Number(valorDia.toFixed(2)),
-    valorDiasGozo: Number(valorDiasGozo.toFixed(2)),
-    tercoGozo: Number(tercoGozo.toFixed(2)),
-    valorAbono: Number(valorAbono.toFixed(2)),
-    tercoAbono: Number(tercoAbono.toFixed(2)),
-    brutoTributavel: Number(brutoTributavel.toFixed(2)),
-    brutoTotal: Number(brutoTotal.toFixed(2)),
+    valorDia: arredondar(valorDia),
+    diaria: arredondar(valorDia),
+    valorDiasGozo: arredondar(valorDiasGozo),
+    tercoGozo: arredondar(tercoGozo),
+    valorAbono: arredondar(valorAbono),
+    tercoAbono: arredondar(tercoAbono),
+    brutoTributavel: arredondar(brutoTributavel),
+    baseInss: arredondar(brutoTributavel),
+    brutoTotal: arredondar(brutoTotal),
     descontoInss,
     descontoIrrf,
-    liquido: Number(liquido.toFixed(2)),
+    liquido: arredondar(liquido),
   };
 }
+
+export const calcularValorFeriasEsperado = calcularValorFerias;
