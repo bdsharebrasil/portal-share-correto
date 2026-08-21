@@ -146,6 +146,23 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const [periodicidade, setPeriodicidade] = useState<string>("");
   const [abastecimentoId, setAbastecimentoId] = useState<string>("");
 
+  const { data: contasBancarias = [] } = useQuery({
+    queryKey: ["contas-bancarias-edit-cliente"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("contas_bancarias")
+        .select("id, banco, numero_conta")
+        .eq("ativo", true)
+        .order("banco");
+      return (data ?? []) as { id: string; banco: string | null; numero_conta: string | null }[];
+    },
+  });
+
+  const contasBancariasOptions = contasBancarias.map((conta) => ({
+    id: conta.id,
+    label: `${conta.banco || "Banco"}${conta.numero_conta ? ` — ${conta.numero_conta}` : ""}`,
+  }));
+
   useEffect(() => {
     (async () => {
       const { data: rows } = await (supabase as any)
@@ -382,7 +399,6 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
         tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
         periodicidade: periodicidade || rateio?.periodicidade || null,
-        abastecimento_id: abastecimentoId || null,
         ...anexosToPatch(anexos),
       };
       const { error: e1 } = await supabase.from("movimentacoes").update(patch as any).eq("id", movId);
@@ -666,6 +682,18 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           </Section>
 
 
+          <Section icon={<Wallet className="h-4 w-4" />} title="Pagamento" accent="#38bdf8">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label className={labelCls}>Forma de pagamento</label>
+                <SearchableCombobox items={FORMAS_PGTO} value={mov.forma_pagamento || ""} onChange={(v) => setMov((current: any) => ({ ...current, forma_pagamento: v }))} placeholder="Selecione a forma" />
+              </div>
+              <div>
+                <label className={labelCls}>Banco e número da conta</label>
+                <SearchableCombobox items={contasBancariasOptions} value={mov.conta_bancaria || ""} onChange={(v) => setMov((current: any) => ({ ...current, conta_bancaria: v }))} placeholder="Selecione banco e conta" allowFreeText />
+              </div>
+            </div>
+          </Section>
           <Section icon={<Paperclip className="h-4 w-4" />} title="Documentos e Anexos" accent="#fbbf24">
             <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`edit-mov/${movId}`} />
           </Section>

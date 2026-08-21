@@ -235,8 +235,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
   const bancoItems = useMemo(
     () =>
       bancos.map((b: any) => ({
-        id: b.banco,
-        label: `${b.banco}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
+        id: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
+        label: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
       })),
     [bancos],
   );

@@ -138,10 +138,9 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
   const isDespesaInterna = grupoAtual.includes("DESPESAS EMPRESA") || grupoAtual.includes("DESPESAS PARTICULARES") || grupoAtual.includes("FOLHA DE PAGAMENTO") || grupoAtual.includes("IMPOSTOS");
 
   const bancoOptions = bancos.map((b) => ({
-    id: b.banco,
-    label: `${b.banco}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
+    id: b.id,
+    label: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
   }));
-  const contaOptions = bancos.map((b) => ({ id: b.numero_conta || b.banco, label: b.numero_conta || b.banco }));
 
   useEffect(() => {
     const categoria = categorias.find((x) => x.id === mov.categoria_id);
@@ -289,8 +288,8 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
               </div>
              
               <div>
-                <label className={labelCls}>Conta</label>
-                <SearchableCombobox items={contaOptions} value={mov.conta_bancaria || ""} onChange={(v) => setM("conta_bancaria", v)} placeholder="Conta" allowFreeText />
+                <label className={labelCls}>Banco e número da conta</label>
+                <SearchableCombobox items={bancoOptions} value={mov.conta_bancaria || ""} onChange={(v) => setM("conta_bancaria", v)} placeholder="Banco e conta" allowFreeText />
               </div>
             </div>
           </Section>

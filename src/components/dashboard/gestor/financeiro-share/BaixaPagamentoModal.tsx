@@ -440,6 +440,7 @@ export default function BaixaPagamentoModal({
       const aeronaveRegistro = mov.aeronave_registro || (aircraftResult as any)?.data?.matricula || null;
       const reciboPdf = recibo?.file_url || comprovante?.file_url || null;
 
+      const contaBancariaSelecionada = bancoNome || bancoSelecionadoId || null;
       const updatePayload: Record<string, any> = {
         data_pagamento: dataPagamento,
         pago_diretamente: pagoDiretamente,
@@ -451,12 +452,11 @@ export default function BaixaPagamentoModal({
         updatePayload.reembolsavel = true;
         updatePayload.reembolso_quitado = false;
         updatePayload.pago_por = "share";
-        updatePayload.conta_bancaria = bancoNome || null;
+        updatePayload.conta_bancaria = contaBancariaSelecionada;
       } else {
         updatePayload.reembolsavel = false;
         updatePayload.reembolso_quitado = false;
-        if (bancoNome) updatePayload.conta_bancaria = bancoNome;
-        if (bancoSelecionadoId) updatePayload.conta_bancaria = bancoSelecionadoId;
+        if (contaBancariaSelecionada) updatePayload.conta_bancaria = contaBancariaSelecionada;
       }
 
       const { error: movErr } = await supabase
