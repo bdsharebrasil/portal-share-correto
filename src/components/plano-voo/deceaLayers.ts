@@ -51,3 +51,92 @@ export const CNAV_LAYERS = [
 ].join(',');
 
 export const AIRSPACE_LAYERS = ['CTR', 'CTA', 'ATZ', 'TMA'].join(',');
+
+// O painel de meteorologia do mapa é renderizado internamente em SkyVectorMap.
+// Como ele divide o mesmo canto do controle de camadas do Leaflet, instalamos
+// um pequeno botão de recolher para que o usuário possa liberar a visualização
+// das cartas sem perder o acesso aos controles meteorológicos.
+const installWeatherPanelCollapse = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  const enhance = () => {
+    const panel = Array.from(document.querySelectorAll<HTMLElement>('div')).find((element) => {
+      return element.dataset.weatherCollapseReady !== 'true'
+        && element.className.includes('z-[1000]')
+        && element.textContent?.includes('Meteorologia — OpenWeather');
+    });
+
+    if (!panel) return;
+
+    panel.dataset.weatherCollapseReady = 'true';
+
+    const header = panel.firstElementChild as HTMLElement | null;
+    const content = header?.nextElementSibling as HTMLElement | null;
+    const footer = content?.nextElementSibling as HTMLElement | null;
+    if (!header) return;
+
+    const title = header.firstElementChild as HTMLElement | null;
+    const refreshButton = header.querySelector('button') as HTMLButtonElement | null;
+
+    const collapseButton = document.createElement('button');
+    collapseButton.type = 'button';
+    collapseButton.setAttribute('aria-label', 'Recolher meteorologia');
+    collapseButton.setAttribute('title', 'Recolher meteorologia');
+    collapseButton.style.cssText = [
+      'display:inline-flex',
+      'align-items:center',
+      'justify-content:center',
+      'width:30px',
+      'height:30px',
+      'flex-shrink:0',
+      'border:1px solid rgba(100,116,139,.35)',
+      'border-radius:7px',
+      'background:rgba(248,250,252,.85)',
+      'color:#334155',
+      'font-size:16px',
+      'line-height:1',
+      'cursor:pointer',
+      'box-shadow:0 1px 2px rgba(0,0,0,.08)',
+    ].join(';');
+
+    header.appendChild(collapseButton);
+
+    const setCollapsed = (collapsed: boolean) => {
+      if (content) content.style.display = collapsed ? 'none' : '';
+      if (footer) footer.style.display = collapsed ? 'none' : '';
+      if (title) title.style.display = collapsed ? 'none' : '';
+      if (refreshButton) refreshButton.style.display = collapsed ? 'none' : '';
+
+      panel.style.width = collapsed ? '38px' : '';
+      panel.style.minWidth = collapsed ? '38px' : '';
+      panel.style.right = collapsed ? '8px' : '';
+      panel.style.top = collapsed ? '56px' : '';
+      panel.style.padding = collapsed ? '0' : '';
+      header.style.borderBottom = collapsed ? '0' : '';
+      header.style.padding = collapsed ? '4px' : '';
+      header.style.justifyContent = 'center';
+      collapseButton.textContent = collapsed ? '☁' : '−';
+      collapseButton.setAttribute('aria-label', collapsed ? 'Abrir meteorologia' : 'Recolher meteorologia');
+      collapseButton.setAttribute('title', collapsed ? 'Abrir controles de meteorologia' : 'Recolher meteorologia');
+    };
+
+    collapseButton.addEventListener('click', () => {
+      const currentlyCollapsed = collapseButton.getAttribute('aria-expanded') !== 'true';
+      collapseButton.setAttribute('aria-expanded', currentlyCollapsed ? 'true' : 'false');
+      setCollapsed(!currentlyCollapsed);
+    });
+
+    collapseButton.setAttribute('aria-expanded', 'true');
+    setCollapsed(false);
+  };
+
+  const observer = new MutationObserver(enhance);
+  observer.observe(document.body, { childList: true, subtree: true });
+  enhance();
+
+  window.setTimeout(() => observer.disconnect(), 15000);
+};
+
+if (typeof window !== 'undefined') {
+  window.requestAnimationFrame(installWeatherPanelCollapse);
+}
