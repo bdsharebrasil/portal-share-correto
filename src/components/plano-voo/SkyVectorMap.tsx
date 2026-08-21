@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents,
 import L, { LatLngExpression } from 'leaflet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Wind, CloudRain, Thermometer, Gauge, RefreshCw } from 'lucide-react';
+import { Navigation, Play, Pause, RotateCcw, FileText, ExternalLink, CloudSun, Wind, CloudRain, Thermometer, Gauge, RefreshCw, X } from 'lucide-react';
 import { WeatherPanel } from './WeatherPanel';
 import { FloatingPanel } from './FloatingPanel';
 import { ChartProjectionOverlay, type ChartProjectionItem } from './ChartProjectionOverlay';
@@ -82,10 +82,10 @@ const ChartsList: React.FC<{ icao: string; charts: ChartData[]; loading: boolean
   if (error) return <div className="text-xs text-destructive">Erro ao buscar cartas de {icao}: {error}</div>;
   if (charts.length === 0) return <div className="text-xs text-muted-foreground">Nenhuma carta encontrada para {icao}.</div>;
   return <div className="space-y-1">{charts.map((chart, i) => <div key={i} className="flex items-center justify-between gap-1 text-[11px]">
-    <button type="button" disabled={!chart.url} onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url, format: chart.format })} className={`flex-1 text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`} title="Projetar carta sobre o mapa">
+    <button type="button" disabled={!chart.url} onClick={() => onProject({ title: `${icao} · ${chart.title}`, url: chart.url, format: chart.format })} className={`flex-1 min-h-[2rem] text-left truncate ${chart.url ? 'text-primary hover:underline' : 'text-muted-foreground'}`} title="Projetar carta sobre o mapa">
       <span className="font-mono text-[9px] opacity-70 mr-1">[{CHART_TYPE_LABEL[chart.type]}]</span>{chart.title}
     </button>
-    {chart.url && <a href={chart.url} target="_blank" rel="noopener noreferrer" title="Abrir em nova aba"><ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground hover:text-foreground" /></a>}
+    {chart.url && <a href={chart.url} target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 shrink-0 items-center justify-center" title="Abrir em nova aba"><ExternalLink className="w-3 h-3 text-muted-foreground hover:text-foreground" /></a>}
   </div>)}</div>;
 };
 
@@ -114,6 +114,10 @@ const WeatherLayersControl: React.FC = () => {
   const [refreshToken, setRefreshToken] = useState(() => Date.now());
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  // Colapsado por padrão no celular para não brigar por espaço com o
+  // controle de camadas do Leaflet (também ancorado no canto superior
+  // direito) nem com o restante da UI flutuante do mapa.
+  const [collapsed, setCollapsed] = useState(false);
 
   const refreshLayers = useCallback(() => {
     setRefreshing(true);
@@ -157,12 +161,33 @@ const WeatherLayersControl: React.FC = () => {
 
   const toggleLayer = (layer: OpenWeatherLayer) => setActiveLayers(current => current.includes(layer) ? current.filter(item => item !== layer) : [...current, layer]);
 
-  return <div className="absolute right-2 top-2 z-[1000] w-[min(16rem,calc(100%-1rem))] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm sm:w-auto sm:min-w-[13rem]">
+  // No celular renderiza como uma pastilha compacta que expande sob toque —
+  // o painel completo (checkboxes) ficava sobreposto ao controle nativo de
+  // camadas do Leaflet, que também mora no canto superior direito.
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        className="absolute right-2 top-14 z-[1000] flex min-h-[2.75rem] items-center gap-1.5 rounded-full border border-slate-500/50 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-800 shadow-xl backdrop-blur-sm touch-manipulation sm:top-2"
+        title="Camadas de meteorologia"
+      >
+        <CloudSun className="h-4 w-4 text-sky-600" /> Meteo
+      </button>
+    );
+  }
+
+  return <div className="absolute right-2 top-14 z-[1000] w-[min(16rem,calc(100%-1rem))] rounded-md border border-slate-500/50 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur-sm sm:top-2 sm:w-auto sm:min-w-[13rem]">
     <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
       <div className="font-semibold">Meteorologia — OpenWeather</div>
-      <Button type="button" size="icon" variant="ghost" onClick={refreshLayers} disabled={refreshing} title="Atualizar meteorologia" className="h-8 w-8 text-slate-600 hover:text-sky-700">
-        <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button type="button" size="icon" variant="ghost" onClick={refreshLayers} disabled={refreshing} title="Atualizar meteorologia" className="h-9 w-9 text-slate-600 hover:text-sky-700 sm:h-8 sm:w-8">
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+        </Button>
+        <Button type="button" size="icon" variant="ghost" onClick={() => setCollapsed(true)} title="Fechar" className="h-9 w-9 text-slate-600 hover:text-slate-900 sm:hidden">
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
     </div>
     <div className="space-y-1 p-2">
       {WEATHER_LAYERS.map(option => <label key={option.id} className="flex min-h-10 cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-100 touch-manipulation">
@@ -176,11 +201,14 @@ const WeatherLayersControl: React.FC = () => {
 
 const weatherNumber = (value: number | undefined, digits = 0) => value == null || !Number.isFinite(value) ? '—' : value.toFixed(digits);
 
-const WeatherPointCard: React.FC<{ point: { lat: number; lon: number } | null; data: OpenWeatherPoint | null; loading: boolean; error: string | null; onRefresh: () => void; }> = ({ point, data, loading, error, onRefresh }) => {
+const WeatherPointCard: React.FC<{ point: { lat: number; lon: number } | null; data: OpenWeatherPoint | null; loading: boolean; error: string | null; onRefresh: () => void; onClose: () => void; }> = ({ point, data, loading, error, onRefresh, onClose }) => {
   if (!point) return null;
   return <Card className="absolute left-2 right-2 top-2 z-[1100] w-auto border-cyan-400/30 bg-background/90 p-3 text-foreground shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[min(21rem,calc(100%-2rem))]">
     <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-300"><CloudSun className="h-4 w-4" /> Meteorologia no ponto</div><div className="mt-1 font-mono text-[10px] text-muted-foreground">{point.lat.toFixed(3)}°, {point.lon.toFixed(3)}°{data?.name ? ` · ${data.name}` : ''}</div></div>
-      <Button size="icon" variant="ghost" className="h-9 w-9 text-muted-foreground hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></Button></div>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-cyan-300 touch-manipulation" onClick={onRefresh} disabled={loading} title="Atualizar meteorologia"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></Button>
+        <Button size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-foreground touch-manipulation" onClick={onClose} title="Fechar"><X className="h-4 w-4" /></Button>
+      </div></div>
     {loading && <div className="mt-3 text-xs text-muted-foreground">Atualizando dados da OpenWeather...</div>}
     {error && <div className="mt-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-xs text-red-200">{error}</div>}
     {data && !loading && <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -201,6 +229,10 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({ waypoints, legs, ori
   const [weatherPointData, setWeatherPointData] = useState<OpenWeatherPoint | null>(null);
   const [weatherPointLoading, setWeatherPointLoading] = useState(false);
   const [weatherPointError, setWeatherPointError] = useState<string | null>(null);
+  // No celular, o resumo de pernas vira uma pastilha que abre sob toque, em
+  // vez de um card fixo — evita sobrepor o card de controles de simulação,
+  // que também mora na faixa inferior da tela em telas estreitas.
+  const [mobileLegsOpen, setMobileLegsOpen] = useState(false);
 
   const loadWeatherPoint = useCallback(async (point: { lat: number; lon: number }) => {
     setWeatherPoint(point);
@@ -275,9 +307,21 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({ waypoints, legs, ori
       {planePosition && <MarkerAny position={[planePosition.lat, planePosition.lng]} icon={createPlaneIcon(planePosition.bearing)} />}
     </MapContainer>
 
-    <WeatherPointCard point={weatherPoint} data={weatherPointData} loading={weatherPointLoading} error={weatherPointError} onRefresh={() => weatherPoint && loadWeatherPoint(weatherPoint)} />
+    <WeatherPointCard point={weatherPoint} data={weatherPointData} loading={weatherPointLoading} error={weatherPointError} onRefresh={() => weatherPoint && loadWeatherPoint(weatherPoint)} onClose={() => setWeatherPoint(null)} />
 
-    {hasRoute && routePositions.length > 1 && <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto"><Card className="w-full p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto"><div className="flex items-center gap-2"><Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => { if (simulationProgress >= 1) setSimulationProgress(0); setIsSimulating(prev => !prev); }}>{isSimulating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button><Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}><RotateCcw className="h-4 w-4" /></Button><div className="ml-2 text-sm text-foreground"><span className="text-muted-foreground">Progresso:</span>{' '}<span className="font-mono font-medium">{Math.round(simulationProgress * 100)}%</span></div></div><div className="mt-2 h-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary transition-all duration-100" style={{ width: `${simulationProgress * 100}%` }} /></div></Card></div>}
+    {hasRoute && routePositions.length > 1 && (
+      <div className="absolute bottom-2 left-2 right-28 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto">
+        <Card className="w-full p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant={isSimulating ? 'secondary' : 'default'} onClick={() => { if (simulationProgress >= 1) setSimulationProgress(0); setIsSimulating(prev => !prev); }}>{isSimulating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
+            <Button className="min-h-10 min-w-10 touch-manipulation" size="sm" variant="outline" onClick={() => { setIsSimulating(false); setSimulationProgress(0); }}><RotateCcw className="h-4 w-4" /></Button>
+            <div className="ml-2 hidden text-sm text-foreground sm:block"><span className="text-muted-foreground">Progresso:</span>{' '}<span className="font-mono font-medium">{Math.round(simulationProgress * 100)}%</span></div>
+            <div className="ml-2 font-mono text-xs text-foreground sm:hidden">{Math.round(simulationProgress * 100)}%</div>
+          </div>
+          <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary transition-all duration-100" style={{ width: `${simulationProgress * 100}%` }} /></div>
+        </Card>
+      </div>
+    )}
 
     {departure && <>
       <FloatingPanel id="wx-dep" title={`METAR ${departure.icao}`} icon={<CloudSun className="w-5 h-5 text-green-400" />} defaultPosition={{ x: 16, y: 16 }} defaultCollapsed={true}><WeatherPanel weather={originWeather} label="Partida" icao={departure.icao} loading={loadingWeather} error={weatherError} /></FloatingPanel>
@@ -289,6 +333,40 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({ waypoints, legs, ori
     </>}
 
     {projectedChart && <ChartProjectionOverlay chart={projectedChart} onClose={() => setProjectedChart(null)} />}
-    {legs.length > 0 && <div className="absolute bottom-2 left-2 right-2 z-[1000] sm:bottom-4 sm:left-auto sm:right-4"><Card className="max-h-40 w-full max-w-xs overflow-hidden p-3 bg-card/95 backdrop-blur-sm border-border sm:w-auto"><div className="text-[10px] uppercase text-muted-foreground font-bold mb-2 flex items-center gap-1"><Navigation className="w-3 h-3" /> Route Info</div><div className="space-y-1 max-h-32 overflow-y-auto">{legs.map((leg, i) => <div key={i} className="flex items-center justify-between text-xs gap-4"><span className="font-mono text-primary">{leg.from}→{leg.to}</span><span className="font-mono text-foreground">{Math.round(leg.bearing).toString().padStart(3, '0')}° {leg.distanceNM.toFixed(0)}nm</span></div>)}</div></Card></div>}
+
+    {legs.length > 0 && (
+      <>
+        {/* Telas sm+: card persistente, como antes */}
+        <div className="absolute bottom-4 right-4 z-[1000] hidden sm:block">
+          <Card className="max-h-40 w-full max-w-xs overflow-hidden p-3 bg-card/95 backdrop-blur-sm border-border">
+            <div className="text-[10px] uppercase text-muted-foreground font-bold mb-2 flex items-center gap-1"><Navigation className="w-3 h-3" /> Route Info</div>
+            <div className="space-y-1 max-h-32 overflow-y-auto">{legs.map((leg, i) => <div key={i} className="flex items-center justify-between text-xs gap-4"><span className="font-mono text-primary">{leg.from}→{leg.to}</span><span className="font-mono text-foreground">{Math.round(leg.bearing).toString().padStart(3, '0')}° {leg.distanceNM.toFixed(0)}nm</span></div>)}</div>
+          </Card>
+        </div>
+
+        {/* Celular: pastilha compacta que abre a lista de pernas sob toque —
+            evita competir por espaço com o card de simulação, que também
+            fica ancorado embaixo em telas estreitas. */}
+        <div className="absolute bottom-2 right-2 z-[1000] flex flex-col items-end gap-2 sm:hidden">
+          {mobileLegsOpen && (
+            <Card className="max-h-[45dvh] w-[min(88vw,20rem)] overflow-y-auto p-3 bg-card/95 backdrop-blur-sm border-border">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1"><Navigation className="w-3 h-3" /> Route Info</div>
+                <button type="button" onClick={() => setMobileLegsOpen(false)} className="flex h-7 w-7 items-center justify-center text-muted-foreground"><X className="h-3.5 w-3.5" /></button>
+              </div>
+              <div className="space-y-1">{legs.map((leg, i) => <div key={i} className="flex items-center justify-between text-xs gap-4"><span className="font-mono text-primary">{leg.from}→{leg.to}</span><span className="font-mono text-foreground">{Math.round(leg.bearing).toString().padStart(3, '0')}° {leg.distanceNM.toFixed(0)}nm</span></div>)}</div>
+            </Card>
+          )}
+          <button
+            type="button"
+            onClick={() => setMobileLegsOpen((v) => !v)}
+            className="flex min-h-[2.75rem] items-center gap-1.5 rounded-full border border-border bg-card/95 px-3 py-2 text-[11px] font-bold text-foreground shadow-lg backdrop-blur-sm touch-manipulation"
+          >
+            <Navigation className="h-3.5 w-3.5 text-primary" />
+            {legs.length} perna{legs.length !== 1 ? 's' : ''}
+          </button>
+        </div>
+      </>
+    )}
   </div>;
 };
