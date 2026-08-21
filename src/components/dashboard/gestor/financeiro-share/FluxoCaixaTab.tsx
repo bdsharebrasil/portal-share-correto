@@ -276,13 +276,13 @@ export default function FluxoCaixaTab() {
       )}
 
       {aba === "contas-pagar" && <ContasPagarFluxoTab />}
-      {aba === "clientes" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="cliente" items={data.movimentacoes.filter((m: any) => !isShare(m) && !isDga(m))} /><ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} rateios={data.rateios} onRefresh={load} /></div>}
-      {aba === "dga" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="dga" items={data.movimentacoes.filter((m: any) => isDga(m))} /><DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} /></div>}
+      {aba === "clientes" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="cliente" items={data.movimentacoes.filter((m: any) => !isShare(m) && !isDga(m))} onOpen={setEditMovId} onDelete={onDelete} /><ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} rateios={data.rateios} onRefresh={load} /></div>}
+      {aba === "dga" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="dga" items={data.movimentacoes.filter((m: any) => isDga(m))} onOpen={setEditMovId} onDelete={onDelete} /><DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} /></div>}
 
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
       {(aba === "caixa" || aba === "reembolsaveis") && (
         <div className="space-y-4">
-          <DuplicidadeAlertasPanel fluxo={aba === "reembolsaveis" ? "reembolsaveis" : "caixa"} items={data.movimentacoes.filter((m: any) => aba === "reembolsaveis" ? isReembolsavel(m) : isShare(m) && !isDga(m) && !isReembolsavel(m))} />
+          <DuplicidadeAlertasPanel fluxo={aba === "reembolsaveis" ? "reembolsaveis" : "caixa"} items={data.movimentacoes.filter((m: any) => aba === "reembolsaveis" ? isReembolsavel(m) : isShare(m) && !isDga(m) && !isReembolsavel(m))} onOpen={setEditMovId} onDelete={onDelete} />
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-800 bg-slate-950/55 p-2.5">
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <span>Caixa</span>

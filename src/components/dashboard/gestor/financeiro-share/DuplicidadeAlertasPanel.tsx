@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 
@@ -75,7 +75,7 @@ function resumo(m: any) {
   return `${desc} · ${dataTexto}`;
 }
 
-export default function DuplicidadeAlertasPanel({ fluxo, items }: { fluxo: Fluxo; items: any[] }) {
+export default function DuplicidadeAlertasPanel({ fluxo, items, onOpen, onDelete }: { fluxo: Fluxo; items: any[]; onOpen?: (id: string) => void; onDelete?: (id: string) => void }) {
   const [revisados, setRevisados] = useState<Set<string>>(new Set());
   const [aberto, setAberto] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
@@ -125,9 +125,19 @@ export default function DuplicidadeAlertasPanel({ fluxo, items }: { fluxo: Fluxo
               <div className="min-w-0"><div className="truncate text-xs font-semibold text-foreground">{resumo(par.a)}</div><div className="mt-0.5 text-xs text-amber-200">{formatBRL(valor(par.a))}</div></div>
               <span className="text-center text-xs font-bold text-amber-300">ou</span>
               <div className="min-w-0"><div className="truncate text-xs font-semibold text-foreground">{resumo(par.b)}</div><div className="mt-0.5 text-xs text-amber-200">{formatBRL(valor(par.b))}</div></div>
-              <button type="button" onClick={() => void verificar(par)} disabled={salvando === par.chave} className="inline-flex items-center justify-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50" title="Manter os dois lançamentos e ocultar este alerta">
-                {salvando === par.chave ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Verificado e correto
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {onOpen && <>
+                  <button type="button" onClick={() => onOpen(par.a.id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-blue-400/30 bg-blue-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-blue-200 hover:bg-blue-400/20" title="Abrir o primeiro lançamento para editar"><Pencil className="h-3 w-3" /> Abrir 1</button>
+                  <button type="button" onClick={() => onOpen(par.b.id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-blue-400/30 bg-blue-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-blue-200 hover:bg-blue-400/20" title="Abrir o segundo lançamento para editar"><Pencil className="h-3 w-3" /> Abrir 2</button>
+                </>}
+                {onDelete && <>
+                  <button type="button" onClick={() => onDelete(par.a.id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-rose-400/30 bg-rose-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-rose-200 hover:bg-rose-400/20" title="Excluir o primeiro lançamento"><Trash2 className="h-3 w-3" /> Excluir 1</button>
+                  <button type="button" onClick={() => onDelete(par.b.id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-rose-400/30 bg-rose-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-rose-200 hover:bg-rose-400/20" title="Excluir o segundo lançamento"><Trash2 className="h-3 w-3" /> Excluir 2</button>
+                </>}
+                <button type="button" onClick={() => void verificar(par)} disabled={salvando === par.chave} className="inline-flex items-center justify-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50" title="Manter os dois lançamentos e ocultar este alerta">
+                  {salvando === par.chave ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Verificado e correto
+                </button>
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-1">{par.motivos.map((motivo) => <span key={motivo} className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">{motivo}</span>)}</div>
           </div>

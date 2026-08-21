@@ -61,7 +61,6 @@ import {
   Edit,
   Trash2,
   Phone,
-  Mail,
   MapPin,
   Clock,
   FileText,
@@ -472,7 +471,6 @@ export default function GestaoDeTripulacao() {
           id,
           nome_completo,
           canac,
-          email,
           telefone,
           data_nascimento,
           data_admissao,
@@ -2212,11 +2210,6 @@ function ProfileOverview({
             crew.data_admissao
           )
         : null,
-    },
-    {
-      icon: Mail,
-      label: "E-mail",
-      value: crew.email,
     },
     {
       icon: Phone,
