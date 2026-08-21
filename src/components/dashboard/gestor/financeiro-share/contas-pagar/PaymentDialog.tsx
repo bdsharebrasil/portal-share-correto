@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Upload, FileText, X, Users, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { FinanceCategoryId, FinanceCategoryLabel, FinanceGroupName } from "@/lib/financeConstants";
 
 interface PaymentContaLike {
   id?: string;
@@ -158,16 +159,15 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         if (rvMatch?.[1]) return rvMatch[1];
         const viagemMatch = input.match(/Reembolso Viagem\s+(.+?)\s+-\s+/i);
         if (viagemMatch?.[1]) return viagemMatch[1].trim();
-        const docMatch = input.match(/^(.+?)(?:-T[12])?$/i);
-        return docMatch?.[1] || null;
+        return null;
       };
       const numeroRelatorio = extractNumeroRelatorio(numeroDoc) || extractNumeroRelatorio(descricao);
       const referenceType = String(conta?.reference_type || "").toLowerCase();
       const isTravelExpenseCategory = Boolean(
-        reportReferenceId ||
         referenceType.includes("travel_report") ||
         referenceType.includes("travel_expense_report") ||
         String(conta?.categoria || "").toUpperCase().includes("VIAGEM") ||
+        descricao.toUpperCase().includes("VIAGEM") ||
         descricao.toUpperCase().includes("RV ") ||
         numeroRelatorio
       );
@@ -177,7 +177,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           .from("travel_expense_reports")
           .select("numero_relatorio, total_valor, total_trip, nome_tripulante, total_trip2, nome_tripulante_2");
 
-        if (reportReferenceId) {
+        if (reportReferenceId && (referenceType.includes("travel_report") || referenceType.includes("travel_expense_report"))) {
           query = query.eq("id", reportReferenceId);
         } else if (numeroRelatorio) {
           query = query.eq("numero_relatorio", numeroRelatorio);
@@ -319,6 +319,17 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     const clienteInfo = new Map<string, { razao_social: string | null; cnpj: string | null }>();
     (clientesData || []).forEach((c: any) => clienteInfo.set(c.id, { razao_social: c.razao_social, cnpj: c.cnpj }));
 
+    const origem = `${String(conta?.categoria || "")} ${String(conta?.descricao || "")} ${String(conta?.reference_type || "")} ${String(conta?.numero || conta?.numero_doc || "")}`.toUpperCase();
+    const isDespesaViagem = origem.includes("VIAGEM") || origem.includes("RELATORIO") || origem.includes("RV ") || origem.includes("TRAVEL_");
+    const categoriaReembolsoId = isDespesaViagem
+      ? FinanceCategoryId.TRAVEL_REPORT_REIMBURSEMENT
+      : categoriaId;
+    const categoriaReembolsoNome = isDespesaViagem
+      ? FinanceCategoryLabel.TRAVEL_REPORT_RECEIVED
+      : "Reembolso Caixa Share";
+    const grupoReembolso = isDespesaViagem
+      ? FinanceGroupName.REIMBURSEMENT_INCOME
+      : null;
     let algumGerado = false;
 
     for (const [clienteId, valor] of valoresPorCliente.entries()) {
@@ -340,8 +351,8 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           data_criacao: hoje,
           data_vencimento: hoje,
           valor,
-          categoria: "Reembolso Caixa Share",
-          categoria_id: categoriaId,
+          categoria: categoriaReembolsoNome,
+          categoria_id: categoriaReembolsoId,
           descricao: `Reembolso caixa share - ${conta!.fornecedor_nome || conta!.descricao || ""}`,
           status: "pendente",
           cliente_id: clienteId,
@@ -361,15 +372,19 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       const { error: errMov } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery).insert([{
         descricao: `Reembolso caixa share - ${conta!.fornecedor_nome || conta!.descricao || ""}`,
         tipo: "receita",
-        categoria_id: categoriaId,
-        valor,
+        categoria_id: categoriaReembolsoId,
+        categoria_nome: categoriaReembolsoNome,
+        grupo_categoria: grupoReembolso,
+        valor_total: valor,
+        valor_rateado: valor,
         data_emissao: hoje,
         data_vencimento: hoje,
         clientes_id: clienteId,
         status: "pendente",
         contas_areceber_id: (novaContaReceber as any).id,
-        tipo_caixa: "share",
-        criado_por: user?.id,
+          tipo_caixa: "share",
+          criado_por: user?.id,
+          fluxo: "entrada",
       }]);
 
       if (errMov) {
@@ -501,15 +516,23 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         categoriaId = catData?.[0]?.id || null;
       }
 
+      const origemClassificacao = `${String(conta?.categoria || "")} ${String(conta?.descricao || "")} ${String(conta?.reference_type || "")} ${String(conta?.numero || conta?.numero_doc || "")}`.toUpperCase();
+      const isDespesaViagem = origemClassificacao.includes("VIAGEM") || origemClassificacao.includes("RELATORIO") || origemClassificacao.includes("RV ") || origemClassificacao.includes("TRAVEL_");
+      const categoriaDespesaId = isDespesaViagem ? FinanceCategoryId.TRAVEL_REPORT_EXPENSE : categoriaId;
+
       // `controle_bancario` foi descontinuado — a fonte única de verdade é
-      // `movimentacoes`. Aqui apenas completamos os metadados contábeis e
-      // registramos a origem do caixa que efetivamente pagou.
+      // `movimentacoes`. Aqui completamos os metadados contábeis e a origem
+      // do caixa que efetivamente pagou.
       const metadadosMovimentacao: any = {
         tipo_caixa: origemCaixa,
         pago_por: origemCaixa === "share" ? "Share Brasil" : (pagoPor || "CLIENTE"),
+        grupo_categoria: isDespesaViagem
+          ? FinanceGroupName.TRAVEL_REIMBURSABLE_EXPENSE
+          : (origemCaixa === "cliente" ? FinanceGroupName.CLIENT_CASH : undefined),
         atualizado_em: new Date().toISOString(),
       };
-      if (categoriaId) metadadosMovimentacao.categoria_id = categoriaId;
+      if (categoriaDespesaId) metadadosMovimentacao.categoria_id = categoriaDespesaId;
+      if (isDespesaViagem) metadadosMovimentacao.categoria_nome = FinanceCategoryLabel.TRAVEL_REPORT_EXPENSE;
       if (conta!.aeronave_id) metadadosMovimentacao.aeronave_id = conta!.aeronave_id;
 
       const { error: metaError } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
@@ -520,7 +543,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       }
 
       if (origemCaixa === "share") {
-        await gerarReembolsosCaixaShare(categoriaId);
+        await gerarReembolsosCaixaShare(categoriaDespesaId);
       }
 
       await Promise.all([

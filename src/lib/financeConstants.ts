@@ -15,6 +15,22 @@ export const FinanceMovementGroup = {
   REEMBOLSOS: "REEMBOLSOS" as const,
 };
 
+export const FinanceCategoryId = {
+  TRAVEL_REPORT_EXPENSE: "aeab4560-713a-4ed5-912a-d1df4580e638" as const,
+  TRAVEL_REPORT_REIMBURSEMENT: "a7555994-103d-4739-96a5-001c3bec1424" as const,
+};
+
+export const FinanceGroupName = {
+  CLIENT_CASH: "CAIXA CLIENTE" as const,
+  TRAVEL_REIMBURSABLE_EXPENSE: "DESPESAS REEMBOLSÁVEIS" as const,
+  REIMBURSEMENT_INCOME: "REEMBOLSOS ENTRADAS" as const,
+};
+
+export const FinanceCategoryLabel = {
+  TRAVEL_REPORT_EXPENSE: "REEMBOLSO RELATORIO DE DESPESA DE VIAGENS",
+  TRAVEL_REPORT_RECEIVED: "REEMBOLSO RELATORIO DE DESPESA DE VIAGENS recebido",
+} as const;
+
 export const FinanceCategoryName = {
   PARTNER_DEPOSIT: "Depósito de Sócio" as const,
   PARTNER_INTEREST: "Rendimento Bancário" as const,

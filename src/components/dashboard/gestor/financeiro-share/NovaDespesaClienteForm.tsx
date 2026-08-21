@@ -14,6 +14,7 @@ import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { mapAnexosToMovimentacao } from "./anexosMapper";
 import { CLIENTE_DGA_ID } from "@/utils/financeiroRules";
+import { FinanceCategoryId, FinanceCategoryLabel, FinanceGroupName } from "@/lib/financeConstants";
 import { Building2, FileText, Loader2, Paperclip, Plane, Plus, Save, Trash2, Users, X } from "lucide-react";
 
 interface Props {
@@ -257,8 +258,6 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
   );
 
 
-  const grupoCategoria = isDgaModo ? "DGA" : null;
-
   const valorTotal = Number(form.valor_original) || 0;
   const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
 
@@ -332,6 +331,15 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
   /* ── Despesas de viagem: busca relatórios em aberto do cliente ── */
   const isDespesaViagem = (categoriaNome || "").toUpperCase().includes("VIAGEM");
+  const isTravelClassification = isDespesaViagem;
+  const categoriaIdEfetiva = isTravelClassification
+    ? FinanceCategoryId.TRAVEL_REPORT_EXPENSE
+    : form.categoria_id || null;
+  const grupoCategoria = isDgaModo
+    ? "DGA"
+    : isTravelClassification
+      ? FinanceGroupName.TRAVEL_REIMBURSABLE_EXPENSE
+      : (!entrada && !form.pago_pela_share ? FinanceGroupName.CLIENT_CASH : null);
   const clienteAlvo = clienteVooId || linhas.find((l) => l.cliente_id)?.cliente_id || null;
 
   useEffect(() => {
@@ -459,8 +467,10 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
           tipo_caixa: isDgaModo ? "dga" : "cliente",
           numero_voo: rel?.numero_voo || form.numero_voo || null,
-          categoria_id: form.categoria_id || null,
-          categoria_nome: [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
+          categoria_id: categoriaIdEfetiva,
+          categoria_nome: isTravelClassification
+            ? FinanceCategoryLabel.TRAVEL_REPORT_EXPENSE
+            : [categoriaNome, subcategoriaNome].filter(Boolean).join(" / ") || null,
           grupo_categoria: grupoCategoria,
           periodicidade: form.periodicidade || null,
           tipo_rateio: form.tipo_rateio || null,
@@ -515,8 +525,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           aeronave_id: form.aeronave_id,
           aeronave_registro: aeronaveRegistro,
           valor_total: valorItem,
-          categoria_custo: form.categoria_id || null,
-          categoria_nome: categoriaNome,
+          categoria_custo: categoriaIdEfetiva,
+          categoria_nome: isTravelClassification ? FinanceCategoryLabel.TRAVEL_REPORT_EXPENSE : categoriaNome,
           conta_bancaria: form.conta_bancaria || null,
           ...(form.subcategoria_key && subcategoriaNome
             ? { [form.subcategoria_key]: subcategoriaNome }

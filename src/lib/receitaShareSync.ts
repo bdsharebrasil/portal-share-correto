@@ -1,5 +1,6 @@
 // @ts-nocheck — colunas legadas fora dos types gerados
 import { supabase } from "@/integrations/supabase/client";
+import { FinanceCategoryId, FinanceCategoryLabel, FinanceGroupName } from "@/lib/financeConstants";
 
 export interface BaixaReceitaInput {
   movId?: string | null;
@@ -95,6 +96,12 @@ export async function baixarReceitaShare(input: BaixaReceitaInput) {
     data_pagamento: data,
     atualizado_em: agora,
   };
+  if (isReembolso) {
+    patchShare.fluxo = "entrada";
+    patchShare.categoria_id = FinanceCategoryId.TRAVEL_REPORT_REIMBURSEMENT;
+    patchShare.categoria_nome = FinanceCategoryLabel.TRAVEL_REPORT_RECEIVED;
+    patchShare.grupo_categoria = FinanceGroupName.REIMBURSEMENT_INCOME;
+  }
   if (isReembolso) patchShare.reembolso_quitado = true;
   if (banco) patchShare.conta_bancaria = banco;
   if (bancoId) patchShare.conta_bancaria = bancoId;
