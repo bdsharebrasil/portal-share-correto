@@ -18,6 +18,7 @@ import {
   Filter,
   SlidersHorizontal,
   Mail,
+  FolderOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
