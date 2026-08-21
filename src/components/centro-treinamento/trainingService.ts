@@ -58,7 +58,7 @@ export async function criarReuniaoTreinamento(input: { titulo: string; descricao
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("Sessão expirada. Entre novamente no sistema.");
   const { role } = await obterPapelTreinamento();
-  if (role !== "admin" && role !== "gestor_master") throw new Error("Somente admin e gestor master podem criar reuniões.");
+  if (role !== "admin" && role !== "gestor_master") throw new Error("Não foi possível criar a reunião.");
   const { data, error } = await (supabase as any)
     .from("unk_treinamento_reunioes")
     .insert({ titulo: input.titulo.trim(), descricao: input.descricao.trim(), host_id: auth.user.id, status: "agendada", agendada_para: input.agendada_para })
