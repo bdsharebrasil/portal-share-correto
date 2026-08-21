@@ -84,11 +84,11 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
-import ManualSistema from "./pages/ManualSistema";
-import CentroTreinamento from "./pages/CentroTreinamento";
-import SalaReuniao from "./pages/SalaReuniao";
-import SalaReuniaoRoom from "./pages/SalaReuniaoRoom";
-import TreinamentoCentro from "./pages/TreinamentoCentro";
+import ManualSistema from "./pages/centro-treinamento/ManualSistema";
+import CentroTreinamento from "./pages/centro-treinamento/CentroTreinamento";
+import SalaReuniao from "./pages/centro-treinamento/SalaReuniao";
+import SalaReuniaoRoom from "./pages/centro-treinamento/SalaReuniaoRoom";
+import TreinamentoCentro from "./pages/centro-treinamento/TreinamentoCentro";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
