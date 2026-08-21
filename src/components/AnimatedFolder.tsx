@@ -16,9 +16,14 @@ interface AnimatedFolderProps {
   projects: Project[]
   className?: string
   onClick?: () => void
+  showPreviewCards?: boolean
+  theme?: "default" | "blue"
 }
 
-export function AnimatedFolder({ title, projects, className, onClick }: AnimatedFolderProps) {
+export function AnimatedFolder({ title, projects, className, onClick, showPreviewCards = true, theme = "default" }: AnimatedFolderProps) {
+  const folderColors = theme === "blue"
+    ? { back: "rgba(37, 99, 235, 0.58)", tab: "rgba(96, 165, 250, 0.78)", front: "rgba(59, 130, 246, 0.58)" }
+    : { back: "hsl(var(--folder-back))", tab: "hsl(var(--folder-tab))", front: "hsl(var(--folder-front))" };
   const [isHovered, setIsHovered] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null)
@@ -60,7 +65,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
         className={cn(
           "relative flex flex-col items-center justify-center",
           "p-6 rounded-2xl cursor-pointer",
-          "bg-card border border-border",
+          theme === "blue" ? "border-blue-300/20 bg-blue-950/20" : "bg-card border border-border",
           "transition-all duration-500 ease-out",
           "hover:shadow-2xl hover:shadow-accent/10",
           "hover:border-accent/30",
@@ -92,7 +97,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
             style={{
               width: "96px",
               height: "72px",
-              background: "hsl(var(--folder-back))",
+              background: folderColors.back,
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(-15deg)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -109,7 +114,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
               height: "12px",
               top: "calc(50% - 40px - 12px)",
               left: "calc(50% - 48px + 12px)",
-              background: "hsl(var(--folder-tab))",
+              background: folderColors.tab,
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(-25deg) translateY(-2px)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -127,7 +132,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
               zIndex: 20,
             }}
           >
-            {projects.slice(0, 3).map((project, index) => (
+            {showPreviewCards && projects.slice(0, 3).map((project, index) => (
               <ProjectCard
                 key={project.id}
                 ref={(el) => {
@@ -151,7 +156,7 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
               width: "96px",
               height: "72px",
               top: "calc(50% - 40px + 4px)",
-              background: "hsl(var(--folder-front))",
+              background: folderColors.front,
               transformOrigin: "bottom center",
               transform: isHovered ? "rotateX(25deg) translateY(8px)" : "rotateX(0deg)",
               transition: "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -186,9 +191,9 @@ export function AnimatedFolder({ title, projects, className, onClick }: Animated
         </h3>
 
         {/* Count badge inside the preview stack */}
-        {projects.length > 0 && projects.length !== 3 && (
+        {projects.length > 0 && (!showPreviewCards || projects.length !== 3) && (
           <div
-            className="absolute top-[30px] right-5 z-40 flex min-h-[10px] items-center justify-center rounded-full border border-border/80 bg-background/90 px-[13px] py-[5px] text-[10px] font-semibold text-foreground shadow-sm"
+            className="absolute left-1/2 top-[68px] z-40 flex min-h-[42px] min-w-[42px] -translate-x-1/2 items-center justify-center rounded-full border border-white/30 bg-white/25 px-3 py-2 text-sm font-bold text-white shadow-sm backdrop-blur-sm"
             style={{
               opacity: isHovered ? 1 : 0.9,
             }}

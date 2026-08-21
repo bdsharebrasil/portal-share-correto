@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Eye, Calendar, Clock, ChevronRight, Paperclip, X, Save, Loader2, Pencil, Search, FolderOpen, Wrench, CheckCircle2, ListFilter } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from '@/lib/utils';
+import { AnimatedFolder } from '@/components/AnimatedFolder';
 import { toast } from 'sonner';
 
 interface OASTabProps { aircraftId: string; }
@@ -86,17 +87,29 @@ export function OASTab({ aircraftId }: OASTabProps) {
       </div>
 
       {list.length === 0 && !showForm ? <EmptySection icon={FileText} text="Nenhuma OAS registrada" /> : years.length === 0 ? <EmptySection icon={Search} text="Nenhuma OAS encontrada para essa busca" /> : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
           {years.map((year) => {
             const opened = openYears[year] ?? false;
-            return <section key={year} className="overflow-hidden rounded-xl border border-blue-300/15 bg-blue-950/15 shadow-md shadow-blue-950/20">
-              <button onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))} className="flex w-full items-center gap-3 border-b border-blue-300/10 bg-blue-900/20 px-3 py-2.5 text-left transition hover:bg-blue-800/30">
-                <FolderOpen className="h-6 w-6 shrink-0 text-blue-300" />
-                <span className="flex-1"><span className="block text-sm font-bold text-blue-100">{year}</span><span className="text-[11px] text-blue-200/60">{groupedByYear[year].length} OAS neste arquivo</span></span>
-                <ChevronRight className={cn('h-4 w-4 text-blue-200 transition-transform', opened && 'rotate-90')} />
-              </button>
-              {opened && <div className="space-y-3 p-3 md:p-4">{groupedByYear[year].map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => setSelected(oas)} />)}</div>}
-            </section>;
+            const yearOAS = groupedByYear[year];
+            return (
+              <React.Fragment key={year}>
+                <div className="min-w-0">
+                  <AnimatedFolder
+                    title={year}
+                    theme="blue"
+                    showPreviewCards={false}
+                    projects={yearOAS.map((oas: any) => ({ id: oas.id, image: "", title: `OAS #${oas.numero}` }))}
+                    onClick={() => setOpenYears((current) => ({ ...current, [year]: !opened }))}
+                    className="min-h-[190px] w-full border-blue-300/20 bg-blue-950/20 p-3 shadow-lg shadow-blue-950/20"
+                  />
+                  {opened && (
+                    <div className="mt-4 space-y-3 rounded-xl border border-blue-300/10 bg-blue-950/10 p-3">
+                      {yearOAS.map((oas: any) => <OASListCard key={oas.id} oas={oas} onClick={() => setSelected(oas)} />)}
+                    </div>
+                  )}
+                </div>
+              </React.Fragment>
+            );
           })}
         </div>
       )}

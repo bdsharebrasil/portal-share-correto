@@ -1,5 +1,6 @@
 // @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatedFolder } from "@/components/AnimatedFolder";
 import {
   Plus,
   Pencil,
@@ -1204,19 +1205,16 @@ export default function NFSaidaTab() {
                 const totalCliente = Object.values(notasPorAno).reduce((total, items) => total + items.length, 0);
                 return (
                   <React.Fragment key={clienteNome}>
-                    <tr className="border-b border-blue-300/15 bg-blue-950/35">
-                      <td colSpan={10} className="px-3 py-2">
-                        <button
-                          type="button"
+                    <tr className="border-b border-blue-300/15 bg-blue-950/10">
+                      <td colSpan={10} className="px-3 py-3">
+                        <AnimatedFolder
+                          title={clienteNome}
+                          theme="blue"
+                          showPreviewCards={false}
+                          projects={[{ id: clienteNome, image: "", title: `${totalCliente} documentos` }]}
                           onClick={() => toggleClientGroup(clienteNome)}
-                          className="flex min-h-10 w-full items-center justify-between text-left text-sm font-bold text-blue-100"
-                        >
-                          <span className="flex items-center gap-2">
-                            <FolderOpen className="h-4 w-4 text-blue-300" />
-                            {isExpanded ? "▾" : "▸"} {clienteNome}
-                            <span className="text-xs font-normal text-blue-200/70">({totalCliente} {totalCliente === 1 ? 'nota' : 'notas'})</span>
-                          </span>
-                        </button>
+                          className="min-h-[190px] w-full max-w-[280px] border-blue-300/20 bg-blue-950/20 p-3 shadow-lg shadow-blue-950/20"
+                        />
                       </td>
                     </tr>
 
@@ -1225,12 +1223,16 @@ export default function NFSaidaTab() {
                       const isYearExpanded = expandedYears[yearKey] ?? false;
                       return (
                         <React.Fragment key={yearKey}>
-                          <tr className="border-b border-blue-300/10 bg-blue-900/20">
-                            <td colSpan={10} className="px-3 py-1.5 pl-8">
-                              <button type="button" onClick={() => toggleYearGroup(clienteNome, ano)} className="flex min-h-9 w-full items-center justify-between text-left text-xs font-semibold text-blue-100">
-                                <span className="flex items-center gap-2"><FolderOpen className="h-3.5 w-3.5 text-blue-300/90" /> {isYearExpanded ? "▾" : "▸"} {ano}</span>
-                                <span className="text-[10px] font-normal text-blue-200/60">{notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'}</span>
-                              </button>
+                          <tr className="border-b border-blue-300/10 bg-blue-900/10">
+                            <td colSpan={10} className="px-3 py-3 pl-8">
+                              <AnimatedFolder
+                                title={ano}
+                                theme="blue"
+                                showPreviewCards={false}
+                                projects={[{ id: yearKey, image: "", title: `${notasDoCliente.length} documentos` }]}
+                                onClick={() => toggleYearGroup(clienteNome, ano)}
+                                className="min-h-[175px] w-full max-w-[250px] border-blue-300/15 bg-blue-950/15 p-2 shadow-md shadow-blue-950/20"
+                              />
                             </td>
                           </tr>
 
