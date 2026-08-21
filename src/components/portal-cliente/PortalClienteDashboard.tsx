@@ -91,6 +91,22 @@ interface VooCotista {
   voos: { data: string; origem: string; destino: string; tempo_voo: number; pousos: number }[];
 }
 
+interface ContaReceber {
+  id: string;
+  cliente_id: string | null;
+  cliente_nome: string | null;
+  valor: string | number | null;
+  descricao: string | null;
+  status: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  movimentacao_id: string | null;
+  aeronave: string | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  data_recebimento: string | null;
+}
+
 interface Movimentacao {
   id: string;
   descricao: string | null;
@@ -223,6 +239,7 @@ function PortalClienteDashboard() {
   const [fStatus, setFStatus] = useState<"todos" | "pago" | "pendente" | "atrasado">("todos");
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+  const [contasReceber, setContasReceber] = useState<ContaReceber[]>([]);
 
   /* ── Fetch aeronaves ── */
   useEffect(() => {
@@ -311,6 +328,25 @@ function PortalClienteDashboard() {
         setError(e.message);
       } finally {
         setLoading(false);
+      }
+    })();
+  }, [activeAircraftId]);
+
+  /* ── Fetch contas a receber abertas do cliente ── */
+  useEffect(() => {
+    if (!activeAircraftId) return;
+    (async () => {
+      try {
+        const { data, error: err } = await supabase
+          .from("contas_areceber")
+          .select("id, cliente_id, cliente_nome, valor, descricao, status, reference_type, reference_id, movimentacao_id, aeronave, data_vencimento, data_pagamento, data_recebimento")
+          .eq("reference_type", "reembolso_share")
+          .is("data_recebimento", null)
+          .order("data_vencimento", { ascending: true, nullsFirst: false });
+        if (err) throw err;
+        setContasReceber((data ?? []) as ContaReceber[]);
+      } catch (e: any) {
+        setError(e.message);
       }
     })();
   }, [activeAircraftId]);
@@ -470,24 +506,48 @@ const alerts = useMemo(() => {
 
   /* ── Reembolsos pendentes para a Share ── */
   const reembolsosPendentes = useMemo(() => {
-    return movimentacoes
+    const aircraft = activeAircraft?.matricula;
+    const cotistaMatches = new Set(cotistas.map((c) => c.cliente_id).filter(Boolean));
+    const rows = new Map<string, { id: string; descricao: string; cotista: string; valor: number; dataVencimento: string | null; dataPagamento: string | null; status: string }>();
+
+    movimentacoes
       .filter((m) => m.reembolsavel === true && m.reembolso_quitado !== true)
-      .map((m) => {
-        const cotista = cotistas.find(
-          (c) => c.cliente_id === m.clientes_id || c.socio_id === m.socio_id,
-        );
-        return {
+      .forEach((m) => {
+        const cotista = cotistas.find((c) => c.cliente_id === m.clientes_id || c.socio_id === m.socio_id);
+        rows.set(m.id, {
           id: m.id,
-          descricao: m.descricao || "—",
+          descricao: m.descricao || "Despesa paga pela Share",
           cotista: cotista?.nome || m.fornecedor_nome || "—",
-          valor: Number(m.valor_rateado) || Number(m.valor_original) || 0,
+          valor: Number(m.valor_rateado) || Number(m.valor_original) || Number(m.valor_pago_real) || 0,
           dataVencimento: m.data_vencimento,
           dataPagamento: m.data_pagamento,
-          status: m.reembolso_quitado === true ? "Quitado" : "Pendente",
-        };
+          status: "Pendente",
+        });
+      });
+
+    contasReceber
+      .filter((conta) => {
+        const status = norm(conta.status);
+        const sameAircraft = !aircraft || !conta.aeronave || norm(conta.aeronave) === norm(aircraft);
+        const sameClient = !conta.cliente_id || cotistaMatches.has(conta.cliente_id);
+        return !conta.data_recebimento && !["recebido", "recebida", "quitado", "quitada", "cancelado", "cancelada"].includes(status) && sameAircraft && sameClient;
       })
-      .sort((a, b) => b.valor - a.valor);
-  }, [movimentacoes, cotistas]);
+      .forEach((conta) => {
+        const key = conta.reference_id || conta.movimentacao_id || conta.id;
+        const cotista = cotistas.find((c) => c.cliente_id === conta.cliente_id);
+        rows.set(key, {
+          id: conta.id,
+          descricao: conta.descricao || "Despesa paga pela Share",
+          cotista: cotista?.nome || conta.cliente_nome || "—",
+          valor: Number(conta.valor) || 0,
+          dataVencimento: conta.data_vencimento,
+          dataPagamento: conta.data_pagamento,
+          status: "Pendente",
+        });
+      });
+
+    return Array.from(rows.values()).sort((a, b) => b.valor - a.valor);
+  }, [activeAircraft, contasReceber, cotistas, movimentacoes]);
 
   /* ── Filter options ── */
   const categoriasOpts = useMemo(

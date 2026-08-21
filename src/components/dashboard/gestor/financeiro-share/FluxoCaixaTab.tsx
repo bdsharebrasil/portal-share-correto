@@ -84,6 +84,21 @@ export default function FluxoCaixaTab() {
     },
   });
   const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({ diasAtrasoMinimo: 6 });
+  const { data: reembolsosAReceber = [], isLoading: reembolsosAReceberLoading, error: reembolsosAReceberError } = useQuery({
+    queryKey: ["contas-areceber-reembolsos-share"],
+    queryFn: async () => {
+      const { data: contas, error } = await supabase
+        .from("contas_areceber")
+        .select("id, cliente_nome, cliente_id, aeronave, descricao, valor, data_vencimento, status, reference_type, movimentacao_id, reference_id")
+        .eq("reference_type", "reembolso_share")
+        .is("data_recebimento", null)
+        .not("status", "in", "(recebido,recebida,quitado,quitada,cancelado,cancelada)")
+        .order("data_vencimento", { ascending: true, nullsFirst: false })
+        .limit(100);
+      if (error) throw error;
+      return contas ?? [];
+    },
+  });
 
   const load = useCallback(async () => {
     // Mantém a tela montada durante refresh para preservar filtros, mês e ordenação.
@@ -94,6 +109,7 @@ export default function FluxoCaixaTab() {
       dadosCarregadosRef.current = true;
       await queryClient.invalidateQueries({ queryKey: ["contas-apagar-proximas"] });
       await queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
+      await queryClient.invalidateQueries({ queryKey: ["contas-areceber-reembolsos-share"] });
     } catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); }
     finally { setLoading(false); }
   }, [queryClient]);
@@ -185,13 +201,15 @@ export default function FluxoCaixaTab() {
   const visaoGeral = useMemo(() => {
     const contasTotal = contasAPagar.reduce((sum: number, conta: any) => sum + Number(conta?.valor || 0), 0);
     const inadimplenciaTotal = inadimplencias.reduce((sum: number, item: any) => sum + Number(item?.valor || 0), 0);
+    const reembolsosTotal = reembolsosAReceber.reduce((sum: number, conta: any) => sum + Number(conta?.valor || 0), 0);
     const diasMaxAtraso = inadimplencias.reduce((max: number, item: any) => Math.max(max, Number(item?.dias_atraso || 0)), 0);
     return {
       contasTotal,
       inadimplenciaTotal,
       diasMaxAtraso,
+      reembolsosTotal,
     };
-  }, [contasAPagar, inadimplencias]);
+  }, [contasAPagar, inadimplencias, reembolsosAReceber]);
 
   const formatMesAno = (periodo: string) => { const [ano, mesNumero] = periodo.split("-"); return `${mesNumero}/${ano}`; };
 
@@ -264,9 +282,12 @@ export default function FluxoCaixaTab() {
             </div>
           </section>
 
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-3 xl:grid-cols-3">
             <ResumoListaCompacta title="Contas a pagar" subtitle={`Próximos 5 dias · ${contasAPagar.length} lançamento(s)`} total={formatBRL(visaoGeral.contasTotal)} tone="orange" loading={contasAPagarLoading} error={contasAPagarError} empty="Nenhuma conta a pagar no período.">
               {contasAPagar.slice(0, 6).map((conta) => <ResumoLinha key={conta.id} title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"} detail={`${conta.categoria || "Sem categoria"} · ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`} value={formatBRL(Number(conta.valor))} tone="orange" />)}
+            </ResumoListaCompacta>
+            <ResumoListaCompacta title="Reembolsos a receber" subtitle={`Despesas pagas pela Share · ${reembolsosAReceber.length} lançamento(s)`} total={formatBRL(visaoGeral.reembolsosTotal)} tone="cyan" loading={reembolsosAReceberLoading} error={reembolsosAReceberError} empty="Nenhum reembolso pendente.">
+              {reembolsosAReceber.slice(0, 6).map((conta: any) => <ResumoLinha key={conta.id} title={conta.cliente_nome || "Cliente sem nome"} detail={`${conta.descricao || "Despesa paga pela Share"} · ${conta.aeronave || "Aeronave não informada"}`} value={formatBRL(Number(conta.valor || 0))} tone="cyan" />)}
             </ResumoListaCompacta>
             <ResumoListaCompacta title="Inadimplência de clientes" subtitle={`Atrasos superiores a 5 dias · ${inadimplencias.length} cliente(s)`} total={formatBRL(visaoGeral.inadimplenciaTotal)} tone="rose" loading={inadimplenciasLoading} error={inadimplenciasError} empty="Nenhum atraso crítico identificado.">
               {inadimplencias.slice(0, 6).map((item) => <ResumoLinha key={`${item.origem}-${item.id}`} title={item.cliente_nome} detail={`${item.descricao} · ${item.dias_atraso} dias`} value={formatBRL(item.valor)} tone="rose" />)}
@@ -656,13 +677,13 @@ function ResumoKpi({ label, value, note, tone }: { label: string; value: string;
   return <div className="min-w-0 px-3 py-2.5"><div className="truncate text-[9px] font-black uppercase tracking-wider text-muted-foreground">{label}</div><div className={`mt-1 truncate text-sm font-black ${cls}`}>{value}</div><div className="mt-0.5 truncate text-[9px] text-muted-foreground">{note}</div></div>;
 }
 
-function ResumoListaCompacta({ title, subtitle, total, tone, loading, error, empty, children }: { title: string; subtitle: string; total: string; tone: "orange" | "rose"; loading: boolean; error: unknown; empty: string; children: React.ReactNode }) {
-  const accent = tone === "orange" ? "text-orange-300" : "text-rose-300";
+function ResumoListaCompacta({ title, subtitle, total, tone, loading, error, empty, children }: { title: string; subtitle: string; total: string; tone: "orange" | "rose" | "cyan"; loading: boolean; error: unknown; empty: string; children: React.ReactNode }) {
+  const accent = tone === "orange" ? "text-orange-300" : tone === "cyan" ? "text-cyan-300" : "text-rose-300";
   return <section className="overflow-hidden rounded-xl border border-border bg-background/40"><div className="flex items-center justify-between gap-3 border-b border-border/90 px-3 py-2.5"><div className="min-w-0"><h3 className={`truncate text-xs font-black ${accent}`}>{title}</h3><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{subtitle}</p></div><strong className={`shrink-0 text-sm font-black ${accent}`}>{total}</strong></div><div className="divide-y divide-border/70">{loading ? <div className="px-3 py-6 text-center text-xs text-muted-foreground">Carregando...</div> : error ? <div className="px-3 py-6 text-center text-xs text-rose-300">Não foi possível carregar os dados.</div> : children || <div className="px-3 py-6 text-center text-xs text-muted-foreground">{empty}</div>}</div></section>;
 }
 
-function ResumoLinha({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "orange" | "rose" }) {
-  const accent = tone === "orange" ? "bg-orange-400 text-orange-300" : "bg-rose-400 text-rose-300";
+function ResumoLinha({ title, detail, value, tone }: { title: string; detail: string; value: string; tone: "orange" | "rose" | "cyan" }) {
+  const accent = tone === "orange" ? "bg-orange-400 text-orange-300" : tone === "cyan" ? "bg-cyan-400 text-cyan-300" : "bg-rose-400 text-rose-300";
   return <div className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-card/70"><div className="flex min-w-0 items-center gap-2"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent.split(" ")[0]}`} /><div className="min-w-0"><div className="truncate text-[11px] font-semibold text-muted-foreground">{title}</div><div className="truncate text-[10px] text-muted-foreground">{detail}</div></div></div><span className={`shrink-0 text-[11px] font-black ${accent.split(" ")[1]}`}>{value}</span></div>;
 }
 
