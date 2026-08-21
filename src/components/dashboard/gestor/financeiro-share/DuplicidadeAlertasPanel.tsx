@@ -18,7 +18,10 @@ const data = (m: any) => String(m?.data_emissao || m?.data_vencimento || m?.data
 const descricao = (m: any) => String(m?.descricao || m?.descricao_despesa || "").trim();
 const documento = (m: any) => m?.numero_doc || m?.numero_nf || m?.nf_numero || m?.numero_recibo || null;
 const fornecedor = (m: any) => m?.fornecedor_nome || m?.fornecedor || null;
-const contexto = (m: any) => String(m?.clientes_id || m?.cliente_id || m?.aeronave_id || m?.aeronave || m?.tipo_caixa || "");
+const contexto = (m: any) => String(m?.aeronave_id || m?.aeronave || m?.tipo_caixa || "");
+const clienteId = (m: any) => String(m?.clientes_id || m?.cliente_id || "");
+const socioId = (m: any) => String(m?.socio_id || "");
+const categoria = (m: any) => norm(m?.categoria_nome || m?.categoria || "");
 
 function diasEntre(a: string, b: string) {
   if (!a || !b) return Infinity;
@@ -61,8 +64,18 @@ function encontrarPares(items: any[], fluxo: Fluxo, revisados: Set<string>): Pos
       if (fornA && fornB && (fornA === fornB || fornA.includes(fornB) || fornB.includes(fornA))) motivos.push("Mesmo fornecedor");
       if (comuns >= 2) motivos.push("Descrição semelhante");
       if (contexto(a) && contexto(a) === contexto(b)) motivos.push("Mesmo contexto");
+      if (clienteId(a) && clienteId(a) === clienteId(b)) motivos.push("Mesmo cliente");
+      if (socioId(a) && socioId(a) === socioId(b)) motivos.push("Mesmo sócio");
+      if (categoria(a) && categoria(a) === categoria(b)) motivos.push("Mesma categoria");
 
       if (motivos.length < 2) continue;
+
+      // Mesmo valor não é duplicidade quando a identidade financeira diverge.
+      if (clienteId(a) && clienteId(b) && clienteId(a) !== clienteId(b)) continue;
+      if (socioId(a) && socioId(b) && socioId(a) !== socioId(b)) continue;
+      if (categoria(a) && categoria(b) && categoria(a) !== categoria(b)) continue;
+      if (contexto(a) && contexto(b) && contexto(a) !== contexto(b)) continue;
+
       pares.push({ chave, a, b, motivos });
     }
   }

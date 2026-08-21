@@ -87,6 +87,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     numero_parcela: "1",
     observacoes: "",
     relatorio_viagem_id: "",
+    periodicidade: "MENSAL",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -176,6 +177,11 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     return c?.grupo_categoria || null;
   }, [categorias, form.categoria_id]);
 
+  const isDespesaInterna = useMemo(() => {
+    const grupo = String(grupoCategoria || "").toUpperCase().trim();
+    return grupo.includes("DESPESAS EMPRESA") || grupo.includes("DESPESAS PARTICULARES") || grupo.includes("FOLHA DE PAGAMENTO") || grupo.includes("IMPOSTOS");
+  }, [grupoCategoria]);
+
   const categoriaFinanceira = `${categoriaNome ?? ""} ${grupoCategoria ?? ""}`.toUpperCase();
   const isDespesaViagem = !entrada && ["VIAGEM", "HOSPEDAGEM", "HOTEL", "ALIMENTA", "TRANSPORTE TERRESTRE"].some((termo) => categoriaFinanceira.includes(termo));
   const relatorioSelecionado = relatoriosViagem.find((relatorio) => relatorio.id === form.relatorio_viagem_id) ?? null;
@@ -248,6 +254,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
+    if (!form.periodicidade.trim()) return toast.error("Informe a periodicidade da despesa.");
     if (isDespesaViagem && !relatorioSelecionado) return toast.error("Selecione o relatório de viagem que será abatido.");
     if (isDespesaViagem && relatorioSelecionado && valorTotal > Number(relatorioSelecionado.saldo_disponivel) + 0.009) {
       return toast.error(`O valor excede o saldo disponível do relatório (${Number(relatorioSelecionado.saldo_disponivel).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}).`);
@@ -260,6 +267,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           valor: valorTotal,
           data: form.data_emissao,
           fornecedor: form.fornecedor_nome,
+          categoriaNome,
         });
         if (achados.length > 0) {
           setDuplicatas(achados);
@@ -296,7 +304,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           tipo_caixa: "share",
           categoria_id: form.categoria_id || null,
           categoria_nome: categoriaNome,
-          valor_rateado: valorParcela,
+          valor_rateado: isDespesaInterna ? null : valorParcela,
           valor_total: valorParcela,
           data_emissao: competencia,
           data_vencimento: vencimento,
@@ -309,6 +317,8 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           quantidade_parcelas: parcelas,
           numero_parcela: numeroParcela,
           movimentacao_pai_id: paiId,
+          periodicidade: form.periodicidade || null,
+          tipo_rateio: isDespesaInterna ? null : "fixo",
           observacoes: form.observacoes || null,
           reembolsavel: false,
           reembolso_quitado: false,
@@ -468,6 +478,21 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           <div>
             <Label>Competência *</Label>
             <Input type="date" value={form.data_emissao} onChange={(e) => set({ data_emissao: e.target.value })} />
+          </div>
+          <div>
+            <Label>Periodicidade *</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={form.periodicidade}
+              onChange={(e) => set({ periodicidade: e.target.value })}
+              required
+            >
+              <option value="MENSAL">Mensal</option>
+              <option value="AVULSO">Avulso</option>
+              <option value="ANUAL">Anual</option>
+              <option value="TRIMESTRAL">Trimestral</option>
+              <option value="SEMESTRAL">Semestral</option>
+            </select>
           </div>
           <div>
             <Label>Vencimento</Label>

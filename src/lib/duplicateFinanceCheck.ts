@@ -22,6 +22,8 @@ export interface CriteriosDuplicata {
   data?: string | null;
   fornecedor?: string | null;
   clienteId?: string | null;
+  socioId?: string | null;
+  categoriaNome?: string | null;
   ignorarId?: string | null;
 }
 
@@ -70,6 +72,8 @@ export async function buscarPossiveisDuplicatas(
       data?: string | null;
       fornecedor?: string | null;
       clienteId?: string | null;
+      socioId?: string | null;
+      categoriaNome?: string | null;
       descricao?: string | null;
       status?: string | null;
     },
@@ -88,9 +92,18 @@ export async function buscarPossiveisDuplicatas(
       motivos.push("Mesmo fornecedor");
     if (criterios.clienteId && campos.clienteId && String(campos.clienteId) === String(criterios.clienteId))
       motivos.push("Mesmo cliente");
+    if (criterios.socioId && campos.socioId && String(campos.socioId) === String(criterios.socioId))
+      motivos.push("Mesmo sócio");
+    if (criterios.categoriaNome && campos.categoriaNome && norm(campos.categoriaNome) === norm(criterios.categoriaNome))
+      motivos.push("Mesma categoria");
 
     // Valor sozinho não caracteriza duplicidade.
     if (motivos.length < 2) return null;
+
+    // Se o valor é o mesmo mas o cliente/sócio/categoria é diferente, não é duplicidade (ex: 2 clientes pagando a mesma cota)
+    if (criterios.clienteId && campos.clienteId && String(campos.clienteId) !== String(criterios.clienteId)) return null;
+    if (criterios.socioId && campos.socioId && String(campos.socioId) !== String(criterios.socioId)) return null;
+    if (criterios.categoriaNome && campos.categoriaNome && norm(campos.categoriaNome) !== norm(criterios.categoriaNome)) return null;
 
     return {
       id: String(row.id),
@@ -111,7 +124,7 @@ export async function buscarPossiveisDuplicatas(
     (supabase as any)
       .from("movimentacoes")
       .select(
-        "id, descricao, fornecedor_nome, numero_doc, valor_total, valor_rateado, data_emissao, data_vencimento, data_pagamento, status, clientes_id, tipo_caixa",
+        "id, descricao, fornecedor_nome, numero_doc, valor_total, valor_rateado, data_emissao, data_vencimento, data_pagamento, status, clientes_id, socio_id, categoria_nome, tipo_caixa",
       )
       .or(
         `and(valor_total.gte.${min},valor_total.lte.${max}),and(valor_rateado.gte.${min},valor_rateado.lte.${max})`,
@@ -144,6 +157,8 @@ export async function buscarPossiveisDuplicatas(
       data: m.data_emissao || m.data_vencimento || m.data_pagamento,
       fornecedor: m.fornecedor_nome,
       clienteId: m.clientes_id,
+      socioId: m.socio_id,
+      categoriaNome: m.categoria_nome,
       descricao: m.descricao,
       status: m.status,
     });

@@ -134,6 +134,8 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
     () => categorias.find((categoria: any) => categoria.id === mov.categoria_id) ?? null,
     [categorias, mov.categoria_id],
   );
+  const grupoAtual = String(categoriaSelecionada?.grupo_categoria || mov.grupo_categoria || "").toUpperCase().trim();
+  const isDespesaInterna = grupoAtual.includes("DESPESAS EMPRESA") || grupoAtual.includes("DESPESAS PARTICULARES") || grupoAtual.includes("FOLHA DE PAGAMENTO") || grupoAtual.includes("IMPOSTOS");
 
   const bancoOptions = bancos.map((b) => ({
     id: b.banco,
@@ -173,7 +175,8 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         grupo_categoria: categoriaSelecionada?.grupo_categoria || null,
         data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
-        valor_rateado: numOrNull(mov.valor_rateado ?? mov.valor_total ?? mov.valor),
+        periodicidade: mov.periodicidade || null,
+        valor_rateado: isDespesaInterna ? null : numOrNull(mov.valor_rateado ?? mov.valor_total ?? mov.valor),
         valor_pago_real: numOrNull(mov.valor_pago_real ?? mov.valor_rateado ?? mov.valor_total ?? mov.valor),
         status: mov.status,
         forma_pagamento: mov.forma_pagamento,
@@ -269,10 +272,11 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
           </Section>
 
           <Section icon={<CalendarRange className="h-4 w-4" />} title="Datas" accent="#38bdf8">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div><label className={labelCls}>Emissão</label><input type="date" className={inputCls} value={mov.data_emissao || ""} onChange={(e) => setM("data_emissao", e.target.value)} /></div>
               <div><label className={labelCls}>Vencimento</label><input type="date" className={inputCls} value={mov.data_vencimento || ""} onChange={(e) => setM("data_vencimento", e.target.value)} /></div>
               <div><label className={labelCls}>Pagamento</label><input type="date" className={inputCls} value={mov.data_pagamento || ""} onChange={(e) => setM("data_pagamento", e.target.value)} /></div>
+              <div><label className={labelCls}>Periodicidade *</label><select className={inputCls} value={mov.periodicidade || "MENSAL"} onChange={(e) => setM("periodicidade", e.target.value)}><option value="MENSAL">Mensal</option><option value="AVULSO">Avulso</option><option value="ANUAL">Anual</option><option value="TRIMESTRAL">Trimestral</option><option value="SEMESTRAL">Semestral</option></select></div>
             </div>
           </Section>
 
