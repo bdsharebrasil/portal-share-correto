@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/button';
 
 interface SalaryPayment {
   id: string;
-  created_at: string;
+  created_at?: string;
+  criado_em?: string | null;
+  data_pagamento?: string | null;
   base_salary_holerite: number | null;
   benefit: string | null;
   horas_voo: string | null;
@@ -30,6 +32,36 @@ interface EmployeeBankStatementProps {
   employeeName: string;
 }
 
+const parsePaymentDate = (value: unknown): Date | null => {
+  if (!value) return null;
+  const raw = String(value).trim();
+  const brMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const normalized = brMatch
+    ? `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}T12:00:00`
+    : isoMatch
+      ? `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T12:00:00`
+      : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getPaymentDate = (payment: SalaryPayment): Date =>
+  parsePaymentDate(payment.data_pagamento) ||
+  parsePaymentDate(payment.criado_em) ||
+  parsePaymentDate(payment.created_at) ||
+  new Date(0);
+
+const formatPaymentDate = (payment: SalaryPayment): string =>
+  getPaymentDate(payment).getTime() === 0
+    ? "Data não informada"
+    : getPaymentDate(payment).toLocaleDateString("pt-BR");
+
+const paymentMonthKey = (payment: SalaryPayment): string => {
+  const date = getPaymentDate(payment);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
 const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeId, employeeName }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -39,7 +71,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('historico_pagamentos_funcionarios')
-        .select('id, criado_em, salario_holerite, beneficios, horas_voadas, adicionais, observacoes, url_comprovante, url_holerite, ferias, decimo_terceiro_parcela1, decimo_terceiro_parcela2')
+        .select('id, criado_em, data_pagamento, salario_holerite, beneficios, horas_voadas, adicionais, observacoes, url_comprovante, url_holerite, ferias, decimo_terceiro_parcela1, decimo_terceiro_parcela2')
         .eq('id_usuario', employeeId)
         .order('criado_em', { ascending: false });
 
@@ -58,8 +90,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
     const consolidated: { [key: string]: SalaryPayment } = {};
 
     allPayments.forEach((payment) => {
-      const paymentDate = new Date((payment as any).criado_em || payment.created_at);
-      const monthYear = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthYear = paymentMonthKey(payment);
 
       if (!consolidated[monthYear]) {
         consolidated[monthYear] = { ...payment };
@@ -99,7 +130,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
       }
     });
 
-    return Object.values(consolidated);
+    return Object.values(consolidated).sort((a, b) => getPaymentDate(b).getTime() - getPaymentDate(a).getTime());
   };
 
   // Filter payments
@@ -273,10 +304,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
                     return (
                       <tr key={payment.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {new Date((payment as any).criado_em || payment.created_at).toLocaleDateString('pt-BR', {
-                            month: 'long',
-                            year: 'numeric'
-                          })}
+                          <span className="font-medium">{formatPaymentDate(payment)}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
