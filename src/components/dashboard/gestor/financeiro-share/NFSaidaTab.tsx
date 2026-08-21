@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   Mail,
   FolderOpen,
+  ArrowLeft,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -258,6 +259,7 @@ export default function NFSaidaTab() {
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [uploading, setUploading] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
+  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
   const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
 
   // filtros e ordenação
@@ -417,11 +419,14 @@ export default function NFSaidaTab() {
     return sorted;
   }, [notas, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
 
-  const toggleClientGroup = (clientName: string) => {
-    setExpandedClients((current) => ({
-      ...current,
-      [clientName]: !current[clientName],
-    }));
+  const selecionarCliente = (clientName: string) => {
+    setClienteSelecionado(clientName);
+    setExpandedYears({});
+  };
+
+  const voltarParaClientes = () => {
+    setClienteSelecionado(null);
+    setExpandedYears({});
   };
 
   const toggleYearGroup = (clientName: string, year: string) => {
@@ -454,6 +459,11 @@ export default function NFSaidaTab() {
   }, [filteredNotas, clientes]);
 
   const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
+
+  const gruposVisiveis = useMemo(
+    () => Object.entries(groupedNotas).filter(([clienteNome]) => !clienteSelecionado || clienteNome === clienteSelecionado),
+    [groupedNotas, clienteSelecionado],
+  );
 
   const selectedDespesaOptionId = useMemo(() => {
     if (!form.categoria_despesa_id) return "";
@@ -1175,6 +1185,18 @@ export default function NFSaidaTab() {
         )}
       </div>
 
+      {clienteSelecionado && !loading && (
+        <div className="animate-in fade-in slide-in-from-right-3 duration-300 rounded-2xl border border-blue-300/15 bg-gradient-to-r from-blue-950/40 via-slate-950/60 to-slate-950/40 px-4 py-4 shadow-lg shadow-blue-950/10 sm:px-6">
+          <button type="button" onClick={voltarParaClientes} className="mb-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-300 transition hover:text-blue-200">
+            <ArrowLeft className="h-4 w-4" /> Voltar para cotistas
+          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400">Arquivo do cotista</p><h2 className="mt-1 text-2xl font-black text-slate-100">{clienteSelecionado}</h2><p className="mt-1 text-sm text-slate-400">Notas fiscais e recibos organizados por ano.</p></div>
+            <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-xs font-bold text-blue-200">{groupedNotas[clienteSelecionado] ? Object.values(groupedNotas[clienteSelecionado]).reduce((total, items) => total + items.length, 0) : 0} documentos</span>
+          </div>
+        </div>
+      )}
+
       {/* table agrupada */}
       {loading ? (
         <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
@@ -1183,7 +1205,7 @@ export default function NFSaidaTab() {
           {hasActiveFilters ? "Nenhuma nota fiscal encontrada para os filtros aplicados." : "Nenhuma nota fiscal cadastrada."}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className={`overflow-x-auto rounded-2xl transition-all duration-300 ${clienteSelecionado ? "animate-in fade-in slide-in-from-right-2" : "animate-in fade-in"}`} style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
@@ -1200,23 +1222,25 @@ export default function NFSaidaTab() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(groupedNotas).map(([clienteNome, notasPorAno]) => {
-                const isExpanded = expandedClients[clienteNome] ?? false;
+              {gruposVisiveis.map(([clienteNome, notasPorAno]) => {
+                const isExpanded = clienteSelecionado === clienteNome;
                 const totalCliente = Object.values(notasPorAno).reduce((total, items) => total + items.length, 0);
                 return (
                   <React.Fragment key={clienteNome}>
-                    <tr className="border-b border-blue-300/15 bg-blue-950/10">
-                      <td colSpan={10} className="px-3 py-3">
-                        <AnimatedFolder
-                          title={clienteNome}
-                          theme="blue"
-                          showPreviewCards={false}
-                          projects={[{ id: clienteNome, image: "", title: `${totalCliente} documentos` }]}
-                          onClick={() => toggleClientGroup(clienteNome)}
-                          className="min-h-[190px] w-full max-w-[280px] border-blue-300/20 bg-blue-950/20 p-3 shadow-lg shadow-blue-950/20"
-                        />
-                      </td>
-                    </tr>
+                    {!clienteSelecionado && (
+                      <tr className="border-b border-blue-300/15 bg-blue-950/10">
+                        <td colSpan={10} className="px-3 py-3">
+                          <AnimatedFolder
+                            title={clienteNome}
+                            theme="blue"
+                            showPreviewCards={false}
+                            projects={[{ id: clienteNome, image: "", title: `${totalCliente} documentos` }]}
+                            onClick={() => selecionarCliente(clienteNome)}
+                            className="min-h-[190px] w-full max-w-[280px] border-blue-300/20 bg-blue-950/20 p-3 shadow-lg shadow-blue-950/20"
+                          />
+                        </td>
+                      </tr>
+                    )}
 
                     {isExpanded && Object.entries(notasPorAno).sort(([a], [b]) => b.localeCompare(a)).map(([ano, notasDoCliente]) => {
                       const yearKey = `${clienteNome}|${ano}`;
