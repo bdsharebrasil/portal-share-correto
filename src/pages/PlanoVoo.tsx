@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plane, Shield, FileText, CloudRain, AlertTriangle, Download, Loader2, XCircle, AlertCircle, Info, Radio, CheckCircle, Clock, Fuel, MapPin, Save, Navigation, Route, CheckCircle2, ChevronRight, PanelLeftOpen } from 'lucide-react';
+import { Plane, Shield, FileText, CloudRain, AlertTriangle, Download, Loader2, XCircle, AlertCircle, Info, Radio, CheckCircle, Clock, Fuel, MapPin, Save, Navigation, Route, CheckCircle2, ChevronRight, ChevronUp, ChevronDown, PanelLeftOpen } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAerodromes } from '@/hooks/useAerodromes';
 import { useAeronaves } from '@/hooks/useAeronaves';
@@ -108,6 +108,10 @@ export default function PlanoVooPage() {
   const { routes: preferredRoutes, loading: loadingRoutes, fetchRoutes } = usePreferredRoutes();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const toggleSidebar = useCallback(() => setIsSidebarOpen((value) => !value), []);
+  // Bottom-sheet "expandido" só importa em telas pequenas (empilhadas); em
+  // telas lg+ o sidebar já ocupa a altura total e este estado é ignorado.
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const toggleSheetExpanded = useCallback(() => setSheetExpanded((value) => !value), []);
   const { solarData: originSolar } = useSolarData(formData.origin || null);
   const { solarData: destSolar } = useSolarData(formData.destination || null);
   const flightIntelligence = useFlightIntelligence(
@@ -422,47 +426,73 @@ export default function PlanoVooPage() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100dvh-4rem)] min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/50 shadow-xl lg:h-[calc(100vh-4rem)] lg:flex-row">
-        {/* Sidebar */}
-        <div className={isSidebarOpen ? 'h-[min(58dvh,38rem)] w-full shrink-0 lg:h-full lg:w-[22rem]' : 'hidden h-0 w-0 shrink-0 lg:block'}>
+      <div className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden border-0 bg-background/50 shadow-none lg:h-[calc(100vh-4rem)] lg:flex-row lg:rounded-2xl lg:border lg:border-border/60 lg:shadow-xl">
+        {/* Sidebar / bottom sheet */}
+        <div
+          className={
+            isSidebarOpen
+              ? `flex w-full shrink-0 flex-col border-b border-border/70 lg:h-full lg:w-[22rem] lg:border-b-0 ${
+                  sheetExpanded ? 'h-[min(88dvh,48rem)]' : 'h-[min(52dvh,34rem)]'
+                }`
+              : 'hidden h-0 w-0 shrink-0 lg:block'
+          }
+        >
           {isSidebarOpen && (
-            <FlightPlanSidebar
-              aerodromes={aerodromes}
-              aeronaves={aeronaves}
-              formData={formData}
-              onFormChange={handleFormChange}
-              calcs={legCalcs}
-              preferredRoutes={preferredRoutes}
-              loadingRoutes={loadingRoutes}
-              onSavePlan={handleSavePlan}
-              onLoadPlan={handleLoadPlan}
-              onCalculate={handleCalculate}
-              isCalculating={isValidating}
-              crewMembers={crewMembers}
-              onCollapse={toggleSidebar}
-              scheduleMatches={scheduleMatches}
-              scheduleLoading={scheduleLoading}
-              onFlightNumberChange={(value) => {
-                setScheduleSearch(value);
-                setFormData((current) => ({ ...current, flightNumber: value, scheduleId: '' }));
-              }}
-              onSelectSchedule={selectSchedule}
-              altitudeSuggestionFt={flightIntelligence.suggestedAltitudeFt}
-              altitudeSuggestionLabel={flightIntelligence.suggestedAltitudeLabel}
-              altitudeSource={flightIntelligence.altitudeSource}
-              altitudeLoading={flightIntelligence.loading}
-              altitudeError={flightIntelligence.altitudeError}
-            />
+            <>
+              {/* Alça de arrastar / expandir — só em telas pequenas (empilhadas) */}
+              <button
+                type="button"
+                onClick={toggleSheetExpanded}
+                className="flex min-h-[2rem] shrink-0 touch-manipulation flex-col items-center justify-center gap-1 bg-card/95 py-1.5 text-muted-foreground active:bg-muted lg:hidden"
+                aria-label={sheetExpanded ? 'Recolher plano de voo' : 'Expandir plano de voo'}
+              >
+                <span className="h-1 w-9 rounded-full bg-border" />
+                <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
+                  {sheetExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+                  {sheetExpanded ? 'Recolher' : 'Expandir'}
+                </span>
+              </button>
+              <div className="min-h-0 flex-1">
+                <FlightPlanSidebar
+                  aerodromes={aerodromes}
+                  aeronaves={aeronaves}
+                  formData={formData}
+                  onFormChange={handleFormChange}
+                  calcs={legCalcs}
+                  preferredRoutes={preferredRoutes}
+                  loadingRoutes={loadingRoutes}
+                  onSavePlan={handleSavePlan}
+                  onLoadPlan={handleLoadPlan}
+                  onCalculate={handleCalculate}
+                  isCalculating={isValidating}
+                  crewMembers={crewMembers}
+                  onCollapse={toggleSidebar}
+                  scheduleMatches={scheduleMatches}
+                  scheduleLoading={scheduleLoading}
+                  onFlightNumberChange={(value) => {
+                    setScheduleSearch(value);
+                    setFormData((current) => ({ ...current, flightNumber: value, scheduleId: '' }));
+                  }}
+                  onSelectSchedule={selectSchedule}
+                  altitudeSuggestionFt={flightIntelligence.suggestedAltitudeFt}
+                  altitudeSuggestionLabel={flightIntelligence.suggestedAltitudeLabel}
+                  altitudeSource={flightIntelligence.altitudeSource}
+                  altitudeLoading={flightIntelligence.loading}
+                  altitudeError={flightIntelligence.altitudeError}
+                />
+              </div>
+            </>
           )}
         </div>
 
         {/* Map */}
-          <div className="relative min-h-[42dvh] min-w-0 flex-1 lg:min-h-0">
+        <div className="relative min-h-0 min-w-0 flex-1">
           {!isSidebarOpen && (
             <button
               type="button"
               onClick={toggleSidebar}
-              className="absolute top-4 left-4 z-[1200] flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card/95 backdrop-blur-md shadow-lg text-xs font-bold text-foreground hover:bg-muted"
+              className="absolute left-3 z-[1200] flex min-h-[2.75rem] items-center gap-2 rounded-full border border-border bg-card/95 px-3.5 py-2.5 text-xs font-bold text-foreground shadow-lg backdrop-blur-md touch-manipulation hover:bg-muted active:scale-[0.98]"
+              style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}
               title="Reabrir plano de voo"
             >
               <PanelLeftOpen className="w-4 h-4 text-primary" />
@@ -486,31 +516,32 @@ export default function PlanoVooPage() {
 
       {/* Briefing Dialog */}
       <Dialog open={showBriefing} onOpenChange={setShowBriefing}>
-        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto rounded-2xl p-4 sm:max-h-[85vh] sm:w-auto sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plane className="w-5 h-5 text-primary" />
-              Briefing - {formData.origin} → {formData.destination}
+        <DialogContent className="flex max-h-[100dvh] w-screen max-w-none flex-col overflow-hidden rounded-none p-0 sm:max-h-[85vh] sm:w-[calc(100vw-1rem)] sm:max-w-4xl sm:rounded-2xl">
+          <DialogHeader className="shrink-0 border-b border-border/60 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] sm:border-0 sm:px-6 sm:pt-6">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Plane className="w-5 h-5 shrink-0 text-primary" />
+              <span className="truncate">Briefing - {formData.origin} → {formData.destination}</span>
             </DialogTitle>
-            <DialogDescription>Resumo completo do plano de voo</DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">Resumo completo do plano de voo</DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="summary" className="mt-4">
-            <TabsList className="w-full justify-start overflow-x-auto">
-              <TabsTrigger value="summary"><Route className="w-4 h-4 mr-1" /> Resumo</TabsTrigger>
-              <TabsTrigger value="notam"><Shield className="w-4 h-4 mr-1" /> NOTAMs</TabsTrigger>
-              <TabsTrigger value="weather"><CloudRain className="w-4 h-4 mr-1" /> Meteo</TabsTrigger>
-              <TabsTrigger value="charts"><FileText className="w-4 h-4 mr-1" /> Cartas</TabsTrigger>
-              <TabsTrigger value="rotaer"><Radio className="w-4 h-4 mr-1" /> ROTAER</TabsTrigger>
-              <TabsTrigger value="saved"><FileText className="w-4 h-4 mr-1" /> Salvos ({flightPlans.length})</TabsTrigger>
+          <Tabs defaultValue="summary" className="flex min-h-0 flex-1 flex-col">
+            <TabsList className="scrollbar-thin scrollbar-thumb-muted-foreground/20 flex w-full shrink-0 flex-nowrap justify-start gap-1 overflow-x-auto rounded-none border-b border-border/40 bg-transparent px-2 py-1 sm:mx-0">
+              <TabsTrigger value="summary" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><Route className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Resumo</span></TabsTrigger>
+              <TabsTrigger value="notam" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><Shield className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">NOTAMs</span></TabsTrigger>
+              <TabsTrigger value="weather" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><CloudRain className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Meteo</span></TabsTrigger>
+              <TabsTrigger value="charts" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><FileText className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Cartas</span></TabsTrigger>
+              <TabsTrigger value="rotaer" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><Radio className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">ROTAER</span></TabsTrigger>
+              <TabsTrigger value="saved" className="shrink-0 gap-1.5 px-3 py-2.5 text-xs"><FileText className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Salvos</span> ({flightPlans.length})</TabsTrigger>
             </TabsList>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
             {/* Summary */}
-            <TabsContent value="summary" className="space-y-4">
+            <TabsContent value="summary" className="mt-0 space-y-4">
               {calculations ? (
                 <>
                   {/* Status */}
-                  <Card className="p-4">
+                  <Card className="p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold flex items-center gap-2"><Route className="w-4 h-4 text-primary" /> Status</h3>
                       {validation && (
@@ -527,14 +558,14 @@ export default function PlanoVooPage() {
                         </AlertDescription>
                       </Alert>
                     )}
-                    <div className="flex items-center justify-between py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-y-3 py-4">
                       <div className="text-center">
                         <MapPin className="w-5 h-5 text-green-400 mx-auto mb-1" />
                         <p className="text-xl font-bold">{formData.origin}</p>
                         <p className="text-xs text-muted-foreground">{originBriefingName}</p>
                       </div>
-                      <div className="flex-1 mx-4 border-t border-dashed border-primary/50 relative">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3">
+                      <div className="mx-2 min-w-[4rem] flex-1 border-t border-dashed border-primary/50 relative sm:mx-4">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 whitespace-nowrap">
                           <span className="text-primary font-bold">{calculations.distance} NM</span>
                         </div>
                       </div>
@@ -547,7 +578,7 @@ export default function PlanoVooPage() {
                   </Card>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Card className="p-4">
+                    <Card className="p-3 sm:p-4">
                       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Navegação</h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span className="text-muted-foreground">ETE:</span><span className="font-mono">{calculations.ete}</span></div>
@@ -555,7 +586,7 @@ export default function PlanoVooPage() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Alt. Sugerida:</span><span className="font-mono font-bold text-primary">{calculations.suggestedAlt}</span></div>
                       </div>
                     </Card>
-                    <Card className="p-4">
+                    <Card className="p-3 sm:p-4">
                       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Fuel className="w-4 h-4 text-primary" /> Combustível</h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between"><span className="text-muted-foreground">Consumo:</span><span className="font-mono">{calculations.fuelRequired} L</span></div>
@@ -565,9 +596,9 @@ export default function PlanoVooPage() {
                     </Card>
                   </div>
 
-                  <div className="flex gap-3">
-                    <Button onClick={handleSavePlan}><Save className="w-4 h-4 mr-2" /> Salvar</Button>
-                    <Button variant="outline" disabled><Download className="w-4 h-4 mr-2" /> PDF</Button>
+                  <div className="flex flex-wrap gap-3">
+                    <Button className="h-11 flex-1 sm:h-10 sm:flex-none" onClick={handleSavePlan}><Save className="w-4 h-4 mr-2" /> Salvar</Button>
+                    <Button className="h-11 flex-1 sm:h-10 sm:flex-none" variant="outline" disabled><Download className="w-4 h-4 mr-2" /> PDF</Button>
                   </div>
                 </>
               ) : (
@@ -579,9 +610,9 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* NOTAMs */}
-            <TabsContent value="notam" className="space-y-4">
+            <TabsContent value="notam" className="mt-0 space-y-4">
               {Object.keys(validation?.notams ?? autoNotams).length > 0 ? Object.entries(validation?.notams ?? autoNotams).map(([icao, notams]) => (
-                <Card key={icao} className="p-4">
+                <Card key={icao} className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2"><Shield className="w-5 h-5 text-primary" /><h3 className="font-semibold">{icao}</h3></div>
                     <Badge variant="outline">{notams.length} NOTAM{notams.length !== 1 ? 'S' : ''}</Badge>
@@ -609,11 +640,11 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* Weather */}
-            <TabsContent value="weather" className="space-y-4">
+            <TabsContent value="weather" className="mt-0 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[{ w: originWeather, title: 'Origem', icao: formData.origin },
                   { w: destWeather, title: 'Destino', icao: formData.destination }].map(({ w, title, icao }) => (
-                  <Card key={title} className="p-4">
+                  <Card key={title} className="p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <CloudRain className="w-5 h-5 text-primary" />
                       <h3 className="font-semibold">{icao || title}</h3>
@@ -644,7 +675,7 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* Charts */}
-            <TabsContent value="charts" className="space-y-4">
+            <TabsContent value="charts" className="mt-0 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[{ charts: originCharts, label: formData.origin },
                   { charts: destCharts, label: formData.destination }].map(({ charts, label }) => (
@@ -654,12 +685,12 @@ export default function PlanoVooPage() {
                       <div className="space-y-2">
                         {charts.map((c, i) => (
                           <div key={i} className="p-3 rounded-lg border bg-muted/30">
-                            <div className="flex items-start justify-between mb-1">
+                            <div className="flex items-start justify-between mb-1 gap-2">
                               <h4 className="text-sm font-semibold">{c.title}</h4>
-                              <Badge variant="outline" className="text-xs">{c.type}</Badge>
+                              <Badge variant="outline" className="shrink-0 text-xs">{c.type}</Badge>
                             </div>
                             {c.description && <p className="text-xs text-muted-foreground mb-1">{c.description}</p>}
-                            {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary text-xs font-semibold"><Download className="w-3 h-3" /> Download</a> : <span className="text-xs text-muted-foreground">Sem link</span>}
+                            {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[2.25rem] items-center gap-1 text-primary text-xs font-semibold"><Download className="w-3 h-3" /> Download</a> : <span className="text-xs text-muted-foreground">Sem link</span>}
                           </div>
                         ))}
                       </div>
@@ -672,7 +703,7 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* ROTAER */}
-            <TabsContent value="rotaer" className="space-y-4">
+            <TabsContent value="rotaer" className="mt-0 space-y-4">
               <Alert className="border-sky-500/40 bg-sky-500/10">
                 <Info className="h-4 w-4 text-sky-300" />
                 <AlertDescription className="text-xs">Esta ficha reúne os dados que a AISWEB/DECEA publicou para cada aeródromo. A ausência de METAR ou TAF não significa ausência de ROTAER.</AlertDescription>
@@ -684,14 +715,14 @@ export default function PlanoVooPage() {
                     const additionalFields = Object.entries(rawData).filter(([key, value]) => !['id', 'type', 'AeroCode', 'IcaoCode', 'icao', 'name', 'nome', 'city', 'cidade', 'uf', 'state', 'lat', 'lng', 'latitude', 'longitude'].includes(key) && value != null && value !== '');
                     return (
                       <Card key={icao} className="overflow-hidden p-0">
-                        <div className="border-b border-border/60 bg-primary/5 p-4">
+                        <div className="border-b border-border/60 bg-primary/5 p-3 sm:p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div><h3 className="flex items-center gap-2 font-semibold"><Radio className="h-4 w-4 text-primary" /> {icao}</h3><p className="mt-1 text-sm text-muted-foreground">{r?.name || 'Aeródromo identificado, nome não retornado'}</p></div>
                             <Badge variant="outline" className="shrink-0">{r ? 'ROTAER disponível' : 'Sem resposta'}</Badge>
                           </div>
                         </div>
                         {r ? (
-                          <div className="space-y-4 p-4 text-sm">
+                          <div className="space-y-4 p-3 text-sm sm:p-4">
                             <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3">
                               <div><p className="text-xs text-muted-foreground">Cidade / UF</p><p className="font-medium">{r.city || '—'}{r.state ? ` / ${r.state}` : ''}</p></div>
                               <div><p className="text-xs text-muted-foreground">Elevação</p><p className="font-medium">{r.elevation != null ? `${r.elevation} ft` : 'Não informada'}</p></div>
@@ -702,7 +733,7 @@ export default function PlanoVooPage() {
                             {r.runways?.length > 0 && <div><h4 className="mb-2 flex items-center gap-1 font-semibold"><Navigation className="h-3 w-3 text-primary" /> Pistas</h4><div className="space-y-1">{r.runways.map((rwy: any, i: number) => <div key={i} className="rounded border bg-muted/20 p-2 text-xs"><span className="font-mono font-bold text-primary">{rwy.designator ?? rwy.pista ?? rwy.ident ?? rwy.name ?? 'Pista'}</span> · {rwy.length ?? rwy.comprimento ?? '—'}m × {rwy.width ?? rwy.largura ?? '—'}m · {rwy.surface ?? rwy.pavimento ?? rwy.tipo ?? 'superfície não informada'}</div>)}</div></div>}
                             {r.frequencies?.length > 0 && <div><h4 className="mb-2 font-semibold">Frequências e telefones</h4><div className="space-y-1">{r.frequencies.map((f: any, i: number) => <div key={i} className="rounded border bg-muted/20 p-2 text-xs"><span className="text-muted-foreground">{f.type ?? f.tipo ?? f.servico ?? 'Serviço'}:</span> {f.frequency ?? f.frequencia ?? f.valor ?? displayAiswebValue(f)}</div>)}</div></div>}
                             {r.services && <div className="flex flex-wrap gap-1">{Object.entries(r.services).filter(([, value]) => Boolean(value)).map(([key]) => <Badge key={key} variant="outline" className="bg-green-500/10 text-xs">{aiswebLabel(key)}</Badge>)}</div>}
-                            {r.restrictions?.length > 0 && <div><h4 className="mb-2 font-semibold text-red-400">Restrições e observações</h4><div className="space-y-1">{r.restrictions.slice(0, 5).map((rest: any, i: number) => <p key={i} className="border-l-2 border-red-500 pl-2 text-xs">{displayAiswebValue(rest)}</p>)}</div>{r.restrictions.length > 5 && <button onClick={() => setRestrictionsModal({ icao: r.icao || icao, restrictions: r.restrictions.map((rest: any) => displayAiswebValue(rest)) })} className="mt-2 flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><ChevronRight className="h-3 w-3" /> Ver todas as {r.restrictions.length} observações</button>}</div>}
+                            {r.restrictions?.length > 0 && <div><h4 className="mb-2 font-semibold text-red-400">Restrições e observações</h4><div className="space-y-1">{r.restrictions.slice(0, 5).map((rest: any, i: number) => <p key={i} className="border-l-2 border-red-500 pl-2 text-xs">{displayAiswebValue(rest)}</p>)}</div>{r.restrictions.length > 5 && <button onClick={() => setRestrictionsModal({ icao: r.icao || icao, restrictions: r.restrictions.map((rest: any) => displayAiswebValue(rest)) })} className="mt-2 flex min-h-[2.25rem] items-center gap-1 text-xs text-red-400 hover:text-red-300"><ChevronRight className="h-3 w-3" /> Ver todas as {r.restrictions.length} observações</button>}</div>}
                             {additionalFields.length > 0 && <details className="rounded-lg border bg-muted/10 p-3"><summary className="cursor-pointer text-xs font-semibold">Ver dados adicionais retornados pela AISWEB</summary><div className="mt-3 space-y-2">{additionalFields.map(([key, value]) => <div key={key} className="border-b border-border/40 pb-2 text-xs last:border-0"><span className="text-muted-foreground">{aiswebLabel(key)}:</span> <span className="break-words">{displayAiswebValue(value)}</span></div>)}</div></details>}
                           </div>
                         ) : <div className="p-5 text-sm text-muted-foreground">A AISWEB não retornou ficha ROTAER para {icao}. Verifique o ICAO; a meteorologia, quando inexistente, é informada separadamente na aba Meteo.</div>}
@@ -713,14 +744,14 @@ export default function PlanoVooPage() {
             </TabsContent>
 
             {/* Saved Plans */}
-            <TabsContent value="saved" className="space-y-4">
+            <TabsContent value="saved" className="mt-0 space-y-4">
               {flightPlans.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">Nenhum plano salvo</div>
               ) : flightPlans.map(plan => (
-                <Card key={plan.id} className="p-4">
-                  <div className="flex items-center justify-between">
+                <Card key={plan.id} className="p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <Plane className="w-4 h-4 text-primary" />
                         <span className="font-semibold">{plan.departure_airport} → {plan.arrival_airport}</span>
                         <Badge variant="outline" className="text-xs">{new Date(plan.flight_date).toLocaleDateString('pt-BR')}</Badge>
@@ -731,7 +762,7 @@ export default function PlanoVooPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => {
+                      <Button variant="ghost" size="sm" className="h-10 flex-1 text-primary sm:h-9 sm:flex-none" onClick={() => {
                         handleFormChange({
                           origin: plan.departure_airport, destination: plan.arrival_airport,
                           alternate: plan.alternate_airport || '', aircraftId: plan.aeronave_id || '',
@@ -741,22 +772,23 @@ export default function PlanoVooPage() {
                         if (plan.validation) setValidation(plan.validation);
                         setShowBriefing(false);
                         toast.success('Plano carregado');
-                      }} className="text-primary">Editar</Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteFlightPlan(plan.id)} className="text-destructive">Excluir</Button>
+                      }}>Editar</Button>
+                      <Button variant="ghost" size="sm" className="h-10 flex-1 text-destructive sm:h-9 sm:flex-none" onClick={() => deleteFlightPlan(plan.id)}>Excluir</Button>
                     </div>
                   </div>
                 </Card>
               ))}
             </TabsContent>
+            </div>
           </Tabs>
         </DialogContent>
       </Dialog>
 
       {/* Restrictions Modal */}
       <Dialog open={!!restrictionsModal} onOpenChange={(open) => !open && setRestrictionsModal(null)}>
-        <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+        <DialogContent className="max-h-[80dvh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto sm:w-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-destructive" /> Restrições - {restrictionsModal?.icao}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg"><AlertTriangle className="w-5 h-5 shrink-0 text-destructive" /> Restrições - {restrictionsModal?.icao}</DialogTitle>
             <DialogDescription>Restrições operacionais do aeródromo</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 mt-4">
