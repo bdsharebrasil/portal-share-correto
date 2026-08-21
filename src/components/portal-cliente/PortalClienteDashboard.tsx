@@ -521,7 +521,7 @@ const alerts = useMemo(() => {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] bg-bg-base text-ink">
+    <div className="flex min-h-[calc(100vh-8rem)] bg-bg-base text-ink rounded-xl border border-border/70 overflow-hidden">
       <div className="flex-1 flex flex-col">
         <Topbar activeMonths={activeMonths} onToggleMonth={toggleMonth} onClearMonths={() => setActiveMonths([])} />
 
@@ -592,13 +592,13 @@ function AircraftSelectScreen({
   loading: boolean;
 }) {
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center p-6" style={{ background: "linear-gradient(180deg, #070c18 0%, #0b1120 100%)" }}>
+    <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center p-6 bg-gradient-subtle">
       <div className="flex items-center gap-3 mb-10">
         <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b7dd8, #1e3a5f)" }}>
           <Plane className="h-6 w-6 text-white" style={{ transform: "rotate(-25deg)" }} />
         </div>
         <div>
-          <div className="font-display font-bold text-white text-lg leading-tight tracking-wide">Share Brasil</div>
+          <div className="font-display font-bold text-ink-bright text-lg leading-tight tracking-wide">Share Brasil</div>
           <div className="font-display font-bold text-[11px] leading-tight tracking-widest text-ink-muted">GESTÃO DE SOCIEDADES</div>
         </div>
       </div>
@@ -714,17 +714,17 @@ function PageHeader({
             <ChevronLeft className="h-3 w-3" />
             Aeronaves
           </button>
-      
         </div>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink-bright">Visão financeira</h1>
+        <p className="mt-1 text-xs text-ink-muted">Acompanhamento da sociedade e de {cotistasCount} cotista{cotistasCount === 1 ? "" : "s"}.</p>
       </div>
 
-      <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-border bg-bg-card">
+      <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-border bg-bg-card shadow-soft">
         <Layers className="h-3.5 w-3.5 text-primary-light" />
         <select
           value={activeAircraftId ?? ""}
           onChange={(e) => onSelectAircraft(e.target.value)}
           className="appearance-none bg-transparent text-xs font-semibold text-ink outline-none cursor-pointer pr-6"
-          style={{ background: "#0f1628" }}
         >
           {aeronaves.map((a) => (
             <option key={a.id} value={a.id}>
@@ -765,7 +765,7 @@ function KpiRow({
         <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="rgba(239,68,68,0.15)"
-          iconColor="#f87171"
+          iconColor="#dc2626"
           badge={{ text: "Saídas", tone: "danger" }}
           value={totalDespesas}
           title="Despesas Totais"
@@ -776,7 +776,7 @@ function KpiRow({
         <KpiCard
           icon={<Scale className="h-4 w-4" />}
           iconBg="rgba(59,125,216,0.15)"
-          iconColor="#5a9aee"
+          iconColor="#2563eb"
           badge={{ text: "Fixo", tone: "info" }}
           value={custosFixos}
           title="Custos Fixos"
@@ -787,7 +787,7 @@ function KpiRow({
         <KpiCard
           icon={<Zap className="h-4 w-4" />}
           iconBg="rgba(245,158,11,0.15)"
-          iconColor="#fbbf24"
+          iconColor="#d97706"
           badge={{ text: "Variável", tone: "warning" }}
           value={custosVariaveis}
           title="Custos Variáveis"
@@ -814,10 +814,10 @@ function KpiCard({
   progressLabel: string;
 }) {
   const badgeColors: Record<string, { bg: string; color: string }> = {
-    danger:  { bg: "rgba(239,68,68,0.12)",   color: "#f87171" },
-    info:    { bg: "rgba(59,130,246,0.12)",   color: "#60a5fa" },
-    warning: { bg: "rgba(245,158,11,0.12)",   color: "#fbbf24" },
-    success: { bg: "rgba(34,197,94,0.12)",    color: "#4ade80" },
+    danger:  { bg: "rgba(239,68,68,0.12)",   color: "#dc2626" },
+    info:    { bg: "rgba(59,130,246,0.12)",   color: "#2563eb" },
+    warning: { bg: "rgba(245,158,11,0.12)",   color: "#b45309" },
+    success: { bg: "rgba(34,197,94,0.12)",    color: "#15803d" },
   };
   const bc = badgeColors[badge.tone];
 
@@ -903,9 +903,9 @@ function AlertsCard({
             <div className="flex flex-col gap-1.5">
               {alerts.map((a, i) => {
                 const styles: Record<string, { bg: string; border: string; color: string; icon: React.ReactNode }> = {
-                  danger:  { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.25)",   color: "#f87171", icon: <X className="h-3.5 w-3.5" /> },
-                  warning: { bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.25)",  color: "#fbbf24", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-                  info:    { bg: "rgba(59,130,246,0.08)",   border: "rgba(59,130,246,0.25)",   color: "#60a5fa", icon: <Activity className="h-3.5 w-3.5" /> },
+                  danger:  { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.25)",   color: "#dc2626", icon: <X className="h-3.5 w-3.5" /> },
+                  warning: { bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.25)",  color: "#b45309", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+                  info:    { bg: "rgba(59,130,246,0.08)",   border: "rgba(59,130,246,0.25)",   color: "#2563eb", icon: <Activity className="h-3.5 w-3.5" /> },
                 };
                 const s = styles[a.type];
                 return (
@@ -967,7 +967,7 @@ function TransactionsSection({
         >
           Reembolsos Pendentes — Share
           {reembolsosCount > 0 && (
-            <span className="portal-tab-badge" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
+            <span className="portal-tab-badge" style={{ background: "rgba(245,158,11,0.15)", color: "#b45309" }}>
               {reembolsosCount}
             </span>
           )}
