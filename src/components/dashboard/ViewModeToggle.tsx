@@ -8,6 +8,7 @@ const modes: { id: ViewMode; label: string; path: string; separator?: boolean; a
   { id: 'operacoes', label: 'Operações', path: '/operacoes', separator: true },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
   { id: 'gestor', label: 'Gestor', path: '/gestor', allowedRoles: ['admin', 'financeiro_master', 'gestor_master'] },
+  { id: 'contabilidade', label: 'Contabilidade', path: '/contabilidade', allowedRoles: ['contabilidade'] },
 ];
 
 export function ViewModeToggle() {
@@ -21,7 +22,9 @@ export function ViewModeToggle() {
   };
 
   // Filter modes based on user roles
+  const isAccountingOnly = userRoles.includes('contabilidade') && !userRoles.some((role) => ['admin', 'gestor_master', 'financeiro_master', 'financeiro', 'rh', 'adm'].includes(role));
   const availableModes = modes.filter((mode) => {
+    if (isAccountingOnly) return mode.id === 'contabilidade';
     if (!mode.allowedRoles) return true; // Show mode if no role restriction
     return mode.allowedRoles.some((role) => (userRoles as string[]).includes(role));
   });

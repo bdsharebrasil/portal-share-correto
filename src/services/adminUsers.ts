@@ -9,7 +9,7 @@ import type { TablesInsert } from "@/integrations/supabase/types";
 
 export { APP_ROLE_VALUES, ROLE_LABELS } from "@/lib/roles";
 export type { AppRole } from "@/lib/roles";
-export type UserCategory = "colaboradores" | "fornecedores" | "clientes";
+export type UserCategory = "colaboradores" | "fornecedores" | "clientes" | "contabilidade";
 
 export type ManagedUser = {
   id: string;
@@ -26,6 +26,7 @@ export const USER_CATEGORY_VALUES = [
   "colaboradores",
   "fornecedores",
   "clientes",
+  "contabilidade",
 ] as const satisfies readonly UserCategory[];
 
 type SupabaseRoleRow = {
@@ -41,6 +42,8 @@ type SupabaseProfileRow = {
   tipo?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  criado_em?: string | null;
+  atualizado_em?: string | null;
 };
 
 export const ROLE_OPTIONS = APP_ROLE_VALUES.map((value) => ({
@@ -52,6 +55,7 @@ export const USER_CATEGORY_LABELS: Record<UserCategory, string> = {
   colaboradores: "Colaboradores",
   fornecedores: "Fornecedores",
   clientes: "Clientes",
+  contabilidade: "Contabilidade",
 };
 
 export const USER_CATEGORY_OPTIONS = USER_CATEGORY_VALUES.map((value) => ({
@@ -69,6 +73,7 @@ const createProfilePayload = (
   email,
   full_name: fullName,
   display_name: fullName,
+  tipo,
   updated_at: new Date().toISOString(),
 } as any);
 

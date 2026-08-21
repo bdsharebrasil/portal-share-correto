@@ -14,7 +14,8 @@ import {
   Menu,
   Wallet,
   CheckSquare,
-  GraduationCap
+  GraduationCap,
+  Landmark
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -112,12 +113,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   }, [onClose]);
 
   const filteredMenuGroups = useMemo(() => {
+    const isAccountingOnly = userRoles.includes("contabilidade") && !userRoles.some((role) => ["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"].includes(role));
+    if (isAccountingOnly) {
+      return [
+        {
+          title: "Contabilidade",
+          items: [
+            { title: "Painel contábil", icon: Landmark, href: "/contabilidade", isMain: true },
+          ],
+        },
+        {
+          title: "Ajuda",
+          items: baseMenuGroups.find((group) => group.title === "Ajuda")?.items || [],
+        },
+      ];
+    }
+
     const groups = baseMenuGroups.map((g) => ({
       ...g,
       items: g.items.map((it) => (it.title === "Início" ? { ...it, href: dashboardRoute } : it)),
     }));
     return groups.filter((group) => group.items.length > 0);
-  }, [dashboardRoute]);
+  }, [dashboardRoute, userRoles]);
 
   const toggleExpanded = (title: string) => setExpandedItems((prev) => (prev.includes(title) ? prev.filter((p) => p !== title) : [...prev, title]));
 

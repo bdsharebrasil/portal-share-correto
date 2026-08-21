@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type ViewMode = 'operacoes' | 'financeiro' | 'gestor' | 'portal-cliente';
+export type ViewMode = 'operacoes' | 'financeiro' | 'gestor' | 'portal-cliente' | 'contabilidade';
 
 interface ViewModeContextType {
   viewMode: ViewMode;

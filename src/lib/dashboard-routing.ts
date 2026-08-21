@@ -1,6 +1,6 @@
 import type { AppRole } from "./roles";
 
-export type DashboardRoute = "/operacoes" | "/financeiro" | "/gestor";
+export type DashboardRoute = "/operacoes" | "/financeiro" | "/gestor" | "/contabilidade";
 
 /**
  * Mapeia roles para o dashboard e view mode apropriados
@@ -12,7 +12,7 @@ export type DashboardRoute = "/operacoes" | "/financeiro" | "/gestor";
  */
 export function getDashboardRouteFromRoles(roles: string[]): {
   route: DashboardRoute;
-  viewMode: "operacoes" | "financeiro" | "gestor";
+  viewMode: "operacoes" | "financeiro" | "gestor" | "contabilidade";
 } {
   // Roles para dashboard de operações
   const operacoesRoles = [
@@ -28,7 +28,13 @@ export function getDashboardRouteFromRoles(roles: string[]): {
   // Roles para dashboard financeiro
   const financeiroRoles = ["financeiro", "rh", "adm"];
 
-  // Prioridade: verifica gestormaster, depois financeiro_master, depois resto
+  const isContabilidade = roles.includes("contabilidade");
+
+  if (isContabilidade) {
+    return { route: "/contabilidade", viewMode: "contabilidade" };
+  }
+
+  // Prioridade: verifica gestor master, depois financeiro master, depois operações
   if (roles.some((role) => gestorRoles.includes(role))) {
     return { route: "/gestor", viewMode: "gestor" };
   }
