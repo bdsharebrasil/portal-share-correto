@@ -37,16 +37,25 @@ export default function ClienteSituacao({
   movimentacoes,
   rateios = [],
   onRefresh,
+  mesSelecionado,
+  onMesSelecionadoChange,
 }: {
   clientes: any[];
   movimentacoes: any[];
   rateios?: any[];
   onRefresh?: () => Promise<void> | void;
+  mesSelecionado?: string;
+  onMesSelecionadoChange?: (mes: string) => void;
 }) {
   const [clienteId, setClienteId] = useState<string>(() => {
     try { return sessionStorage.getItem("financeiro-share:caixa-cliente") || ""; } catch { return ""; }
   });
-  const [mes, setMes] = useState("");
+  const [mesInterno, setMesInterno] = useState("");
+  const mes = mesSelecionado ?? mesInterno;
+  const setMes = (valor: string) => {
+    if (onMesSelecionadoChange) onMesSelecionadoChange(valor);
+    else setMesInterno(valor);
+  };
   const [busca, setBusca] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");

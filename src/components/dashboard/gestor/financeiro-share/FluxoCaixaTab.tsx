@@ -276,7 +276,7 @@ export default function FluxoCaixaTab() {
       )}
 
       {aba === "contas-pagar" && <ContasPagarFluxoTab />}
-      {aba === "clientes" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="cliente" items={data.movimentacoes.filter((m: any) => !isShare(m) && !isDga(m))} onOpen={setEditMovId} onDelete={onDelete} /><ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} rateios={data.rateios} onRefresh={load} /></div>}
+      {aba === "clientes" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="cliente" items={data.movimentacoes.filter((m: any) => !isShare(m) && !isDga(m))} onOpen={setEditMovId} onDelete={onDelete} /><ClienteSituacao clientes={data.clientes} movimentacoes={data.movimentacoes} rateios={data.rateios} onRefresh={load} mesSelecionado={mes} onMesSelecionadoChange={setMes} /></div>}
       {aba === "dga" && <div className="space-y-4"><DuplicidadeAlertasPanel fluxo="dga" items={data.movimentacoes.filter((m: any) => isDga(m))} onOpen={setEditMovId} onDelete={onDelete} /><DgaSituacao movimentacoes={data.movimentacoes} rateios={data.rateios} socios={data.socios} onChanged={load} /></div>}
 
       {/* ABA CAIXA / REEMBOLSÁVEIS */}
