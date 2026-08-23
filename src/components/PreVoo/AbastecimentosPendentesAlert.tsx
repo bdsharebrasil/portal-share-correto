@@ -22,7 +22,7 @@ export function AbastecimentosPendentesAlert({
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
   const [modoSelecionado, setModoSelecionado] = useState<ModoSolicitacao | null>(null);
 
-  const { data: pendentes = [] } = useQuery({
+  const { data: pendentes = [], refetch } = useQuery({
     queryKey: ["abastecimentos-pendentes-pre-voo"],
     queryFn: async () => {
       const { data: checklists, error } = await db
@@ -66,6 +66,7 @@ export function AbastecimentosPendentesAlert({
     setPagamentoModalOpen(false);
     setAbastecimentoSelecionado(null);
     setModoSelecionado(null);
+    void refetch();
   };
 
   return (
@@ -76,29 +77,18 @@ export function AbastecimentosPendentesAlert({
             <Fuel className="h-5 w-5 text-amber-400" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold uppercase tracking-wide text-amber-400">
-              Abastecimentos aguardando programação
-            </h3>
+            <h3 className="text-base font-semibold uppercase tracking-wide text-amber-400">Abastecimentos aguardando programação</h3>
             <p className="mb-4 text-sm text-muted-foreground">
               {pendentes.length} abastecimento(s) feitos no Pré-Voo aguardam NF/documentação e envio para programação de pagamento.
             </p>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {pendentes.slice(0, 4).map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => handleAbrirProgramacao(a)}
-                  className="group rounded-xl border border-amber-500/10 bg-white/[0.02] p-3 text-left transition-all hover:border-amber-500/40 hover:bg-white/[0.04]"
-                >
+                <button key={a.id} type="button" onClick={() => handleAbrirProgramacao(a)} className="group rounded-xl border border-amber-500/10 bg-white/[0.02] p-3 text-left transition-all hover:border-amber-500/40 hover:bg-white/[0.04]">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium uppercase text-foreground group-hover:text-amber-400">
-                        {a.trecho || "Trecho —"}
-                      </p>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {a.clientes?.razao_social || "Cliente —"} · {brl(a.valor_total)}
-                      </p>
+                      <p className="truncate text-sm font-medium uppercase text-foreground group-hover:text-amber-400">{a.trecho || "Trecho —"}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{a.clientes?.razao_social || "Cliente —"} · {brl(a.valor_total)}</p>
                     </div>
                     <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] uppercase text-amber-400">
                       <Clock className="h-3 w-3" /> pendente
@@ -108,13 +98,8 @@ export function AbastecimentosPendentesAlert({
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleAbrirProgramacao(null)}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/20 px-3 py-1.5 text-xs font-semibold uppercase text-amber-400 transition-colors hover:bg-amber-500/10"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Anexar nota fiscal e programar pagamento
+            <button type="button" onClick={() => handleAbrirProgramacao(null)} className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/20 px-3 py-1.5 text-xs font-semibold uppercase text-amber-400 transition-colors hover:bg-amber-500/10">
+              <FileText className="h-3.5 w-3.5" /> Anexar nota fiscal e programar pagamento
             </button>
           </div>
         </div>
@@ -126,7 +111,6 @@ export function AbastecimentosPendentesAlert({
             <DialogTitle>Selecionar modo de pagamento</DialogTitle>
             <DialogDescription>Escolha como este abastecimento será processado financeiramente.</DialogDescription>
           </DialogHeader>
-
           <div className="grid gap-3">
             <button type="button" onClick={() => handleSelecionarModo("REEMBOLSO")} className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left transition hover:border-amber-500/60 hover:bg-amber-500/20">
               <p className="font-semibold text-amber-500">Reembolso Share</p>
