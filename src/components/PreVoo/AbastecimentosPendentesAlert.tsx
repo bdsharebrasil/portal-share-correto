@@ -6,14 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 
 const db = supabase as any;
-
 const brl = (v: number) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-/**
- * Aviso no dashboard financeiro: abastecimentos gerados no checklist de pré-voo
- * que ainda estão pendentes de conclusão financeira.
- */
-type ModoSolicitacao = "SHARE" | "REEMBOLSO" | "DIRETO";
+type ModoSolicitacao = "REEMBOLSO" | "DIRETO";
 
 export function AbastecimentosPendentesAlert({
   isExpanded,
@@ -22,7 +17,6 @@ export function AbastecimentosPendentesAlert({
   isExpanded: boolean;
   onCountChange: (count: number) => void;
 }) {
-
   const [modoDialogOpen, setModoDialogOpen] = useState(false);
   const [abastecimentoSelecionado, setAbastecimentoSelecionado] = useState<any>(null);
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
@@ -37,23 +31,25 @@ export function AbastecimentosPendentesAlert({
         .not("abastecimento_id", "is", null);
       if (error) return [];
       const ids = (checklists || []).map((c: any) => c.abastecimento_id).filter(Boolean);
-      if (ids.length === 0) return [];
-      const { data } = await db
+      if (!ids.length) return [];
+
+      const { data, error: abastecimentosError } = await db
         .from("abastecimentos")
         .select("id, trecho, data, numero_voo, valor_total, status, tipo_faturamento, prazo, id_clientes, aeronave_id, data_vencimento_boleto, nf, nota_url, boleto_url, comanda, comanda_url, comprovante_pagamento, comprovante_url, clientes:id_clientes(razao_social)")
         .in("id", ids)
-        .neq("status", "pago")
+        .eq("status", "pendente")
         .order("data", { ascending: false });
+      if (abastecimentosError) return [];
       return (data || []) as any[];
     },
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 
   useEffect(() => {
     onCountChange(pendentes.length);
   }, [onCountChange, pendentes.length]);
 
-  if (!isExpanded || pendentes.length === 0) return null;
+  if (!isExpanded || !pendentes.length) return null;
 
   const handleAbrirProgramacao = (abastecimento: any) => {
     setAbastecimentoSelecionado(abastecimento);
@@ -81,10 +77,10 @@ export function AbastecimentosPendentesAlert({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold uppercase tracking-wide text-amber-400">
-              Abastecimentos aguardando conclusão financeira
+              Abastecimentos aguardando programação
             </h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              {pendentes.length} abastecimento(s) registrados no checklist de pré-voo precisam de programação de pagamento.
+              {pendentes.length} abastecimento(s) feitos no Pré-Voo aguardam NF/documentação e envio para programação de pagamento.
             </p>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -105,7 +101,7 @@ export function AbastecimentosPendentesAlert({
                       </p>
                     </div>
                     <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] uppercase text-amber-400">
-                      <Clock className="h-3 w-3" /> {a.status || "pendente"}
+                      <Clock className="h-3 w-3" /> pendente
                     </span>
                   </div>
                 </button>
@@ -124,43 +120,26 @@ export function AbastecimentosPendentesAlert({
         </div>
       </div>
 
-      {/* Dialog para seleção de modo */}
       <Dialog open={modoDialogOpen} onOpenChange={setModoDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Selecionar modo de pagamento</DialogTitle>
-            <DialogDescription>
-              Escolha como este abastecimento será processado financeiramente.
-            </DialogDescription>
+            <DialogDescription>Escolha como este abastecimento será processado financeiramente.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3">
-            <button
-              type="button"
-              onClick={() => handleSelecionarModo("REEMBOLSO")}
-              className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left transition hover:border-amber-500/60 hover:bg-amber-500/20"
-            >
+            <button type="button" onClick={() => handleSelecionarModo("REEMBOLSO")} className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left transition hover:border-amber-500/60 hover:bg-amber-500/20">
               <p className="font-semibold text-amber-500">Reembolso Share</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                A Share paga adiantado e cobra o reembolso do cliente após a baixa.
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">A Share paga adiantado e cobra o reembolso do cliente após a baixa.</p>
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleSelecionarModo("DIRETO")}
-              className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-3 text-left transition hover:border-violet-500/60 hover:bg-violet-500/20"
-            >
+            <button type="button" onClick={() => handleSelecionarModo("DIRETO")} className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-3 text-left transition hover:border-violet-500/60 hover:bg-violet-500/20">
               <p className="font-semibold text-violet-500">Envio Cliente Direto</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Despesa paga diretamente pelo cliente. Não passa pelo caixa Share.
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Despesa paga diretamente pelo cliente. Não passa pelo caixa Share.</p>
             </button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de programação de pagamento */}
       {modoSelecionado && (
         <SolicitacaoPagamentoModal
           open={pagamentoModalOpen}
