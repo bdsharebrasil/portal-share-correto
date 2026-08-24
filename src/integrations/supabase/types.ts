@@ -7533,6 +7533,7 @@ export type Database = {
           data_emissao: string | null
           data_pagamento: string | null
           data_vencimento: string | null
+          demonstrativo_url: string | null
           descricao: string
           despesa_cliente_direto_id: string | null
           enviado_por_email: boolean
@@ -7588,6 +7589,7 @@ export type Database = {
           data_emissao?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
+          demonstrativo_url?: string | null
           descricao: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean
@@ -7643,6 +7645,7 @@ export type Database = {
           data_emissao?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
+          demonstrativo_url?: string | null
           descricao?: string
           despesa_cliente_direto_id?: string | null
           enviado_por_email?: boolean

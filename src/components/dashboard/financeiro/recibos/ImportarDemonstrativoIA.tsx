@@ -520,6 +520,7 @@ export default function ImportarDemonstrativoTab() {
             descricao: `${tipoLabel} - Doc ${result.numero_documento || "?"} - ${aeronaves.find((a) => a.id === aircraftId)?.matricula || ""}`,
             fluxo: "saida",
             valor_rateado: valorCotistas,
+            percentual_uso: 100,
             data_emissao: today,
             data_vencimento: today,
             aeronave_id: aircraftId,
@@ -527,6 +528,7 @@ export default function ImportarDemonstrativoTab() {
             status: "pendente",
             tipo_caixa: "share",
             numero_doc: result.numero_documento || null,
+            demonstrativo_url: demoUrlFinal,
             fornecedor_nome: TIPO_FORNECEDOR[tipo],
           });
           if (movimentacaoErr) throw movimentacaoErr;

@@ -1436,6 +1436,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         const reciboUrlShare = pickUrl(anexosShare, "recibo");
         const boletoUrlShare = pickUrl(anexosShare, "boleto");
         const docUrlShare = pickUrl(anexosShare, "doc");
+        const demonstrativoUrlShare = pickUrl(anexosShare, "demonstrativo");
 
         const capIdShare = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico,
@@ -1460,7 +1461,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             fornecedor_nome: (fornecedorNome || "").trim() || null,
             numero_nf: pickNumero(anexosShare, "nf"), numero_recibo: pickNumero(anexosShare, "recibo"),
             numero_boleto: pickNumero(anexosShare, "boleto"), numero_doc: pickNumero(anexosShare, "doc"),
-            nf_url: nfUrlShare, recibo_url: reciboUrlShare, boleto_url: boletoUrlShare, comprovante_url: docUrlShare,
+            nf_url: nfUrlShare, recibo_url: reciboUrlShare, boleto_url: boletoUrlShare, comprovante_url: docUrlShare, demonstrativo_url: demonstrativoUrlShare,
             observacoes: observacoes || null, contas_apagar_id: capIdShare,
             reference_type: "solicitacao_pagamento", criado_por: userId,
           });
@@ -1565,6 +1566,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           nf_url: nfUrl,
           boleto_url: boletoUrl,
           comprovante_url: comprovanteUrl,
+          demonstrativo_url: demonstrativoUrl,
           comanda_url: comandaUrl,
           observacoes: obsFinal || null,
           numero_voo: numeroVooVinculado,
@@ -1587,6 +1589,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             nf_url: nfUrl,
             boleto_url: boletoUrl,
             comprovante_url: comprovanteUrl,
+            demonstrativo_url: demonstrativoUrl,
             observacoes: obsFinal || null,
             numero_voo: numeroVooVinculado,
             atualizado_em: new Date().toISOString(),
@@ -1680,7 +1683,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               percentual_uso: percNumerico, periodicidade, tipo_rateio: tipoRateioFinal,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
-              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId,
               ...(index === 0 ? { reference_type: "travel_expense_report", reference_id: travelReportSel.id } : {}),
               criado_por: userId,
@@ -1804,7 +1807,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha,
-                nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, comanda_url: comandaUrl,
+                nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, demonstrativo_url: demonstrativoUrl, comanda_url: comandaUrl,
                 observacoes: obsFinal || null,
                 reembolsavel: false, pago_diretamente: false,
                 reference_type: referenciaTipo || "solicitacao_pagamento",
@@ -1870,7 +1873,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               periodicidade, tipo_rateio: tipoRateioFinal,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
-              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl, comanda_url: comandaUrl,
+              nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, comanda_url: comandaUrl,
               observacoes: obsFinal || null, pago_diretamente: false, contas_apagar_id: capId,
               reference_type: referenciaTipo || "solicitacao_pagamento",
               reference_id: referenciaTipo && referenciaId ? referenciaId : null,
@@ -1916,7 +1919,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
-                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, comanda_url: comandaUrl,
+                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, demonstrativo_url: demonstrativoUrl, comanda_url: comandaUrl,
                 observacoes: obsFinal || null, pago_diretamente: false, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
               });
               movimentacaoIdsCriadas.push(movId);
@@ -2051,6 +2054,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 recibo_url: reciboUrl,
                 nf_url: nfUrl,
                 boleto_url: boletoUrl,
+                demonstrativo_url: demonstrativoUrl,
                 comanda_url: comandaUrl,
                 pago_diretamente: false,
                 contas_areceber_id: (carRow as any)?.id || null,

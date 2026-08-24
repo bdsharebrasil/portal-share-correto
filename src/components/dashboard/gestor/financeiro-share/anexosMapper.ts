@@ -25,6 +25,9 @@ export function mapAnexosToMovimentacao(anexos: AnexoLinha[]): Record<string, an
         if (a.url) patch.comanda_url = a.url;
         if (numero) patch.numero_doc = patch.numero_doc || numero;
         break;
+      case "demonstrativo":
+        if (a.url) patch.demonstrativo_url = a.url;
+        break;
       default:
         if (a.url) patch.comprovante_url = a.url;
         if (numero) patch.numero_doc = patch.numero_doc || numero;
