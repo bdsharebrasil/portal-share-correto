@@ -31,6 +31,8 @@ interface SearchableComboboxProps {
   icon?: React.ReactNode;
   disabled?: boolean;
   allowFreeText?: boolean;
+  className?: string;
+  popoverClassName?: string;
 }
 
 export function SearchableCombobox({
@@ -42,7 +44,9 @@ export function SearchableCombobox({
   emptyMessage = "Nenhum item encontrado.",
   icon,
   disabled,
-  allowFreeText = false
+  allowFreeText = false,
+  className,
+  popoverClassName,
 }: SearchableComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
@@ -66,6 +70,7 @@ export function SearchableCombobox({
           className={cn(
             "w-full justify-between h-11 px-3 bg-background hover:bg-accent/50 transition-colors touch-manipulation",
             "border-border/60 shadow-sm rounded-lg lg:h-10",
+            className,
             // Tipografia mais elegante dependendo do estado
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
           )}
@@ -79,7 +84,7 @@ export function SearchableCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg" align="start" side="bottom">
+      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg", popoverClassName)} align="start" side="bottom">
         <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
           <div className="flex items-center border-b border-border/50 px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
