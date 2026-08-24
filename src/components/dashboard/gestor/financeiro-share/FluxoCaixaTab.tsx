@@ -73,7 +73,7 @@ export default function FluxoCaixaTab() {
     queryFn: async () => {
       const { data: contas, error } = await supabase
         .from("contas_apagar")
-        .select("id, descricao, fornecedor_nome, categoria, valor, data_vencimento, status, cliente_id, movimentacao_id, clientes:cliente_id(id, razao_social, proprietario)")
+        .select("id, descricao, fornecedor_nome, categoria, valor, data_vencimento, status, cliente_id, aeronave_registro, movimentacao_id, clientes:cliente_id(id, razao_social, proprietario)")
         .gte("data_vencimento", hoje)
         .lte("data_vencimento", limiteContasAPagar)
         .not("status", "in", "(paga,pago,quitada,liquidada,recebida,recebido,cancelada,cancelado)")
@@ -296,7 +296,17 @@ export default function FluxoCaixaTab() {
 
           <div className="grid gap-3 xl:grid-cols-3">
             <ResumoListaCompacta title="Contas a pagar" subtitle={`Próximos 5 dias · ${contasAPagar.length} lançamento(s)`} total={formatBRL(visaoGeral.contasTotal)} tone="orange" loading={contasAPagarLoading} error={contasAPagarError} empty="Nenhuma conta a pagar no período.">
-              {contasAPagar.slice(0, 6).map((conta) => <ResumoLinha key={conta.id} title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"} detail={`${conta.categoria || "Sem categoria"} · ${new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR")}`} value={formatBRL(Number(conta.valor))} tone="orange" />)}
+              {contasAPagar.slice(0, 6).map((conta) => {
+                const cliente = conta.clientes?.razao_social || conta.clientes?.proprietario || "Cliente não informado";
+                const aeronave = conta.aeronave_registro || "Aeronave não informada";
+                const detalhe = [
+                  conta.categoria || "Sem categoria",
+                  new Date(`${conta.data_vencimento}T00:00:00`).toLocaleDateString("pt-BR"),
+                  cliente,
+                  aeronave,
+                ].join(" · ");
+                return <ResumoLinha key={conta.id} title={conta.fornecedor_nome || conta.descricao || conta.categoria || "Conta a pagar"} detail={detalhe} value={formatBRL(Number(conta.valor))} tone="orange" />;
+              })}
             </ResumoListaCompacta>
             <ResumoListaCompacta title="Reembolsos a receber" subtitle={`Despesas pagas pela Share · ${reembolsosAReceber.length} lançamento(s)`} total={formatBRL(visaoGeral.reembolsosTotal)} tone="cyan" loading={reembolsosAReceberLoading} error={reembolsosAReceberError} empty="Nenhum reembolso pendente.">
               {reembolsosAReceber.slice(0, 6).map((conta: any) => <ResumoLinha key={conta.id} title={conta.cliente_nome || "Cliente sem nome"} detail={`${conta.descricao || "Despesa paga pela Share"} · ${conta.aeronave || "Aeronave não informada"}`} value={formatBRL(Number(conta.valor || 0))} tone="cyan" />)}
