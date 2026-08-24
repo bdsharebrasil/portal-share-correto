@@ -148,7 +148,7 @@ export function useClientesCotistas() {
       const { data: clientes, error: clientesError } = await supabase
         .from("clientes")
         .select(
-          "id, razao_social, proprietario, cnpj, telefone, email, cidade, uf, url_logo, status, documentos"
+          "id, razao_social, proprietario, cnpj, telefone, email, cidade, uf, url_logo, status, documentos, tem_socio"
         )
         .in("id", clienteIds)
         .eq("status", "ativo");

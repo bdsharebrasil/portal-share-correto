@@ -6,9 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plane, Users, ChevronRight, Search, X, Bell } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
@@ -17,36 +16,15 @@ export default function FinanceiroCotistas() {
   const { data: clientes = [], isLoading } = useClientesCotistas();
   const [search, setSearch] = useState("");
   const [aba, setAba] = useState<"cotistas" | "sociedade">("cotistas");
-  const [clientesComSocios, setClientesComSocios] = useState<Set<string>>(new Set());
-
-  const carregarClientesComSocios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("socios")
-        .select("clientes_id");
-
-      if (error) throw error;
-
-      const ids = new Set((data || []).map((s: any) => s.clientes_id));
-      setClientesComSocios(ids);
-    } catch (err) {
-      console.error("Erro ao carregar clientes com sócios:", err);
-    }
-  };
-
-  useEffect(() => {
-    carregarClientesComSocios();
-  }, []);
-
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
 
     let resultado = clientes;
 
     if (aba === "cotistas") {
-      resultado = resultado.filter((c: any) => !clientesComSocios.has(c.id));
+      resultado = resultado.filter((c: any) => !c.tem_socio);
     } else if (aba === "sociedade") {
-      resultado = resultado.filter((c: any) => clientesComSocios.has(c.id));
+      resultado = resultado.filter((c: any) => c.tem_socio);
     }
 
     if (!s) return resultado;
@@ -56,7 +34,7 @@ export default function FinanceiroCotistas() {
         .filter(Boolean)
         .some((v: string) => v.toLowerCase().includes(s))
     );
-  }, [clientes, search, aba, clientesComSocios]);
+  }, [clientes, search, aba]);
 
 
   return (

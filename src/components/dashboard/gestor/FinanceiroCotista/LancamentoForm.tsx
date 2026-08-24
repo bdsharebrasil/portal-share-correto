@@ -340,7 +340,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       const { data, error } = await supabase
         .from("socios")
         .select("id, nome, cpf, percentual_participacao")
-        .eq("cliente_id", clienteId)
+        .eq("clientes_id", clienteId)
         .order("nome");
       if (error) throw error;
       return (data ?? []) as any[];
