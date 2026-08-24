@@ -10,7 +10,7 @@ import AnexosDinamicosField, {
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import {
   X, Save, Loader2, Wallet, CalendarRange, ClipboardList,
-  Info, CreditCard, Layers, Paperclip, Trash2, Plus, Fuel,
+  Info, CreditCard, Layers, Paperclip, Trash2, Plus, Fuel, ExternalLink,
 } from "lucide-react";
 
 export const SHARE_BRASIL = "SHARE BRASIL";
@@ -62,8 +62,34 @@ const FORMAS_PGTO = [
   { id: "CARTAO", label: "Cartão" }, { id: "TRANSFERENCIA", label: "Transferência" },
   { id: "DEBITO_AUTOMATICO", label: "Débito Automático" },
 ];
+const FLUXOS = [
+  { id: "ENTRADA", label: "Entrada" },
+  { id: "SAIDA", label: "Saída" },
+];
+const RATEIO_FIELD_LABELS: Record<string, string> = {
+  abastecimento_id: "Abastecimento", aeronave_id: "Aeronave", aeronave_registro: "Registro da aeronave",
+  boleto_url: "Anexo do boleto", categoria_custo: "Categoria de custo", categoria_nome: "Nome da categoria",
+  cliente_id: "Cliente", clientes_nome: "Cliente", comanda_url: "Anexo da comanda",
+  comprovante_url: "Anexo do comprovante", conferido: "Conferido", conferido_em: "Conferido em",
+  conferido_por: "Conferido por", conta_bancaria: "Conta bancária", criado_em: "Criado em",
+  data_emissao: "Data de emissão", data_pagamento: "Data de pagamento", data_vencimento: "Data de vencimento",
+  demonstrativo_url: "Anexo do demonstrativo", descricao_despesa: "Descrição", fluxo: "Fluxo",
+  fonte_despesa: "Fonte da despesa", forma_pagamento: "Forma de pagamento", fornecedor_nome: "Fornecedor",
+  movimentacao_origem_id: "Movimentação de origem", nf_url: "Anexo da nota fiscal", numero_boleto: "Número do boleto",
+  numero_doc: "Número do comprovante", numero_nf: "Número da nota fiscal", numero_recibo: "Número do recibo",
+  numero_voo: "Número do voo", observacoes: "Observações", pago_diretamente: "Pago diretamente",
+  pago_por: "Pago por", percentual_sociedade: "% de sociedade", percentual_uso: "% de uso",
+  periodicidade: "Periodicidade", recibo_url: "Anexo do recibo", relatorio_url: "Anexo do relatório",
+  socio_id: "Sócio", socios_nome: "Sócio", status: "Status", subcategoria_1: "Subcategoria 1",
+  subcategoria_2: "Subcategoria 2", subcategoria_3: "Subcategoria 3", subcategoria_4: "Subcategoria 4",
+  tipo_rateio: "Tipo de rateio", atualizado_em: "Atualizado em", valor_pago_real: "Valor pago real",
+  valor_rateado: "Valor rateado", valor_total: "Valor total",
+};
 
 const numOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
+const hasRateioValue = (value: unknown) => value !== null && value !== undefined && value !== "";
+const isRateioUrl = (key: string, value: unknown): value is string => key.endsWith("_url") && typeof value === "string";
+const formatRateioValue = (value: unknown) => typeof value === "boolean" ? (value ? "Sim" : "Não") : String(value);
 
 function Section({ icon, title, accent, children }: any) {
   return (
@@ -195,6 +221,28 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         categoria_nome: movInit?.categoria_nome ?? null,
       };
       setRateio(hydratedRateio);
+      setMov((current: any) => ({
+        ...current,
+        fluxo: current.fluxo || hydratedRateio.fluxo || "",
+        data_emissao: current.data_emissao || hydratedRateio.data_emissao || "",
+        data_vencimento: current.data_vencimento || hydratedRateio.data_vencimento || "",
+        data_pagamento: current.data_pagamento || hydratedRateio.data_pagamento || "",
+        forma_pagamento: current.forma_pagamento || hydratedRateio.forma_pagamento || "",
+        fornecedor_nome: current.fornecedor_nome || hydratedRateio.fornecedor_nome || "",
+        conta_bancaria: current.conta_bancaria || hydratedRateio.conta_bancaria || "",
+      }));
+      setAnexos(anexosFromMov({
+        ...movInit,
+        comprovante_url: hydratedRateio.comprovante_url || movInit?.comprovante_url,
+        numero_doc: hydratedRateio.numero_doc || movInit?.numero_doc,
+        recibo_url: hydratedRateio.recibo_url || movInit?.recibo_url,
+        numero_recibo: hydratedRateio.numero_recibo || movInit?.numero_recibo,
+        nf_url: hydratedRateio.nf_url || movInit?.nf_url,
+        numero_nf: hydratedRateio.numero_nf || movInit?.numero_nf,
+        boleto_url: hydratedRateio.boleto_url || movInit?.boleto_url,
+        numero_boleto: hydratedRateio.numero_boleto || movInit?.numero_boleto,
+      }));
+      if (hydratedRateio.categoria_custo) setCategoriaCustoId(hydratedRateio.categoria_custo as string);
       if (hydratedRateio.subcategoria_1) setSubcategoria(hydratedRateio.subcategoria_1 as string);
       if (hydratedRateio.tipo_rateio) setTipoRateio(hydratedRateio.tipo_rateio as string);
       if (hydratedRateio.periodicidade) setPeriodicidade(hydratedRateio.periodicidade as string);
@@ -387,6 +435,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         categoria_id: mov.categoria_id || categoriaCustoId || null,
         conta_bancaria: mov.conta_bancaria || null,
         grupo_categoria: mov.grupo_categoria || null,
+        fluxo: mov.fluxo || rateio?.fluxo || "SAIDA",
         valor_rateado: valorEditado,
         valor_total: numOrNull(mov.valor_total ?? mov.valor_total_despesa) ?? valorEditado,
         valor_pago_real: hasReembolso ? null : numOrNull(mov.valor_pago_real ?? valorEditado),
@@ -417,7 +466,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         data_pagamento: mov.data_pagamento || null,
         aeronave_id: mov.aeronave_id ?? null,
         aeronave_registro: mov.aeronave_registro ?? rateio?.aeronave_registro ?? null,
-        fluxo: mov.fluxo || "saida",
+        fluxo: mov.fluxo || rateio?.fluxo || "SAIDA",
         valor_total: (numOrNull(mov.valor_total ?? mov.valor_total_despesa) ?? valorTotal) || null,
         valor_rateado: valorEditado,
         valor_pago_real: hasReembolso ? null : valorEditado,
@@ -508,6 +557,10 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
               <div>
                 <label className={labelCls}>Tipo de Rateio</label>
                 <SearchableCombobox items={TIPOS_RATEIO} value={tipoRateio} onChange={setTipoRateio} placeholder="Selecione" allowFreeText />
+              </div>
+              <div>
+                <label className={labelCls}>Fluxo</label>
+                <SearchableCombobox items={FLUXOS} value={mov.fluxo || rateio?.fluxo || ""} onChange={(v) => setM("fluxo", v)} placeholder="Selecione o fluxo" />
               </div>
               <div>
                 <label className={labelCls}>Periodicidade</label>
@@ -697,6 +750,27 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           <Section icon={<Paperclip className="h-4 w-4" />} title="Documentos e Anexos" accent="#fbbf24">
             <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`edit-mov/${movId}`} />
           </Section>
+
+          {rateio && (
+            <Section icon={<Info className="h-4 w-4" />} title="Dados preenchidos do rateio" accent="#a78bfa">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(rateio)
+                  .filter(([key, value]) => key !== "id" && key !== "despesa_id" && hasRateioValue(value))
+                  .map(([key, value]) => (
+                    <div key={key} className="min-w-0 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                      <div className={labelCls}>{RATEIO_FIELD_LABELS[key] || key.replaceAll("_", " ")}</div>
+                      {isRateioUrl(key, value) ? (
+                        <a href={value} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 break-all text-[12px] font-medium text-cyan-300 hover:text-cyan-200 hover:underline">
+                          Abrir anexo <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </a>
+                      ) : (
+                        <div className="break-words text-[12px] text-foreground">{formatRateioValue(value)}</div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </Section>
+          )}
 
           <Section icon={<Info className="h-4 w-4" />} title="Observações" accent="#a78bfa">
             <textarea className={inputCls} rows={3} value={mov.observacoes || ""} onChange={(e) => setM("observacoes", e.target.value)} />
