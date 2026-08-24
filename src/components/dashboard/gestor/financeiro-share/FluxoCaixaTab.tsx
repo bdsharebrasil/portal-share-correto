@@ -140,6 +140,27 @@ export default function FluxoCaixaTab() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    let refreshTimer: number | undefined;
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => void load(), 250);
+    };
+    const channel = supabase
+      .channel("fluxo-caixa-atualizacoes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "movimentacoes" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rateio_despesas" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "socios" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "categorias_movimentacao" }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [load]);
+
+  useEffect(() => {
     if (aba === "reembolsaveis") setCaixa("todos");
   }, [aba]);
 

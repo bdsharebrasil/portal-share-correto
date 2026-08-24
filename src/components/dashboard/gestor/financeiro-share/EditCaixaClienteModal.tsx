@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import AnexosDinamicosField, {
   type AnexoLinha,
@@ -174,22 +175,12 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const [periodicidade, setPeriodicidade] = useState<string>("");
   const [abastecimentoId, setAbastecimentoId] = useState<string>("");
 
-  const { data: contasBancarias = [] } = useQuery({
-    queryKey: ["contas-bancarias-edit-cliente"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("contas_bancarias")
-        .select("id, banco, numero_conta")
-        .eq("ativo", true)
-        .order("banco");
-      return (data ?? []) as { id: string; banco: string | null; numero_conta: string | null }[];
-    },
-  });
+  const { data: contasBancarias = [] } = useContasBancarias();
 
-  const contasBancariasOptions = contasBancarias.map((conta) => ({
-    id: conta.id,
-    label: `${conta.banco || "Banco"}${conta.numero_conta ? ` — ${conta.numero_conta}` : ""}`,
-  }));
+  const contasBancariasOptions = contasBancarias.map((conta) => {
+    const label = `${conta.banco || "Banco"}${conta.numero_conta ? ` — ${conta.numero_conta}` : ""}`;
+    return { id: label, label };
+  });
 
   useEffect(() => {
     (async () => {

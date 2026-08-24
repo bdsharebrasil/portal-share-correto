@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { agruparCategoriasPorGrupo } from "./categoryFilters";
 import AnexosDinamicosField, {
@@ -111,17 +112,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
     },
   });
 
-  const { data: bancos = [] } = useQuery({
-    queryKey: ["contas-bancarias-edit"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("contas_bancarias")
-        .select("id, banco, numero_conta")
-        .eq("ativo", true)
-        .order("banco");
-      return (data ?? []) as any[];
-    },
-  });
+  const { data: bancos = [] } = useContasBancarias();
 
   const [grupoCategoriaSelecionado, setGrupoCategoriaSelecionado] = useState("");
 
@@ -137,10 +128,10 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
   const grupoAtual = String(categoriaSelecionada?.grupo_categoria || mov.grupo_categoria || "").toUpperCase().trim();
   const isDespesaInterna = grupoAtual.includes("DESPESAS EMPRESA") || grupoAtual.includes("DESPESAS PARTICULARES") || grupoAtual.includes("FOLHA DE PAGAMENTO") || grupoAtual.includes("IMPOSTOS");
 
-  const bancoOptions = bancos.map((b) => ({
-    id: b.id,
-    label: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
-  }));
+  const bancoOptions = bancos.map((b) => {
+    const label = `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`;
+    return { id: label, label };
+  });
 
   useEffect(() => {
     const categoria = categorias.find((x) => x.id === mov.categoria_id);

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Pencil,
@@ -15,6 +16,7 @@ import {
   Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { CONTAS_BANCARIAS_QUERY_KEY } from "@/hooks/useContasBancarias";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -895,6 +897,7 @@ function CaixaClientePanel() {
 const AMBER = "#f59e0b";
 
 function ContasPanel() {
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<ContaBancaria[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -981,7 +984,10 @@ function ContasPanel() {
         setToast({ type: "ok", text: "Conta criada." });
       }
       closeForm();
-      fetchItems();
+      await Promise.all([
+        fetchItems(),
+        queryClient.invalidateQueries({ queryKey: CONTAS_BANCARIAS_QUERY_KEY }),
+      ]);
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao salvar." });
     } finally {
@@ -997,7 +1003,10 @@ function ContasPanel() {
       if (error) throw error;
       setToast({ type: "ok", text: "Conta excluída." });
       setDeleteId(null);
-      fetchItems();
+      await Promise.all([
+        fetchItems(),
+        queryClient.invalidateQueries({ queryKey: CONTAS_BANCARIAS_QUERY_KEY }),
+      ]);
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao excluir." });
     } finally {

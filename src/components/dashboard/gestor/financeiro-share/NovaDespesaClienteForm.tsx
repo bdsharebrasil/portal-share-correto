@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
-  const [bancos, setBancos] = useState<any[]>([]);
+  const { data: bancos = [] } = useContasBancarias();
   const [aeronaves, setAeronaves] = useState<any[]>([]);
   const [cotistas, setCotistas] = useState<any[]>([]);
   const [linhas, setLinhas] = useState<Linha[]>([novaLinha()]);
@@ -181,12 +182,6 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
       .then(({ data }: any) => setConfigs(data ?? []));
 
 
-    supabase
-      .from("contas_bancarias")
-      .select("id,banco,numero_conta")
-      .eq("ativo", true)
-      .order("banco")
-      .then(({ data }) => setBancos(data ?? []));
 
     supabase
       .from("aeronave")
