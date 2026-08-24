@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export type ThemePreference = "light" | "dark";
 
@@ -49,12 +50,37 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let active = true;
     const localKey = user?.id ? `share-theme:${user.id}` : "share-theme:guest";
-    const initial = readThemePreference(localKey, "share-theme:guest");
 
-    setThemeState(initial);
-    applyTheme(initial);
-    setIsThemeLoading(false);
+    const loadTheme = async () => {
+      let initial = readThemePreference(localKey, "share-theme:guest");
+
+      if (user?.id) {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("tema_preferido")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) console.warn("Não foi possível carregar a preferência de tema:", error.message);
+        if (data?.tema_preferido === "light" || data?.tema_preferido === "dark") {
+          initial = data.tema_preferido;
+          window.localStorage.setItem(localKey, initial);
+          window.localStorage.setItem("share-theme:guest", initial);
+        }
+      }
+
+      if (!active) return;
+      setThemeState(initial);
+      applyTheme(initial);
+      setIsThemeLoading(false);
+    };
+
+    void loadTheme();
+    return () => {
+      active = false;
+    };
   }, [user?.id, isAuthLoading]);
 
   const setTheme = useCallback(async (next: ThemePreference) => {
@@ -66,8 +92,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (!user?.id) return;
 
-    // Persistência local por usuário; tema_preferido não existe em user_profiles.
-    setIsThemeSaving(false);
+    setIsThemeSaving(true);
+    try {
+      const { error } = await supabase
+        .from("user_profiles")
+        .update({ tema_preferido: next })
+        .eq("id", user.id);
+      if (error) console.warn("Não foi possível salvar a preferência de tema:", error.message);
+    } finally {
+      setIsThemeSaving(false);
+    }
   }, [user?.id]);
 
   const toggleTheme = useCallback(async () => {
