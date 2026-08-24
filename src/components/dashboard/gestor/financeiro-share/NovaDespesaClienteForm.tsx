@@ -120,6 +120,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
   const isDgaModo = modo === "dga";
   const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
   const [storageId] = useState(() => crypto.randomUUID());
+  const [lancamentoReferenciaId] = useState(() => crypto.randomUUID());
 
   const [saving, setSaving] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
@@ -282,6 +283,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
   const valorTotal = Number(form.valor_original) || 0;
   const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
+  const anexosEnviando = anexos.some((anexo) => anexo.uploading);
 
   const setLinha = (idx: number, patch: Partial<Linha>) =>
     setLinhas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -432,6 +434,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
   const salvar = async (ignorarDuplicidade = false) => {
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
+    if (anexosEnviando) return toast.error("Aguarde o término do envio dos anexos.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
     if (!isDgaModo && !form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
 
@@ -512,11 +515,13 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           socio_id: socioMov,
           socios_nome: socioMov ? socioNomeMov : null,
           valor_total: valorItem,
-          valor_rateado: isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
-          percentual_uso: linhasValidas.length === 1
-            ? Number(linhasValidas[0].percentual_uso) || null
-            : null,
-          valor_pago_real: form.pago_pela_share ? null : (isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2))),
+          valor_rateado: isDgaModo ? valorItem : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          percentual_uso: isDgaModo
+            ? 100
+            : linhasValidas.length === 1
+              ? Number(linhasValidas[0].percentual_uso) || null
+              : null,
+          valor_pago_real: form.pago_pela_share ? null : (isDgaModo ? valorItem : Number(((totalRateado || valorTotal) * fator).toFixed(2))),
           data_emissao: form.data_emissao,
           data_vencimento: form.data_vencimento || null,
           data_pagamento: form.data_pagamento || null,
@@ -530,16 +535,34 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           reembolsavel: form.pago_pela_share && !entrada,
           reembolso_quitado: false,
           criado_por: criadoPor,
-          ...(rel ? { reference_type: "relatorio_viagem", reference_id: rel.id } : {}),
+          ...(rel
+            ? { reference_type: "relatorio_viagem", reference_id: rel.id }
+            : isDgaModo
+              ? { reference_type: "despesa_dga", reference_id: lancamentoReferenciaId }
+              : {}),
           ...anexosMovimentacao,
         };
 
-        const { data: mov, error } = await supabase
+        let mov: any;
+        const { data: criado, error } = await supabase
           .from("movimentacoes")
           .insert(payload as any)
           .select("*")
           .single();
-        if (error) throw error;
+        if (!error) {
+          mov = criado;
+        } else if (isDgaModo && error.code === "23505") {
+          const { data: existente, error: existenteError } = await supabase
+            .from("movimentacoes")
+            .select("*")
+            .eq("reference_type", "despesa_dga")
+            .eq("reference_id", lancamentoReferenciaId)
+            .single();
+          if (existenteError) throw existenteError;
+          mov = existente;
+        } else {
+          throw error;
+        }
 
         const comuns: any = {
           despesa_id: (mov as any).id,
@@ -572,9 +595,23 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           ...(form.subcategoria_key && subcategoriaNome
             ? { [form.subcategoria_key]: subcategoriaNome }
             : {}),
+          ...anexosMovimentacao,
         };
 
+        const { data: rateiosExistentes, error: rateiosError } = await (supabase as any)
+          .from("rateio_despesas")
+          .select("socio_id,cliente_id")
+          .eq("despesa_id", mov.id);
+        if (rateiosError) throw rateiosError;
+
+        const participantesRateados = new Set(
+          (rateiosExistentes ?? []).map((rateio: any) => `${rateio.cliente_id ?? ""}|${rateio.socio_id ?? ""}`),
+        );
+
         for (const [index, l] of linhasValidas.entries()) {
+          const participante = `${l.cliente_id ?? ""}|${l.socio_id ?? ""}`;
+          if (participantesRateados.has(participante)) continue;
+
           const rateado = valoresRateio[index];
           const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({
             ...comuns,
@@ -591,6 +628,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
             status: form.pago_pela_share ? "aguardando_reembolso" : statusMov,
           });
           if (rErr) throw rErr;
+          participantesRateados.add(participante);
         }
 
         criados.push(mov);
@@ -906,7 +944,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button type="button" onClick={salvar} disabled={saving}>
+          <Button type="button" onClick={salvar} disabled={saving || anexosEnviando}>
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando..." : "Salvar lançamento"}
           </Button>

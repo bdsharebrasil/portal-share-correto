@@ -110,7 +110,7 @@ export function FechamentoBalancoTab({
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
   const [viewerAnexo, setViewerAnexo] = useState<{ url: string; title: string } | null>(null);
 
-  type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
+  type SortBy = "fluxo" | "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado" | "acao";
   const [sortBy, setSortBy] = useState<SortBy>("pagamento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -236,6 +236,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
       const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";
       const sortValue: string | number = (() => {
         switch (sortBy) {
+          case "fluxo": return r.fluxo || "";
           case "vencimento": return r.data_vencimento || "";
           case "pagamento": return r.data_pagamento || "";
           case "fornecedor": return r.fornecedor_nome || "";
@@ -243,6 +244,9 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
           case "descricao": return r.descricao_despesa || "";
           case "total": return grupo.valorTotal;
           case "rateado": return grupo.valorRateado;
+          case "acao": return isSaida(r.fluxo)
+            ? (grupo.todosConferidos ? "ok" : "conferir")
+            : "entrada";
           default: return "";
         }
       })();
@@ -464,8 +468,11 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
               <tr className="border-b-2 border-teal-500/30 bg-[#0f1b2d] text-[9px] uppercase tracking-widest divide-x divide-border/60">
                 <th className={`${thBase} px-3 py-2.5 text-center w-10 text-muted-foreground`}></th>
 
-                <th className={`${thBase} text-left ${columnVisible("fluxo") ? "" : "hidden"} text-muted-foreground`}>
-                  Fluxo
+                <th
+                  onClick={() => toggleSort("fluxo")}
+                  className={`${thBase} text-left ${thSortable("fluxo")} ${columnVisible("fluxo") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Fluxo <SortIcon field="fluxo" /></span>
                 </th>
 
                 <th
@@ -525,7 +532,12 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                   <span className="inline-flex items-center justify-end gap-1 w-full">Vlr. Rateado <SortIcon field="rateado" /></span>
                 </th>
 
-                <th className={`${thBase} text-center text-muted-foreground`}>Ações</th>
+                <th
+                  onClick={() => toggleSort("acao")}
+                  className={`${thBase} text-center ${thSortable("acao")}`}
+                >
+                  <span className="inline-flex items-center justify-center gap-1">Ações <SortIcon field="acao" /></span>
+                </th>
               </tr>
 
               {/* Linha de filtros por coluna */}
