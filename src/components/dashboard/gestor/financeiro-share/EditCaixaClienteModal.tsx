@@ -653,6 +653,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                         value={l.modo_pagamento}
                         onChange={(v) => setLinhaModo(idx, v as ModoPagamentoCliente)}
                         placeholder="Como foi pago?"
+                        popoverClassName="min-w-[280px]"
                       />
                     </div>
                     <div>
@@ -678,6 +679,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                         value={l.status || ""}
                         onChange={(v) => setLinhaStatus(idx, v)}
                         placeholder="Status"
+                        popoverClassName="min-w-[240px]"
                       />
                     </div>
                   </div>

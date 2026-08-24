@@ -42,6 +42,7 @@ type Ordem = "asc" | "desc";
 export default function FluxoCaixaTab() {
   const [data, setData] = useState<any>({ movimentacoes: [], rateios: [], clientes: [], socios: [], categorias: [] });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const dadosCarregadosRef = useRef(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<"visao" | "caixa" | "contas-pagar" | "reembolsaveis" | "clientes" | "dga">("visao");
@@ -122,16 +123,18 @@ export default function FluxoCaixaTab() {
   const load = useCallback(async () => {
     // Mantém a tela montada durante refresh para preservar filtros, mês e ordenação.
     if (!dadosCarregadosRef.current) setLoading(true);
+    else setRefreshing(true);
     setErro(null);
     try {
-      setData(await fetchFinanceiroData());
+      const nextData = await fetchFinanceiroData();
+      setData(nextData);
       dadosCarregadosRef.current = true;
       await queryClient.invalidateQueries({ queryKey: ["contas-apagar-proximas"] });
       await queryClient.invalidateQueries({ queryKey: ["contas-apagar-reembolsaveis"] });
       await queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
       await queryClient.invalidateQueries({ queryKey: ["contas-areceber-reembolsos-share"] });
     } catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   }, [queryClient]);
 
   useEffect(() => { load(); }, [load]);
@@ -319,7 +322,7 @@ export default function FluxoCaixaTab() {
           <div className="min-w-0"><h2 className="mx-[9px] truncate text-sm font-black uppercase tracking-[0.16em] text-foreground">Fluxo de Caixa</h2><p className="mx-[8px] hidden text-[10px] text-muted-foreground sm:block">Visão consolidada de Share, clientes e DGA</p></div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button onClick={() => load()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[10px] font-bold text-muted-foreground transition hover:border-border hover:bg-card"><RefreshCw className="h-3 w-3" /> Atualizar</button>
+          <button onClick={() => void load()} disabled={refreshing} aria-label="Atualizar dados financeiros" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[10px] font-bold text-muted-foreground transition hover:border-border hover:bg-card disabled:cursor-wait disabled:opacity-60"><RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Atualizando..." : "Atualizar"}</button>
           {(aba === "caixa" || aba === "clientes") && <button onClick={() => { setNewCaixa(aba === "clientes" ? "cliente" : "share"); setShowNew(true); }} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-cyan-500 px-2.5 text-[10px] font-black text-slate-950 transition hover:bg-cyan-400"><Plus className="h-3 w-3" /> Nova movimentação</button>}
         </div>
       </header>
