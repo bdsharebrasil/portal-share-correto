@@ -48,6 +48,8 @@ const ANEXO_CAMPOS: { campo: string; label: string }[] = [
   { campo: "comanda_url", label: "Comanda" },
 ];
 
+const DGA_ADMINISTRADORA = "DGA ADMINISTRADORA DE BENS SPE LTDA";
+
 const STATUS_STYLE: Record<string, string> = {
   PAGO: "bg-emerald-500/15 text-emerald-400",
   RECEBIDO: "bg-emerald-500/15 text-emerald-400",
@@ -128,6 +130,12 @@ function parseValorDigitado(texto: string): number | null {
   if (!limpo) return null;
   const numero = Number(limpo);
   return Number.isFinite(numero) ? numero : null;
+}
+
+function percentualLabel(valor: unknown) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? `${numero}%` : null;
 }
 
 // Cor de acordo com o tipo de movimentação: entrada (verde), despesa paga pelo banco (vermelho) ou paga por cotista (âmbar).
@@ -552,6 +560,15 @@ export default function DgaSituacao({
                 const cor = tipoCor(m);
                 const rateiosDoLancamento = rateiosPorMovimentacao.get(String(m.id)) || (m._fromRateio ? [m] : []);
                 const rateioPrincipal = rateiosDoLancamento[0];
+                const sociosDga = socios.filter((s) => String(s.clientes_id || "") === CLIENTE_DGA_ID);
+                const sociosRateados = new Set(rateiosDoLancamento.map((rateio) => String(rateio.socio_id || "")));
+                const todosSociosDgaRateados = sociosDga.length > 0 && sociosDga.every((s) => sociosRateados.has(String(s.id)));
+                const pagadorExibido = todosSociosDgaRateados
+                  ? DGA_ADMINISTRADORA
+                  : rateioPrincipal?.pago_por || m.pago_por || m.socios_nome || "—";
+                const percentualRateio = percentualLabel(
+                  rateioPrincipal?.percentual_uso ?? rateioPrincipal?.percentual_sociedade ?? m.percentual_uso ?? m.percentual_sociedade,
+                );
                 const anexos = anexosDe({
                   ...m,
                   comprovante_url: rateioPrincipal?.comprovante_url || m.comprovante_url,
@@ -600,7 +617,7 @@ export default function DgaSituacao({
                           {m.fornecedor_nome && <span>{m.fornecedor_nome}</span>}
                           {m.fornecedor_nome && temRateio && <span> · </span>}
                           {temRateio && (
-                            <span>Rateio {Number(m.percentual_sociedade)}% · {formatBRL(m.valor_rateado ?? valueOf(m))}</span>
+                            <span>Rateio {percentualRateio ? `${percentualRateio} · ` : ""}{formatBRL(m.valor_rateado ?? valueOf(m))}</span>
                           )}
                         </div>
                       )}
@@ -617,7 +634,7 @@ export default function DgaSituacao({
                         <div className="mt-0.5 text-[10px] text-muted-foreground">Vence {formatarData(m.data_vencimento)}</div>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-muted-foreground">{m.socios_nome || m.pago_por || "—"}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{pagadorExibido}</td>
                     <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       {anexos.length > 0 ? (
                         <button
@@ -647,7 +664,7 @@ export default function DgaSituacao({
                       <td colSpan={12} className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-violet-300/70">Rateio e pagamento</div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-                          <CampoDetalhe label="Quem pagou" valor={rateioPrincipal?.pago_por || m.pago_por || "—"} />
+                          <CampoDetalhe label="Quem pagou" valor={pagadorExibido} />
                           <CampoDetalhe label="Valor rateado" valor={rateioPrincipal?.valor_rateado != null ? formatBRL(Number(rateioPrincipal.valor_rateado)) : (m.valor_rateado != null ? formatBRL(Number(m.valor_rateado)) : "—")} destaque />
                           <CampoDetalhe label="Valor pago real" valor={rateioPrincipal?.valor_pago_real != null ? formatBRL(Number(rateioPrincipal.valor_pago_real)) : (m.valor_pago_real != null ? formatBRL(Number(m.valor_pago_real)) : "—")} destaque />
                           <CampoDetalhe label="Valor total" valor={rateioPrincipal?.valor_total != null ? formatBRL(Number(rateioPrincipal.valor_total)) : (m.valor_total != null ? formatBRL(Number(m.valor_total)) : "—")} />
@@ -665,7 +682,7 @@ export default function DgaSituacao({
                             {rateiosDoLancamento.map((rateio) => (
                               <div key={rateio.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-t border-border/60 px-3 py-2 text-xs">
                                 <span className="font-semibold">{rateio.socios_nome || rateio.clientes_nome || "—"}</span>
-                                <span>{rateio.percentual_uso != null ? `${Number(rateio.percentual_uso)}%` : "—"}</span>
+                                <span>{percentualLabel(rateio.percentual_uso) || "—"}</span>
                                 <span className="font-semibold text-violet-200">{rateio.valor_rateado != null ? formatBRL(Number(rateio.valor_rateado)) : "—"}</span>
                                 <span>{rateio.valor_pago_real != null ? formatBRL(Number(rateio.valor_pago_real)) : "—"}</span>
                               </div>
