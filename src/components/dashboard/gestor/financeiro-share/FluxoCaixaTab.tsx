@@ -83,6 +83,20 @@ export default function FluxoCaixaTab() {
       return contas;
     },
   });
+  const { data: contasAPagarReembolsaveis = [], isLoading: contasAPagarReembolsaveisLoading, error: contasAPagarReembolsaveisError } = useQuery({
+    queryKey: ["contas-apagar-reembolsaveis"],
+    queryFn: async () => {
+      const { data: contas, error } = await supabase
+        .from("contas_apagar")
+        .select("id, descricao, valor, data_vencimento, status, cliente_id, aeronave_registro, movimentacao_id, reference_type, reference_id")
+        .in("reference_type", ["travel_expense_report", "travel_report", "travel_report_crew_1", "travel_report_crew_2"])
+        .not("status", "in", "(paga,pago,quitada,liquidada,cancelada,cancelado)")
+        .order("data_vencimento", { ascending: true });
+
+      if (error) throw error;
+      return contas ?? [];
+    },
+  });
   const { data: inadimplencias = [], isLoading: inadimplenciasLoading, error: inadimplenciasError } = useInadimplencia({
     diasAtrasoMinimo: 6,
     // O cartão precisa refletir o mesmo Caixa Cliente exibido em ClienteSituacao.
@@ -113,6 +127,7 @@ export default function FluxoCaixaTab() {
       setData(await fetchFinanceiroData());
       dadosCarregadosRef.current = true;
       await queryClient.invalidateQueries({ queryKey: ["contas-apagar-proximas"] });
+      await queryClient.invalidateQueries({ queryKey: ["contas-apagar-reembolsaveis"] });
       await queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
       await queryClient.invalidateQueries({ queryKey: ["contas-areceber-reembolsos-share"] });
     } catch (e: any) { setErro(e.message || "Erro ao carregar financeiro"); }
@@ -153,8 +168,52 @@ export default function FluxoCaixaTab() {
       (isShare(m) && grupo.includes("reembolsav"));
   }, [grupoDe]);
 
+  const movimentacoesReembolsaveis = useMemo(() => {
+    const movimentacoes = [...data.movimentacoes];
+    const movimentacoesPorId = new Map(movimentacoes.map((m: any) => [m.id, m]));
+    const movimentacoesPorConta = new Map(
+      movimentacoes.filter((m: any) => m.contas_apagar_id).map((m: any) => [m.contas_apagar_id, m]),
+    );
+
+    for (const conta of contasAPagarReembolsaveis) {
+      const movimentacao = movimentacoesPorId.get(conta.movimentacao_id) || movimentacoesPorConta.get(conta.id);
+      if (movimentacao) {
+        Object.assign(movimentacao, {
+          reembolsavel: true,
+          reembolso_quitado: false,
+          contas_apagar_id: conta.id,
+          reference_type: movimentacao.reference_type || conta.reference_type,
+          reference_id: movimentacao.reference_id || conta.reference_id,
+          status: conta.status || movimentacao.status,
+        });
+        continue;
+      }
+
+      movimentacoes.push({
+        id: conta.movimentacao_id || conta.id,
+        descricao: conta.descricao,
+        fluxo: "saida",
+        tipo_caixa: "cliente",
+        clientes_id: conta.cliente_id,
+        aeronave_registro: conta.aeronave_registro,
+        valor_total: conta.valor,
+        valor_rateado: conta.valor,
+        data_vencimento: conta.data_vencimento,
+        status: conta.status,
+        reembolsavel: true,
+        reembolso_quitado: false,
+        contas_apagar_id: conta.id,
+        reference_type: conta.reference_type,
+        reference_id: conta.reference_id,
+      });
+    }
+
+    return movimentacoes;
+  }, [contasAPagarReembolsaveis, data.movimentacoes]);
+
   const movs = useMemo(() => {
-    const filtrados = data.movimentacoes.filter((m: any) => {
+    const fonteMovimentacoes = aba === "reembolsaveis" ? movimentacoesReembolsaveis : data.movimentacoes;
+    const filtrados = fonteMovimentacoes.filter((m: any) => {
       if (String(m.status || '').toLowerCase() === 'cancelado') return false;
 
       const reembolsavel = isReembolsavel(m);
@@ -193,7 +252,7 @@ export default function FluxoCaixaTab() {
       return ordem === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
     });
     return ordenados;
-  }, [data.movimentacoes, aba, caixa, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe, isReembolsavel]);
+  }, [data.movimentacoes, movimentacoesReembolsaveis, aba, caixa, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe, isReembolsavel]);
 
   // Lógica de Seleção
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,6 +439,8 @@ export default function FluxoCaixaTab() {
           <div className="overflow-hidden rounded-xl border border-border bg-background/45 shadow-lg backdrop-blur-sm">
             <div className="flex items-center justify-between border-b border-border px-3 py-2.5 text-xs font-bold text-muted-foreground">
               <div>Lançamentos ({movs.length})</div>
+              {aba === "reembolsaveis" && contasAPagarReembolsaveisLoading && <span className="text-[10px] font-normal">Atualizando reembolsos...</span>}
+              {aba === "reembolsaveis" && contasAPagarReembolsaveisError && <span className="text-[10px] font-normal text-rose-300">Contas a pagar indisponíveis</span>}
             </div>
 
             {/* BARRA FLUTUANTE DE SOMA */}
