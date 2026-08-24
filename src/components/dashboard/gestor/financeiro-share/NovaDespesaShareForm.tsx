@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
   const [saving, setSaving] = useState(false);
   const [categorias, setCategorias] = useState<any[]>([]);
-  const [bancos, setBancos] = useState<any[]>([]);
+  const { data: bancos = [] } = useContasBancarias();
   const [pagadoresMaster, setPagadoresMaster] = useState<any[]>([]);
   const [relatoriosViagem, setRelatoriosViagem] = useState<any[]>([]);
   const [loadingRelatorios, setLoadingRelatorios] = useState(false);
@@ -99,12 +100,6 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
       .order("grupo_categoria")
       .then(({ data }) => setCategorias(data ?? []));
 
-    supabase
-      .from("contas_bancarias")
-      .select("id,banco,numero_conta")
-      .eq("ativo", true)
-      .order("banco")
-      .then(({ data }) => setBancos(data ?? []));
 
     (async () => {
       const { data: roles } = await (supabase as any)

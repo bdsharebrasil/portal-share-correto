@@ -54,6 +54,7 @@ const FILTERABLE_COLUMNS = [
 const norm = (v: unknown) => String(v ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const expenseGroupKey = (row: RateioRow): string => {
+  if (row.despesa_id) return `id:${row.despesa_id}`;
   const date = row.data_pagamento || "";
   const total = totalDespesaOf(row) || num(row.valor_rateado);
   const semanticParts = [

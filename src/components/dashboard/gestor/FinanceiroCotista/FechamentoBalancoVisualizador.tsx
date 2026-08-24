@@ -90,6 +90,7 @@ function capitalize(s: string) {
 
 const mesKey = (s?: string | null) => (s ? String(s).substring(0, 7) : "");
 const expenseGroupKey = (row: RateioRow): string => {
+  if (row.despesa_id) return `id:${row.despesa_id}`;
   const date = row.data_pagamento || row.data_vencimento || "";
   const total = Number(row.valor_total ?? row.valor_total_despesa ?? row.valor_rateado ?? 0);
   const parts = [
