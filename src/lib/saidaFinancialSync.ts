@@ -451,6 +451,8 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     recibo_url: input.recibo_url || null,
     boleto_url: input.boleto_url || null,
     comprovante_url: input.comprovante_url || null,
+    demonstrativo_url: input.demonstrativo_url || null,
+    percentual_uso: input.percentual_uso ?? 100,
     observacoes: input.observacoes || null,
     criado_por: input.criado_por || null,
   };

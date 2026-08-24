@@ -513,6 +513,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           socios_nome: socioMov ? socioNomeMov : null,
           valor_total: valorItem,
           valor_rateado: isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          percentual_uso: linhasValidas.length === 1
+            ? Number(linhasValidas[0].percentual_uso) || null
+            : null,
           valor_pago_real: form.pago_pela_share ? null : (isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2))),
           data_emissao: form.data_emissao,
           data_vencimento: form.data_vencimento || null,
@@ -548,6 +551,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           numero_doc: payload.numero_doc || null,
           comprovante_url: payload.comprovante_url || null,
           nf_url: payload.nf_url || null,
+          demonstrativo_url: payload.demonstrativo_url || null,
           tipo_rateio: form.tipo_rateio || null,
           fluxo: payload.fluxo,
           periodicidade: form.periodicidade || null,
