@@ -1360,7 +1360,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   <table className="w-full table-fixed border-collapse text-[10px]">
                     <thead>
                       <tr className="bg-card-secondary/50 text-[10px] uppercase tracking-widest text-muted-foreground">
-                        <th colSpan={9} className="border-b border-r border-border/60 py-3 px-4 text-left font-bold">
+                        <th colSpan={7} className="border-b border-r border-border/60 py-3 px-4 text-left font-bold">
                           Qualificação da Despesa
                         </th>
                         {cotistas.map((c) => (
@@ -1378,8 +1378,6 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                         <Th>Fornecedor</Th>
                         <Th>Descrição</Th>
                         <Th>Categoria</Th>
-                        <Th>Tipo</Th>
-                        <Th>Prazo</Th>
                         <Th>Pago Por</Th>
                         <Th className="border-r border-border/60 text-foreground" right>Total</Th>
                         {cotistas.map((c) => <Th key={`h-pct-${c.id}`} right>{abrev(c.nome)} %</Th>)}
@@ -1390,7 +1388,6 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       {despesasAgrupadas.map(({ ref, rateios }) => {
                         const dataRef = ref.data_pagamento || ref.data_vencimento;
                         const doc = ref.numero_nf || ref.numero_doc || "—";
-                        const prazo = inferirPrazo(catNome(ref.categoria_custo), ref.tipo_rateio);
 
                         return (
                           <tr key={ref.despesa_id || ref.id} className="hover:bg-card-secondary/50 transition-colors">
@@ -1399,8 +1396,6 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                             <Td fontSemibold>{ref.fornecedor_nome || "—"}</Td>
                             <Td>{ref.descricao_despesa || "—"}</Td>
                             <Td upper>{catNome(ref.categoria_custo)}</Td>
-                            <Td dim upper>{tipoRateioLabel(ref.tipo_rateio || ref.periodicidade)}</Td>
-                            <Td dim upper>{prazo}</Td>
                             <Td upper>{ref.pago_por || "—"}</Td>
                             <Td className="border-r border-border/60 font-bold text-foreground" mono right>
                               {BRL(Number(ref.valor_total ?? ref.valor_total_despesa ?? 0) || rateios.reduce((sum, item) => sum + Number(item.valor_rateado ?? 0), 0))}
@@ -1425,7 +1420,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     </tbody>
                     <tfoot>
                       <tr className="bg-card-secondary text-xs font-bold text-white">
-                        <td colSpan={8} className="py-3 px-4 text-right">Total Geral</td>
+                        <td colSpan={6} className="py-3 px-4 text-right">Total Geral</td>
                         <td className="py-3 px-4 text-right font-mono border-r border-border">{BRL(totalGeral)}</td>
                         {cotistas.map((c) => <td key={`ft-pct-${c.id}`} className="py-3 px-4 text-right text-muted-foreground">—</td>)}
                         {cotistas.map((c) => (
@@ -2265,25 +2260,4 @@ function Td({
 
 function abrev(nome: string) {
   return nome.split(" ")[0];
-}
-
-function tipoRateioLabel(val: string | null) {
-  if (!val) return "—";
-  const labels: Record<string, string> = {
-    FIXO: "Fixo",
-    VARIAVEL_POR_HORA: "Variável por hora",
-    VARIAVEL_POR_VOO: "Variável por voo",
-    EXTRA: "Extra",
-  };
-  const normalized = val.toUpperCase();
-  if (labels[normalized]) return labels[normalized];
-  const label = val.replace(/_/g, " ").toLocaleLowerCase("pt-BR");
-  return label.charAt(0).toLocaleUpperCase("pt-BR") + label.slice(1);
-}
-
-function inferirPrazo(cat: string | null, tipo: string | null): string {
-  const t = ((tipo || "") + (cat || "")).toUpperCase();
-  if (t.includes("LONGO")) return "LONGO PRAZO";
-  if (t.includes("CURTO") || t.includes("VOO") || t.includes("COMBUSTIVEL") || t.includes("COMBUSTÍVEL")) return "CURTO PRAZO";
-  return "MÉDIO PRAZO";
 }
