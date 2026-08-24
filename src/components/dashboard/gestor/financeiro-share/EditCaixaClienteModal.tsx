@@ -138,6 +138,7 @@ type ModoPagamentoCliente = "direto" | "reembolso";
 
 interface RateioLinha {
   id?: string;
+  despesa_id?: string;
   cliente_id: string | null;
   clientes_nome: string | null;
   socio_id: string | null;
@@ -164,6 +165,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const [mov, setMov] = useState<any>(movInit || {});
   const [rateio, setRateio] = useState<any>(null);
   const [linhas, setLinhas] = useState<RateioLinha[]>([]);
+  const [despesaIdsRelacionadas, setDespesaIdsRelacionadas] = useState<string[]>([movId]);
   const [removidos, setRemovidos] = useState<string[]>([]);
   const [anexos, setAnexos] = useState<AnexoLinha[]>(anexosFromMov(movInit || {}));
   const [categoriaCustoId, setCategoriaCustoId] = useState<string>("");
@@ -191,10 +193,40 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
 
   useEffect(() => {
     (async () => {
-      const { data: rows } = await (supabase as any)
+      const client = supabase as any;
+      const { data: movimentacao } = await client
+        .from("movimentacoes")
+        .select("id, contas_apagar_id, reference_type, reference_id, tipo_caixa")
+        .eq("id", movId)
+        .maybeSingle();
+
+      let idsRelacionados = [movId];
+      if (movimentacao?.contas_apagar_id) {
+        const { data: movimentacoesDaConta } = await client
+          .from("movimentacoes")
+          .select("id, tipo_caixa")
+          .eq("contas_apagar_id", movimentacao.contas_apagar_id);
+        idsRelacionados = (movimentacoesDaConta ?? [])
+          .filter((item: any) => String(item.tipo_caixa || "").toLowerCase() === "cliente")
+          .map((item: any) => item.id);
+      } else if (movimentacao?.reference_type && movimentacao?.reference_id) {
+        const { data: movimentacoesDaOrigem } = await client
+          .from("movimentacoes")
+          .select("id, tipo_caixa")
+          .eq("reference_type", movimentacao.reference_type)
+          .eq("reference_id", movimentacao.reference_id);
+        idsRelacionados = (movimentacoesDaOrigem ?? [])
+          .filter((item: any) => String(item.tipo_caixa || "").toLowerCase() === "cliente")
+          .map((item: any) => item.id);
+      }
+
+      const despesaIds = Array.from(new Set([movId, ...idsRelacionados]));
+      setDespesaIdsRelacionadas(despesaIds);
+
+      const { data: rows } = await client
         .from("rateio_despesas")
         .select("*")
-        .eq("despesa_id", movId)
+        .in("despesa_id", despesaIds)
         .order("criado_em");
       const list = (rows ?? []) as any[];
       const first = list[0] || null;
@@ -251,6 +283,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         list.length > 0
           ? list.map((r) => ({
               id: r.id,
+              despesa_id: r.despesa_id ?? movId,
               cliente_id: r.cliente_id ?? null,
               clientes_nome: r.clientes_nome ?? null,
               socio_id: r.socio_id ?? null,
@@ -450,11 +483,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         periodicidade: periodicidade || rateio?.periodicidade || null,
         ...anexosToPatch(anexos),
       };
-      const { error: e1 } = await supabase.from("movimentacoes").update(patch as any).eq("id", movId);
-      if (e1) throw e1;
-
       const comuns = {
-        despesa_id: movId,
         descricao_despesa: mov.descricao,
         tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
         periodicidade: periodicidade || rateio?.periodicidade || null,
@@ -463,21 +492,26 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         fornecedor_nome: mov.fornecedor_nome,
         data_emissao: mov.data_emissao || null,
         data_vencimento: mov.data_vencimento || null,
-        data_pagamento: mov.data_pagamento || null,
+        data_pagamento: allRateiosPending ? null : mov.data_pagamento || null,
         aeronave_id: mov.aeronave_id ?? null,
         aeronave_registro: mov.aeronave_registro ?? rateio?.aeronave_registro ?? null,
         fluxo: mov.fluxo || rateio?.fluxo || "SAIDA",
         valor_total: (numOrNull(mov.valor_total ?? mov.valor_total_despesa) ?? valorTotal) || null,
-        valor_rateado: valorEditado,
-        valor_pago_real: hasReembolso ? null : valorEditado,
         categoria_custo: categoriaCustoId || mov.categoria_id || rateio?.categoria_custo || null,
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? rateio?.categoria_nome ?? null,
         conta_bancaria: mov.conta_bancaria || null,
         subcategoria_1: subcategoria || rateio?.subcategoria_1 || null,
-        pago_por: pagadores.length > 0 ? pagadores.join(", ") : (mov.pago_por || null),
-        pago_diretamente: !hasReembolso,
         ...anexosToPatch(anexos),
       };
+
+      const despesaIds = Array.from(new Set([movId, ...despesaIdsRelacionadas]));
+      const agora = new Date().toISOString();
+
+      const { error: e1 } = await (supabase as any)
+        .from("rateio_despesas")
+        .update({ ...comuns, atualizado_em: agora })
+        .in("despesa_id", despesaIds);
+      if (e1) throw e1;
 
       if (removidos.length > 0) {
         const { error: deleteRateioError } = await (supabase as any).from("rateio_despesas").delete().in("id", removidos);
@@ -499,15 +533,61 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           pago_por: l.modo_pagamento === "reembolso" ? SHARE_BRASIL : (l.pago_por || l.socios_nome || l.clientes_nome || null),
           pago_diretamente: l.modo_pagamento === "direto",
           status: l.modo_pagamento === "reembolso" ? "aguardando_reembolso" : (l.status || "pago"),
-          atualizado_em: new Date().toISOString(),
+          atualizado_em: agora,
         };
         if (l.id) {
           const { error: rErr } = await (supabase as any).from("rateio_despesas").update(payload).eq("id", l.id);
           if (rErr) throw rErr;
         } else {
-          const { error: rErr } = await (supabase as any).from("rateio_despesas").insert(payload);
+          const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({ ...payload, despesa_id: movId });
           if (rErr) throw rErr;
         }
+      }
+
+      const linhasPorDespesa = new Map<string, RateioLinha[]>();
+      linhas.forEach((linha) => {
+        const despesaId = linha.despesa_id || movId;
+        linhasPorDespesa.set(despesaId, [...(linhasPorDespesa.get(despesaId) || []), linha]);
+      });
+
+      const { valor_rateado: _valorRateado, valor_pago_real: _valorPagoReal, status: _status, pago_por: _pagoPor, pago_diretamente: _pagoDiretamente, reembolsavel: _reembolsavel, reembolso_quitado: _reembolsoQuitado, ...camposCompartilhadosMovimentacao } = patch;
+      for (const despesaId of despesaIds) {
+        const linhasDaMovimentacao = linhasPorDespesa.get(despesaId) || [];
+        const temReembolso = linhasDaMovimentacao.some((linha) => linha.modo_pagamento === "reembolso");
+        const todosPendentes = linhasDaMovimentacao.length > 0 && linhasDaMovimentacao.every(
+          (linha) => String(linha.status || "").trim().toLowerCase() === "pendente"
+        );
+        const statusDaMovimentacao = temReembolso
+          ? "aguardando_reembolso"
+          : linhasDaMovimentacao.every((linha) => String(linha.status || "").trim().toLowerCase() === "pago")
+            ? "pago"
+            : linhasDaMovimentacao[0]?.status || patch.status;
+        const pagadoresDaMovimentacao = Array.from(new Set(linhasDaMovimentacao.map((linha) => linha.pago_por).filter(Boolean)));
+        const valorRateadoDaMovimentacao = linhasDaMovimentacao.reduce(
+          (total, linha) => total + (Number(linha.valor_rateado) || 0),
+          0
+        );
+        const valorPagoDaMovimentacao = linhasDaMovimentacao.reduce(
+          (total, linha) => total + (Number(linha.valor_pago_real ?? linha.valor_rateado) || 0),
+          0
+        );
+
+        const { error: movError } = await (supabase as any)
+          .from("movimentacoes")
+          .update({
+            ...camposCompartilhadosMovimentacao,
+            valor_rateado: linhasDaMovimentacao.length > 0 ? valorRateadoDaMovimentacao : patch.valor_rateado,
+            valor_pago_real: temReembolso ? null : linhasDaMovimentacao.length > 0 ? valorPagoDaMovimentacao : patch.valor_pago_real,
+            status: statusDaMovimentacao,
+            pago_por: pagadoresDaMovimentacao.length > 0 ? pagadoresDaMovimentacao.join(", ") : patch.pago_por,
+            pago_diretamente: !temReembolso,
+            reembolsavel: temReembolso,
+            reembolso_quitado: false,
+            data_pagamento: todosPendentes ? null : patch.data_pagamento,
+            atualizado_em: agora,
+          })
+          .eq("id", despesaId);
+        if (movError) throw movError;
       }
 
       onSaved(patch); onClose();
