@@ -1674,7 +1674,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           try {
             movId = await insertAndGetId("movimentacoes", {
               descricao: descricaoViagemModo,
-              fluxo: "despesa", tipo_caixa: "cliente",
+              fluxo: "saida", tipo_caixa: "cliente",
               categoria_id: categoriaCaixaClienteId || categoriaContaId, valor_rateado: entry.valor, valor_total: Number(travelReportSel.total_valor ?? valorNumerico),
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               percentual_uso: percNumerico, periodicidade, tipo_rateio: tipoRateioFinal,
@@ -1797,7 +1797,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
-                fluxo: "despesa", tipo_caixa: "cliente",
+                fluxo: "saida", tipo_caixa: "cliente",
                 categoria_id: categoriaCaixaClienteId, valor_rateado: valorCliente, valor_total: valorNumericoFinal,
                 data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
                 percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,

@@ -759,7 +759,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
 
       const movPayload: any = {
         descricao: descricao.trim(),
-        fluxo: "despesa",
+        fluxo: "saida",
         tipo_caixa: "cliente",
         valor_rateado: valorNum,
         valor_total: valorNum,

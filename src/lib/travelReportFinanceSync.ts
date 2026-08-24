@@ -238,7 +238,8 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
         if (!existingMov) {
           const movPayload: any = {
             descricao: descricaoBase,
-            fluxo: "despesa",
+            fluxo: "saida",
+            tipo_caixa: "cliente",
             valor_rateado: t.valor,
             valor_total: t.valor,
             data_emissao: params.dataReferencia,

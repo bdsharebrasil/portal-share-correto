@@ -570,7 +570,7 @@ export default function NFSaidaTab() {
     let movClienteId: string | null = null;
     const { data: movCliente, error: movClienteError } = await supabase.from("movimentacoes").insert({
       descricao: descricaoLancamento,
-      fluxo: "despesa",
+      fluxo: "saida",
       tipo_caixa: "cliente",
       categoria_id: params.categoriaDespesaId,
       categoria_nome: params.categoriaDespesaNome,
