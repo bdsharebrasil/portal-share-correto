@@ -88,13 +88,14 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
   const loadUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', ['financeiro', 'financeiro_master', 'adm', 'operacoes']);
+        .from('lancamento_ponto' as any)
+        .select('user_id');
 
       if (error) throw error;
 
-      const userIds = data?.map(r => r.user_id) || [];
+      const userIds = Array.from(
+        new Set((data ?? []).map((entry: any) => entry.user_id).filter(Boolean))
+      );
 
       if (userIds.length === 0) {
         setUsers([]);

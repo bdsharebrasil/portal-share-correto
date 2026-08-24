@@ -289,13 +289,13 @@ function useDadosRelatorio(
       if (idsClientesCota.length > 0) {
         const { data: socData } = await (supabase as any)
           .from("socios")
-          .select("id, nome, cliente_id, percentual_participacao")
-          .in("cliente_id", idsClientesCota);
+          .select("id, nome, clientes_id, percentual_participacao")
+          .in("clientes_id", idsClientesCota);
         (socData ?? []).forEach((s: any) => {
           sociosCliente.push({
             id: String(s.id),
             nome: s.nome ?? "—",
-            clienteId: String(s.cliente_id),
+            clienteId: String(s.clientes_id),
             percentual: Number(s.percentual_participacao ?? 0),
           });
           if (!pctMap.has(String(s.id))) pctMap.set(String(s.id), Number(s.percentual_participacao ?? 0));
@@ -307,11 +307,12 @@ function useDadosRelatorio(
       {
         const { data: movData } = await (supabase as any)
           .from("movimentacoes")
-          .select("id, fluxo, tipo_caixa, socio_id, cliente_id, descricao, valor_total, valor_pago_real, valor_rateado, data_pagamento, data_vencimento, competencia")
-          .eq("aeronave_id", aeronaveId)
+          .select("id, fluxo, tipo_caixa, socio_id, clientes_id, descricao, valor_total, valor_pago_real, valor_rateado, data_emissao, data_pagamento, data_vencimento, reference_type")
+          .in("clientes_id", idsClientesCota)
+          .not("socio_id", "is", null)
           .in("fluxo", ["entrada", "receita", "ENTRADA", "RECEITA"]);
         (movData ?? []).forEach((m: any) => {
-          const dataRef = m.data_pagamento || m.competencia || m.data_vencimento;
+          const dataRef = m.data_pagamento || m.data_emissao || m.data_vencimento;
           if (!dataRef) return;
           const iso = String(dataRef).substring(0, 10);
           if (iso < inicio || iso > fim) return;
@@ -320,7 +321,7 @@ function useDadosRelatorio(
           depositos.push({
             id: String(m.id),
             socioId: m.socio_id ? String(m.socio_id) : null,
-            clienteId: m.cliente_id ? String(m.cliente_id) : null,
+            clienteId: m.clientes_id ? String(m.clientes_id) : null,
             data: iso,
             descricao: m.descricao ?? null,
             valor,
@@ -496,13 +497,14 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     });
     return Array.from(map.entries()).map(([id, nome], i) => {
       const pctBanco = data.pctMap?.get(id);
+      const pctSocio = (data as any).sociosCliente?.find((s: any) => s.id === id)?.percentual;
       const pctRateio = rateiosValidos.find(
         (r) => (r.socio_id === id || r.cliente_id === id) && Number(r.percentual_sociedade ?? 0) > 0
       )?.percentual_sociedade;
       return {
         id,
         nome,
-        percentualSociedade: Number(pctBanco || pctRateio || 0),
+        percentualSociedade: Number(pctBanco || pctSocio || pctRateio || 0),
         corHex: CORES_COTISTA[i % CORES_COTISTA.length],
       };
     });
@@ -601,8 +603,14 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
   }, [data, cotistas, rateiosValidos, pivot.grand, totalHorasAeronave]);
 
   const saldos = useMemo(() => {
-    const pagou = new Map<string, number>();
+    const pagouDireto = new Map<string, number>();
+    const depositado = new Map<string, number>();
     const deve = new Map<string, number>();
+
+    (data?.depositos ?? []).forEach((deposito) => {
+      if (!deposito.socioId) return;
+      depositado.set(deposito.socioId, (depositado.get(deposito.socioId) ?? 0) + deposito.valor);
+    });
 
     despesasAgrupadas.forEach(({ ref, rateios }) => {
       const pagadorNome = (ref.pago_por || "").toLowerCase();
@@ -614,7 +622,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       );
       if (pagador) {
         const totalDespesa = rateios.map((r) => Number(r.valor_total ?? r.valor_total_despesa ?? 0)).find((value) => value > 0) ?? rateios.reduce((sum, r) => sum + Number(r.valor_rateado ?? 0), 0);
-        pagou.set(pagador.id, (pagou.get(pagador.id) ?? 0) + totalDespesa);
+        pagouDireto.set(pagador.id, (pagouDireto.get(pagador.id) ?? 0) + totalDespesa);
       }
       rateios.forEach((r) => {
         const cid = r.socio_id || r.cliente_id;
@@ -626,14 +634,20 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     return cotistas.map((c) => ({
       ...c,
       cotistaId: c.id,
-      pagou: pagou.get(c.id) ?? 0,
+      depositado: depositado.get(c.id) ?? 0,
+      pagouDireto: pagouDireto.get(c.id) ?? 0,
+      pagou: pagouDireto.get(c.id) ?? 0,
       deve: deve.get(c.id) ?? 0,
-      saldo: (pagou.get(c.id) ?? 0) - (deve.get(c.id) ?? 0),
+      saldo: isSociedade
+        ? (depositado.get(c.id) ?? 0) + (pagouDireto.get(c.id) ?? 0) - (deve.get(c.id) ?? 0)
+        : (pagouDireto.get(c.id) ?? 0) - (deve.get(c.id) ?? 0),
     }));
-  }, [despesasAgrupadas, cotistas]);
+  }, [data?.depositos, despesasAgrupadas, cotistas, isSociedade]);
 
   /** Algoritmo de menor número de transferências */
   const transferencias = useMemo(() => {
+    if (isSociedade) return [];
+
     const devedores = saldos
       .filter((s) => s.saldo < -0.01)
       .map((s) => ({ id: s.cotistaId, v: -s.saldo }))
@@ -655,7 +669,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
       if (credores[j].v <= 0.01) j++;
     }
     return out;
-  }, [saldos]);
+  }, [saldos, isSociedade]);
 
   const baseCustos = useMemo(() => {
     const rows = rateiosValidos;
@@ -1159,11 +1173,13 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
 
           {/* ══════════════ ABA 2 — ACERTO DE CONTAS ══════════════ */}
           <div className={`space-y-6 animate-fade-in print:block ${activeTab === "acerto" ? "block" : "hidden"}`}>
-            <Nota titulo="O que é o acerto de contas">
+            <Nota titulo={isSociedade ? "Posição frente à conta comum" : "O que é o acerto de contas"}>
               <p>
-                Durante o período cada cotista pagou fornecedores diretamente. O <strong>saldo</strong> é a diferença entre o que
-                a pessoa adiantou e o que de fato lhe cabe pelo rateio. Saldo positivo = tem a receber; saldo negativo = precisa
-                transferir.
+                {isSociedade ? (
+                  <>O <strong>saldo</strong> compara o que cada sócio depositou na conta comum, o que pagou diretamente e o que lhe cabe pelo rateio. Saldo positivo = crédito na conta comum; saldo negativo = valor a aportar.</>
+                ) : (
+                  <>Durante o período cada cotista pagou fornecedores diretamente. O <strong>saldo</strong> é a diferença entre o que a pessoa adiantou e o que de fato lhe cabe pelo rateio. Saldo positivo = tem a receber; saldo negativo = precisa transferir.</>
+                )}
               </p>
             </Nota>
 
@@ -1195,15 +1211,23 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                         {BRL(Math.abs(s.saldo))}
                       </p>
                     </div>
-                    <p className="mt-1 text-xs font-semibold text-muted-foreground">{positivo ? "Tem a receber" : "Tem a pagar"}</p>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                      {isSociedade ? (positivo ? "Crédito na conta comum" : "Valor a aportar") : (positivo ? "Tem a receber" : "Tem a pagar")}
+                    </p>
 
                     <dl className="mt-4 space-y-1.5 border-t border-border/60 pt-3 text-xs">
+                      {isSociedade && (
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Depositou</dt>
+                          <dd className="font-mono text-foreground">{BRL(s.depositado)}</dd>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Adiantou</dt>
-                        <dd className="font-mono text-foreground">{BRL(s.pagou)}</dd>
+                        <dt className="text-muted-foreground">{isSociedade ? "Pagou direto" : "Adiantou"}</dt>
+                        <dd className="font-mono text-foreground">{BRL(s.pagouDireto)}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Cabe a ele(a)</dt>
+                        <dt className="text-muted-foreground">{isSociedade ? "Uso / deve" : "Cabe a ele(a)"}</dt>
                         <dd className="font-mono text-foreground">{BRL(s.deve)}</dd>
                       </div>
                     </dl>
@@ -1212,7 +1236,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               })}
             </div>
 
-            <Painel titulo="Transferências sugeridas" descricao="Menor número possível de pagamentos para zerar todos os saldos do período.">
+            {!isSociedade && (
+              <Painel titulo="Transferências sugeridas" descricao="Menor número possível de pagamentos para zerar todos os saldos do período.">
               {transferencias.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-emerald-400">
                   <CheckCircle2 className="h-4 w-4" />
@@ -1243,9 +1268,11 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   })}
                 </ul>
               )}
-            </Painel>
+              </Painel>
+            )}
 
-            <Painel titulo="Matriz de acerto" descricao="Linha = quem transfere. Coluna = quem recebe." semPadding>
+            {!isSociedade && (
+              <Painel titulo="Matriz de acerto" descricao="Linha = quem transfere. Coluna = quem recebe." semPadding>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <caption className="sr-only">Matriz de transferências entre cotistas</caption>
@@ -1297,24 +1324,31 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   </tbody>
                 </table>
               </div>
-            </Painel>
+              </Painel>
+            )}
 
             <Painel titulo="Conferência do fechamento">
               <ul className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
                 <li className="rounded-xl border border-border/60 bg-card/60 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total pago a fornecedores</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {isSociedade ? "Total depositado" : "Total pago a fornecedores"}
+                  </p>
                   <p className="mt-1 font-mono text-lg font-bold text-foreground">
-                    {BRL(saldos.reduce((s, x) => s + x.pagou, 0))}
+                    {BRL(saldos.reduce((s, x) => s + (isSociedade ? x.depositado : x.pagouDireto), 0))}
                   </p>
                 </li>
                 <li className="rounded-xl border border-border/60 bg-card/60 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total rateado</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {isSociedade ? "Total pago diretamente" : "Total rateado"}
+                  </p>
                   <p className="mt-1 font-mono text-lg font-bold text-foreground">
-                    {BRL(saldos.reduce((s, x) => s + x.deve, 0))}
+                    {BRL(saldos.reduce((s, x) => s + (isSociedade ? x.pagouDireto : x.deve), 0))}
                   </p>
                 </li>
                 <li className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/80">Diferença</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/80">
+                    {isSociedade ? "Posição líquida" : "Diferença"}
+                  </p>
                   <p className="mt-1 font-mono text-lg font-bold text-emerald-300">
                     {BRL(saldos.reduce((s, x) => s + x.saldo, 0))}
                   </p>
@@ -1931,11 +1965,12 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                 <Calculator className="mb-3 h-5 w-5 text-emerald-300" />
                 <h2 className="text-sm font-bold text-foreground">3. Saldo e acerto</h2>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Confronta-se o que cada um adiantou a fornecedores com o que lhe cabe pelo rateio. A diferença vira
-                  transferências entre os cotistas.
+                  {isSociedade
+                    ? "Para clientes com sócios, cada posição é apurada diante da conta comum, sem transferências sugeridas entre os sócios."
+                    : "Confronta-se o que cada um adiantou a fornecedores com o que lhe cabe pelo rateio. A diferença vira transferências entre os cotistas."}
                 </p>
                 <p className="mt-3 rounded-lg bg-card/70 p-3 font-mono text-[11px] text-emerald-200">
-                  saldo = total_pago − total_rateado
+                  {isSociedade ? "saldo = depositado + pago_direto − total_rateado" : "saldo = total_pago − total_rateado"}
                 </p>
               </article>
             </div>
