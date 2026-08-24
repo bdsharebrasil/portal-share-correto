@@ -274,8 +274,6 @@ export default function BaixaPagamentoModal({
         )
         .eq("despesa_id", mov.id);
       
-      const isReembolsoInicial = !(mov.pago_diretamente ?? true);
-      
       const rows = ((data as any[]) || []).map((r) => ({
         ...r,
         valor_total: (r as any).valor_total ?? null,
@@ -283,10 +281,11 @@ export default function BaixaPagamentoModal({
           r.valor_pago_real === null || r.valor_pago_real === undefined
             ? Number(r.valor_rateado) || 0
             : Number(r.valor_pago_real),
-        // Se for reembolso, trava em "Share", senão usa o cliente padrão
-        pago_por: isReembolsoInicial 
-          ? "Share" 
-          : (r.pago_por || r.clientes_nome || r.socios_nome || null),
+        // rateio_despesas é agnóstico a quem desembolsou (regra de negócio, seção 3.5):
+        // pago_por é sempre o cotista, mesmo quando a Share antecipa o pagamento e o
+        // reembolso ainda está pendente. O estado "aguardando reembolso" é representado
+        // por status/pago_diretamente em movimentacoes, nunca por "Share" aqui.
+        pago_por: r.pago_por || r.clientes_nome || r.socios_nome || null,
       }));
       setRateioRows(rows);
     })();
@@ -300,14 +299,13 @@ export default function BaixaPagamentoModal({
   // Atualizando dinamicamente quem está pagando no Rateio
   const handleToggleReembolso = (direto: boolean) => {
     setPagoDiretamente(direto);
-    const isReembolso = !direto;
-    
+    // pago_por continua sendo sempre o cotista (regra de negócio, seção 3.5) —
+    // alternar entre "Pago Diretamente" e "Com Reembolso" muda apenas o status
+    // registrado na baixa, nunca quem aparece como pagador no rateio.
     setRateioRows((prev) =>
       prev.map((r) => ({
         ...r,
-        pago_por: isReembolso
-          ? "Share"
-          : (r.pago_por === "Share" ? (r.clientes_nome || r.socios_nome || null) : r.pago_por),
+        pago_por: r.pago_por || r.clientes_nome || r.socios_nome || null,
         pago_por_outro: false, // reseta o flag caso alterne
       }))
     );
@@ -614,7 +612,10 @@ export default function BaixaPagamentoModal({
                 periodicidade: r.periodicidade ?? null,
                 valor_rateado: r.valor_rateado,
                 valor_pago_real: r.valor_pago_real,
-                pago_por: comReembolso ? "Share" : r.pago_por,
+                // rateio_despesas nunca registra a Share como pagador (regra de negócio,
+                // invariante 5) — pago_por é sempre o cotista; "aguardando reembolso" é
+                // representado pelo status abaixo, não por quem aparece como pagador.
+                pago_por: r.pago_por || r.clientes_nome || r.socios_nome || null,
                 status: comReembolso ? "parcial" : "pago",
                 data_pagamento: dataPagamento,
                 pago_diretamente: !comReembolso,
@@ -627,9 +628,11 @@ export default function BaixaPagamentoModal({
           ),
         );
       } else if (comReembolso) {
+        // Sem rateioRows carregadas não temos o nome do cotista aqui — não sobrescreve
+        // pago_por (rateio_despesas nunca deve registrar a Share como pagador).
         await supabase
           .from("rateio_despesas")
-          .update({ pago_por: "Share", status: "parcial", pago_diretamente: false })
+          .update({ status: "parcial", pago_diretamente: false })
           .eq("despesa_id", mov.id);
       } else {
         await supabase
