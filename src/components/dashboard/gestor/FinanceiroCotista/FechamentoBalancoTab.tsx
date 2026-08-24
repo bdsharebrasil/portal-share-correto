@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, FileText,
-  Lock, Paperclip, ExternalLink, Edit2, X, Save, Loader2, Eye, EyeOff,
+  Lock, Paperclip, ExternalLink, Edit2, X, Save, Loader2, Eye,
   ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,7 +38,7 @@ interface FechamentoBalancoTabProps {
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
-const HIDEABLE_COLUMNS = [
+const FILTERABLE_COLUMNS = [
   ["fluxo", "Fluxo"],
   ["vencimento", "Vencimento"],
   ["pagamento", "Pagamento"],
@@ -108,8 +108,6 @@ export function FechamentoBalancoTab({
 }: FechamentoBalancoTabProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [viewerAnexo, setViewerAnexo] = useState<{ url: string; title: string } | null>(null);
 
   type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
@@ -121,17 +119,8 @@ export function FechamentoBalancoTab({
   const setFilter = (key: string, value: string) =>
     setColumnFilters((current) => ({ ...current, [key]: value }));
 
-  const toggleColumn = (column: string) => {
-    setHiddenColumns((current) => {
-      const next = new Set(current);
-      if (next.has(column)) next.delete(column);
-      else next.add(column);
-      return next;
-    });
-  };
-
-  const columnVisible = (column: string) => !hiddenColumns.has(column);
-  const visibleColumnCount = 2 + HIDEABLE_COLUMNS.length - hiddenColumns.size;
+  const columnVisible = () => true;
+  const visibleColumnCount = 2 + FILTERABLE_COLUMNS.length;
 
   const toggleSort = (field: SortBy) => {
     if (sortBy === field) {
@@ -421,37 +410,6 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
             </div>
           </div>
 
-          <div className="relative z-[500] overflow-visible">
-            <button
-              onClick={() => setShowColumnMenu((current) => !current)}
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card-secondary/70 px-3 py-2 text-[11px] font-bold text-muted-foreground transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
-              aria-expanded={showColumnMenu}
-              aria-label="Mostrar ou ocultar colunas"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              COLUNAS{hiddenColumns.size > 0 ? ` +${hiddenColumns.size}` : ""}
-            </button>
-            {showColumnMenu && (
-              <>
-                <div className="fixed inset-0 z-[9998]" onClick={() => setShowColumnMenu(false)} />
-                <div className="absolute right-0 top-full z-[9999] mt-2 w-48 rounded-lg border border-border bg-card p-2 shadow-2xl">
-                  {HIDEABLE_COLUMNS.map(([id, label]) => (
-                    <button
-                      key={id}
-                      onClick={() => toggleColumn(id)}
-                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-muted-foreground transition-colors hover:bg-card-secondary hover:text-teal-300"
-                    >
-                      {label}
-                      {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-
           <div className="flex items-center gap-2">
             {onVerNaTela && (
               <button
@@ -583,7 +541,7 @@ const cliente = r.socios_nome || r.clientes_nome || r.pago_por || "";      retur
                     </button>
                   )}
                 </th>
-                {HIDEABLE_COLUMNS.map(([id, label]) => (
+                {FILTERABLE_COLUMNS.map(([id, label]) => (
                   <th key={id} className={`px-2 py-1.5 ${columnVisible(id) ? "" : "hidden"}`}>
                     <input
                       value={columnFilters[id] ?? ""}
