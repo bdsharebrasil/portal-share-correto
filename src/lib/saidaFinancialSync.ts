@@ -507,7 +507,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     origem_id,
     {
       ...movComum,
-      fluxo: "despesa",
+      fluxo: "saida",
       tipo_caixa: "cliente",
       categoria_id: categoriaExpenseId,
       contas_areceber_id: contasAreceberId,

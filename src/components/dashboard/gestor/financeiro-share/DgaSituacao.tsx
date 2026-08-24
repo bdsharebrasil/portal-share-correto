@@ -192,8 +192,8 @@ export default function DgaSituacao({
         id: r.despesa_id || r.id,
         clientes_id: r.cliente_id,
         clientes_nome: r.clientes_nome,
-        tipo_caixa: "cliente",
-        fluxo: "despesa",
+        tipo_caixa: "dga",
+        fluxo: "saida",
         descricao: r.descricao_despesa,
         valor_rateado: r.valor_rateado,
         data_pagamento: r.data_pagamento,
@@ -205,6 +205,17 @@ export default function DgaSituacao({
     return [...movimentacoesDga, ...abastecimentosSemMovimentacao]
       .filter((m) => String(m.status || "").toLowerCase() !== "cancelado");
   }, [movimentacoes, rateios]);
+  const rateiosPorMovimentacao = useMemo(() => {
+    const agrupados = new Map<string, any[]>();
+    for (const rateio of rateios) {
+      const id = rateio.despesa_id || rateio.movimentacao_origem_id;
+      if (!id) continue;
+      const chave = String(id);
+      agrupados.set(chave, [...(agrupados.get(chave) || []), rateio]);
+    }
+    return agrupados;
+  }, [rateios]);
+
   const entradas = dga.filter(isEntrada).reduce((s, m) => s + valueOf(m), 0);
   const despesasBancoList = dga.filter(isDgaPaidByBank);
   const cotistasList = dga.filter(isDgaCotistaOutOfPocket);
@@ -531,8 +542,19 @@ export default function DgaSituacao({
             <tbody>
               {extratoOrdenado.map((m) => {
                 const cor = tipoCor(m);
-                const anexos = anexosDe(m);
-                const temRateio = m.percentual_sociedade != null && Number(m.percentual_sociedade) < 100;
+                const rateiosDoLancamento = rateiosPorMovimentacao.get(String(m.id)) || (m._fromRateio ? [m] : []);
+                const rateioPrincipal = rateiosDoLancamento[0];
+                const anexos = anexosDe({
+                  ...m,
+                  comprovante_url: rateioPrincipal?.comprovante_url || m.comprovante_url,
+                  recibo_url: rateioPrincipal?.recibo_url || m.recibo_url,
+                  nf_url: rateioPrincipal?.nf_url || m.nf_url,
+                  boleto_url: rateioPrincipal?.boleto_url || m.boleto_url,
+                  demonstrativo_url: rateioPrincipal?.demonstrativo_url || m.demonstrativo_url,
+                  relatorio_url: rateioPrincipal?.relatorio_url || m.relatorio_url,
+                  comanda_url: rateioPrincipal?.comanda_url || m.comanda_url,
+                });
+                const temRateio = rateiosDoLancamento.length > 0 || (m.percentual_sociedade != null && Number(m.percentual_sociedade) < 100);
                 const vencePendente = ["PENDENTE", "AGUARDANDO_REEMBOLSO", "ATRASADO", "VENCIDO"].includes(
                   String(m.status || "").toUpperCase(),
                 ) && m.data_vencimento;
@@ -617,16 +639,31 @@ export default function DgaSituacao({
                       <td colSpan={12} className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-violet-300/70">Rateio e pagamento</div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-                          <CampoDetalhe label="Quem pagou" valor={m.socios_nome || m.clientes_nome || m.pago_por || "—"} />
-                          <CampoDetalhe label="Valor rateado" valor={m.valor_rateado != null ? formatBRL(Number(m.valor_rateado)) : "—"} destaque />
-                          <CampoDetalhe label="Valor pago real" valor={m.valor_pago_real != null ? formatBRL(Number(m.valor_pago_real)) : "—"} destaque />
-                          <CampoDetalhe label="Valor total" valor={m.valor_total != null ? formatBRL(Number(m.valor_total)) : "—"} />
-                          <CampoDetalhe label="Tipo de rateio" valor={m.tipo_rateio || "—"} />
-                          <CampoDetalhe label="Forma de pagamento" valor={m.forma_pagamento || "—"} />
-                          <CampoDetalhe label="Periodicidade" valor={m.periodicidade || "—"} />
-                          <CampoDetalhe label="% de uso" valor={m.percentual_uso != null ? `${Number(m.percentual_uso)}%` : "—"} />
-                          <CampoDetalhe label="% sociedade" valor={m.percentual_sociedade != null ? `${Number(m.percentual_sociedade)}%` : "—"} />
+                          <CampoDetalhe label="Quem pagou" valor={rateioPrincipal?.pago_por || m.pago_por || "—"} />
+                          <CampoDetalhe label="Valor rateado" valor={rateioPrincipal?.valor_rateado != null ? formatBRL(Number(rateioPrincipal.valor_rateado)) : (m.valor_rateado != null ? formatBRL(Number(m.valor_rateado)) : "—")} destaque />
+                          <CampoDetalhe label="Valor pago real" valor={rateioPrincipal?.valor_pago_real != null ? formatBRL(Number(rateioPrincipal.valor_pago_real)) : (m.valor_pago_real != null ? formatBRL(Number(m.valor_pago_real)) : "—")} destaque />
+                          <CampoDetalhe label="Valor total" valor={rateioPrincipal?.valor_total != null ? formatBRL(Number(rateioPrincipal.valor_total)) : (m.valor_total != null ? formatBRL(Number(m.valor_total)) : "—")} />
+                          <CampoDetalhe label="Tipo de rateio" valor={rateioPrincipal?.tipo_rateio || m.tipo_rateio || "—"} />
+                          <CampoDetalhe label="Forma de pagamento" valor={rateioPrincipal?.forma_pagamento || m.forma_pagamento || "—"} />
+                          <CampoDetalhe label="Periodicidade" valor={rateioPrincipal?.periodicidade || m.periodicidade || "—"} />
+                          <CampoDetalhe label="NF" valor={rateioPrincipal?.numero_nf || m.numero_nf || "—"} />
+                          <CampoDetalhe label="Documento" valor={rateioPrincipal?.numero_doc || m.numero_doc || "—"} />
                         </div>
+                        {rateiosDoLancamento.length > 0 && (
+                          <div className="mt-4 overflow-hidden rounded-lg border border-border/70">
+                            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              <span>Sócio</span><span>Uso</span><span>Rateado</span><span>Pago real</span>
+                            </div>
+                            {rateiosDoLancamento.map((rateio) => (
+                              <div key={rateio.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-t border-border/60 px-3 py-2 text-xs">
+                                <span className="font-semibold">{rateio.socios_nome || rateio.clientes_nome || "—"}</span>
+                                <span>{rateio.percentual_uso != null ? `${Number(rateio.percentual_uso)}%` : "—"}</span>
+                                <span className="font-semibold text-violet-200">{rateio.valor_rateado != null ? formatBRL(Number(rateio.valor_rateado)) : "—"}</span>
+                                <span>{rateio.valor_pago_real != null ? formatBRL(Number(rateio.valor_pago_real)) : "—"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}

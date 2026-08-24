@@ -872,6 +872,7 @@ export function FuelRecordsByAircraft({
           .insert({
             descricao,
             tipo: "despesa",
+            fluxo: "saida",
             tipo_caixa: "cliente",
             valor_rateado: valorPorSocio,
             data_emissao: formData.data,

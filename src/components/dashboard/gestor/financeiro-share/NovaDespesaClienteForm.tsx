@@ -70,6 +70,7 @@ const PERIODICIDADES = [
 
 
 const SHARE_BRASIL = "SHARE BRASIL";
+const DGA_ADMINISTRADORA = "DGA ADMINISTRADORA DE BENS SPE LTDA";
 
 const isEntradaTipo = (t: string) => t === "receita" || t === "entrada" || t === "estorno";
 
@@ -92,6 +93,27 @@ const novaLinha = (): Linha => ({
   percentual_uso: "",
   valor_rateado: "",
 });
+
+function distribuirRateio(valor: number, linhas: Linha[]) {
+  const percentuais = linhas.map((linha) => Number(linha.percentual_uso));
+  const valoresInformados = linhas.map((linha) => Number(linha.valor_rateado));
+  const pesos = percentuais.every((percentual) => percentual > 0)
+    ? percentuais
+    : valoresInformados.every((valorInformado) => valorInformado > 0)
+      ? valoresInformados
+      : linhas.map(() => 1);
+  const pesoTotal = pesos.reduce((total, peso) => total + peso, 0);
+  const totalCentavos = Math.round(valor * 100);
+  let acumulado = 0;
+
+  return pesos.map((peso, index) => {
+    const centavos = index === pesos.length - 1
+      ? totalCentavos - acumulado
+      : Math.round((totalCentavos * peso) / pesoTotal);
+    acumulado += centavos;
+    return centavos / 100;
+  });
+}
 
 export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "cliente" }: Props) {
   const hoje = new Date().toISOString().slice(0, 10);
@@ -413,8 +435,14 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
     if (!isDgaModo && !form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
 
+    const linhasDga = linhas.filter((l) => l.socio_id);
     const linhasValidas = isDgaModo
-      ? linhas.filter((l) => l.socio_id).map((l) => ({ ...l, cliente_id: CLIENTE_DGA_ID, clientes_nome: "DGA" }))
+      ? linhasDga.map((l) => ({
+          ...l,
+          cliente_id: CLIENTE_DGA_ID,
+          clientes_nome: DGA_ADMINISTRADORA,
+          percentual_uso: l.percentual_uso || (100 / linhasDga.length).toFixed(2),
+        }))
       : linhas.filter((l) => l.cliente_id || l.socio_id);
     if (linhasValidas.length === 0) return toast.error("Adicione ao menos um cotista no rateio.");
 
@@ -437,9 +465,13 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
       const nomeClientePrincipal = clientePrincipal?.clientes_nome || null;
       const socioMov = linhasValidas.length === 1 ? linhasValidas[0].socio_id : null;
       const socioNomeMov = linhasValidas.length === 1 ? linhasValidas[0].socios_nome : null;
+      const todosSociosDgaRateados = isDgaModo && cotistas.length > 0 && linhasValidas.length === cotistas.length;
       const pagadorMov = form.pago_pela_share
         ? SHARE_BRASIL
-        : (socioNomeMov || (linhasValidas.length > 1 ? linhasValidas.map((l) => l.socios_nome).filter(Boolean).join(", ") : null) || nomeClientePrincipal || null);
+        : todosSociosDgaRateados
+          ? DGA_ADMINISTRADORA
+          : (socioNomeMov || (linhasValidas.length > 1 ? linhasValidas.map((l) => l.socios_nome).filter(Boolean).join(", ") : null) || nomeClientePrincipal || null);
+      const anexosMovimentacao = mapAnexosToMovimentacao(anexos);
 
       // Regra "pago diretamente pelo cotista":
       // - ENTRADA nunca é pagamento direto (sempre false)
@@ -462,9 +494,10 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           ? `${form.descricao.trim()} — Rel. ${rel.numero_relatorio || rel.numero_voo || ""}`.trim()
           : form.descricao.trim();
 
+        const valoresRateio = distribuirRateio(valorItem, linhasValidas);
         const payload: any = {
           descricao: descricaoItem,
-          fluxo: form.fluxo || (entrada ? "entrada" : "despesa"),
+          fluxo: entrada ? form.fluxo : "saida",
           tipo_caixa: isDgaModo ? "dga" : "cliente",
           numero_voo: rel?.numero_voo || form.numero_voo || null,
           categoria_id: categoriaIdEfetiva,
@@ -479,8 +512,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           socio_id: socioMov,
           socios_nome: socioMov ? socioNomeMov : null,
           valor_total: valorItem,
-          valor_rateado: Number(((totalRateado || valorTotal) * fator).toFixed(2)),
-          valor_pago_real: form.pago_pela_share ? null : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          valor_rateado: isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2)),
+          valor_pago_real: form.pago_pela_share ? null : (isDgaModo ? valoresRateio[0] : Number(((totalRateado || valorTotal) * fator).toFixed(2))),
           data_emissao: form.data_emissao,
           data_vencimento: form.data_vencimento || null,
           data_pagamento: form.data_pagamento || null,
@@ -495,7 +528,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           reembolso_quitado: false,
           criado_por: criadoPor,
           ...(rel ? { reference_type: "relatorio_viagem", reference_id: rel.id } : {}),
-          ...mapAnexosToMovimentacao(anexos),
+          ...anexosMovimentacao,
         };
 
         const { data: mov, error } = await supabase
@@ -511,8 +544,12 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           fonte_despesa: "movimentacoes",
           descricao_despesa: payload.descricao,
           numero_voo: payload.numero_voo,
+          numero_nf: payload.numero_nf || null,
+          numero_doc: payload.numero_doc || null,
+          comprovante_url: payload.comprovante_url || null,
+          nf_url: payload.nf_url || null,
           tipo_rateio: form.tipo_rateio || null,
-          fluxo: form.fluxo || (entrada ? "entrada" : "saida"),
+          fluxo: payload.fluxo,
           periodicidade: form.periodicidade || null,
           forma_pagamento: form.forma_pagamento || null,
           fornecedor_nome: form.fornecedor_nome || null,
@@ -533,8 +570,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
             : {}),
         };
 
-        for (const l of linhasValidas) {
-          const rateado = l.valor_rateado === "" ? null : Number((Number(l.valor_rateado) * fator).toFixed(2));
+        for (const [index, l] of linhasValidas.entries()) {
+          const rateado = valoresRateio[index];
           const { error: rErr } = await (supabase as any).from("rateio_despesas").insert({
             ...comuns,
             cliente_id: l.cliente_id,
