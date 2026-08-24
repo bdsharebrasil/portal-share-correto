@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Gestão Share Brasil</title>
+
+    <meta name="description" content="Portal de Gestão Share Brasil para Colaboradores" />
+    <meta name="author" content="Share Brasil" />
+
+    <meta name="theme-color" content="#e8edf3" />
+    <script>
+      const savedTheme = localStorage.getItem('share-theme:guest');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.classList.add(savedTheme);
+        document.documentElement.dataset.theme = savedTheme;
+        document.documentElement.style.colorScheme = savedTheme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', savedTheme === 'dark' ? '#0f172a' : '#e8edf3');
+      }
+    </script>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Share Brasil" />
+
+    <meta property="og:title" content="Gestão Share Brasil" />
+    <meta property="og:description" content="Portal de Gestão Share Brasil " />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icon-512.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gestão Share Brasil" />
+    <meta name="twitter:description" content="Portal de Gestão Share Brasil " />
+    <meta name="twitter:image" content="/icon-512.png" />
+
+    <!-- Manifest condicional -->
+    <script>
+      const isGithubDev =
+        location.hostname.includes('github.dev') ||
+        location.hostname.includes('app.github.dev');
+
+      if (!isGithubDev) {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = '/manifest.json';
+        document.head.appendChild(link);
+      } else {
+        console.log('Manifest PWA desativado no ambiente GitHub Dev');
+      }
+    </script>
+
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/logo.share.png" />
+    <link rel="apple-touch-icon" href="/favicon.ico" />
+    <script type="module" crossorigin src="/assets/index-Diy0MbE2.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CPqmOogD.css">
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+
+  <body>
+    <div id="root"></div>
+    <script>
+      // Configure Vite HMR to work with proxies by using the same host as the browser
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname;
+      const port = window.location.port ? parseInt(window.location.port) : (protocol === 'wss:' ? 443 : 80);
+
+      window.__vite_hmr__ = {
+        protocol,
+        host,
+        port
+      };
+    </script>
+  </body>
+</html>

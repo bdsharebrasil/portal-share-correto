@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { classify, dateOf, isDga, isEntrada, periodOf, paidByShareForClient, valueOf } from '@/utils/financeiroRules';
 
-export function useClienteFinanceiro(movimentacoes: any[], clienteId: string | null) {
+export function useClienteFinanceiro(movimentacoes: any[], rateios: any[] = [], clienteId: string | null) {
   return useMemo(() => {
     if (!clienteId) {
       return {
@@ -11,9 +11,46 @@ export function useClienteFinanceiro(movimentacoes: any[], clienteId: string | n
       };
     }
 
-    const movimentos = movimentacoes.filter(
-      (movimento) => String(movimento?.clientes_id || '') === clienteId && !isDga(movimento) && !['cancelado'].includes(String(movimento?.status || '').toLowerCase()),
-    );
+    const valoresRateadosPorMovimentacao = new Map<string, number>();
+    rateios.forEach((rateio) => {
+      if (String(rateio?.cliente_id || '') !== clienteId) return;
+      const movimentacaoId = String(rateio?.despesa_id || rateio?.movimentacao_id || '');
+      if (!movimentacaoId) return;
+      const valor = Number(rateio?.valor_rateado) || Number(rateio?.valor) || 0;
+      valoresRateadosPorMovimentacao.set(
+        movimentacaoId,
+        (valoresRateadosPorMovimentacao.get(movimentacaoId) || 0) + valor,
+      );
+    });
+
+    const movimentos = movimentacoes
+      .map((movimento) => {
+        const movimentacaoId = String(movimento?.id || '');
+        const rateiosDoCliente = rateios.filter(
+          (rateio) => String(rateio?.despesa_id || rateio?.movimentacao_id || '') === movimentacaoId && String(rateio?.cliente_id || '') === clienteId,
+        );
+        const valorRateado = valoresRateadosPorMovimentacao.get(movimentacaoId);
+        if (valorRateado == null && rateiosDoCliente.length === 0) return movimento;
+        const rateioPrincipal = rateiosDoCliente[0];
+        const valorPago = rateiosDoCliente.reduce(
+          (total, rateio) => total + (Number(rateio?.valor_pago_real) || 0),
+          0,
+        );
+        return {
+          ...movimento,
+          clientes_id: clienteId,
+          ...(valorRateado != null ? { valor_rateado: valorPago > 0 ? valorPago : valorRateado } : {}),
+          ...(rateioPrincipal?.percentual_uso != null ? { percentual_uso: rateioPrincipal.percentual_uso } : {}),
+          ...(rateioPrincipal?.percentual_sociedade != null ? { percentual_sociedade: rateioPrincipal.percentual_sociedade } : {}),
+          ...(rateioPrincipal?.status ? { status: rateioPrincipal.status.toLowerCase() } : {}),
+          ...(rateioPrincipal?.pago_por ? { pago_por: rateioPrincipal.pago_por } : {}),
+          ...(rateioPrincipal?.pago_diretamente != null ? { pago_diretamente: rateioPrincipal.pago_diretamente } : {}),
+          _rateiosCliente: rateiosDoCliente,
+        };
+      })
+      .filter(
+        (movimento) => String(movimento?.clientes_id || '') === clienteId && !isDga(movimento) && !['cancelado'].includes(String(movimento?.status || '').toLowerCase()),
+      );
     const despesasShare = movimentos.filter(paidByShareForClient);
     const despesasDiretas = movimentos.filter((movimento) => !isEntrada(movimento) && classify(movimento).natureza === 'DESPESA_CLIENTE_PAGA_DIRETO');
     const recebimentos = movimentos.filter(isEntrada);
@@ -52,5 +89,5 @@ export function useClienteFinanceiro(movimentacoes: any[], clienteId: string | n
     });
 
     return { movimentos, mensal, resumo: { despesas, sharePagou, clientePagouDireto, recebidoShare, aberto } };
-  }, [movimentacoes, clienteId]);
+  }, [movimentacoes, rateios, clienteId]);
 }

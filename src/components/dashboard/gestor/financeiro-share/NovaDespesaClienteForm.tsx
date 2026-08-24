@@ -348,8 +348,19 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     });
   }, [clienteVooId, cotistas]);
 
-  /* ── Despesas de viagem: busca relatórios em aberto do cliente ── */
-  const isDespesaViagem = (categoriaNome || "").toUpperCase().includes("VIAGEM");
+  /* ── Relatório de viagem: busca somente os relatórios do cotista escolhido ── */
+  const categoriaNormalizada = (categoriaNome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+  const subcategoriaNormalizada = (subcategoriaNome || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+  const isDespesaViagem = categoriaNormalizada.includes("DESPESA") && categoriaNormalizada.includes("VIAGEM") &&
+    subcategoriaNormalizada.includes("RELATORIO") && subcategoriaNormalizada.includes("VIAGEM");
   const isTravelClassification = isDespesaViagem;
   const categoriaIdEfetiva = isTravelClassification
     ? FinanceCategoryId.TRAVEL_REPORT_EXPENSE
@@ -359,7 +370,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     : isTravelClassification
       ? FinanceGroupName.TRAVEL_REIMBURSABLE_EXPENSE
       : (!entrada && !form.pago_pela_share ? FinanceGroupName.CLIENT_CASH : null);
-  const clienteAlvo = clienteVooId || linhas.find((l) => l.cliente_id)?.cliente_id || null;
+  const cotistaSelecionado = linhas.find((l) => l.cliente_id || l.socio_id) || null;
+  const clienteAlvo = cotistaSelecionado?.cliente_id || clienteVooId || null;
+  const socioAlvo = cotistaSelecionado?.socio_id || null;
 
   useEffect(() => {
     if (!isDespesaViagem || !clienteAlvo) {
@@ -371,10 +384,11 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     (async () => {
       let q = (supabase as any)
         .from("travel_expense_reports")
-        .select("id,numero_relatorio,numero_voo,total_valor,data_inicio,data_fim,rota,status")
+        .select("id,numero_relatorio,numero_voo,total_valor,total_tripulacao,total_trip,total_trip2,total_clientes,data_inicio,data_fim,rota,status")
         .eq("clientes_id", clienteAlvo)
         .order("data_inicio", { ascending: false });
       if (form.numero_voo) q = q.eq("numero_voo", form.numero_voo);
+      if (socioAlvo) q = q.eq("socios_id", socioAlvo);
       const { data } = await q;
       const lista = data ?? [];
       const ids = lista.map((r: any) => r.id);
@@ -384,6 +398,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           .from("movimentacoes")
           .select("reference_id,valor_total,valor_rateado")
           .eq("reference_type", "relatorio_viagem")
+          .eq("tipo_caixa", isDgaModo ? "dga" : "cliente")
           .in("reference_id", ids);
         (movs ?? []).forEach((m: any) => {
           const v = Number(m.valor_total ?? m.valor_rateado ?? 0);
@@ -392,7 +407,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
       }
       const comSaldo = lista
         .map((r: any) => {
-          const total = Number(r.total_valor || 0);
+          const total = isDgaModo
+            ? Number(r.total_tripulacao || r.total_trip || r.total_trip2 || 0)
+            : Number(r.total_clientes || r.total_valor || 0);
           const pago = pagoPorRelatorio[r.id] || 0;
           return { ...r, total, pago, saldo: Number((total - pago).toFixed(2)) };
         })
@@ -405,7 +422,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     return () => {
       cancel = true;
     };
-  }, [isDespesaViagem, clienteAlvo, form.numero_voo]);
+  }, [isDespesaViagem, clienteAlvo, socioAlvo, form.numero_voo, isDgaModo]);
 
   /* Abatimento em cascata: consome o valor informado nos relatórios em aberto */
   const alocacoes = useMemo(() => {

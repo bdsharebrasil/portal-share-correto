@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { formatBRL } from "@/lib/format";
 import { deleteMovimentacao, fetchFinanceiroData } from "@/services/financeiroService";
-import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, paidByShareForClient, valueOf } from "@/utils/financeiroRules";
+import { classify, dateOf, fornecedorStatus, isDga, isEntrada, isShare, paidByShareForClient, paidValueOf } from "@/utils/financeiroRules";
 
 type TipoData = "vencimento" | "pagamento";
 type Ordem = "asc" | "desc";
@@ -50,9 +50,8 @@ export default function FluxoCaixaTab() {
   // Filtros
   const [busca, setBusca] = useState("");
   const [mes, setMes] = useState("");
-  const [caixa, setCaixa] = useState<"todos" | "share" | "cliente" | "dga">("todos");
   const [grupoFiltro, setGrupoFiltro] = useState("");
-  const [tipoData, setTipoData] = useState<TipoData>("vencimento");
+  const [tipoData, setTipoData] = useState<TipoData>("pagamento");
   const [ordem, setOrdem] = useState<Ordem>("desc");
   
   // Seleção múltipla para soma
@@ -160,10 +159,6 @@ export default function FluxoCaixaTab() {
     };
   }, [load]);
 
-  useEffect(() => {
-    if (aba === "reembolsaveis") setCaixa("todos");
-  }, [aba]);
-
   const catMap = useMemo(() => {
     const m = new Map<string, any>();
     (data.categorias || []).forEach((c: any) => { m.set(c.id, c); m.set(String(c.nome || "").toLowerCase(), c); });
@@ -250,12 +245,8 @@ export default function FluxoCaixaTab() {
       // Aba "Caixa": nunca mostra reembolsáveis (elas ficam só na aba própria).
       if (aba === "caixa" && reembolsavel) return false;
 
-      if (caixa === 'dga' && !isDga(m)) return false;
-      // Caixa "Share": mostra tudo do caixa Share (entradas E saídas),
-      // exceto DGA (DGA é tratado separadamente). Reembolsáveis já foram
-      // filtradas acima quando a aba é "caixa".
-      if (caixa === 'share' && (!isShare(m) || isDga(m))) return false;
-      if (caixa === 'cliente' && (isDga(m) || isShare(m))) return false;
+      // A aba Caixa representa exclusivamente o caixa Share.
+      if (aba === "caixa" && (!isShare(m) || isDga(m))) return false;
 
       if (mes && String(getDisplayDate(m) || '').slice(0, 7) !== mes) return false;
       if (grupoFiltro && grupoDe(m) !== grupoFiltro) return false;
@@ -276,7 +267,7 @@ export default function FluxoCaixaTab() {
       return ordem === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
     });
     return ordenados;
-  }, [data.movimentacoes, movimentacoesReembolsaveis, aba, caixa, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe, isReembolsavel]);
+  }, [data.movimentacoes, movimentacoesReembolsaveis, aba, mes, busca, grupoFiltro, ordem, getDisplayDate, grupoDe, isReembolsavel]);
 
   // Lógica de Seleção
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,7 +280,7 @@ export default function FluxoCaixaTab() {
   };
 
   const somaSelecionados = useMemo(() => {
-    return movs.filter((m: any) => selecionados.includes(m.id)).reduce((acc: number, m: any) => acc + valueOf(m), 0);
+    return movs.filter((m: any) => selecionados.includes(m.id)).reduce((acc: number, m: any) => acc + paidValueOf(m), 0);
   }, [movs, selecionados]);
 
 
@@ -412,12 +403,7 @@ export default function FluxoCaixaTab() {
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-background/55 p-2.5">
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               <span>Caixa</span>
-              <select value={aba === "reembolsaveis" ? "todos" : caixa} onChange={e => setCaixa(e.target.value as any)} disabled={aba === "reembolsaveis"} className="h-8 rounded-lg border border-border bg-card px-2.5 text-[11px] text-foreground outline-none focus:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-70">
-                <option value="todos">Todos os caixas</option>
-                <option value="share">Caixa Share</option>
-                <option value="cliente">Caixas Cliente</option>
-                <option value="dga">DGA</option>
-              </select>
+              <div className="flex h-8 items-center rounded-lg border border-border bg-card px-2.5 text-[11px] text-foreground">Caixa Share</div>
             </label>
             
             <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -545,7 +531,7 @@ export default function FluxoCaixaTab() {
                       </td>
                       <td className="px-3 py-2.5 text-muted-foreground">{m.pago_por || "—"}</td>
                       <td className={`px-3 py-2.5 text-right font-black ${isEntr ? 'text-emerald-400' : 'text-foreground'}`}>
-                        {isEntr ? '+' : ''}{formatBRL(valueOf(m))}
+                        {isEntr ? '+' : ''}{formatBRL(paidValueOf(m))}
                       </td>
                       <td className="px-3 py-2.5 text-center">
                          <span className={`inline-flex whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase leading-3 tracking-wide ${

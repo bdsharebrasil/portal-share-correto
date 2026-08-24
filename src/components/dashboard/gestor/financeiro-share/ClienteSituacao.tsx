@@ -68,6 +68,7 @@ export default function ClienteSituacao({
 
   const { movimentos, mensal, resumo } = useClienteFinanceiro(
     movimentacoes,
+    rateios,
     clienteId || null
   );
   
@@ -436,7 +437,7 @@ export default function ClienteSituacao({
               {lista.map((m) => {
                 const isSelected = selecionados.includes(m.id);
                 const expandido = expandidos.has(m.id);
-                const rateioItens = rateiosPorDespesa.get(m.id) || [];
+                const rateioItens = m._rateiosCliente || rateiosPorDespesa.get(m.id) || [];
                 const anexos = anexosDe(m);
                 return (
                   <Fragment key={m.id}>
