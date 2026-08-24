@@ -1116,7 +1116,6 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     return (
                       <li key={r.cotistaId} className="grid grid-cols-2 gap-4 p-5 lg:grid-cols-6 lg:items-center">
                         <div className="col-span-2 flex items-center gap-3 lg:col-span-2">
-                          <AvatarCotista cotista={r} />
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-foreground">{r.nome}</p>
                             <p className="text-xs text-muted-foreground">
@@ -1193,8 +1192,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                       positivo ? "border-emerald-500/30 bg-emerald-500/[0.07]" : "border-rose-500/30 bg-rose-500/[0.07]"
                     }`}
                   >
-                    <div className="mb-4 flex items-center gap-3">
-                      <AvatarCotista cotista={s} />
+                    <div className="mb-4">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">{s.nome}</p>
                         <p className="text-[11px] text-muted-foreground">Cota {NUM(s.percentualSociedade, 0)}%</p>
@@ -1253,15 +1251,9 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                         key={`${t.de}-${t.para}-${i}`}
                         className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/60 p-4"
                       >
-                        <span className="flex items-center gap-2">
-                          <AvatarCotista cotista={de} tamanho="sm" />
-                          <span className="text-sm font-semibold text-foreground">{de.nome}</span>
-                        </span>
+                        <span className="text-sm font-semibold text-foreground">{de.nome}</span>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <span className="flex items-center gap-2">
-                          <AvatarCotista cotista={para} tamanho="sm" />
-                          <span className="text-sm font-semibold text-foreground">{para.nome}</span>
-                        </span>
+                        <span className="text-sm font-semibold text-foreground">{para.nome}</span>
                         <span className="ml-auto font-mono text-base font-bold text-emerald-400">{BRL(t.valor)}</span>
                       </li>
                     );
@@ -1364,8 +1356,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
               {despesasAgrupadas.length === 0 ? (
                 <Vazio texto="Nenhum lançamento encontrado para este período." />
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-border/60 bg-card/80 shadow-sm">
-                  <table className="w-full border-collapse text-xs">
+                <div className="overflow-hidden rounded-xl border border-border/60 bg-card/80 shadow-sm">
+                  <table className="w-full table-fixed border-collapse text-[10px]">
                     <thead>
                       <tr className="bg-card-secondary/50 text-[10px] uppercase tracking-widest text-muted-foreground">
                         <th colSpan={9} className="border-b border-r border-border/60 py-3 px-4 text-left font-bold">
@@ -1405,7 +1397,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                             <Td mono>{fmtDate(dataRef)}</Td>
                             <Td mono dim={doc === "—"}>{doc}</Td>
                             <Td fontSemibold>{ref.fornecedor_nome || "—"}</Td>
-                            <Td max="180px">{ref.descricao_despesa || "—"}</Td>
+                            <Td>{ref.descricao_despesa || "—"}</Td>
                             <Td upper>{catNome(ref.categoria_custo)}</Td>
                             <Td dim upper>{tipoRateioLabel(ref.tipo_rateio || ref.periodicidade)}</Td>
                             <Td dim upper>{prazo}</Td>
@@ -1806,12 +1798,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                           <Td mono right className="text-amber-300 font-medium">
                             {v.combustivel_adicionado ? `${NUM(v.combustivel_adicionado, 0)} L` : "—"}
                           </Td>
-                          <Td>
-                            <span className="flex items-center gap-2 text-foreground">
-                              <AvatarCotista cotista={cotistaPorId(v.socios_id || v.clientes_id || "")} tamanho="sm" />
-                              {v.socios_nome || "—"}
-                            </span>
-                          </Td>
+                          <Td>{v.socios_nome || "—"}</Td>
                         </tr>
                       ))}
                     </tbody>
@@ -1945,7 +1932,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   percentual de propriedade de cada cotista.
                 </p>
                 <p className="mt-3 rounded-lg bg-card/70 p-3 font-mono text-[11px] text-sky-200">
-                  valor_cotista = valor_total × cota%
+                  valor do cotista = valor total × cota
                 </p>
               </article>
 
@@ -1957,7 +1944,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                   proporção de horas de cada cotista <strong>no mês da despesa</strong>.
                 </p>
                 <p className="mt-3 rounded-lg bg-card/70 p-3 font-mono text-[11px] text-amber-200">
-                  valor_cotista = valor_total × (horas_cotista ÷ horas_mês)
+                  valor do cotista = valor total × (horas do cotista ÷ horas do mês)
                 </p>
               </article>
 
@@ -1970,7 +1957,7 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
                     : "Confronta-se o que cada um adiantou a fornecedores com o que lhe cabe pelo rateio. A diferença vira transferências entre os cotistas."}
                 </p>
                 <p className="mt-3 rounded-lg bg-card/70 p-3 font-mono text-[11px] text-emerald-200">
-                  {isSociedade ? "saldo = depositado + pago_direto − total_rateado" : "saldo = total_pago − total_rateado"}
+                  {isSociedade ? "saldo = valor depositado + valor pago diretamente − valor rateado" : "saldo = valor pago − valor rateado"}
                 </p>
               </article>
             </div>
@@ -2109,25 +2096,6 @@ function Nota({ titulo, children, tom }: { titulo: string; children: React.React
   );
 }
 
-function AvatarCotista({ cotista, tamanho }: { cotista: { nome: string; corHex?: string }; tamanho?: "sm" }) {
-  const iniciais = (cotista?.nome || "?")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase();
-  const size = tamanho === "sm" ? "h-6 w-6 text-[10px]" : "h-9 w-9 text-xs";
-  return (
-    <span
-      className={`flex shrink-0 items-center justify-center rounded-full font-bold text-slate-900 ${size}`}
-      style={{ background: cotista?.corHex || "#64748b" }}
-    >
-      {iniciais}
-    </span>
-  );
-}
-
 function Metrica({ titulo, valor, sub }: { titulo: string; valor: string; sub?: string }) {
   return (
     <div>
@@ -2252,7 +2220,7 @@ function LinhaResumo({ label, value, isText, bold }: { label: string; value: num
 
 function Th({ children, right, className = "" }: { children?: React.ReactNode; right?: boolean; className?: string }) {
   return (
-    <th className={["py-3 px-3 border-b border-border/60 whitespace-nowrap align-middle", right ? "text-right" : "text-left", className].join(" ")}>
+    <th className={["break-words px-1 py-3 border-b border-border/60 align-middle", right ? "text-right" : "text-left", className].join(" ")}>
       {children}
     </th>
   );
@@ -2281,7 +2249,7 @@ function Td({
     <td
       style={max ? { maxWidth: max, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : undefined}
       className={[
-        "py-2 px-3 align-middle",
+        "break-words px-1 py-2 align-middle",
         right ? "text-right" : "text-left",
         mono ? "font-mono" : "",
         upper ? "uppercase" : "",
@@ -2301,7 +2269,16 @@ function abrev(nome: string) {
 
 function tipoRateioLabel(val: string | null) {
   if (!val) return "—";
-  return val.toUpperCase();
+  const labels: Record<string, string> = {
+    FIXO: "Fixo",
+    VARIAVEL_POR_HORA: "Variável por hora",
+    VARIAVEL_POR_VOO: "Variável por voo",
+    EXTRA: "Extra",
+  };
+  const normalized = val.toUpperCase();
+  if (labels[normalized]) return labels[normalized];
+  const label = val.replace(/_/g, " ").toLocaleLowerCase("pt-BR");
+  return label.charAt(0).toLocaleUpperCase("pt-BR") + label.slice(1);
 }
 
 function inferirPrazo(cat: string | null, tipo: string | null): string {
