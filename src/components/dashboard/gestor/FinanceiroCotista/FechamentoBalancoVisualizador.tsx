@@ -238,8 +238,9 @@ function useDadosRelatorio(
 
         (supabase as any)
           .from("cotistas_aeronave")
-          .select("id, cliente_id, socio_id, percentual")
-          .eq("aeronave_id", aeronaveId),
+          .select("id, id_clientes, socios_id, percentual_sociedade")
+          .eq("id_aeronave", aeronaveId),
+
 
         // Abastecimentos de voos emprestados (não entram na conta do cliente/cotista,
         // só ficam registrados como desgaste da aeronave)
@@ -257,11 +258,76 @@ function useDadosRelatorio(
         if (c?.id) catMap.set(String(c.id), String(c.expense_type || ""));
       });
 
+      const cotistasAeronave = ((cotRes as any)?.data ?? []) as any[];
+
       const pctMap = new Map<string, number>();
-      ((cotRes as any)?.data ?? []).forEach((c: any) => {
-        const id = c.socio_id || c.cliente_id;
-        if (id) pctMap.set(String(id), Number(c.percentual ?? 0));
+      cotistasAeronave.forEach((c: any) => {
+        const id = c.socios_id || c.id_clientes;
+        if (id) pctMap.set(String(id), Number(c.percentual_sociedade ?? 0));
       });
+
+      // ── Regra 1: sociedade é definida por clientes.tem_socio ────────────────
+      const idsClientesCota = Array.from(
+        new Set(cotistasAeronave.map((c: any) => c.id_clientes).filter(Boolean).map(String))
+      );
+
+      let temSocio = false;
+      const clientesCota: { id: string; nome: string; tem_socio: boolean }[] = [];
+      if (idsClientesCota.length > 0) {
+        const { data: cliData } = await (supabase as any)
+          .from("clientes")
+          .select("id, razao_social, tem_socio")
+          .in("id", idsClientesCota);
+        (cliData ?? []).forEach((c: any) => {
+          clientesCota.push({ id: String(c.id), nome: c.razao_social ?? "—", tem_socio: !!c.tem_socio });
+          if (c.tem_socio) temSocio = true;
+        });
+      }
+
+      // Sócios dos clientes cotistas (entram no balanço mesmo sem despesa no período)
+      const sociosCliente: { id: string; nome: string; clienteId: string; percentual: number }[] = [];
+      if (idsClientesCota.length > 0) {
+        const { data: socData } = await (supabase as any)
+          .from("socios")
+          .select("id, nome, cliente_id, percentual_participacao")
+          .in("cliente_id", idsClientesCota);
+        (socData ?? []).forEach((s: any) => {
+          sociosCliente.push({
+            id: String(s.id),
+            nome: s.nome ?? "—",
+            clienteId: String(s.cliente_id),
+            percentual: Number(s.percentual_participacao ?? 0),
+          });
+          if (!pctMap.has(String(s.id))) pctMap.set(String(s.id), Number(s.percentual_participacao ?? 0));
+        });
+      }
+
+      // ── Depósitos/aportes dos sócios na conta comum (entradas do caixa cliente) ──
+      const depositos: { id: string; socioId: string | null; clienteId: string | null; data: string | null; descricao: string | null; valor: number }[] = [];
+      {
+        const { data: movData } = await (supabase as any)
+          .from("movimentacoes")
+          .select("id, fluxo, tipo_caixa, socio_id, cliente_id, descricao, valor_total, valor_pago_real, valor_rateado, data_pagamento, data_vencimento, competencia")
+          .eq("aeronave_id", aeronaveId)
+          .in("fluxo", ["entrada", "receita", "ENTRADA", "RECEITA"]);
+        (movData ?? []).forEach((m: any) => {
+          const dataRef = m.data_pagamento || m.competencia || m.data_vencimento;
+          if (!dataRef) return;
+          const iso = String(dataRef).substring(0, 10);
+          if (iso < inicio || iso > fim) return;
+          const valor = Number(m.valor_pago_real ?? m.valor_rateado ?? m.valor_total ?? 0);
+          if (!valor) return;
+          depositos.push({
+            id: String(m.id),
+            socioId: m.socio_id ? String(m.socio_id) : null,
+            clienteId: m.cliente_id ? String(m.cliente_id) : null,
+            data: iso,
+            descricao: m.descricao ?? null,
+            valor,
+          });
+        });
+      }
+
 
       const mesDe = (s?: string | null) =>
         s ? new Date(String(s).substring(0, 10) + "T12:00:00").getMonth() + 1 : null;
@@ -314,10 +380,15 @@ function useDadosRelatorio(
         aeronave: aerRes.data,
         catMap,
         pctMap,
+        temSocio,
+        clientesCota,
+        sociosCliente,
+        depositos: depositos.filter((d) => dentro(d.data)),
         abastecimentosEmprestados,
         nomesClientesEmprestimo,
         nomesSociosEmprestimo,
       };
+
     },
   });
 }
@@ -394,10 +465,26 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
     return rows.filter((r) => !(r.abastecimento_id && abastecimentosEmprestadosIds.has(r.abastecimento_id)));
   }, [data, abastecimentosEmprestadosIds]);
 
+  // ── Sociedade (Regra 1: clientes.tem_socio) ────────────────────────────────
+  const isSociedade = Boolean((data as any)?.temSocio);
+
   // ── Cotistas ───────────────────────────────────────────────────────────────
   const cotistas = useMemo<CotistaInfo[]>(() => {
     if (!data) return [];
     const map = new Map<string, string>();
+
+    // Regra: todos os sócios/cotistas cadastrados aparecem no balanço,
+    // mesmo sem lançamentos no período.
+    if (isSociedade) {
+      ((data as any).sociosCliente ?? []).forEach((s: any) => {
+        if (s.id && !map.has(s.id)) map.set(s.id, s.nome);
+      });
+    } else {
+      ((data as any).clientesCota ?? []).forEach((c: any) => {
+        if (c.id && !map.has(c.id)) map.set(c.id, c.nome);
+      });
+    }
+
     rateiosValidos.forEach((r) => {
       const id = r.socio_id || r.cliente_id;
       const nome = r.socios_nome || r.clientes_nome;
@@ -419,7 +506,8 @@ export function FechamentoBalancoVisualizador({ aeronaveId, ano: anoProp, meses,
         corHex: CORES_COTISTA[i % CORES_COTISTA.length],
       };
     });
-  }, [data, rateiosValidos]);
+  }, [data, rateiosValidos, isSociedade]);
+
 
   const cotistaPorId = React.useCallback(
     (id: string) =>
