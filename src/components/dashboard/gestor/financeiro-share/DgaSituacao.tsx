@@ -182,27 +182,35 @@ export default function DgaSituacao({
 
   const dga = useMemo(() => {
     const movimentacoesDga = movimentacoes.filter(isDga);
-    const idsMovimentacoes = new Set(movimentacoes.map((m) => String(m.id)));
-    const abastecimentosSemMovimentacao = rateios
-      .filter((r) => String(r.fonte_despesa || "").toLowerCase() === "abastecimento")
-      .filter((r) => String(r.cliente_id || "") === CLIENTE_DGA_ID)
-      .filter((r) => !idsMovimentacoes.has(String(r.despesa_id)))
-      .map((r) => ({
-        ...r,
-        id: r.despesa_id || r.id,
-        clientes_id: r.cliente_id,
-        clientes_nome: r.clientes_nome,
-        tipo_caixa: "dga",
-        fluxo: "saida",
-        descricao: r.descricao_despesa,
-        valor_rateado: r.valor_rateado,
-        data_pagamento: r.data_pagamento,
-        data_vencimento: r.data_vencimento,
-        status: r.status,
-        _fromRateio: true,
-      }));
+    const idsMovimentacoesDga = new Set(movimentacoesDga.map((m) => String(m.id)));
+    const rateiosSemMovimentacao = new Map<string, any>();
 
-    return [...movimentacoesDga, ...abastecimentosSemMovimentacao]
+    for (const rateio of rateios) {
+      if (String(rateio.cliente_id || "") !== CLIENTE_DGA_ID) continue;
+      const origemId = rateio.despesa_id || rateio.movimentacao_origem_id || rateio.id;
+      if (idsMovimentacoesDga.has(String(origemId))) continue;
+
+      const chave = String(origemId);
+      if (rateiosSemMovimentacao.has(chave)) continue;
+      rateiosSemMovimentacao.set(chave, {
+        ...rateio,
+        id: origemId,
+        clientes_id: rateio.cliente_id,
+        clientes_nome: rateio.clientes_nome,
+        tipo_caixa: "dga",
+        fluxo: rateio.fluxo || "saida",
+        descricao: rateio.descricao_despesa,
+        valor_total: rateio.valor_total,
+        valor_rateado: rateio.valor_total ?? rateio.valor_rateado,
+        data_emissao: rateio.data_emissao,
+        data_pagamento: rateio.data_pagamento,
+        data_vencimento: rateio.data_vencimento,
+        status: rateio.status,
+        _fromRateio: true,
+      });
+    }
+
+    return [...movimentacoesDga, ...rateiosSemMovimentacao.values()]
       .filter((m) => String(m.status || "").toLowerCase() !== "cancelado");
   }, [movimentacoes, rateios]);
   const rateiosPorMovimentacao = useMemo(() => {
