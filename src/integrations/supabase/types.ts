@@ -2327,6 +2327,141 @@ export type Database = {
         }
         Relationships: []
       }
+      ctm_componente_eventos: {
+        Row: {
+          aeronave_id: string
+          atualizado_em: string
+          ciclos_aeronave: number | null
+          componente_id: string
+          criado_em: string
+          criado_por: string | null
+          data_evento: string
+          descricao: string | null
+          documento_nome: string | null
+          documento_url: string | null
+          horas_aeronave: number | null
+          id: string
+          motivo: string | null
+          ordem_servico_id: string | null
+          p_n_instalado: string | null
+          p_n_removido: string | null
+          peca_trocada_id: string | null
+          posicao: string | null
+          pousos_aeronave: number | null
+          programa_manutencao_id: string | null
+          s_n_instalado: string | null
+          s_n_removido: string | null
+          tipo_evento: string
+        }
+        Insert: {
+          aeronave_id: string
+          atualizado_em?: string
+          ciclos_aeronave?: number | null
+          componente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          data_evento: string
+          descricao?: string | null
+          documento_nome?: string | null
+          documento_url?: string | null
+          horas_aeronave?: number | null
+          id?: string
+          motivo?: string | null
+          ordem_servico_id?: string | null
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          peca_trocada_id?: string | null
+          posicao?: string | null
+          pousos_aeronave?: number | null
+          programa_manutencao_id?: string | null
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+          tipo_evento: string
+        }
+        Update: {
+          aeronave_id?: string
+          atualizado_em?: string
+          ciclos_aeronave?: number | null
+          componente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          data_evento?: string
+          descricao?: string | null
+          documento_nome?: string | null
+          documento_url?: string | null
+          horas_aeronave?: number | null
+          id?: string
+          motivo?: string | null
+          ordem_servico_id?: string | null
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          peca_trocada_id?: string | null
+          posicao?: string | null
+          pousos_aeronave?: number | null
+          programa_manutencao_id?: string | null
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+          tipo_evento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_componente_eventos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_componente_id_fkey"
+            columns: ["componente_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_mapa_componente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_peca_trocada_id_fkey"
+            columns: ["peca_trocada_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_pecas_trocadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_componente_eventos_programa_manutencao_id_fkey"
+            columns: ["programa_manutencao_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_programa_manutencao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_despesas_motor: {
         Row: {
           aeronave_id: string
@@ -2636,6 +2771,7 @@ export type Database = {
           id: string
           mes_referencia: string
           ordem_servico_id: string
+          socio_id: string | null
         }
         Insert: {
           aeronave_id: string
@@ -2646,6 +2782,7 @@ export type Database = {
           id?: string
           mes_referencia: string
           ordem_servico_id: string
+          socio_id?: string | null
         }
         Update: {
           aeronave_id?: string
@@ -2656,6 +2793,7 @@ export type Database = {
           id?: string
           mes_referencia?: string
           ordem_servico_id?: string
+          socio_id?: string | null
         }
         Relationships: [
           {
@@ -3042,6 +3180,136 @@ export type Database = {
           },
         ]
       }
+      ctm_oas_item_rateios: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string
+          criado_em: string
+          id: string
+          item_tipo: string
+          ordem_servico_id: string
+          peca_id: string | null
+          percentual: number
+          servico_id: string | null
+          socio_id: string | null
+          tipo_rateio: string
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id: string
+          criado_em?: string
+          id?: string
+          item_tipo: string
+          ordem_servico_id: string
+          peca_id?: string | null
+          percentual?: number
+          servico_id?: string | null
+          socio_id?: string | null
+          tipo_rateio?: string
+          valor?: number
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string
+          criado_em?: string
+          id?: string
+          item_tipo?: string
+          ordem_servico_id?: string
+          peca_id?: string | null
+          percentual?: number
+          servico_id?: string | null
+          socio_id?: string | null
+          tipo_rateio?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_oas_item_rateios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_oas_item_rateios_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_oas_item_rateios_peca_id_fkey"
+            columns: ["peca_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_pecas_trocadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_oas_item_rateios_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_oas_servicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_oas_servicos: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          data_servico: string | null
+          descricao: string
+          id: string
+          nota_fiscal_nome: string | null
+          nota_fiscal_path: string | null
+          numero_nota_fiscal: string | null
+          observacoes: string | null
+          oficina_nome: string | null
+          ordem_servico_id: string
+          os_oficina: string | null
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          data_servico?: string | null
+          descricao: string
+          id?: string
+          nota_fiscal_nome?: string | null
+          nota_fiscal_path?: string | null
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          ordem_servico_id: string
+          os_oficina?: string | null
+          valor?: number
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          data_servico?: string | null
+          descricao?: string
+          id?: string
+          nota_fiscal_nome?: string | null
+          nota_fiscal_path?: string | null
+          numero_nota_fiscal?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          ordem_servico_id?: string
+          os_oficina?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_oas_servicos_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_orcamentos: {
         Row: {
           aeronave_id: string
@@ -3137,7 +3405,6 @@ export type Database = {
       ctm_ordem_acompanhamento_servico: {
         Row: {
           aeronave_id: string
-          programa_manutencao_id: string | null
           created_at: string
           data_entrada: string | null
           data_saida: string | null
@@ -3155,6 +3422,7 @@ export type Database = {
           periodo_fim: string | null
           periodo_inicio: string | null
           porcentagem_rateio: string | null
+          programa_manutencao_id: string | null
           relatorio_voo_ate: string | null
           relatorio_voo_de: string | null
           status: string | null
@@ -3170,7 +3438,6 @@ export type Database = {
         }
         Insert: {
           aeronave_id: string
-          programa_manutencao_id?: string | null
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
@@ -3188,6 +3455,7 @@ export type Database = {
           periodo_fim?: string | null
           periodo_inicio?: string | null
           porcentagem_rateio?: string | null
+          programa_manutencao_id?: string | null
           relatorio_voo_ate?: string | null
           relatorio_voo_de?: string | null
           status?: string | null
@@ -3203,7 +3471,6 @@ export type Database = {
         }
         Update: {
           aeronave_id?: string
-          programa_manutencao_id?: string | null
           created_at?: string
           data_entrada?: string | null
           data_saida?: string | null
@@ -3221,6 +3488,7 @@ export type Database = {
           periodo_fim?: string | null
           periodo_inicio?: string | null
           porcentagem_rateio?: string | null
+          programa_manutencao_id?: string | null
           relatorio_voo_ate?: string | null
           relatorio_voo_de?: string | null
           status?: string | null
@@ -3267,10 +3535,15 @@ export type Database = {
       }
       ctm_pecas_trocadas: {
         Row: {
+          componente_id: string | null
           criado_em: string | null
+          data_compra: string | null
           descricao: string
           fornecedor: string | null
           id: string
+          nota_fiscal_nome: string | null
+          nota_fiscal_path: string | null
+          numero_nota_fiscal: string | null
           observacoes: string | null
           ordem_servico_id: string
           p_n_instalado: string | null
@@ -3278,12 +3551,18 @@ export type Database = {
           quantidade: number
           s_n_instalado: string | null
           s_n_removido: string | null
+          valor_total: number
         }
         Insert: {
+          componente_id?: string | null
           criado_em?: string | null
+          data_compra?: string | null
           descricao: string
           fornecedor?: string | null
           id?: string
+          nota_fiscal_nome?: string | null
+          nota_fiscal_path?: string | null
+          numero_nota_fiscal?: string | null
           observacoes?: string | null
           ordem_servico_id: string
           p_n_instalado?: string | null
@@ -3291,12 +3570,18 @@ export type Database = {
           quantidade?: number
           s_n_instalado?: string | null
           s_n_removido?: string | null
+          valor_total?: number
         }
         Update: {
+          componente_id?: string | null
           criado_em?: string | null
+          data_compra?: string | null
           descricao?: string
           fornecedor?: string | null
           id?: string
+          nota_fiscal_nome?: string | null
+          nota_fiscal_path?: string | null
+          numero_nota_fiscal?: string | null
           observacoes?: string | null
           ordem_servico_id?: string
           p_n_instalado?: string | null
@@ -3304,8 +3589,17 @@ export type Database = {
           quantidade?: number
           s_n_instalado?: string | null
           s_n_removido?: string | null
+          valor_total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ctm_pecas_trocadas_componente_id_fkey"
+            columns: ["componente_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_mapa_componente"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ctm_peso_balanceamento: {
         Row: {
@@ -4676,30 +4970,63 @@ export type Database = {
       }
       employee_payslips: {
         Row: {
+          desconto_inss: number | null
+          desconto_irrf: number | null
           employee_id: string
           file_path: string
           id: string
           month: number
+          ocr_confidence: number | null
+          ocr_processed_at: string | null
+          ocr_raw_text: string | null
+          ocr_status: string
+          outros_descontos: number | null
+          salario_bruto: number | null
+          salario_liquido: number | null
+          total_descontos: number | null
           uploaded_at: string | null
           uploaded_by: string | null
+          valor_ferias: number | null
           year: number
         }
         Insert: {
+          desconto_inss?: number | null
+          desconto_irrf?: number | null
           employee_id: string
           file_path: string
           id?: string
           month: number
+          ocr_confidence?: number | null
+          ocr_processed_at?: string | null
+          ocr_raw_text?: string | null
+          ocr_status?: string
+          outros_descontos?: number | null
+          salario_bruto?: number | null
+          salario_liquido?: number | null
+          total_descontos?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
+          valor_ferias?: number | null
           year: number
         }
         Update: {
+          desconto_inss?: number | null
+          desconto_irrf?: number | null
           employee_id?: string
           file_path?: string
           id?: string
           month?: number
+          ocr_confidence?: number | null
+          ocr_processed_at?: string | null
+          ocr_raw_text?: string | null
+          ocr_status?: string
+          outros_descontos?: number | null
+          salario_bruto?: number | null
+          salario_liquido?: number | null
+          total_descontos?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
+          valor_ferias?: number | null
           year?: number
         }
         Relationships: [
@@ -5147,6 +5474,48 @@ export type Database = {
         }
         Relationships: []
       }
+      financeiro_duplicidade_revisoes: {
+        Row: {
+          chave_par: string
+          criado_em: string
+          fluxo: string
+          id: string
+          lancamento_id: string | null
+          lancamento_origem: string
+          lancamento_relacionado_id: string | null
+          observacao: string | null
+          relacionado_origem: string
+          verificado_em: string
+          verificado_por: string | null
+        }
+        Insert: {
+          chave_par: string
+          criado_em?: string
+          fluxo: string
+          id?: string
+          lancamento_id?: string | null
+          lancamento_origem?: string
+          lancamento_relacionado_id?: string | null
+          observacao?: string | null
+          relacionado_origem?: string
+          verificado_em?: string
+          verificado_por?: string | null
+        }
+        Update: {
+          chave_par?: string
+          criado_em?: string
+          fluxo?: string
+          id?: string
+          lancamento_id?: string | null
+          lancamento_origem?: string
+          lancamento_relacionado_id?: string | null
+          observacao?: string | null
+          relacionado_origem?: string
+          verificado_em?: string
+          verificado_por?: string | null
+        }
+        Relationships: []
+      }
       fornecedores_combustivel: {
         Row: {
           atualizado_em: string | null
@@ -5278,62 +5647,122 @@ export type Database = {
       historico_pagamentos_funcionarios: {
         Row: {
           adicionais: string | null
+          ano_referencia: number | null
           atualizado_em: string | null
           banco_pagamento: string | null
           beneficios: string | null
+          beneficios_detalhes: Json
+          bonificacao_extra: number | null
           criado_em: string | null
+          custo_total_empresa: number | null
           data_pagamento: string | null
           decimo_terceiro_parcela1: number | null
           decimo_terceiro_parcela2: number | null
+          decimo_terceiro_primeira_data: string | null
+          decimo_terceiro_referencia: string | null
+          decimo_terceiro_segunda_data: string | null
+          decimo_terceiro_status: string | null
+          descontos_detalhes: Json
           ferias: number | null
+          ferias_dias: number | null
+          ferias_dias_comprados: number | null
+          ferias_fim: string | null
+          ferias_inicio: string | null
+          ferias_modalidade: string | null
+          ferias_referencia: string | null
+          ferias_valor_holerite: number | null
           horas_voadas: string | null
           id: string
           id_usuario: string | null
+          mes_referencia: number | null
           observacoes: string | null
           observacoes_internas: string | null
+          salario_bruto: number | null
           salario_holerite: number | null
+          salario_liquido: number | null
           url_comprovante: string | null
           url_holerite: string | null
+          valor_horas_voo: number | null
           valor_total: number | null
         }
         Insert: {
           adicionais?: string | null
+          ano_referencia?: number | null
           atualizado_em?: string | null
           banco_pagamento?: string | null
           beneficios?: string | null
+          beneficios_detalhes?: Json
+          bonificacao_extra?: number | null
           criado_em?: string | null
+          custo_total_empresa?: number | null
           data_pagamento?: string | null
           decimo_terceiro_parcela1?: number | null
           decimo_terceiro_parcela2?: number | null
+          decimo_terceiro_primeira_data?: string | null
+          decimo_terceiro_referencia?: string | null
+          decimo_terceiro_segunda_data?: string | null
+          decimo_terceiro_status?: string | null
+          descontos_detalhes?: Json
           ferias?: number | null
+          ferias_dias?: number | null
+          ferias_dias_comprados?: number | null
+          ferias_fim?: string | null
+          ferias_inicio?: string | null
+          ferias_modalidade?: string | null
+          ferias_referencia?: string | null
+          ferias_valor_holerite?: number | null
           horas_voadas?: string | null
           id?: string
           id_usuario?: string | null
+          mes_referencia?: number | null
           observacoes?: string | null
           observacoes_internas?: string | null
+          salario_bruto?: number | null
           salario_holerite?: number | null
+          salario_liquido?: number | null
           url_comprovante?: string | null
           url_holerite?: string | null
+          valor_horas_voo?: number | null
           valor_total?: number | null
         }
         Update: {
           adicionais?: string | null
+          ano_referencia?: number | null
           atualizado_em?: string | null
           banco_pagamento?: string | null
           beneficios?: string | null
+          beneficios_detalhes?: Json
+          bonificacao_extra?: number | null
           criado_em?: string | null
+          custo_total_empresa?: number | null
           data_pagamento?: string | null
           decimo_terceiro_parcela1?: number | null
           decimo_terceiro_parcela2?: number | null
+          decimo_terceiro_primeira_data?: string | null
+          decimo_terceiro_referencia?: string | null
+          decimo_terceiro_segunda_data?: string | null
+          decimo_terceiro_status?: string | null
+          descontos_detalhes?: Json
           ferias?: number | null
+          ferias_dias?: number | null
+          ferias_dias_comprados?: number | null
+          ferias_fim?: string | null
+          ferias_inicio?: string | null
+          ferias_modalidade?: string | null
+          ferias_referencia?: string | null
+          ferias_valor_holerite?: number | null
           horas_voadas?: string | null
           id?: string
           id_usuario?: string | null
+          mes_referencia?: number | null
           observacoes?: string | null
           observacoes_internas?: string | null
+          salario_bruto?: number | null
           salario_holerite?: number | null
+          salario_liquido?: number | null
           url_comprovante?: string | null
           url_holerite?: string | null
+          valor_horas_voo?: number | null
           valor_total?: number | null
         }
         Relationships: [
@@ -7139,7 +7568,7 @@ export type Database = {
           tipo_caixa: string | null
           tipo_rateio: string | null
           valor_pago_real: number | null
-          valor_rateado: number
+          valor_rateado: number | null
           valor_total: number | null
         }
         Insert: {
@@ -7194,7 +7623,7 @@ export type Database = {
           tipo_caixa?: string | null
           tipo_rateio?: string | null
           valor_pago_real?: number | null
-          valor_rateado: number
+          valor_rateado?: number | null
           valor_total?: number | null
         }
         Update: {
@@ -7249,7 +7678,7 @@ export type Database = {
           tipo_caixa?: string | null
           tipo_rateio?: string | null
           valor_pago_real?: number | null
-          valor_rateado?: number
+          valor_rateado?: number | null
           valor_total?: number | null
         }
         Relationships: [
@@ -7918,7 +8347,9 @@ export type Database = {
           id: string
           numero_voo: string | null
           observacoes: string | null
+          regra_voo: string | null
           rota: string | null
+          solicitacao_id: string | null
           status: string | null
           tempo_estimado: string | null
         }
@@ -7941,7 +8372,9 @@ export type Database = {
           id?: string
           numero_voo?: string | null
           observacoes?: string | null
+          regra_voo?: string | null
           rota?: string | null
+          solicitacao_id?: string | null
           status?: string | null
           tempo_estimado?: string | null
         }
@@ -7964,7 +8397,9 @@ export type Database = {
           id?: string
           numero_voo?: string | null
           observacoes?: string | null
+          regra_voo?: string | null
           rota?: string | null
+          solicitacao_id?: string | null
           status?: string | null
           tempo_estimado?: string | null
         }
@@ -7989,6 +8424,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_aeronave_totais"
             referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "planos_voo_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10208,6 +10650,77 @@ export type Database = {
         }
         Relationships: []
       }
+      unk_treinamento_participantes: {
+        Row: {
+          entrou_em: string
+          id: string
+          nome: string
+          reuniao_id: string
+          saiu_em: string | null
+          user_id: string
+        }
+        Insert: {
+          entrou_em?: string
+          id?: string
+          nome: string
+          reuniao_id: string
+          saiu_em?: string | null
+          user_id: string
+        }
+        Update: {
+          entrou_em?: string
+          id?: string
+          nome?: string
+          reuniao_id?: string
+          saiu_em?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unk_treinamento_participantes_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "unk_treinamento_reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unk_treinamento_reunioes: {
+        Row: {
+          agendada_para: string | null
+          created_at: string
+          descricao: string
+          encerrada_em: string | null
+          host_id: string
+          id: string
+          iniciada_em: string | null
+          status: string
+          titulo: string
+        }
+        Insert: {
+          agendada_para?: string | null
+          created_at?: string
+          descricao?: string
+          encerrada_em?: string | null
+          host_id: string
+          id?: string
+          iniciada_em?: string | null
+          status?: string
+          titulo: string
+        }
+        Update: {
+          agendada_para?: string | null
+          created_at?: string
+          descricao?: string
+          encerrada_em?: string | null
+          host_id?: string
+          id?: string
+          iniciada_em?: string | null
+          status?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       user_alert_preferences: {
         Row: {
           action: string
@@ -10408,6 +10921,7 @@ export type Database = {
           rg: string | null
           salario: number | null
           telefone: string | null
+          tema_preferido: string
           tipo: string | null
           updated_at: string | null
         }
@@ -10433,6 +10947,7 @@ export type Database = {
           rg?: string | null
           salario?: number | null
           telefone?: string | null
+          tema_preferido?: string
           tipo?: string | null
           updated_at?: string | null
         }
@@ -10458,6 +10973,7 @@ export type Database = {
           rg?: string | null
           salario?: number | null
           telefone?: string | null
+          tema_preferido?: string
           tipo?: string | null
           updated_at?: string | null
         }
@@ -10979,6 +11495,10 @@ export type Database = {
       }
     }
     Functions: {
+      approve_vacation_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       authenticate_client_portal: {
         Args: { p_email: string; p_password: string }
         Returns: Json
@@ -11059,6 +11579,10 @@ export type Database = {
           p_quantidade_passageiros: number
         }
         Returns: string
+      }
+      ctm_recalcular_totais_oas: {
+        Args: { p_oas_id: string }
+        Returns: undefined
       }
       dms_to_decimal: { Args: { dms_str: string }; Returns: string }
       earth: { Args: never; Returns: number }
@@ -11237,12 +11761,29 @@ export type Database = {
         Args: { p_aeronave_id: string }
         Returns: number
       }
+      recalculate_vacation_balance_from_paid_record: {
+        Args: { p_user_id: string; p_year: number }
+        Returns: undefined
+      }
+      refresh_all_vacation_balances: { Args: never; Returns: undefined }
       refresh_anniversary_alerts: { Args: never; Returns: undefined }
       refresh_expiration_alerts: { Args: never; Returns: undefined }
+      refresh_vacation_balance_from_requests: {
+        Args: { p_user_id: string; p_year?: number }
+        Returns: undefined
+      }
+      reject_vacation_request: {
+        Args: { p_reason?: string; p_request_id: string }
+        Returns: Json
+      }
       send_report_to_ctm: { Args: { report_id: string }; Returns: undefined }
       start_flight_execution: {
         Args: { p_booking_id: string; p_pic_id: string; p_sic_id?: string }
         Returns: string
+      }
+      sync_employee_payslip_to_salary_history: {
+        Args: { p_payslip_id: string }
+        Returns: Json
       }
       sync_specific_salary: {
         Args: { salary_id: string }
@@ -11252,6 +11793,7 @@ export type Database = {
           status: string
         }[]
       }
+      unk_treinamento_role: { Args: never; Returns: string }
     }
     Enums: {
       app_role:
