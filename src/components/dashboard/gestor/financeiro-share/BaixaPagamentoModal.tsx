@@ -50,6 +50,7 @@ interface Movimentacao {
   valor_rateado?: string | number | null;
   categoria_id?: string | null;
   categoria_nome?: string | null;
+  grupo_categoria?: string | null;
   aeronave_id?: string | null;
   aeronave_registro?: string | null;
   data_emissao: string | null;
@@ -439,12 +440,32 @@ export default function BaixaPagamentoModal({
       const reciboPdf = recibo?.file_url || comprovante?.file_url || null;
 
       const contaBancariaSelecionada = bancoNome || bancoSelecionadoId || null;
+      let categoriaMovimentacaoReembolso: { id: string; nome: string; grupo_categoria: string } | null = null;
+      if (comReembolso && norm(mov.tipo_caixa) === "cliente") {
+        const nomeCategoria = (mov.categoria_nome || "").trim();
+        if (nomeCategoria) {
+          const { data: categoria } = await (supabase as any)
+            .from("categorias_movimentacao")
+            .select("id,nome,grupo_categoria")
+            .ilike("nome", nomeCategoria)
+            .eq("grupo_categoria", "DESPESAS REEMBOLSÁVEIS")
+            .limit(1)
+            .maybeSingle();
+          categoriaMovimentacaoReembolso = categoria || null;
+        }
+      }
       const updatePayload: Record<string, any> = {
         data_pagamento: dataPagamento,
         pago_diretamente: pagoDiretamente,
         status: comReembolso ? "aguardando_reembolso" : entrada ? "recebido" : "pago",
         atualizado_em: new Date().toISOString(),
       };
+
+      if (categoriaMovimentacaoReembolso) {
+        updatePayload.categoria_id = categoriaMovimentacaoReembolso.id;
+        updatePayload.categoria_nome = categoriaMovimentacaoReembolso.nome;
+        updatePayload.grupo_categoria = categoriaMovimentacaoReembolso.grupo_categoria;
+      }
 
       if (comReembolso) {
         updatePayload.reembolsavel = true;

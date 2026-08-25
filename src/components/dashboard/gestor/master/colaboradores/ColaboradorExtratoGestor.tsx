@@ -121,7 +121,7 @@ function EmployeeStatementDialog({ employee }: { employee: any }) {
   const { data: timeEntries = [] } = useQuery({
     queryKey: ["master-employee-time-entries", employee.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("time_entries").select("*").eq("user_id", employee.id).order("entry_date", { ascending: false }).limit(100);
+      const { data, error } = await (supabase as any).from("time_entries").select("*").eq("user_id", employee.id).order("entry_date", { ascending: false }).limit(100);
       if (error) return [];
       return data || [];
     },

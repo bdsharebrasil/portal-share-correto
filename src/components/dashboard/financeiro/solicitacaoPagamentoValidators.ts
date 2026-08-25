@@ -135,6 +135,37 @@ export function resolverFornecedorSolicitacao(params: {
   return (params.fornecedorNome || "").trim() || null;
 }
 
+export function resolverCategoriaMovimentacaoShare(params: {
+  nomeCategoria?: string | null;
+  subcategoria?: string | null;
+  reembolsavel?: boolean | null;
+}): {
+  nome: string;
+  grupo_categoria: string;
+  reembolsavel: boolean;
+  tipo: "despesa";
+} {
+  const nomeCategoria = (params.nomeCategoria || "").trim();
+  const subcategoria = (params.subcategoria || "").trim();
+  const reembolsavel = Boolean(params.reembolsavel);
+
+  if (reembolsavel) {
+    return {
+      nome: subcategoria || nomeCategoria || "Despesa reembolsável",
+      grupo_categoria: "DESPESAS REEMBOLSÁVEIS",
+      reembolsavel: true,
+      tipo: "despesa",
+    };
+  }
+
+  return {
+    nome: nomeCategoria || "Despesa Share",
+    grupo_categoria: "DESPESAS",
+    reembolsavel: false,
+    tipo: "despesa",
+  };
+}
+
 export function resolverSubcategoriaSelecionadaParaPayload(params: {
   subcategoriaSelecionada?: string | null;
   subcategoria1?: string | null;

@@ -67,6 +67,8 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
           tipo_caixa,
           clientes_id,
           contas_areceber_id,
+          reembolsavel,
+          reembolso_quitado,
           clientes:clientes_id ( razao_social )
         `)
         .not("data_vencimento", "is", null)
@@ -106,6 +108,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       const itensMovimentacoes = movimentacoes
         .filter((movimentacao) => {
           if (!isPendente(movimentacao.status)) return false;
+          if (movimentacao.reembolsavel && movimentacao.reembolso_quitado) return false;
           const fluxo = (movimentacao.fluxo || "").toLowerCase();
           if (movimentacao.tipo_caixa === "cliente") return !["entrada", "receita"].includes(fluxo);
           return ["entrada", "receita"].includes(fluxo);

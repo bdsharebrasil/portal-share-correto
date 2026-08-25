@@ -8,6 +8,7 @@ import {
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
   normalizarTipoRateio,
+  resolverCategoriaMovimentacaoShare,
   resolverFornecedorSolicitacao,
   resolverModoSolicitacaoPadrao,
   resolverPagoPorSolicitacao,
@@ -72,6 +73,21 @@ test("resolverPagoPorSolicitacao usa o nome esperado conforme o tipo de rateio",
 test("resolverFornecedorSolicitacao força o fornecedor SHARE BRASIL para despesas de viagem", () => {
   assert.equal(resolverFornecedorSolicitacao({ isViagemMode: true, fornecedorNome: "Fornecedor X" }), "SHARE BRASIL");
   assert.equal(resolverFornecedorSolicitacao({ isViagemMode: false, fornecedorNome: "Fornecedor X" }), "Fornecedor X");
+});
+
+test("resolverCategoriaMovimentacaoShare usa subcategoria e grupo reembolsável para despesa do caixa Share", () => {
+  assert.deepEqual(resolverCategoriaMovimentacaoShare({ nomeCategoria: "SEGUROS", subcategoria: "SEGURO CASCO", reembolsavel: true }), {
+    nome: "SEGURO CASCO",
+    grupo_categoria: "DESPESAS REEMBOLSÁVEIS",
+    reembolsavel: true,
+    tipo: "despesa",
+  });
+  assert.deepEqual(resolverCategoriaMovimentacaoShare({ nomeCategoria: "SEGUROS", reembolsavel: false }), {
+    nome: "SEGUROS",
+    grupo_categoria: "DESPESAS",
+    reembolsavel: false,
+    tipo: "despesa",
+  });
 });
 
 test("resolverSubcategoriaSelecionadaParaPayload preserva valor válido", () => {

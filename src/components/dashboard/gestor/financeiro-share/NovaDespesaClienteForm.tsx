@@ -16,6 +16,7 @@ import AnexosDinamicosField, { type AnexoLinha } from "@/components/dashboard/ge
 import { mapAnexosToMovimentacao } from "./anexosMapper";
 import { CLIENTE_DGA_ID } from "@/utils/financeiroRules";
 import { FinanceCategoryId, FinanceCategoryLabel, FinanceGroupName } from "@/lib/financeConstants";
+import { getSelectedTravelAllocation } from "@/lib/travelReportSelection";
 import { Building2, FileText, Loader2, Paperclip, Plane, Plus, Save, Trash2, Users, X } from "lucide-react";
 
 interface Props {
@@ -133,6 +134,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
   const [clienteVooId, setClienteVooId] = useState<string | null>(null);
   const [relatorios, setRelatorios] = useState<any[]>([]);
   const [loadingRelatorios, setLoadingRelatorios] = useState(false);
+  const [relatorioSelecionadoId, setRelatorioSelecionadoId] = useState<string>("");
+  const [rascunhoLocalDisponivel, setRascunhoLocalDisponivel] = useState(false);
+
 
 
   const [form, setForm] = useState({
@@ -386,7 +390,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
         .from("travel_expense_reports")
         .select("id,numero_relatorio,numero_voo,total_valor,total_tripulacao,total_trip,total_trip2,total_clientes,data_inicio,data_fim,rota,status")
         .eq("clientes_id", clienteAlvo)
-        .order("data_inicio", { ascending: false });
+        .order("data_inicio", { ascending: true });
       if (form.numero_voo) q = q.eq("numero_voo", form.numero_voo);
       if (socioAlvo) q = q.eq("socios_id", socioAlvo);
       const { data } = await q;
@@ -401,7 +405,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           .eq("tipo_caixa", isDgaModo ? "dga" : "cliente")
           .in("reference_id", ids);
         (movs ?? []).forEach((m: any) => {
-          const v = Number(m.valor_total ?? m.valor_rateado ?? 0);
+          const v = Number(m.valor_rateado ?? m.valor_total ?? 0);
           pagoPorRelatorio[m.reference_id] = (pagoPorRelatorio[m.reference_id] || 0) + v;
         });
       }
@@ -424,22 +428,73 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     };
   }, [isDespesaViagem, clienteAlvo, socioAlvo, form.numero_voo, isDgaModo]);
 
-  /* Abatimento em cascata: consome o valor informado nos relatórios em aberto */
-  const alocacoes = useMemo(() => {
-    if (!isDespesaViagem || relatorios.length === 0 || valorTotal <= 0) return [] as any[];
-    let restante = valorTotal;
-    const res: any[] = [];
-    for (const r of relatorios) {
-      if (restante <= 0.009) break;
-      const usa = Math.min(restante, r.saldo);
-      restante = Number((restante - usa).toFixed(2));
-      res.push({ ...r, alocado: Number(usa.toFixed(2)) });
-    }
-    return res;
-  }, [isDespesaViagem, relatorios, valorTotal]);
+  /* Limpa a seleção quando a lista de relatórios muda */
+  useEffect(() => {
+    setRelatorioSelecionadoId((atual) => (relatorios.some((r: any) => r.id === atual) ? atual : ""));
+  }, [relatorios]);
 
-  const totalAlocado = alocacoes.reduce((a, r) => a + r.alocado, 0);
-  const sobra = Number((valorTotal - totalAlocado).toFixed(2));
+  const relatorioItems = useMemo(
+    () =>
+      relatorios.map((r: any) => ({
+        id: r.id,
+        label: `${r.numero_relatorio || r.numero_voo || "Sem número"} — saldo R$ ${Number(r.saldo || 0).toFixed(2)}`,
+      })),
+    [relatorios],
+  );
+
+  const draftStorageKey = "travel-expense-draft-pending";
+
+  useEffect(() => {
+    if (!isDespesaViagem || typeof window === "undefined") return;
+
+    const raw = window.localStorage.getItem(draftStorageKey);
+    if (!raw) return;
+
+    try {
+      const draft = JSON.parse(raw) as {
+        form?: Partial<typeof form>;
+        linhas?: Linha[];
+        anexos?: AnexoLinha[];
+        relatorioSelecionadoId?: string;
+      };
+
+      if (!draft || !draft.form) return;
+      setForm((current) => ({ ...current, ...draft.form }));
+      if (Array.isArray(draft.linhas) && draft.linhas.length > 0) setLinhas(draft.linhas);
+      if (Array.isArray(draft.anexos)) setAnexos(draft.anexos);
+      if (draft.relatorioSelecionadoId) setRelatorioSelecionadoId(draft.relatorioSelecionadoId);
+
+      setRascunhoLocalDisponivel(true);
+      toast.info("Rascunho local restaurado. Selecione o relatório e finalize o pagamento.");
+    } catch {
+      window.localStorage.removeItem(draftStorageKey);
+    }
+  }, [isDespesaViagem]);
+
+  const salvarRascunhoLocal = () => {
+    if (typeof window === "undefined") return;
+
+    const payload = {
+      form,
+      linhas,
+      anexos,
+      relatorioSelecionadoId,
+      savedAt: new Date().toISOString(),
+    };
+
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+    setRascunhoLocalDisponivel(true);
+    toast.success("Pagamento salvo como rascunho local. Quando houver relatório, retome e conclua.");
+  };
+
+  const allocResult = useMemo(
+    () => getSelectedTravelAllocation(relatorios, relatorioSelecionadoId || null, valorTotal),
+    [relatorios, relatorioSelecionadoId, valorTotal],
+  );
+
+  const alocacoes = allocResult.alocacoes;
+  const totalAlocado = allocResult.totalAlocado;
+  const sobra = allocResult.sobra;
 
 
 
@@ -449,6 +504,24 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
     if (anexosEnviando) return toast.error("Aguarde o término do envio dos anexos.");
     if (!form.data_emissao) return toast.error("Informe a data de competência.");
     if (!isDgaModo && !form.aeronave_id) return toast.error("Selecione a aeronave do rateio.");
+
+    if (isDespesaViagem && relatorios.length === 0) {
+      const deveSalvarRascunho = window.confirm(
+        "Não há relatório de viagem em aberto. Deseja salvar este pagamento como rascunho local para concluir quando houver um relatório existente?",
+      );
+
+      if (deveSalvarRascunho) {
+        salvarRascunhoLocal();
+        onCancel();
+      }
+
+      return;
+    }
+
+    if (isDespesaViagem && !relatorioSelecionadoId) {
+      toast.error("Selecione o relatório de viagem para confirmar o abatimento.");
+      return;
+    }
 
     const linhasDga = linhas.filter((l) => l.socio_id);
     const linhasValidas = isDgaModo
@@ -821,60 +894,13 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           </div>
         </div>
 
-        {isDespesaViagem && clienteAlvo && (
-          <div className="space-y-3 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-400" />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Abatimento em relatórios de viagem</p>
-                  <p className="text-xs text-muted-foreground">O valor será distribuído pelos relatórios em aberto.</p>
-                </div>
-              </div>
-              {loadingRelatorios && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
-            </div>
-
-            {loadingRelatorios ? (
-              <p className="text-sm text-muted-foreground">Carregando relatórios em aberto...</p>
-            ) : alocacoes.length > 0 ? (
-              <>
-                <div className="space-y-2">
-                  {alocacoes.map((relatorio) => {
-                    const saldoAposAbatimento = Number((relatorio.saldo - relatorio.alocado).toFixed(2));
-                    return (
-                      <div key={relatorio.id} className="flex flex-col gap-1 rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <span className="font-medium text-foreground">
-                            Relatório {relatorio.numero_relatorio || relatorio.numero_voo || "sem número"}
-                          </span>
-                          {relatorio.rota && <span className="ml-2 text-xs text-muted-foreground">{relatorio.rota}</span>}
-                        </div>
-                        <div className="flex gap-3 text-xs">
-                          <span className="text-muted-foreground">Abatido: <strong className="text-foreground">R$ {relatorio.alocado.toFixed(2)}</strong></span>
-                          <span className="text-muted-foreground">Saldo: <strong className="text-foreground">R$ {saldoAposAbatimento.toFixed(2)}</strong></span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total abatido</p>
-                    <p className="font-semibold text-foreground">R$ {totalAlocado.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Saldo restante</p>
-                    <p className={sobra > 0.009 ? "font-semibold text-amber-400" : "font-semibold text-emerald-400"}>R$ {sobra.toFixed(2)}</p>
-                  </div>
-                </div>
-              </>
-            ) : relatorios.length > 0 ? (
-              <p className="text-sm text-muted-foreground">Informe o valor do lançamento para visualizar os abatimentos.</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum relatório de viagem em aberto para este cliente.</p>
-            )}
+        {isDespesaViagem && (
+          <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-300">
+            Selecione abaixo o <strong>cotista</strong> do rateio para carregar os relatórios de viagem dele.
           </div>
         )}
+
+
 
         {/* Rateio por cotista */}
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
@@ -944,6 +970,82 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
           </div>
         </div>
 
+        {isDespesaViagem && clienteAlvo && (
+          <div className="space-y-3 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-400" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Abatimento em relatórios de viagem</p>
+                  <p className="text-xs text-muted-foreground">Selecione o relatório do cotista escolhido acima.</p>
+                </div>
+              </div>
+              {loadingRelatorios && <Loader2 className="h-4 w-4 animate-spin text-blue-400" />}
+            </div>
+
+            {loadingRelatorios ? (
+              <p className="text-sm text-muted-foreground">Carregando relatórios em aberto...</p>
+            ) : relatorios.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum relatório de viagem em aberto para este cotista.</p>
+            ) : (
+              <>
+                <div>
+                  <Label>Relatório de viagem</Label>
+                  <SearchableCombobox
+                    items={relatorioItems}
+                    value={relatorioSelecionadoId}
+                    onChange={(id) => setRelatorioSelecionadoId(id)}
+                    placeholder="Selecione o relatório"
+                    searchPlaceholder="Buscar relatório..."
+                    emptyMessage="Nenhum relatório em aberto."
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    É obrigatório selecionar o relatório antes de concluir o abatimento.
+                  </p>
+                </div>
+
+                {alocacoes.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      {alocacoes.map((relatorio) => {
+                        const saldoAposAbatimento = Number((relatorio.saldo - relatorio.alocado).toFixed(2));
+                        return (
+                          <div key={relatorio.id} className="flex flex-col gap-1 rounded-md border border-border/60 bg-background/60 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <span className="font-medium text-foreground">
+                                Relatório {relatorio.numero_relatorio || relatorio.numero_voo || "sem número"}
+                              </span>
+                              {relatorio.rota && <span className="ml-2 text-xs text-muted-foreground">{relatorio.rota}</span>}
+                            </div>
+                            <div className="flex gap-3 text-xs">
+                              <span className="text-muted-foreground">Abatido: <strong className="text-foreground">R$ {relatorio.alocado.toFixed(2)}</strong></span>
+                              <span className="text-muted-foreground">Saldo: <strong className="text-foreground">R$ {saldoAposAbatimento.toFixed(2)}</strong></span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total abatido</p>
+                        <p className="font-semibold text-foreground">R$ {totalAlocado.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Saldo restante</p>
+                        <p className={sobra > 0.009 ? "font-semibold text-amber-400" : "font-semibold text-emerald-400"}>R$ {sobra.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Informe o valor do lançamento para visualizar os abatimentos.</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+
+
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <Label className="mb-3 flex items-center gap-2"><Paperclip className="h-4 w-4" /> Anexos</Label>
           <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`movimentacoes/${storageId}`} />
@@ -956,6 +1058,18 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved, modo = "clie
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+          {isDespesaViagem && rascunhoLocalDisponivel && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                salvarRascunhoLocal();
+                onCancel();
+              }}
+            >
+              Salvar rascunho local
+            </Button>
+          )}
           <Button type="button" onClick={salvar} disabled={saving || anexosEnviando}>
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando..." : "Salvar lançamento"}

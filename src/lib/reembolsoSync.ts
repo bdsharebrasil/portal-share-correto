@@ -28,7 +28,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
 
   const { data: mov, error: movErr } = await client
     .from("movimentacoes")
-    .select("id, reference_type, reference_id, contas_areceber_id, valor_rateado, valor_total")
+    .select("id, reference_type, reference_id, contas_areceber_id, tipo_caixa, valor_rateado, valor_total")
     .eq("id", movId)
     .maybeSingle();
   if (movErr) throw movErr;
@@ -53,7 +53,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
   // 2) contas a receber
   const carId = mov?.contas_areceber_id || null;
   if (carId) {
-    await client
+    const { error: carError } = await client
       .from("contas_areceber")
       .update({
         status: quitado ? "recebido" : "parcial",
@@ -64,6 +64,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
         ...(input.comprovante ? { comprovante_url: input.comprovante } : {}),
       })
       .eq("id", carId);
+    if (carError) throw carError;
   }
 
   // 3) perna CLIENTE (mesma origem, sufixo :mov_cliente)
@@ -89,19 +90,21 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
 
   const ids = Array.from(movClienteIds);
   if (ids.length > 0) {
-    await client
+    const { error: clienteError } = await client
       .from("movimentacoes")
       .update({
         status: quitado ? "pago" : "parcial",
+        reembolso_quitado: quitado,
         data_pagamento: data,
         pago_por: pagador,
         valor_pago_real: valorRecebido,
         atualizado_em: agora,
       })
       .in("id", ids);
+    if (clienteError) throw clienteError;
 
     // 4) rateio_despesas vinculados por despesa_id
-    await client
+    const { error: rateioError } = await client
       .from("rateio_despesas")
       .update({
         status: quitado ? "reembolsado" : "parcial",
@@ -111,10 +114,11 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
         atualizado_em: agora,
       })
       .in("despesa_id", ids);
+    if (rateioError) throw rateioError;
   }
 
   // fallback: rateio ligado diretamente à própria movimentação
-  await client
+  const { error: fallbackRateioError } = await client
     .from("rateio_despesas")
     .update({
       status: quitado ? "reembolsado" : "parcial",
@@ -124,6 +128,7 @@ export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
       atualizado_em: agora,
     })
     .eq("despesa_id", movId);
+  if (fallbackRateioError) throw fallbackRateioError;
 
   return { quitado, patch: patchShare, movClienteIds: ids, contasAreceberId: carId };
 }

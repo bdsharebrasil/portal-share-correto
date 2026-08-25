@@ -120,7 +120,7 @@ export function FechamentoBalancoTab({
   const setFilter = (key: string, value: string) =>
     setColumnFilters((current) => ({ ...current, [key]: value }));
 
-  const columnVisible = () => true;
+  const columnVisible = (_field?: string) => true;
   const visibleColumnCount = 2 + FILTERABLE_COLUMNS.length;
 
   const toggleSort = (field: SortBy) => {

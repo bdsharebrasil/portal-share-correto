@@ -29,6 +29,7 @@ import {
   montarLinhasRateioMultiCliente,
   normalizarTipoDespesa,
   normalizarTipoRateio,
+  resolverCategoriaMovimentacaoShare,
   resolverClienteParaRateio,
   resolverFornecedorSolicitacao,
   resolverModoSolicitacaoPadrao,
@@ -1347,16 +1348,58 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     } catch (error) { console.warn('Falha na notificação:', error); }
   };
 
-  const resolveCategoriaConta = async (nomeCategoria: string, userId: string | null) => {
+  const resolveCategoriaConta = async (
+    nomeCategoria: string,
+    userId: string | null,
+    reembolsavel = false,
+    subcategoria: string | null = null,
+  ) => {
     const categoriaLimpa = (nomeCategoria || '').trim();
     if (!categoriaLimpa) return null;
-    const { data: expenseConfig } = await (supabase as any).from('expense_configu').select('id, expense_type').ilike('expense_type', categoriaLimpa).limit(1).maybeSingle();
+
+    const categoriaInfo = resolverCategoriaMovimentacaoShare({
+      nomeCategoria: categoriaLimpa,
+      subcategoria,
+      reembolsavel,
+    });
+
+    const { data: expenseConfig } = await (supabase as any)
+      .from('expense_configu')
+      .select('id, expense_type')
+      .ilike('expense_type', categoriaLimpa)
+      .limit(1)
+      .maybeSingle();
+
     const nomeParaCategoria = (expenseConfig?.expense_type as string | null) || categoriaLimpa;
-    const { data: categoriaExistente } = await (supabase as any).from('categorias_movimentacao').select('id, nome').ilike('nome', nomeParaCategoria).limit(1).maybeSingle();
-    if ((categoriaExistente as { id?: string | null } | null)?.id) return (categoriaExistente as { id?: string | null }).id as string;
-    const fallbackName = nomeParaCategoria.length > 80 ? nomeParaCategoria.slice(0, 80) : nomeParaCategoria;
+    const nomeCategoriaFinal = categoriaInfo.nome || nomeParaCategoria;
+
+    const { data: categoriaExistente } = await (supabase as any)
+      .from('categorias_movimentacao')
+      .select('id, nome, grupo_categoria, reembolsavel')
+      .eq('tipo', 'despesa')
+      .ilike('nome', nomeCategoriaFinal)
+      .eq('grupo_categoria', categoriaInfo.grupo_categoria)
+      .limit(1)
+      .maybeSingle();
+
+    if ((categoriaExistente as { id?: string | null } | null)?.id) {
+      return (categoriaExistente as { id?: string | null }).id as string;
+    }
+
+    const fallbackName = nomeCategoriaFinal.length > 80 ? nomeCategoriaFinal.slice(0, 80) : nomeCategoriaFinal;
     try {
-      const { data: categoriaCriada } = await supabase.from('categorias_movimentacao').insert({ nome: fallbackName, tipo: 'despesa', grupo_categoria: 'DESPESAS', ativo: true, criado_por: userId } as any).select('id').single();
+      const { data: categoriaCriada } = await supabase
+        .from('categorias_movimentacao')
+        .insert({
+          nome: fallbackName,
+          tipo: 'despesa',
+          grupo_categoria: categoriaInfo.grupo_categoria,
+          reembolsavel: categoriaInfo.reembolsavel,
+          ativo: true,
+          criado_por: userId,
+        } as any)
+        .select('id')
+        .single();
       return categoriaCriada?.id || null;
     } catch { return null; }
   };
@@ -1440,7 +1483,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
         const capIdShare = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico,
-          categoria: categoriaShareLabel || "Despesa Share", categoria_id: categoriaShareId,
+          categoria: categoriaMovimentacaoShare.nome || categoriaShareLabel || "Despesa Share", categoria_id: categoriaShareId,
           descricao: descricao.trim(), status: statusCP, observacoes: observacoes || null,
           fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
           fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
@@ -1455,7 +1498,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         try {
           movIdShare = await insertAndGetId("movimentacoes", {
             descricao: descricao.trim(), fluxo: "saida", tipo_caixa: "share",
-            categoria_id: categoriaShareId, categoria_nome: categoriaShareLabel || null, valor_rateado: valorNumerico, valor_total: valorNumerico,
+            categoria_id: categoriaShareId, categoria_nome: categoriaMovimentacaoShare.nome || categoriaShareLabel || null,
+            grupo_categoria: categoriaMovimentacaoShare.grupo_categoria,
+            reembolsavel: categoriaMovimentacaoShare.reembolsavel,
+            valor_rateado: valorNumerico, valor_total: valorNumerico,
             data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
             periodicidade, tipo_rateio: tipoRateioFinal,
             fornecedor_nome: (fornecedorNome || "").trim() || null,
@@ -1472,8 +1518,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         }
         await supabase.from("contas_apagar").update({ movimentacao_id: movIdShare }).eq("id", capIdShare);
 
-        toast.success(rascunho ? "Rascunho salvo (caixa Share)" : "Despesa enviada ao caixa Share");
-        
+        toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
         resetForm();
         onOpenChange(false);
         return;
@@ -1627,7 +1672,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           .eq("id", referenciaId);
         if (abastecimentoUpdateError) throw abastecimentoUpdateError;
 
-        toast.success(rascunho ? "Rascunho da programação atualizado" : "Programação de pagamento atualizada");
+        toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
         resetForm();
         onOpenChange(false);
         return;
@@ -1639,9 +1684,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       }
 
       const categoriaCaixaClienteId = modo === "DIRETO" ? tipoDespesa : null;
+      const categoriaMovimentacaoShare = resolverCategoriaMovimentacaoShare({
+        nomeCategoria: tipoDespesaLabel || "Despesa",
+        subcategoria: subcategoriaSel || null,
+        reembolsavel: modo === "REEMBOLSO" || gerarContasAReceber || isReembolsoRecibo || Boolean(initialData?.origem_recibo_reembolso),
+      });
       const categoriaContaId = modo === "DIRETO"
         ? null
-        : await resolveCategoriaConta(tipoDespesaLabel || "Despesa", userId);
+        : await resolveCategoriaConta(
+            tipoDespesaLabel || "Despesa",
+            userId,
+            categoriaMovimentacaoShare.reembolsavel,
+            subcategoriaSel || null,
+          );
       const supabaseClient = supabase as unknown as SupabaseClientLike;
 
       if (modo === "DIRETO" && !categoriaCaixaClienteId) throw new Error("Selecione uma categoria do Caixa Cliente.");
@@ -1678,7 +1733,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             movId = await insertAndGetId("movimentacoes", {
               descricao: descricaoViagemModo,
               fluxo: "saida", tipo_caixa: "cliente",
-              categoria_id: categoriaCaixaClienteId || categoriaContaId, valor_rateado: entry.valor, valor_total: Number(travelReportSel.total_valor ?? valorNumerico),
+              categoria_id: tipoDespesa, categoria_nome: subcategoriaSel || tipoDespesaLabel || null, valor_rateado: entry.valor, valor_total: Number(travelReportSel.total_valor ?? valorNumerico),
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               percentual_uso: percNumerico, periodicidade, tipo_rateio: tipoRateioFinal,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
@@ -1734,7 +1789,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length || (socioId ? 1 : 0) }),
               }];
 
-          await supabaseClient.from("rateio_despesas").insert(rateioPayloadsViagem as any);
+          const { error: rateioViagemError } = await supabaseClient.from("rateio_despesas").insert(rateioPayloadsViagem as any);
+          if (rateioViagemError) throw rateioViagemError;
         }
 
         const valorAReceberCliente = valorReceberClienteViagem;
@@ -1868,7 +1924,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           try {
             shareMovId = await insertAndGetId("movimentacoes", {
               descricao, fluxo: "despesa", tipo_caixa: "share",
-              categoria_id: categoriaContaId, categoria_nome: tipoDespesaLabel || null, valor_rateado: valorNumericoFinal, valor_total: valorNumericoFinal,
+              categoria_id: categoriaContaId, categoria_nome: categoriaMovimentacaoShare.nome || tipoDespesaLabel || null,
+              grupo_categoria: categoriaMovimentacaoShare.grupo_categoria,
+              reembolsavel: categoriaMovimentacaoShare.reembolsavel,
+              valor_rateado: valorNumericoFinal, valor_total: valorNumericoFinal,
               data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
               periodicidade, tipo_rateio: tipoRateioFinal,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
@@ -1915,10 +1974,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, fluxo: "saida", tipo_caixa: "cliente",
-                categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_total: valorNumericoFinal, data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
+                categoria_id: tipoDespesa, valor_rateado: valorCliente, valor_total: valorNumericoFinal, data_emissao: dataComp, data_vencimento: dataVenc, status: statusMov,
                 percentual_uso: pctCliente, periodicidade, tipo_rateio: tipoRateioFinal,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
-                categoria_nome: tipoDespesaLabel || null,
+                categoria_nome: subcategoriaSel || tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov, demonstrativo_url: demonstrativoUrl, comanda_url: comandaUrl,
                 observacoes: obsFinal || null, pago_diretamente: false, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
               });
@@ -1957,7 +2016,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             };
           });
 
-          await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
+          const { error: rateioError } = await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
+          if (rateioError) throw rateioError;
         }
 
         if (gerarContasAReceber && !gerarCaixaCliente) {
@@ -2086,7 +2146,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         await notifyAdminsAboutPaymentRequest(descricao, clientLabel, valorNumericoFinal, userName);
       }
 
-      toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
+      const successMessage = rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso";
+      toast.success(successMessage);
 
       if (!rascunho) {
         const anexosEmail: AnexoEmail[] = [
@@ -2114,7 +2175,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             `Os documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`,
           anexos: anexosEmail,
         });
-        toast.info("Solicitação salva. Se quiser, use o botão \"Enviar por e-mail\" para encaminhar ao cliente.");
       }
 
       resetForm();

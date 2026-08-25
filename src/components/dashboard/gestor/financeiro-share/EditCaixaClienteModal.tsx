@@ -831,7 +831,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                   .filter(([key, value]) => key !== "id" && key !== "despesa_id" && hasRateioValue(value))
                   .map(([key, value]) => (
                     <div key={key} className="min-w-0 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                      <div className={labelCls}>{RATEIO_FIELD_LABELS[key] || key.replaceAll("_", " ")}</div>
+                      <div className={labelCls}>{RATEIO_FIELD_LABELS[key] || key.split("_").join(" ")}</div>
                       {isRateioUrl(key, value) ? (
                         <a href={value} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 break-all text-[12px] font-medium text-cyan-300 hover:text-cyan-200 hover:underline">
                           Abrir anexo <ExternalLink className="h-3.5 w-3.5 shrink-0" />

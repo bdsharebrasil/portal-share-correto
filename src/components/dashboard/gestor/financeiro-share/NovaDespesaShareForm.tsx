@@ -215,7 +215,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           .in("reference_id", ids);
         (movimentos ?? []).forEach((movimento: any) => {
           if (String(movimento.status || "").toLowerCase() === "cancelado") return;
-          const valor = Number(movimento.valor_total ?? movimento.valor_rateado ?? 0);
+          const valor = Number(movimento.valor_rateado ?? movimento.valor_total ?? 0);
           abatidoPorRelatorio[movimento.reference_id] = Number(((abatidoPorRelatorio[movimento.reference_id] || 0) + valor).toFixed(2));
         });
       }
