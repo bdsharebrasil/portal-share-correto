@@ -577,8 +577,8 @@ export default function ChecklistPreVoo() {
         solicitacao_id: solicitacaoId,
         aeronave_id:
           voo?.aeronave_id ?? null,
-        cliente_id:
-          voo?.cliente_id ?? null,
+        clientes_id:
+          voo?.clientes_id ?? null,
         respostas,
         precisa_abastecer:
           precisaAbastecer,
@@ -1690,7 +1690,7 @@ export default function ChecklistPreVoo() {
         open={abastOpen}
         onOpenChange={setAbastOpen}
         defaultClienteId={
-          voo?.cliente_id ?? null
+          voo?.clientes_id ?? null
         }
         defaultAeronaveId={
           voo?.aeronave_id ?? null
