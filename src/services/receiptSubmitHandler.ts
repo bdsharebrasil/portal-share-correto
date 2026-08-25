@@ -295,8 +295,8 @@ export async function handleReceiptSubmit(
       aircraftData = await fetchAircraftData(submissionData.aeronave_id);
     }
 
-    if (submissionData.cliente_id) {
-      clientData = await fetchClientData(submissionData.cliente_id);
+    if (submissionData.clientes_id) {
+      clientData = await fetchClientData(submissionData.clientes_id);
     }
 
     // ===================== 3. PREPARAR DADOS PARA bank_reconciliations =====================
@@ -316,7 +316,7 @@ export async function handleReceiptSubmit(
       description: submissionData.descricao,
       amount: submissionData.valor,
       status: submissionData.status || "pendente",
-      client_id: submissionData.cliente_id || null,
+      client_id: submissionData.clientes_id || null,
       aeronave_id: submissionData.aeronave_id || null,
       categoria_movimentacao_id: submissionData.categoria_movimentacao_id || null,
       tipo_documento: submissionData.tipo_documento,
@@ -353,7 +353,7 @@ export async function handleReceiptSubmit(
       try {
         const rateioPayload = {
           despesa_id: bankReconciliation.id,
-          client_id: submissionData.cliente_id || null,
+          client_id: submissionData.clientes_id || null,
           client_name: clientData?.razao_social || "",
           aeronave_id: submissionData.aeronave_id || null,
           aeronave_registro: aircraftData?.registration || "",
@@ -491,7 +491,7 @@ export async function insertReceiptToBankReconciliations(
       description: data.descricao,
       amount: data.valor,
       status: data.status || "pendente",
-      client_id: data.cliente_id || null,
+      client_id: data.clientes_id || null,
       aeronave_id: data.aeronave_id || null,
       categoria_movimentacao_id: categoria_movimentacao_id,
       tipo_documento: data.tipo === "recibo" ? "recibo" : "recibo",
