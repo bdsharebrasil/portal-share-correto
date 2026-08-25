@@ -344,9 +344,9 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
                   return (
                     <button
-                      key={borrower.cliente_id}
+                      key={borrower.clientes_id}
                       onClick={() => {
-                        setSelectedBorrowerId(borrower.cliente_id);
+                        setSelectedBorrowerId(borrower.clientes_id);
                         setView('details');
                       }}
                       className="bg-gradient-to-br from-card/60 to-background/60 border border-border/50 p-8 rounded-3xl shadow-xl hover:border-border/50 hover:shadow-2xl transition-all text-left"

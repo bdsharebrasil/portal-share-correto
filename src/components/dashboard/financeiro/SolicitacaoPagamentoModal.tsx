@@ -453,9 +453,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       if (initialData.data_vencimento) setDataVencimento(new Date(initialData.data_vencimento));
       if (initialData.descricao_despesa) setDescricao(initialData.descricao_despesa);
       if (initialData.descricao) setDescricao(initialData.descricao);
-      if (initialData.valor_total_despesa) setValorTotal(String(initialData.valor_total_despesa));
+      if (initialData.valor_total_despesa != null) setValorTotal(String(initialData.valor_total_despesa));
       if (initialData.cliente_id) setClienteId(initialData.cliente_id);
-      if (initialData.clientes_nome) setFornecedorNome(initialData.clientes_nome);
+      if (initialData.clientes_nome || initialData.fornecedor_nome) {
+        setFornecedorNome(initialData.fornecedor_nome || initialData.clientes_nome);
+      }
       if (initialData.socio_id) setSocioId(initialData.socio_id);
       if (initialData.aeronave_id) setAeronaveId(initialData.aeronave_id);
       if (initialData.reference_type && initialData.reference_id) {
@@ -1481,10 +1483,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         const docUrlShare = pickUrl(anexosShare, "doc");
         const demonstrativoUrlShare = pickUrl(anexosShare, "demonstrativo");
 
+        const dadosBancariosShare = [
+          initialData?.bank_name ? `Banco: ${initialData.bank_name}` : null,
+          initialData?.bank_agency ? `Agência: ${initialData.bank_agency}` : null,
+          initialData?.bank_account ? `Conta: ${initialData.bank_account}` : null,
+          initialData?.bank_pix ? `PIX: ${initialData.bank_pix}` : null,
+        ].filter(Boolean).join(" | ");
+        const observacoesShare = [observacoes, dadosBancariosShare].filter(Boolean).join("\n") || null;
         const capIdShare = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico,
           categoria: categoriaMovimentacaoShare.nome || categoriaShareLabel || "Despesa Share", categoria_id: categoriaShareId,
-          descricao: descricao.trim(), status: statusCP, observacoes: observacoes || null,
+          descricao: descricao.trim(), status: statusCP, observacoes: observacoesShare,
+          banco_pagamento: initialData?.bank_name || null,
+          conta_pagamento_fornecedor: [initialData?.bank_agency, initialData?.bank_account, initialData?.bank_pix].filter(Boolean).join(" | ") || null,
           fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
           fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
           fornecedor_nome: (fornecedorNome || "").trim() || null,
@@ -1508,7 +1519,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             numero_nf: pickNumero(anexosShare, "nf"), numero_recibo: pickNumero(anexosShare, "recibo"),
             numero_boleto: pickNumero(anexosShare, "boleto"), numero_doc: pickNumero(anexosShare, "doc"),
             nf_url: nfUrlShare, recibo_url: reciboUrlShare, boleto_url: boletoUrlShare, comprovante_url: docUrlShare, demonstrativo_url: demonstrativoUrlShare,
-            observacoes: observacoes || null, contas_apagar_id: capIdShare,
+            observacoes: observacoesShare, contas_apagar_id: capIdShare,
             reference_type: "solicitacao_pagamento", criado_por: userId,
           });
           movimentacaoIdsCriadas.push(movIdShare);
@@ -2145,7 +2156,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
               <Send className="h-4 w-4 text-emerald-400" />
             </div>
-            Programar Pagamento — Cliente
+            Programar Pagamento — {modo === "SHARE" ? "Share" : "Cliente"}
           </DialogTitle>
           <DialogDescription>
             {etapaAtual === 0
@@ -2265,7 +2276,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>2. Periodicidade *</Label>
+                    <Label>2. Valor do pagamento (R$) *</Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={valorTotal}
+                      onChange={(e) => setValorTotal(e.target.value)}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>3. Periodicidade *</Label>
                     <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>

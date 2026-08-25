@@ -525,7 +525,7 @@ export default function Perfil() {
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 overflow-hidden rounded-[17px] bg-[rgb(232,240,250)] p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
@@ -552,7 +552,7 @@ export default function Perfil() {
         </div>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className={`grid w-full ${showTimeClock ? (isCrewMember ? 'grid-cols-7' : 'grid-cols-6') : (isCrewMember ? 'grid-cols-6' : 'grid-cols-5')} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
+          <TabsList className={`grid w-full ${showTimeClock ? (isCrewMember ? 'grid-cols-7' : 'grid-cols-6') : (isCrewMember ? 'grid-cols-6' : 'grid-cols-5')} bg-gradient-card border border-border rounded-xl p-2 text-[rgba(233,236,243,1)] shadow-card h-auto`}>
             <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
             {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
             <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Docs</TabsTrigger>
