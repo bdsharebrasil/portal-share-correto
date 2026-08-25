@@ -1,442 +1,484 @@
-// @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
+// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { X, Loader2, HandCoins, FileText, Check } from "lucide-react";
+import { Check, FileText, HandCoins, Loader2, Upload, Wallet, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
-import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { quitarReembolsoLegs } from "@/lib/reembolsoSync";
 
-interface MovLike {
-  id: string;
-  descricao?: string | null;
-  clientes_id?: string | null;
-  aeronave_id?: string | null;
-  valor_rateado?: string | number | null;
-  valor_original?: string | number | null;
-  contas_areceber_id?: string | null;
-  categoria_nome?: string | null;
-}
-
-interface ReembolsoPendencia {
-  id: string;
-  clientes_id: string | null;
-  cliente_nome: string | null;
-  descricao: string | null;
-  valor_rateado: number;
-  valor_total: number;
-  contas_areceber_id: string | null;
-  selected: boolean;
-}
-
+const norm = (v: any) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 const num = (v: any) => Number(v) || 0;
 
 const inputCls =
-  "w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground placeholder-slate-500 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30";
-const labelCls = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
+  "w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground placeholder-slate-500 outline-none transition focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20";
+
+type Mode = "gerar" | "baixar";
+
+type Pendencia = {
+  id: string;
+  rateio_id: string;
+  mov_id?: string;
+  cliente_id: string | null;
+  cliente_nome: string;
+  socio_nome: string | null;
+  valor_rateado: number;
+  valor_cobranca: number;
+  selected: boolean;
+};
 
 export default function ReembolsoModal({
   mov,
   onClose,
   onSuccess,
 }: {
-  mov: MovLike;
+  mov: any;
   onClose: () => void;
-  onSuccess: (patch: Record<string, any>) => void;
+  onSuccess: (patch?: any) => void;
 }) {
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [mode, setMode] = useState<Mode>("gerar");
+  const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+  const [pagadores, setPagadores] = useState<string[]>([]);
   const [pagador, setPagador] = useState("");
+  const [pagadorPrevisto, setPagadorPrevisto] = useState("");
+  const [vencimento, setVencimento] = useState(new Date().toISOString().slice(0, 10));
+  const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10));
+  const [valorRecebido, setValorRecebido] = useState("");
   const [banco, setBanco] = useState("");
   const [bancoId, setBancoId] = useState("");
   const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
-  const [obs, setObs] = useState("");
   const [comprovante, setComprovante] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagadores, setPagadores] = useState<{ id: string; label: string }[]>([]);
-  const [pendencias, setPendencias] = useState<ReembolsoPendencia[]>([]);
-  const [loadingPendencias, setLoadingPendencias] = useState(true);
 
-  const carregarPendencias = async () => {
-    setLoadingPendencias(true);
+  const carregar = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      let query = supabase
-        .from("movimentacoes")
-        .select("id, clientes_id, descricao, valor_rateado, valor_total, contas_areceber_id, reembolso_quitado, reference_type, reference_id")
-        .eq("tipo_caixa", "share")
-        .or("reembolso_quitado.is.null,reembolso_quitado.eq.false")
-        .order("data_vencimento", { ascending: true });
-
-      const byRef = await query
-        .eq("reference_type", "reembolso_share")
-        .eq("reference_id", mov.id);
-
-      let rows = byRef.data ?? [];
-
-      if ((!rows || rows.length === 0) && mov.contas_areceber_id) {
-        const fallback = await supabase
+      const [{ data: rateioRows, error: rateioError }, { data: gerados, error: geradosError }, { data: bancosData }] = await Promise.all([
+        supabase
+          .from("rateio_despesas")
+          .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real, status")
+          .eq("despesa_id", mov.id)
+          .order("id"),
+        supabase
           .from("movimentacoes")
-          .select("id, clientes_id, descricao, valor_rateado, valor_total, contas_areceber_id, reembolso_quitado, reference_type, reference_id")
+          .select("id, clientes_id, descricao, valor_rateado, valor_total, contas_areceber_id, reembolso_quitado, status, reference_type, reference_id, data_vencimento")
           .eq("tipo_caixa", "share")
-          .eq("contas_areceber_id", mov.contas_areceber_id)
-          .or("reembolso_quitado.is.null,reembolso_quitado.eq.false")
-          .order("data_vencimento", { ascending: true });
-        rows = fallback.data ?? [];
-      }
+          .eq("reference_type", "reembolso_share")
+          .eq("reference_id", mov.id)
+          .order("data_vencimento", { ascending: true }),
+        supabase.from("contas_bancarias").select("id, banco, numero_conta").order("banco"),
+      ]);
 
-      const clienteIds = Array.from(new Set((rows || []).map((r: any) => r.clientes_id).filter(Boolean)));
-      let clientesMap = new Map<string, string>();
-      if (clienteIds.length > 0) {
-        const { data: clientes } = await supabase
-          .from("clientes")
-          .select("id, razao_social, proprietario")
-          .in("id", clienteIds);
-        (clientes || []).forEach((c: any) => {
-          const nome = c.razao_social || c.proprietario;
-          if (nome) clientesMap.set(c.id, nome);
+      if (rateioError) throw rateioError;
+      if (geradosError) throw geradosError;
+
+      const rateio = (rateioRows || []) as any[];
+      const entries = (gerados || []) as any[];
+      const nomes = Array.from(new Set(rateio.flatMap((r: any) => [r.clientes_nome, r.socios_nome]).filter(Boolean))).sort();
+      setPagadores(nomes);
+      if (!pagador && nomes.length === 1) setPagador(nomes[0]);
+
+      setBancos((bancosData || []).map((b: any) => ({
+        id: b.id,
+        label: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
+      })));
+
+      if (entries.length > 0) {
+        setMode("baixar");
+        const mapped = entries.map((entry: any) => {
+          const matching = rateio.find((r: any) => r.cliente_id === entry.clientes_id && !rateio.find((other: any) => other.id === r.id && other.cliente_id === entry.clientes_id && other.socio_id));
+          const fallback = rateio.find((r: any) => r.cliente_id === entry.clientes_id) || rateio[entries.indexOf(entry)];
+          const r = matching || fallback;
+          return {
+            id: entry.id,
+            rateio_id: r?.id,
+            mov_id: entry.id,
+            cliente_id: entry.clientes_id ?? r?.cliente_id ?? null,
+            cliente_nome: r?.clientes_nome || "Cliente",
+            socio_nome: r?.socios_nome || null,
+            valor_rateado: num(entry.valor_rateado ?? entry.valor_total),
+            valor_cobranca: num(entry.valor_rateado ?? entry.valor_total),
+            selected: !entry.reembolso_quitado,
+          } as Pendencia;
         });
+        setPendencias(mapped);
+      } else {
+        setMode("gerar");
+        setPendencias(rateio.map((r: any) => ({
+          id: r.id,
+          rateio_id: r.id,
+          cliente_id: r.cliente_id ?? null,
+          cliente_nome: r.clientes_nome || "Cliente",
+          socio_nome: r.socios_nome || null,
+          valor_rateado: num(r.valor_rateado),
+          valor_cobranca: num(r.valor_rateado),
+          selected: num(r.valor_rateado) > 0,
+        })));
       }
-
-      const list = (rows || []).map((row: any) => ({
-        id: row.id,
-        clientes_id: row.clientes_id ?? null,
-        cliente_nome: clientesMap.get(row.clientes_id) ?? null,
-        descricao: row.descricao ?? "Reembolso",
-        valor_rateado: Number(row.valor_rateado ?? row.valor_total ?? 0),
-        valor_total: Number(row.valor_total ?? row.valor_rateado ?? 0),
-        contas_areceber_id: row.contas_areceber_id ?? null,
-        selected: true,
-      })) as ReembolsoPendencia[];
-
-      setPendencias(list);
+    } catch (e: any) {
+      setError(e.message || "Não foi possível carregar o reembolso.");
     } finally {
-      setLoadingPendencias(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    void carregarPendencias();
-  }, [mov.id, mov.contas_areceber_id]);
+    void carregar();
+  }, [mov.id]);
 
-  useEffect(() => {
-    (async () => {
-      const opts: { id: string; label: string }[] = [];
-      if (mov.clientes_id) {
-        const [{ data: cli }, { data: socios }] = await Promise.all([
-          supabase
-            .from("clientes")
-            .select("id, razao_social, proprietario")
-            .eq("id", mov.clientes_id)
-            .maybeSingle(),
-          supabase.from("socios").select("id, nome").eq("cliente_id", mov.clientes_id).order("nome"),
-        ]);
-        const cliNome = (cli as any)?.razao_social || (cli as any)?.proprietario;
-        if (cliNome) opts.push({ id: cliNome, label: cliNome });
-        (socios ?? []).forEach((s: any) => s.nome && opts.push({ id: s.nome, label: s.nome }));
-      }
-      if (mov.aeronave_id) {
-        const { data: cotistas } = await supabase
-          .from("cotistas_aeronave")
-          .select("id_clientes")
-          .eq("id_aeronave", mov.aeronave_id);
-        const ids = (cotistas ?? []).map((c: any) => c.id_clientes).filter(Boolean);
-        if (ids.length) {
-          const { data: clis } = await supabase
-            .from("clientes")
-            .select("id, razao_social, proprietario")
-            .in("id", ids);
-          (clis ?? []).forEach((c: any) => {
-            const n = c.razao_social || c.proprietario;
-            if (n && !opts.some((o) => o.id === n)) opts.push({ id: n, label: n });
-          });
-        }
-      }
-      setPagadores(opts);
+  const selecionadas = useMemo(() => pendencias.filter((p) => p.selected && p.valor_cobranca > 0), [pendencias]);
+  const totalSelecionado = useMemo(() => selecionadas.reduce((sum, p) => sum + p.valor_cobranca, 0), [selecionadas]);
+  const valorRecebidoNum = num(String(valorRecebido).replace(",", "."));
 
-      const { data: contas } = await supabase
-        .from("contas_bancarias")
-        .select("id, banco")
-        .order("banco");
-      setBancos((contas ?? []).map((c: any) => ({ id: c.id, label: c.banco || c.id })));
-    })();
-  }, [mov.clientes_id, mov.aeronave_id]);
-
-  const selecionadas = useMemo(() => pendencias.filter((p) => p.selected), [pendencias]);
-
-  const valorSelecionado = useMemo(
-    () => selecionadas.reduce((sum, p) => sum + p.valor_rateado, 0),
-    [selecionadas],
-  );
-
-  const totalEsperado = useMemo(
-    () => selecionadas.reduce((sum, p) => sum + (p.valor_total || p.valor_rateado), 0),
-    [selecionadas],
-  );
-
-  const totalRateio = useMemo(() => pendencias.reduce((sum, p) => sum + p.valor_rateado, 0), [pendencias]);
-  const pendenciasMarcadas = useMemo(() => pendencias.filter((p) => p.selected).length, [pendencias]);
-
-  const togglePendencia = (id: string, checked: boolean) => {
-    setPendencias((prev) => prev.map((p) => (p.id === id ? { ...p, selected: checked } : p)));
+  const toggle = (id: string) => {
+    setPendencias((prev) => prev.map((p) => (p.id === id ? { ...p, selected: !p.selected } : p)));
   };
 
-  const toggleTodos = (checked: boolean) => {
-    setPendencias((prev) => prev.map((p) => ({ ...p, selected: checked })));
+  const marcarTodos = (value: boolean) => {
+    setPendencias((prev) => prev.map((p) => ({ ...p, selected: value })));
+  };
+
+  const alterarValor = (id: string, value: string) => {
+    setPendencias((prev) => prev.map((p) => (p.id === id ? { ...p, valor_cobranca: num(value) } : p)));
   };
 
   const upload = async (file: File) => {
     setUploading(true);
     try {
-      const path = `reembolsos/${mov.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from("n.f-boletos-clients")
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("n.f-boletos-clients").getPublicUrl(path);
-      setComprovante(pub.publicUrl);
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `reembolsos/${mov.id}/${Date.now()}-${safe}`;
+      const { error: uploadError } = await supabase.storage.from("n.f-boletos-clients").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("n.f-boletos-clients").getPublicUrl(path);
+      setComprovante(data.publicUrl);
     } catch (e: any) {
-      setError("Erro no upload: " + (e.message || ""));
+      setError(e.message || "Erro ao enviar comprovante.");
     } finally {
       setUploading(false);
     }
   };
 
-  const salvar = async () => {
+  const gerar = async () => {
     setError(null);
-    const selecionadasAtuais = pendencias.filter((p) => p.selected);
-    if (!selecionadasAtuais.length) {
-      setError("Selecione pelo menos uma pendência de reembolso.");
-      return;
-    }
-    if (!pagador.trim()) {
-      setError("Informe quem pagou o reembolso.");
-      return;
-    }
-    if (valorSelecionado <= 0) {
-      setError("Informe o valor recebido.");
-      return;
+    if (!mov.data_pagamento) throw new Error("A despesa ainda não foi baixada pela Share.");
+    if (!selecionadas.length) throw new Error("Selecione pelo menos uma pendência de rateio.");
+    if (totalSelecionado <= 0) throw new Error("O valor do reembolso precisa ser maior que zero.");
+
+    const { data: authData } = await supabase.auth.getUser();
+    const criadoPor = authData.user?.id || null;
+
+    for (let i = 0; i < selecionadas.length; i++) {
+      const p = selecionadas[i];
+      const numero = `REEM-${mov.id.slice(0, 8).toUpperCase()}-${i + 1}`;
+      const descricao = `${mov.descricao || "Despesa reembolsável"} — ${p.cliente_nome}`;
+
+      const { data: conta, error: contaError } = await (supabase as any)
+        .from("contas_areceber")
+        .insert({
+          numero,
+          cliente_id: p.cliente_id,
+          cliente_nome: p.cliente_nome,
+          data_criacao: new Date().toISOString().slice(0, 10),
+          data_vencimento: vencimento,
+          valor: p.valor_cobranca,
+          categoria: "REEMBOLSOS ENTRADAS",
+          descricao,
+          status: "pendente",
+          aeronave: mov.aeronave_registro || null,
+          reference_type: "reembolso_share",
+          reference_id: mov.id,
+          criado_por: criadoPor,
+        })
+        .select("id")
+        .single();
+      if (contaError) throw contaError;
+
+      const { data: entrada, error: entradaError } = await (supabase as any)
+        .from("movimentacoes")
+        .insert({
+          descricao,
+          fluxo: "entrada",
+          tipo_caixa: "share",
+          categoria_nome: "REEMBOLSOS ENTRADAS",
+          grupo_categoria: "REEMBOLSOS ENTRADAS",
+          valor_rateado: p.valor_cobranca,
+          valor_total: p.valor_cobranca,
+          data_emissao: new Date().toISOString().slice(0, 10),
+          data_vencimento: vencimento,
+          status: "aguardando_reembolso",
+          aeronave_id: mov.aeronave_id || null,
+          clientes_id: p.cliente_id,
+          reembolsavel: true,
+          reembolso_quitado: false,
+          contas_areceber_id: conta.id,
+          reference_type: "reembolso_share",
+          reference_id: mov.id,
+          observacoes: [
+            pagadorPrevisto ? `Pagador previsto: ${pagadorPrevisto}` : null,
+            observacoes || null,
+          ].filter(Boolean).join("\n") || null,
+          criado_por: criadoPor,
+        })
+        .select("id")
+        .single();
+      if (entradaError) throw entradaError;
+
+      const { error: linkError } = await (supabase as any)
+        .from("contas_areceber")
+        .update({ movimentacao_id: entrada.id })
+        .eq("id", conta.id);
+      if (linkError) throw linkError;
     }
 
+    onSuccess?.();
+    onClose();
+  };
+
+  const baixar = async () => {
+    setError(null);
+    const escolhidas = pendencias.filter((p) => p.selected);
+    if (!escolhidas.length) throw new Error("Selecione pelo menos uma pendência de reembolso.");
+    if (!pagador.trim()) throw new Error("Selecione quem pagou de fato.");
+
+    const esperado = escolhidas.reduce((sum, p) => sum + p.valor_cobranca, 0);
+    const recebido = valorRecebidoNum || esperado;
+    if (Math.abs(recebido - esperado) > 0.01) {
+      throw new Error(`O valor recebido precisa ser ${formatBRL(esperado)}.`);
+    }
+
+    await quitarReembolsoLegs({
+      sourceMovId: mov.id,
+      movIds: escolhidas.map((p) => p.mov_id || p.id),
+      rateioIds: escolhidas.map((p) => p.rateio_id).filter(Boolean),
+      valorRecebido: recebido,
+      valorEsperado: esperado,
+      data: dataRecebimento,
+      pagador,
+      banco: bancoId || banco || null,
+      comprovante: comprovante || null,
+      observacoes: observacoes || null,
+    });
+
+    onSuccess?.({ reembolso_quitado: true });
+    onClose();
+  };
+
+  const salvar = async () => {
     setSaving(true);
+    setError(null);
     try {
-      const patch = await quitarReembolsoLegs({
-        movId: mov.id,
-        movIds: selecionadasAtuais.map((p) => p.id),
-        valorRecebido: valorSelecionado,
-        valorEsperado: totalEsperado,
-        data,
-        pagador,
-        banco: bancoId || banco || null,
-        comprovante: comprovante || null,
-        observacoes: obs || null,
-      });
-
-      onSuccess(patch.patch || {});
-      onClose();
+      if (mode === "gerar") await gerar();
+      else await baixar();
     } catch (e: any) {
-      setError(e.message || "Erro ao registrar reembolso.");
+      setError(e.message || "Não foi possível concluir o reembolso.");
     } finally {
       setSaving(false);
     }
   };
 
-  const diferenca = totalEsperado - valorSelecionado;
+  const todosMarcados = pendencias.length > 0 && pendencias.every((p) => p.selected);
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.68)", backdropFilter: "blur(5px)" }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
+        className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300">
-              <HandCoins className="h-4 w-4" />
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${mode === "gerar" ? "bg-amber-500/10 text-amber-300" : "bg-emerald-500/10 text-emerald-300"}`}>
+              {mode === "gerar" ? <Wallet className="h-5 w-5" /> : <HandCoins className="h-5 w-5" />}
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">Baixa consolidada de reembolso</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">{mov.descricao || "—"}</p>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                {mode === "gerar" ? "Depois da baixa Share" : "Recebimento do cliente"}
+              </div>
+              <h3 className="text-base font-black text-foreground">
+                {mode === "gerar" ? "Gerar reembolso dessa despesa para o cliente" : "Baixa consolidada de reembolso"}
+              </h3>
+              <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{mov.descricao || "Despesa reembolsável"}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-5 p-5">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-card-secondary/30 to-card-secondary/20 px-4 py-3">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Baixa consolidada</div>
-              <div className="mt-1 text-sm text-muted-foreground">{pendencias.length} pendências vinculadas a esta despesa</div>
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-14 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando fluxo do reembolso...
             </div>
-            <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">
-              {pendenciasMarcadas} selecionadas
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className={`rounded-xl border p-4 ${mode === "gerar" ? "border-amber-500/20 bg-amber-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Despesa Share</div>
+                    <div className="mt-1 text-sm font-bold text-foreground">{formatBRL(num(mov.valor_total))}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Etapa</div>
+                    <div className="mt-1 text-sm font-bold text-foreground">{mode === "gerar" ? "Gerar cobrança de reembolso" : "Receber e dar baixa"}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Selecionado</div>
+                    <div className="mt-1 text-sm font-bold text-foreground">{formatBRL(totalSelecionado)}</div>
+                  </div>
+                </div>
+              </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card-secondary/30 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Valor selecionado</div>
-              <div className="mt-2 text-xl font-bold text-foreground">{formatBRL(valorSelecionado)}</div>
-            </div>
-            <div className="rounded-xl border border-border bg-card-secondary/30 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total do rateio</div>
-              <div className="mt-2 text-xl font-bold text-foreground">{formatBRL(totalRateio)}</div>
-            </div>
-            <div className="rounded-xl border border-border bg-card-secondary/30 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Remanescente</div>
-              <div className={`mt-2 text-xl font-bold ${diferenca > 0.009 ? "text-amber-300" : "text-emerald-300"}`}>
-                {formatBRL(Math.max(0, diferenca))}
+              <div className="flex gap-2 rounded-xl border border-border bg-card-secondary/30 p-1">
+                <button
+                  type="button"
+                  disabled={mode === "baixar"}
+                  onClick={() => setMode("gerar")}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-black transition ${mode === "gerar" ? "bg-amber-500/15 text-amber-300" : "text-muted-foreground"}`}
+                >
+                  Gerar reembolso
+                </button>
+                <button
+                  type="button"
+                  disabled={mode === "gerar" && pendencias.some((p) => p.mov_id)}
+                  onClick={() => setMode("baixar")}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-black transition ${mode === "baixar" ? "bg-emerald-500/15 text-emerald-300" : "text-muted-foreground"}`}
+                >
+                  Baixar recebimento
+                </button>
               </div>
-            </div>
-          </div>
 
-          <div className="rounded-lg border border-border bg-card-secondary/20 p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pendências do rateio</div>
-                <div className="mt-1 text-[11px] text-muted-foreground">Marque o que está sendo quitado nesta baixa.</div>
-              </div>
-              <button
-                type="button"
-                className="text-[11px] font-medium text-emerald-300 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => toggleTodos(!pendencias.every((p) => p.selected))}
-                disabled={pendencias.length === 0}
-              >
-                {pendencias.length > 0 && pendencias.every((p) => p.selected) ? "Desmarcar tudo" : "Marcar tudo"}
-              </button>
-            </div>
-
-            {loadingPendencias ? (
-              <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando pendências...
-              </div>
-            ) : pendencias.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-                Nenhuma pendência de reembolso encontrada para esta despesa.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {pendencias.map((p) => (
-                  <label
-                    key={p.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background/40 px-3 py-2 transition hover:border-emerald-500/40"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!p.selected}
-                      onChange={(e) => togglePendencia(p.id, e.target.checked)}
-                      className="h-4 w-4 rounded border-border accent-emerald-500"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${p.selected ? "bg-emerald-400" : "bg-slate-500"}`} />
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {p.cliente_nome || p.descricao || "Cotista"}
-                          </span>
-                        </div>
-                        <span className="text-sm font-semibold text-foreground">{formatBRL(p.valor_rateado)}</span>
-                      </div>
-                      <div className="mt-0.5 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                        <span>{p.descricao || "Reembolso"}</span>
-                        <span className={p.contas_areceber_id ? "text-emerald-300" : "text-amber-300"}>
-                          {p.contas_areceber_id ? "Conta a receber" : "Sem vínculo"}
-                        </span>
-                      </div>
+              {mode === "gerar" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wider text-foreground">Rateio que deve ser cobrado</div>
+                      <p className="mt-1 text-xs text-muted-foreground">O rateio já existe. Nesta etapa nasce o contas a receber; nenhuma cobrança é criada na solicitação.</p>
                     </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+                    <button type="button" onClick={() => marcarTodos(!todosMarcados)} className="text-xs font-bold text-amber-300 hover:text-amber-200">
+                      {todosMarcados ? "Desmarcar tudo" : "Marcar tudo"}
+                    </button>
+                  </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className={labelCls}>Quem pagou</label>
-              <SearchableCombobox
-                items={pagadores}
-                value={pagador}
-                onChange={(_id, label) => setPagador(label)}
-                placeholder="Nome do pagador"
-                searchPlaceholder="Buscar pagador..."
-                allowFreeText
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Data da baixa</label>
-              <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>Banco / conta</label>
-              <select value={bancoId || banco} onChange={(e) => { setBancoId(e.target.value); setBanco(e.target.value); }} className={inputCls}>
-                <option value="">Selecione o banco</option>
-                {bancos.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Valor total da baixa</label>
-              <div className={`${inputCls} flex items-center`}>{formatBRL(valorSelecionado)}</div>
-            </div>
-          </div>
+                  <div className="space-y-2">
+                    {pendencias.map((p) => (
+                      <div key={p.id} className="grid gap-3 rounded-xl border border-border bg-card-secondary/30 p-3 md:grid-cols-[auto_1fr_140px_160px] md:items-center">
+                        <input type="checkbox" checked={p.selected} onChange={() => toggle(p.id)} className="h-4 w-4 accent-amber-500" />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold text-foreground">{p.cliente_nome}</div>
+                          <div className="text-[11px] text-muted-foreground">{p.socio_nome || "Cliente / cotista"}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Devido no rateio</div>
+                          <div className="mt-1 text-sm font-semibold text-foreground">{formatBRL(p.valor_rateado)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor a cobrar</div>
+                          <input className={inputCls + " text-right"} type="number" step="0.01" min="0" value={p.valor_cobranca} onChange={(e) => alterarValor(p.id, e.target.value)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-          <div>
-            <label className={labelCls}>Observações</label>
-            <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={3} className={inputCls} placeholder="Detalhes da baixa, referência do pagamento ou informações do rateio..." />
-          </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento do reembolso</label>
+                      <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pagador previsto</label>
+                      <select value={pagadorPrevisto} onChange={(e) => setPagadorPrevisto(e.target.value)} className={inputCls}>
+                        <option value="">Não informado</option>
+                        {pagadores.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</label>
+                      <input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} className={inputCls} placeholder="Ex.: um cotista assumirá a despesa inteira" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wider text-foreground">Pendências de reembolso</div>
+                      <p className="mt-1 text-xs text-muted-foreground">Selecione uma ou várias pendências que serão quitadas pela mesma transferência.</p>
+                    </div>
+                    <button type="button" onClick={() => marcarTodos(!todosMarcados)} className="text-xs font-bold text-emerald-300 hover:text-emerald-200">
+                      {todosMarcados ? "Desmarcar tudo" : "Marcar tudo"}
+                    </button>
+                  </div>
 
-          <div>
-            <label className={labelCls}>Comprovante</label>
-            <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-card-secondary/20 p-3">
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void upload(file);
-                }}
-                className="hidden"
-                id="reembolso-comprovante"
-              />
-              <label htmlFor="reembolso-comprovante" className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground hover:border-emerald-500/40">
-                <FileText className="h-4 w-4" />
-                {uploading ? "Enviando..." : "Anexar comprovante"}
-              </label>
-              {comprovante && (
-                <a href={comprovante} target="_blank" rel="noreferrer" className="text-xs text-emerald-300 hover:text-emerald-200">
-                  Visualizar
-                </a>
+                  <div className="space-y-2">
+                    {pendencias.map((p) => (
+                      <label key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-card-secondary/30 p-3">
+                        <input type="checkbox" checked={p.selected} onChange={() => toggle(p.id)} className="h-4 w-4 accent-emerald-500" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-bold text-foreground">{p.cliente_nome}</span>
+                          <span className="block text-[11px] text-muted-foreground">{p.socio_nome || "Cliente / cotista"}</span>
+                        </span>
+                        <span className="text-sm font-black text-foreground">{formatBRL(p.valor_cobranca)}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quem pagou de fato</label>
+                      <select value={pagador} onChange={(e) => setPagador(e.target.value)} className={inputCls}>
+                        <option value="">Selecione...</option>
+                        {pagadores.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data do recebimento</label>
+                      <input type="date" value={dataRecebimento} onChange={(e) => setDataRecebimento(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Valor recebido</label>
+                      <input type="number" step="0.01" value={valorRecebido || totalSelecionado || ""} onChange={(e) => setValorRecebido(e.target.value)} className={inputCls + " text-right"} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Banco</label>
+                      <select value={bancoId} onChange={(e) => { setBancoId(e.target.value); setBanco(bancos.find((b) => b.id === e.target.value)?.label || ""); }} className={inputCls}>
+                        <option value="">Selecione...</option>
+                        {bancos.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Comprovante</label>
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card-secondary/50 px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground">
+                      {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      {comprovante ? "Trocar comprovante" : "Anexar comprovante"}
+                      <input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file); }} />
+                    </label>
+                    {comprovante && <a href={comprovante} target="_blank" rel="noreferrer" className="ml-3 inline-flex items-center gap-1 text-xs text-emerald-300"><FileText className="h-3.5 w-3.5" /> Abrir comprovante</a>}
+                  </div>
+                </div>
               )}
-            </div>
-          </div>
 
-          {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>
+              {error && <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-300">{error}</div>}
+            </>
           )}
+        </div>
 
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-card-secondary">
-              Fechar
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-5 py-3.5">
+          <button onClick={onClose} className="rounded-lg border border-border bg-card-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
+          {!loading && (
+            <button onClick={() => void salvar()} disabled={saving || uploading} className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-black ${mode === "gerar" ? "bg-amber-400 text-slate-950 hover:bg-amber-300" : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"}`}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              {mode === "gerar" ? "Gerar reembolsos" : "Dar baixa no recebimento"}
             </button>
-            <button
-              type="button"
-              onClick={() => void salvar()}
-              disabled={saving || loadingPendencias || pendencias.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 shadow hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {saving ? "Registrando..." : "Registrar baixa"}
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>
