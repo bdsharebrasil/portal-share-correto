@@ -283,6 +283,43 @@ const styles = StyleSheet.create({
   },
 });
 
+const ReceiptAttachmentSection = ({ attachments }: { attachments: any[] }) => {
+  if (attachments.length === 0) return null;
+
+  return (
+    <View style={styles.obsSection}>
+      <Text style={styles.infoLabel}>ANEXOS DO RECIBO</Text>
+      {attachments.map((anexo: any, index: number) => {
+        const url = anexo.arquivo_url || anexo.url || null;
+        const isImage = typeof url === "string" && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
+        return (
+          <View key={anexo.id || index}>
+            <Text style={styles.obsText}>
+              • {anexo.tipo || "anexo"}: {anexo.numero_documento || url || "arquivo"}
+            </Text>
+            {isImage && <Image src={url} style={{ width: 460, height: 160, objectFit: "contain", marginTop: 4 }} cache={false} />}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+const ReceiptBankSection = ({ data }: { data: any }) => {
+  const hasBankData = data.bank_name || data.bank_pix || data.bank_account || data.bank_agency;
+  if (!hasBankData) return null;
+
+  return (
+    <View style={styles.obsSection}>
+      <Text style={styles.infoLabel}>DADOS BANCÁRIOS PARA PAGAMENTO</Text>
+      {data.bank_name && <Text style={styles.infoValue}>Banco: {data.bank_name}</Text>}
+      {data.bank_agency && <Text style={styles.infoValue}>Agência: {data.bank_agency}</Text>}
+      {data.bank_account && <Text style={styles.infoValue}>Conta: {data.bank_account}</Text>}
+      {data.bank_pix && <Text style={styles.infoValue}>PIX: {data.bank_pix}</Text>}
+    </View>
+  );
+};
+
 // Receipt PDF Component
 export const ReciboDocument = ({ data }: { data: any }) => {
   const formatCurrency = (value: number) => {
@@ -320,7 +357,6 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   const emissor = data.emissor;
   const descriptionText = data.service_description || data.descricao_servico || data.descricao || '—';
   const attachments = Array.isArray(data.attachments) ? data.attachments : [];
-  const bankSnapshot = data.bank_name || data.bank_pix || data.bank_account || data.bank_agency;
 
   // Parse issue date for signature
   const issueDate = data.issue_date ? new Date(data.issue_date + 'T12:00:00') : new Date();
@@ -441,31 +477,14 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             </View>
           )}
 
-          {bankSnapshot && (
-            <View style={styles.obsSection}>
-              <Text style={styles.infoLabel}>DADOS BANCÁRIOS PARA PAGAMENTO</Text>
-              {data.bank_name && <Text style={styles.infoValue}>Banco: {data.bank_name}</Text>}
-              {data.bank_agency && <Text style={styles.infoValue}>Agência: {data.bank_agency}</Text>}
-              {data.bank_account && <Text style={styles.infoValue}>Conta: {data.bank_account}</Text>}
-              {data.bank_pix && <Text style={styles.infoValue}>PIX: {data.bank_pix}</Text>}
-            </View>
-          )}
+          <ReceiptBankSection data={data} />
 
           {/* DISCLAIMER */}
           <View style={styles.obsSection}>
             <Text style={styles.obsText}>{disclaimerReembolso}</Text>
           </View>
 
-          {attachments.length > 0 && (
-            <View style={styles.obsSection}>
-              <Text style={styles.infoLabel}>ANEXOS DO RECIBO</Text>
-              {attachments.map((anexo: any, index: number) => (
-                <Text key={anexo.id || index} style={styles.obsText}>
-                  • {anexo.tipo || 'anexo'}: {anexo.arquivo_url || anexo.numero_documento || 'arquivo' }
-                </Text>
-              ))}
-            </View>
-          )}
+          <ReceiptAttachmentSection attachments={attachments} />
 
           {/* SIGNATURE AREA */}
           <View style={styles.signatureArea}>
@@ -564,6 +583,9 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             </View>
           </View>
         </View>
+
+        <ReceiptBankSection data={data} />
+        <ReceiptAttachmentSection attachments={attachments} />
 
         {/* OBS / DISCLAIMER */}
         <View style={{ marginTop: 15, marginBottom: 15 }}>

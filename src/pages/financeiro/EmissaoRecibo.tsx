@@ -81,6 +81,8 @@ const buildReceiptPdfData = ({
   receiptType,
   boletoUrl,
   notaFiscalUrl,
+  attachments,
+  bankSnapshot,
   originalForm,
   companySettings,
 }: {
@@ -88,6 +90,8 @@ const buildReceiptPdfData = ({
   receiptType: ReceiptType;
   boletoUrl: string | null;
   notaFiscalUrl: string | null;
+  attachments?: any[];
+  bankSnapshot?: Record<string, string | null>;
   originalForm: any;
   companySettings: any;
 }) => {
@@ -114,6 +118,8 @@ const buildReceiptPdfData = ({
     payment_method: receiptData.forma_pagamento,
     boleto_url: boletoUrl,
     nf_url: notaFiscalUrl,
+    attachments: attachments || [],
+    ...bankSnapshot,
     data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
     numero_documento_decea: originalForm.numeroDocumentoDecea || null,
     competencia_decea: originalForm.competenciaDecea || null,
@@ -262,21 +268,36 @@ export default function EmissaoRecibo() {
      return trimmed.startsWith("__") ? null : trimmed;
   };
 
-  const buildReceiptAttachments = (receiptId: string, payload: { boletoUrl?: string | null; notaFiscalUrl?: string | null; demonstrativoUrl?: string | null; paymentProofUrl?: string | null; numeroDocumento?: string | null; }) => {
-     const rows: any[] = [];
-     if (payload.boletoUrl) {
-       rows.push({ recibo_id: receiptId, tipo: "boleto", arquivo_url: payload.boletoUrl, numero_documento: payload.numeroDocumento || null });
-     }
-     if (payload.notaFiscalUrl) {
-       rows.push({ recibo_id: receiptId, tipo: "nota_fiscal", arquivo_url: payload.notaFiscalUrl, numero_documento: payload.numeroDocumento || null });
-     }
-     if (payload.demonstrativoUrl) {
-       rows.push({ recibo_id: receiptId, tipo: "demonstrativo", arquivo_url: payload.demonstrativoUrl, numero_documento: payload.numeroDocumento || null });
-     }
-     if (payload.paymentProofUrl) {
-       rows.push({ recibo_id: receiptId, tipo: "comprovante", arquivo_url: payload.paymentProofUrl, numero_documento: payload.numeroDocumento || null });
-     }
-     return rows;
+  const buildReceiptAttachments = (receiptId: string, payload: {
+    boletoUrl?: string | null;
+    notaFiscalUrl?: string | null;
+    demonstrativoUrl?: string | null;
+    paymentProofUrl?: string | null;
+    numeroDocumento?: string | null;
+    attachments?: Array<{ tipo: string; arquivo_url: string; numero_documento?: string | null }>;
+  }) => {
+    const rows: any[] = [];
+    if (payload.boletoUrl) {
+      rows.push({ recibo_id: receiptId, tipo: "boleto", arquivo_url: payload.boletoUrl, numero_documento: payload.numeroDocumento || null });
+    }
+    if (payload.notaFiscalUrl) {
+      rows.push({ recibo_id: receiptId, tipo: "nota_fiscal", arquivo_url: payload.notaFiscalUrl, numero_documento: payload.numeroDocumento || null });
+    }
+    if (payload.demonstrativoUrl) {
+      rows.push({ recibo_id: receiptId, tipo: "demonstrativo", arquivo_url: payload.demonstrativoUrl, numero_documento: payload.numeroDocumento || null });
+    }
+    if (payload.paymentProofUrl) {
+      rows.push({ recibo_id: receiptId, tipo: "comprovante", arquivo_url: payload.paymentProofUrl, numero_documento: payload.numeroDocumento || null });
+    }
+    for (const attachment of payload.attachments || []) {
+      rows.push({
+        recibo_id: receiptId,
+        tipo: attachment.tipo,
+        arquivo_url: attachment.arquivo_url,
+        numero_documento: attachment.numero_documento || null,
+      });
+    }
+    return rows;
   };
 
   const handleGenerateReceipt = async (formData: any) => {
@@ -295,9 +316,9 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
-      // Recibo do tipo reembolso SEMPRE aciona a Programação de Pagamento (sem perguntar)
-      const sendToProgramacao = isReembolso;
-      // sinaliza para uso posterior
+      const colaboradorId = normalizeId(originalForm.colaboradorId || originalForm.beneficiarioId || null);
+      const beneficiarioTipo = originalForm.beneficiarioTipo === "colaborador" || !!colaboradorId ? "colaborador" : "cliente";
+      const sendToProgramacao = isReembolso || beneficiarioTipo === "colaborador";
       originalForm.__sendToProgramacao = sendToProgramacao;
       const isRateado = originalForm.reembolsoRateado === true;
       const selectedAircraftId = getSelectedAircraftId(originalForm);
@@ -306,13 +327,28 @@ export default function EmissaoRecibo() {
 
       if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
 
-      const valorNumerico = parseFloat(String(formData.valor || "0").replace(",", "."));
+      const valorNumerico = parseCurrencyInput(
+        formData.valor || originalForm.reembolsoValorTotal || originalForm.valorTotalRecibo || "0"
+      );
       if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
 
       const normalizedClienteId = normalizeId(originalForm.clienteId);
-      const colaboradorId = normalizeId(originalForm.colaboradorId || originalForm.beneficiarioId || null);
-      const beneficiarioTipo = originalForm.beneficiarioTipo === "colaborador" || !!colaboradorId ? "colaborador" : "cliente";
+      let bankSnapshot: Record<string, string | null> = {};
+      if (beneficiarioTipo === "colaborador" && colaboradorId) {
+        const { data: colaboradorProfile, error: colaboradorProfileError } = await supabase
+          .from("user_profiles")
+          .select("bank_name, bank_agency, bank_account, bank_pix")
+          .eq("id", colaboradorId)
+          .maybeSingle();
+        if (colaboradorProfileError) throw colaboradorProfileError;
+        bankSnapshot = {
+          bank_name: colaboradorProfile?.bank_name || null,
+          bank_agency: colaboradorProfile?.bank_agency || null,
+          bank_account: colaboradorProfile?.bank_account || null,
+          bank_pix: colaboradorProfile?.bank_pix || null,
+        };
+      }
       const receiptNumber = await generateSequentialReceiptNumber(
         nomePagador,
         supabase,
@@ -346,6 +382,7 @@ export default function EmissaoRecibo() {
       let deceeaUrl: string | null = null;
       let infraeroUrl: string | null = null;
       const uploadedFiles: { type: string; name: string }[] = [];
+      const uploadedAttachments: Array<{ tipo: string; arquivo_url: string; numero_documento: string | null }> = [];
 
       const uploadFile = async (file: File, prefix: string, storage: string) => {
         const timestamp = Date.now();
@@ -384,6 +421,31 @@ export default function EmissaoRecibo() {
       if (originalForm.infraeroFile instanceof File)
         infraeroUrl = await uploadFile(originalForm.infraeroFile, "infraero", "n.f-boletos-clients");
 
+      const genericAttachments = Array.isArray(originalForm.anexos) ? originalForm.anexos : [];
+      const attachmentPrefix: Record<string, string> = {
+        boleto: "boleto",
+        nota_fiscal: "nf",
+        nf: "nf",
+        demonstrativo: "demonstrativo",
+        recibo: "recibo",
+        doc: "doc",
+        comprovante: "comprovante",
+      };
+      for (const attachment of genericAttachments) {
+        const file = attachment?.file instanceof File ? attachment.file : null;
+        const alreadyUploaded = file && [boletoFile, notaFiscalFile, originalForm.decealFile, originalForm.infraeroFile].includes(file);
+        const url = file && !alreadyUploaded
+          ? await uploadFile(file, attachmentPrefix[attachment.tipo] || "anexo", "n.f-boletos-clients")
+          : attachment?.url || null;
+        if (url) {
+          uploadedAttachments.push({
+            tipo: attachment.tipo || "anexo",
+            arquivo_url: url,
+            numero_documento: attachment.numeroDocumento || attachment.numero || null,
+          });
+        }
+      }
+
       // ===================== INSERIR RECIBO =====================
       // Mapeamento completo EN → PT conforme schema da tabela recibos
       const clienteIdParaSalvar = beneficiarioTipo === "cliente" ? normalizedClienteId : null;
@@ -402,7 +464,6 @@ export default function EmissaoRecibo() {
         numero_recibo: receiptNumber,
         data_max_pagamento: originalForm.prazoMaximoQuitacao || null,
         forma_pagamento: originalForm.formaPagamento?.trim() || null,
-        clientes_id: clienteIdParaSalvar,
         clientes_id: clienteIdParaSalvar,
         colaborador_id: colaboradorIdParaSalvar,
         beneficiario_tipo: beneficiarioTipo,
@@ -461,7 +522,7 @@ export default function EmissaoRecibo() {
           receiptsToInsert.push({
             ...receiptPayload,
             numero_recibo: numeroRecibo,
-            cliente_id: normalizeId(linha.clienteId) || receiptPayload.cliente_id,
+            clientes_id: normalizeId(linha.clienteId) || receiptPayload.clientes_id,
             nome_pagador: nomeLinha,
             documento_pagador: linha.pagadorDocumento?.trim() || "",
             endereco_pagador: linha.pagadorEndereco?.trim() || null,
@@ -534,13 +595,20 @@ export default function EmissaoRecibo() {
       let receiptData = insertedReceipts?.find((receipt) => receipt.numero_recibo === receiptNumber);
       if (!receiptData) throw new Error("Não foi possível identificar o recibo principal gerado.");
 
+      const receiptAttachmentMetadata = [
+        ...(boletoUrl ? [{ tipo: "boleto", arquivo_url: boletoUrl, numero_documento: originalForm.reembolsoNumeroDocumento || null }] : []),
+        ...(notaFiscalUrl ? [{ tipo: "nota_fiscal", arquivo_url: notaFiscalUrl, numero_documento: originalForm.reembolsoNumeroDocumento || null }] : []),
+        ...(deceeaUrl ? [{ tipo: "demonstrativo", arquivo_url: deceeaUrl, numero_documento: originalForm.numeroDocumentoDecea || null }] : []),
+        ...(infraeroUrl ? [{ tipo: "demonstrativo", arquivo_url: infraeroUrl, numero_documento: originalForm.numeroDocumentoInfraero || null }] : []),
+        ...uploadedAttachments,
+      ];
       const attachmentRows = (insertedReceipts || []).flatMap((receipt: any) =>
         buildReceiptAttachments(receipt.id, {
-          boletoUrl: boletoUrl,
-          notaFiscalUrl: notaFiscalUrl,
-          demonstrativoUrl: deceeaUrl || infraeroUrl || null,
+          boletoUrl: null,
+          notaFiscalUrl: null,
+          demonstrativoUrl: null,
           paymentProofUrl: originalForm.comprovantePagamentoUrl || null,
-          numeroDocumento: originalForm.reembolsoNumeroDocumento || originalForm.numeroDocumentoDecea || originalForm.numeroDocumentoInfraero || null,
+          attachments: receiptAttachmentMetadata,
         })
       );
       if (attachmentRows.length > 0) {
@@ -886,6 +954,8 @@ export default function EmissaoRecibo() {
           receiptType: expectedReceiptType,
           boletoUrl,
           notaFiscalUrl,
+          attachments: receiptAttachmentMetadata,
+          bankSnapshot,
           originalForm,
           companySettings,
         });
@@ -898,8 +968,10 @@ export default function EmissaoRecibo() {
           receiptType: expectedReceiptType,
           boletoUrl,
           notaFiscalUrl,
-        originalForm,
-        sendToProgramacao: Boolean(originalForm.__sendToProgramacao),
+          attachments: receiptAttachmentMetadata,
+          bankSnapshot,
+          originalForm,
+          sendToProgramacao: Boolean(originalForm.__sendToProgramacao),
           companySettings,
           currentUserId,
         });
@@ -951,6 +1023,8 @@ export default function EmissaoRecibo() {
         receiptType: expectedReceiptType,
         boletoUrl,
         notaFiscalUrl,
+        attachments,
+        bankSnapshot,
         originalForm,
         companySettings: settings,
         currentUserId,
@@ -1007,6 +1081,8 @@ export default function EmissaoRecibo() {
         receiptType: expectedReceiptType,
         boletoUrl,
         notaFiscalUrl,
+        attachments,
+        bankSnapshot,
         originalForm,
         companySettings: settings,
       });
@@ -1075,15 +1151,23 @@ export default function EmissaoRecibo() {
               ? +((valorRateadoVal / valorTotalDespesaVal) * 100).toFixed(2)
               : null);
 
+          const isColaborador = orig.beneficiarioTipo === "colaborador" || !!orig.colaboradorId;
           const initial = {
+            modo: isColaborador ? "SHARE" : "REEMBOLSO",
             data_emissao: r.data_emissao || orig.dataEmissao || null,
             data_vencimento: r.data_vencimento || orig.prazoMaximoQuitacao || orig.dataVencimentoBoleto || null,
+            valor_total_despesa: valorTotalDespesaVal,
             periodicidade: orig.periodicidade || r.periodicidade || null,
             tipo_rateio: orig.tipoRateio || orig.tipo_rateio || r.tipo_rateio || null,
             numero_doc: r.numero_documento || orig.reembolsoNumeroDocumento || null,
             descricao_despesa: r.descricao_servico || orig.servicoDescricao || null,
-            cliente_id: r.cliente_id || orig.clienteId || null,
+            cliente_id: r.clientes_id || orig.clienteId || null,
             clientes_nome: cliente?.razao_social || cliente?.nome || null,
+            fornecedor_nome: isColaborador ? r.nome_pagador || orig.pagadorNome || null : null,
+            bank_name: isColaborador ? pendingReceiptData.bankSnapshot?.bank_name || null : null,
+            bank_agency: isColaborador ? pendingReceiptData.bankSnapshot?.bank_agency || null : null,
+            bank_account: isColaborador ? pendingReceiptData.bankSnapshot?.bank_account || null : null,
+            bank_pix: isColaborador ? pendingReceiptData.bankSnapshot?.bank_pix || null : null,
             socio_id: socioId,
             socios_nome: socioNome,
             aeronave_id: r.aeronave_id || orig.aircraftId || orig.aeronaveId || null,
@@ -1106,7 +1190,6 @@ export default function EmissaoRecibo() {
             competencia_decea: r.competencia_decea || orig.competenciaDecea || orig.competencia_decea || null,
             // valores para rateio do cliente (todos editáveis no modal)
             valor_total: valorTotalDespesaVal,
-            valor_total_despesa: valorTotalDespesaVal,
             valor_rateado: valorRateadoVal,
             percentual_uso: percentualUsoVal,
             rateio_cliente: (r.clientes_id || orig.clienteId)
@@ -1120,7 +1203,7 @@ export default function EmissaoRecibo() {
                 }]
               : [],
             // Origem: recibo de reembolso -> gera CAP (Share) + CAR por cliente + movimentações + rateio
-            origem_recibo_reembolso: true,
+            origem_recibo_reembolso: !isColaborador,
             reference_type: "recibo",
             reference_id: r.id,
             recibo_url: r.pdf_url || null,
