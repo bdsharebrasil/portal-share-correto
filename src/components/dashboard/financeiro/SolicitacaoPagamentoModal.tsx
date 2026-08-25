@@ -1473,6 +1473,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const statusMov = rascunho ? "rascunho" : "pendente";
       const statusCP = rascunho ? "rascunho" : "pendente";
       const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
+      const isReembolsoRecibo = Boolean(initialData?.origem_recibo_reembolso);
+      const categoriaMovimentacaoShare = resolverCategoriaMovimentacaoShare({
+        nomeCategoria: isModoShare ? categoriaShareLabel : tipoDespesaLabel || "Despesa",
+        subcategoria: subcategoriaSel || null,
+        reembolsavel: modo === "REEMBOLSO" || gerarContasAReceber || isReembolsoRecibo,
+      });
 
       /* ---- Modo 1: despesa da própria Share (não envolve cliente nem rateio) ---- */
       if (isModoShare) {
@@ -1542,7 +1548,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       const referenciaTipo = referenciaDuplicada?.tipo || null;
       const referenciaId = referenciaDuplicada?.id ?? null;
-      const isReembolsoRecibo = Boolean(initialData?.origem_recibo_reembolso);
       const fonteDespesa = referenciaTipo || "solicitacao_pagamento";
       const isAllClients = clienteId === "__all__";
       
@@ -1596,6 +1601,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const subcategoria3Val = isSubcat3Sel ? subcategoriaSel : null;
       const subcategoria4Val = isSubcat4Sel ? subcategoriaSel : null;
       const fornecedorNomeFinal = resolverFornecedorSolicitacao({ isViagemMode, fornecedorNome });
+      const categoriaContaId = modo === "DIRETO"
+        ? null
+        : await resolveCategoriaConta(
+            tipoDespesaLabel || "Despesa",
+            userId,
+            categoriaMovimentacaoShare.reembolsavel,
+            subcategoriaSel || null,
+          );
 
       const { data: movimentacaoExistente } = referenciaTipo && referenciaId
         ? await (supabase as any).from("movimentacoes").select("id, contas_apagar_id, contas_areceber_id, status").eq("reference_type", referenciaTipo).eq("reference_id", referenciaId).maybeSingle()
@@ -1695,19 +1708,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       }
 
       const categoriaCaixaClienteId = modo === "DIRETO" ? tipoDespesa : null;
-      const categoriaMovimentacaoShare = resolverCategoriaMovimentacaoShare({
-        nomeCategoria: tipoDespesaLabel || "Despesa",
-        subcategoria: subcategoriaSel || null,
-        reembolsavel: modo === "REEMBOLSO" || gerarContasAReceber || isReembolsoRecibo || Boolean(initialData?.origem_recibo_reembolso),
-      });
-      const categoriaContaId = modo === "DIRETO"
-        ? null
-        : await resolveCategoriaConta(
-            tipoDespesaLabel || "Despesa",
-            userId,
-            categoriaMovimentacaoShare.reembolsavel,
-            subcategoriaSel || null,
-          );
       const supabaseClient = supabase as unknown as SupabaseClientLike;
 
       if (modo === "DIRETO" && !categoriaCaixaClienteId) throw new Error("Selecione uma categoria do Caixa Cliente.");
