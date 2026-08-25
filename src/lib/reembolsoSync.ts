@@ -1,175 +1,191 @@
-// @ts-nocheck — colunas legadas fora dos types gerados
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 
 export interface QuitarReembolsoInput {
-  movId: string;
-  movIds?: string[];
+  sourceMovId: string;
+  movIds: string[];
+  rateioIds: string[];
   valorRecebido: number;
   valorEsperado: number;
-  data: string; // yyyy-mm-dd
+  data: string;
   pagador: string;
   banco?: string | null;
   comprovante?: string | null;
   observacoes?: string | null;
 }
 
-/**
- * Dá baixa no reembolso do cliente propagando o recebimento para TODAS as pernas
- * financeiras criadas pela solicitação (saidaFinancialSync):
- *  - movimentacoes (perna SHARE / entrada)   → reembolsado
- *  - contas_areceber                          → recebido
- *  - movimentacoes (perna CLIENTE / despesa)  → pago
- *  - rateio_despesas (despesa_id = mov cliente) → reembolsado
- */
+const normalize = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
 export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
-  const movIds = Array.from(new Set((input.movIds && input.movIds.length ? input.movIds : [input.movId]).filter(Boolean)));
-  if (movIds.length === 0) {
-    throw new Error("Nenhuma pendência de reembolso para quitar.");
-  }
-
-  const primaryId = movIds[0];
-  const allInputs = { ...input, movIds, movId: primaryId };
-  return quitarReembolsosLegs(allInputs as QuitarReembolsoInput & { movIds: string[] });
-}
-
-export async function quitarReembolsosLegs(input: QuitarReembolsoInput & { movIds: string[] }) {
-  const { movIds, valorRecebido, valorEsperado, data, pagador } = input;
   const client = supabase as any;
-  const totalEsperado = Number(valorEsperado) || 0;
-  const totalRecebido = Number(valorRecebido) || 0;
-  const quitado = totalEsperado > 0 ? totalRecebido + 0.01 >= totalEsperado : totalRecebido > 0;
-  const agora = new Date().toISOString();
-  const ids = Array.from(new Set(movIds.filter(Boolean)));
+  const movIds = Array.from(new Set((input.movIds || []).filter(Boolean)));
+  const rateioIds = Array.from(new Set((input.rateioIds || []).filter(Boolean)));
+  const recebido = Number(input.valorRecebido || 0);
+  const esperado = Number(input.valorEsperado || 0);
 
-  if (ids.length === 0) {
-    throw new Error("Nenhuma pendência de reembolso para quitar.");
+  if (!input.sourceMovId) throw new Error("Despesa Share não informada.");
+  if (!movIds.length) throw new Error("Nenhuma conta de reembolso selecionada.");
+  if (!rateioIds.length) throw new Error("Nenhum item do rateio selecionado.");
+  if (recebido <= 0) throw new Error("Informe o valor efetivamente recebido.");
+  if (Math.abs(recebido - esperado) > 0.01) {
+    throw new Error(`O valor recebido (${recebido.toFixed(2)}) precisa ser igual ao total selecionado (${esperado.toFixed(2)}).`);
   }
 
-  const { data: movs, error: movErr } = await client
+  const now = new Date().toISOString();
+
+  const { data: source, error: sourceError } = await client
     .from("movimentacoes")
-    .select("id, reference_type, reference_id, contas_areceber_id, tipo_caixa, valor_rateado, valor_total")
-    .in("id", ids)
-    .order("data_vencimento", { ascending: true });
-  if (movErr) throw movErr;
+    .select("id, valor_total, reembolsavel, reembolso_quitado, status, data_pagamento")
+    .eq("id", input.sourceMovId)
+    .single();
+  if (sourceError) throw sourceError;
 
-  const movClienteIds = new Set<string>();
-  const contasAreceberIds = new Set<string>();
-
-  for (const mov of movs || []) {
-    const patchShare: Record<string, any> = {
-      reembolso_quitado: quitado,
-      status: quitado ? "reembolsado" : "reembolso parcial",
-      fluxo: "entrada",
-      data_pagamento: data,
-      pago_por: pagador,
-      valor_pago_real: Number(mov.valor_rateado ?? mov.valor_total ?? 0),
-      atualizado_em: agora,
-    };
-    if (input.banco) patchShare.conta_bancaria = input.banco;
-    if (input.comprovante) patchShare.comprovante_url = input.comprovante;
-    if (input.observacoes) patchShare.observacoes = input.observacoes;
-
-    const { error: e1 } = await client.from("movimentacoes").update(patchShare).eq("id", mov.id);
-    if (e1) throw e1;
-
-    if (mov.contas_areceber_id) {
-      contasAreceberIds.add(mov.contas_areceber_id);
-      const { error: carError } = await client
-        .from("contas_areceber")
-        .update({
-          status: quitado ? "recebido" : "parcial",
-          data_pagamento: data,
-          data_recebimento: data,
-          conta_bancaria_recebimento: input.banco || null,
-          comprovante_recebimento_url: input.comprovante || null,
-          ...(input.comprovante ? { comprovante_url: input.comprovante } : {}),
-        })
-        .eq("id", mov.contas_areceber_id);
-      if (carError) throw carError;
-    }
-
-    const refType: string | null = mov.reference_type || null;
-    if (refType && mov.reference_id) {
-      if (refType.endsWith(":mov_share")) {
-        const clienteRef = refType.replace(/:mov_share$/, ":mov_cliente");
-        const { data: movCli } = await client
-          .from("movimentacoes")
-          .select("id")
-          .eq("reference_type", clienteRef)
-          .eq("reference_id", mov.reference_id);
-        (movCli || []).forEach((r: any) => movClienteIds.add(r.id));
-      }
-      if (refType === "reembolso_share") {
-        const { data: movCli } = await client
-          .from("movimentacoes")
-          .select("id")
-          .eq("contas_areceber_id", mov.contas_areceber_id)
-          .eq("tipo_caixa", "cliente");
-        (movCli || []).forEach((r: any) => movClienteIds.add(r.id));
-      }
-    }
-
-    if (mov.contas_areceber_id) {
-      const { data: movsCar } = await client
-        .from("movimentacoes")
-        .select("id")
-        .eq("contas_areceber_id", mov.contas_areceber_id)
-        .eq("tipo_caixa", "cliente");
-      (movsCar || []).forEach((r: any) => movClienteIds.add(r.id));
-    }
+  if (!source.data_pagamento) {
+    throw new Error("A despesa ainda não foi baixada pela Share.");
   }
 
-  const movClienteArray = Array.from(movClienteIds);
-  if (movClienteArray.length > 0) {
-    const { error: clienteError } = await client
+  const { data: movements, error: movementsError } = await client
+    .from("movimentacoes")
+    .select("id, contas_areceber_id, clientes_id, valor_rateado, valor_total")
+    .in("id", movIds);
+  if (movementsError) throw movementsError;
+
+  if ((movements || []).length !== movIds.length) {
+    throw new Error("Uma ou mais movimentações de reembolso não foram encontradas.");
+  }
+
+  for (const mov of movements || []) {
+    const valorMov = Number(mov.valor_rateado ?? mov.valor_total ?? 0);
+    const { error } = await client
       .from("movimentacoes")
       .update({
-        status: quitado ? "pago" : "parcial",
-        reembolso_quitado: quitado,
-        data_pagamento: data,
-        pago_por: pagador,
-        valor_pago_real: totalRecebido || null,
-        atualizado_em: agora,
+        status: "recebido",
+        fluxo: "entrada",
+        tipo_caixa: "share",
+        reembolso_quitado: true,
+        data_pagamento: input.data,
+        conta_bancaria: input.banco || null,
+        comprovante_url: input.comprovante || null,
+        pago_por: input.pagador,
+        valor_pago_real: valorMov,
+        observacoes: input.observacoes || null,
+        atualizado_em: now,
       })
-      .in("id", movClienteArray);
-    if (clienteError) throw clienteError;
+      .eq("id", mov.id);
+    if (error) throw error;
 
-    const { error: rateioError } = await client
-      .from("rateio_despesas")
-      .update({
-        status: quitado ? "reembolsado" : "parcial",
-        data_pagamento: data,
-        pago_por: pagador,
-        valor_pago_real: totalRecebido || null,
-        atualizado_em: agora,
-      })
-      .in("despesa_id", movClienteArray);
-    if (rateioError) throw rateioError;
+    if (mov.contas_areceber_id) {
+      const { error: arError } = await client
+        .from("contas_areceber")
+        .update({
+          status: "recebido",
+          data_pagamento: input.data,
+          data_recebimento: input.data,
+          banco_recebimento: input.banco || null,
+          conta_bancaria_recebimento: input.banco || null,
+          comprovante_recebimento_url: input.comprovante || null,
+        })
+        .eq("id", mov.contas_areceber_id);
+      if (arError) throw arError;
+    }
   }
 
-  const rateioFallbackIds = Array.from(new Set([...ids, ...Array.from(movClienteIds)]));
-  const { error: fallbackRateioError } = await client
+  const { data: rateios, error: rateioError } = await client
     .from("rateio_despesas")
+    .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real, status")
+    .eq("despesa_id", input.sourceMovId)
+    .order("id");
+  if (rateioError) throw rateioError;
+
+  if (!rateios?.length) throw new Error("Não existe rateio para esta despesa.");
+
+  const selectedMovClientIds = new Set((movements || []).map((m: any) => m.clientes_id).filter(Boolean));
+  const payerNorm = normalize(input.pagador);
+  let payerRateio = (rateios || []).find((r: any) =>
+    normalize(r.clientes_nome) === payerNorm || normalize(r.socios_nome) === payerNorm,
+  );
+
+  if (!payerRateio) {
+    payerRateio = (rateios || []).find((r: any) => rateioIds.includes(r.id));
+  }
+  if (!payerRateio) throw new Error("O pagador informado não pertence ao rateio desta despesa.");
+
+  const selectedRateios = (rateios || []).filter((r: any) => rateioIds.includes(r.id));
+  const totalDespesa = (rateios || []).reduce((sum: number, r: any) => sum + Number(r.valor_rateado || 0), 0);
+  const totalSelecionado = selectedRateios.reduce((sum: number, r: any) => sum + Number(r.valor_rateado || 0), 0);
+  const quitouTudo = Math.abs(recebido - totalDespesa) <= 0.01;
+  const cobreSelecionado = Math.abs(recebido - totalSelecionado) <= 0.01;
+
+  if (!cobreSelecionado && !quitouTudo) {
+    throw new Error("O valor recebido precisa corresponder ao total das pendências selecionadas.");
+  }
+
+  for (const rateio of rateios || []) {
+    const selected = rateioIds.includes(rateio.id);
+    if (!selected) continue;
+
+    const isPayer = rateio.id === payerRateio.id;
+    const valorReal = isPayer ? recebido : 0;
+
+    const { error: updateRateioError } = await client
+      .from("rateio_despesas")
+      .update({
+        pago_por: input.pagador,
+        valor_pago_real: valorReal,
+        status: "PAGO",
+        pago_diretamente: true,
+        data_pagamento: input.data,
+        comprovante_url: input.comprovante || null,
+        atualizado_em: now,
+      })
+      .eq("id", rateio.id);
+    if (updateRateioError) throw updateRateioError;
+  }
+
+  // Quando um único cotista paga tudo, as demais cotas ficam zeradas, mas vinculadas
+  // ao mesmo pagador. Isso permite calcular posteriormente "quem deve a quem".
+  if (quitouTudo) {
+    for (const rateio of rateios || []) {
+      if (rateioIds.includes(rateio.id)) continue;
+      const { error } = await client
+        .from("rateio_despesas")
+        .update({
+          pago_por: input.pagador,
+          valor_pago_real: 0,
+          status: "PAGO",
+          pago_diretamente: true,
+          data_pagamento: input.data,
+          comprovante_url: input.comprovante || null,
+          atualizado_em: now,
+        })
+        .eq("id", rateio.id);
+      if (error) throw error;
+    }
+  }
+
+  const { error: sourceUpdateError } = await client
+    .from("movimentacoes")
     .update({
-      status: quitado ? "reembolsado" : "parcial",
-      data_pagamento: data,
-      pago_por: pagador,
-      valor_pago_real: totalRecebido || null,
-      atualizado_em: agora,
+      reembolso_quitado: quitouTudo,
+      status: quitouTudo ? "reembolsado" : "aguardando_reembolso",
+      atualizado_em: now,
     })
-    .in("despesa_id", rateioFallbackIds);
-  if (fallbackRateioError) throw fallbackRateioError;
+    .eq("id", source.id);
+  if (sourceUpdateError) throw sourceUpdateError;
 
   return {
-    quitado,
+    quitado: quitouTudo,
     patch: {
-      reembolso_quitado: quitado,
-      status: quitado ? "reembolsado" : "reembolso parcial",
-      data_pagamento: data,
-      pago_por: pagador,
-      valor_pago_real: totalRecebido,
+      reembolso_quitado: quitouTudo,
+      status: quitouTudo ? "reembolsado" : "aguardando_reembolso",
+      data_pagamento: input.data,
+      pago_por: input.pagador,
+      valor_pago_real: recebido,
     },
-    movClienteIds: movClienteArray,
-    contasAreceberIds: Array.from(contasAreceberIds),
   };
 }

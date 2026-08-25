@@ -1,0 +1,579 @@
+name: Patch fluxo de reembolso financeiro
+
+on:
+  push:
+    branches:
+      - fix/fluxo-reembolso-financeiro
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[reembolso-auto-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Aplicar correções do fluxo financeiro
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+
+          # 1) Solicitação de pagamento: REEMBOLSO nunca cria movimentações cliente
+          #    no momento da solicitação. Mantemos uma única movimentação Share ligada
+          #    ao contas_apagar; o rateio continua sendo criado normalmente.
+          p = root / 'src/components/dashboard/financeiro/SolicitacaoPagamentoModal.tsx'
+          s = p.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'\n          try \{\n            for \(const linha of clienteLinhas\) \{.*?\n          \}\n\n          await supabase\.from\("contas_apagar"\)\.update',
+              re.S,
+          )
+          s2, n = pattern.subn(
+              '\n          // REEMBOLSO: não criar movimentos individuais de cliente nesta etapa.\n'
+              '          // A solicitação cria apenas 1 movimentação Share + 1 contas_apagar.\n'
+              '          // O rateio abaixo permanece a fonte da verdade e aponta para shareMovId.\n\n'
+              '          await supabase.from("contas_apagar").update',
+              s,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit('Falha ao localizar bloco de movimentos por cliente na SolicitaçãoPagamentoModal.tsx')
+          p.write_text(s2, encoding='utf-8')
+
+          # 2) Fluxo de Caixa: botão e status de gerar reembolso só aparecem depois
+          #    que a despesa Share foi efetivamente paga.
+          p = root / 'src/components/dashboard/gestor/financeiro-share/FluxoCaixaTab.tsx'
+          s = p.read_text(encoding='utf-8')
+          old = '''  const statusExibicao = (m: any) => {\n    if (isEntrada(m)) {\n      const status = String(m?.status || '').toLowerCase();\n      if (status === 'cancelado' || status === 'cancelada') return 'Cancelado';\n      if (['recebido', 'recebida', 'quitado', 'quitada'].includes(status) || m?.data_pagamento) return 'Recebido';\n      return 'Entrada';\n    }\n    return fornecedorStatus(m);\n  };'''
+          new = '''  const statusExibicao = (m: any) => {\n    if (isEntrada(m)) {\n      const status = String(m?.status || '').toLowerCase();\n      if (status === 'cancelado' || status === 'cancelada') return 'Cancelado';\n      if (['recebido', 'recebida', 'quitado', 'quitada'].includes(status) || m?.data_pagamento) return 'Recebido';\n      return 'Entrada';\n    }\n    if (m?.reembolsavel && m?.data_pagamento && !m?.reembolso_quitado) return 'Gerar reembolso';\n    return fornecedorStatus(m);\n  };'''
+          if old not in s:
+              raise SystemExit('Bloco statusExibicao não localizado')
+          s = s.replace(old, new, 1)
+
+          old = '{m.reembolsavel && !m.reembolso_quitado && <button title="Reembolso" onClick={() => setReembolsoMov(m)} className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-500/10 transition"><Wallet className="h-4 w-4" /></button>}'
+          new = '{m.reembolsavel && !m.reembolso_quitado && (String(m.status || "").toLowerCase() === "aguardando_reembolso" || !!m.data_pagamento) && <button title="Gerar reembolso / baixar recebimento" onClick={() => setReembolsoMov(m)} className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-500/10 transition"><Wallet className="h-4 w-4" /></button>}'
+          if old not in s:
+              raise SystemExit('Botão de reembolso não localizado')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # 3) Baixa Share: texto deixa explícito que a geração do reembolso acontece depois.
+          p = root / 'src/components/dashboard/gestor/financeiro-share/BaixaPagamentoModal.tsx'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              'Despesa Inicial Paga pela Share (reembolsos gerados na solicitação)',
+              'Despesa paga pela Share — após a baixa será possível gerar o reembolso',
+          )
+          p.write_text(s, encoding='utf-8')
+
+          # 4) Nova sincronização de baixa consolidada.
+          (root / 'src/lib/reembolsoSync.ts').write_text(r'''// @ts-nocheck — colunas legadas fora dos types gerados
+import { supabase } from "@/integrations/supabase/client";
+
+export interface QuitarReembolsoInput {
+  sourceMovId: string;
+  movIds: string[];
+  rateioIds: string[];
+  valorRecebido: number;
+  valorEsperado: number;
+  data: string;
+  pagador: string;
+  banco?: string | null;
+  comprovante?: string | null;
+  observacoes?: string | null;
+}
+
+const normalize = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+export async function quitarReembolsoLegs(input: QuitarReembolsoInput) {
+  const client = supabase as any;
+  const movIds = Array.from(new Set((input.movIds || []).filter(Boolean)));
+  const rateioIds = Array.from(new Set((input.rateioIds || []).filter(Boolean)));
+  const recebido = Number(input.valorRecebido || 0);
+  const esperado = Number(input.valorEsperado || 0);
+
+  if (!input.sourceMovId) throw new Error("Despesa Share não informada.");
+  if (!movIds.length) throw new Error("Nenhuma conta de reembolso selecionada.");
+  if (!rateioIds.length) throw new Error("Nenhum item do rateio selecionado.");
+  if (recebido <= 0) throw new Error("Informe o valor efetivamente recebido.");
+  if (Math.abs(recebido - esperado) > 0.01) {
+    throw new Error(`O valor recebido (${recebido.toFixed(2)}) precisa ser igual ao total das pendências selecionadas (${esperado.toFixed(2)}).`);
+  }
+
+  const agora = new Date().toISOString();
+  const { data: source, error: sourceError } = await client
+    .from("movimentacoes")
+    .select("id, valor_total, reembolsavel, reembolso_quitado, status")
+    .eq("id", input.sourceMovId)
+    .single();
+  if (sourceError) throw sourceError;
+
+  const { data: movimentos, error: movError } = await client
+    .from("movimentacoes")
+    .select("id, contas_areceber_id, valor_rateado, valor_total, clientes_id")
+    .in("id", movIds);
+  if (movError) throw movError;
+
+  const movimentoValores = new Map<string, number>();
+  for (const mov of movimentos || []) {
+    movimentoValores.set(mov.id, Number(mov.valor_rateado ?? mov.valor_total ?? 0));
+    const { error } = await client
+      .from("movimentacoes")
+      .update({
+        fluxo: "entrada",
+        tipo_caixa: "share",
+        status: "reembolsado",
+        reembolso_quitado: true,
+        data_pagamento: input.data,
+        conta_bancaria: input.banco || null,
+        comprovante_url: input.comprovante || null,
+        pago_por: input.pagador,
+        valor_pago_real: Number(mov.valor_rateado ?? mov.valor_total ?? 0),
+        observacoes: input.observacoes || null,
+        atualizado_em: agora,
+      })
+      .eq("id", mov.id);
+    if (error) throw error;
+
+    if (mov.contas_areceber_id) {
+      const { error: carError } = await client
+        .from("contas_areceber")
+        .update({
+          status: "recebido",
+          data_pagamento: input.data,
+          data_recebimento: input.data,
+          banco_recebimento: input.banco || null,
+          conta_bancaria_recebimento: input.banco || null,
+          comprovante_recebimento_url: input.comprovante || null,
+        })
+        .eq("id", mov.contas_areceber_id);
+      if (carError) throw carError;
+    }
+  }
+
+  const { data: rateios, error: rateioLoadError } = await client
+    .from("rateio_despesas")
+    .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real, status")
+    .eq("despesa_id", input.sourceMovId)
+    .order("id");
+  if (rateioLoadError) throw rateioLoadError;
+
+  const alvo = normalize(input.pagador);
+  let idxPagador = (rateios || []).findIndex((r: any) =>
+    normalize(r.clientes_nome) === alvo || normalize(r.socios_nome) === alvo,
+  );
+
+  // Caso o pagador seja informado por um nome que não esteja exatamente no rateio,
+  // atribuímos o valor integral ao primeiro item selecionado. Todos os demais ficam zerados,
+  // mas todos recebem pago_por para o balanço saber quem arcou com a despesa.
+  if (idxPagador < 0) {
+    idxPagador = (rateios || []).findIndex((r: any) => rateioIds.includes(r.id));
+  }
+
+  const valorTotalDespesa = (rateios || []).reduce((sum: number, r: any) => sum + Number(r.valor_rateado || 0), 0);
+  const quitouDespesa = Math.abs(recebido - valorTotalDespesa) <= 0.01;
+
+  for (let i = 0; i < (rateios || []).length; i++) {
+    const r = rateios[i];
+    const valorReal = i === idxPagador ? recebido : 0;
+    const { error } = await client
+      .from("rateio_despesas")
+      .update({
+        pago_por: input.pagador,
+        valor_pago_real: valorReal,
+        status: quitouDespesa ? "pago" : (rateioIds.includes(r.id) ? "pago" : "parcial"),
+        data_pagamento: input.data,
+        atualizado_em: agora,
+      })
+      .eq("id", r.id);
+    if (error) throw error;
+  }
+
+  const { error: sourceUpdateError } = await client
+    .from("movimentacoes")
+    .update({
+      reembolso_quitado: quitouDespesa,
+      status: quitouDespesa ? "reembolsado" : "aguardando_reembolso",
+      atualizado_em: agora,
+    })
+    .eq("id", source.id);
+  if (sourceUpdateError) throw sourceUpdateError;
+
+  return {
+    quitado: quitouDespesa,
+    patch: {
+      reembolso_quitado: quitouDespesa,
+      status: quitouDespesa ? "reembolsado" : "aguardando_reembolso",
+      data_pagamento: input.data,
+      pago_por: input.pagador,
+      valor_pago_real: recebido,
+    },
+    movClienteIds: [],
+    contasAreceberIds: (movimentos || []).map((m: any) => m.contas_areceber_id).filter(Boolean),
+  };
+}
+''', encoding='utf-8')
+
+          # 5) ReembolsoModal: dois momentos explícitos — gerar cobrança após a baixa Share
+          #    e, em seguida, baixa consolidada de um ou vários recebimentos.
+          (root / 'src/components/dashboard/gestor/financeiro-share/ReembolsoModal.tsx').write_text(r'''// @ts-nocheck — fluxo financeiro usa algumas colunas legadas fora dos types gerados
+import { useEffect, useMemo, useState } from "react";
+import { Check, FileText, HandCoins, Loader2, Upload, Wallet, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatBRL } from "@/lib/format";
+import { quitarReembolsoLegs } from "@/lib/reembolsoSync";
+
+const norm = (v: any) => String(v ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase();
+const num = (v: any) => Number(v) || 0;
+const inputCls = "w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-2 text-sm text-foreground placeholder-slate-500 outline-none transition focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20";
+
+type Mode = "gerar" | "baixar";
+
+type Pendencia = {
+  id: string;
+  rateio_id?: string;
+  mov_id?: string;
+  cliente_id: string | null;
+  cliente_nome: string;
+  socio_nome: string | null;
+  valor_rateado: number;
+  valor_cobranca: number;
+  status: string | null;
+  selected: boolean;
+};
+
+export default function ReembolsoModal({ mov, onClose, onSuccess }: { mov: any; onClose: () => void; onSuccess: (patch?: any) => void }) {
+  const [mode, setMode] = useState<Mode>("gerar");
+  const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+  const [pagadores, setPagadores] = useState<string[]>([]);
+  const [pagador, setPagador] = useState("");
+  const [pagadorPrevisto, setPagadorPrevisto] = useState("");
+  const [vencimento, setVencimento] = useState(new Date().toISOString().slice(0, 10));
+  const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().slice(0, 10));
+  const [valorRecebido, setValorRecebido] = useState("");
+  const [banco, setBanco] = useState("");
+  const [bancoId, setBancoId] = useState("");
+  const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
+  const [comprovante, setComprovante] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const carregar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [{ data: rateioRows, error: rateioError }, { data: gerados, error: geradosError }, { data: bancosData }] = await Promise.all([
+        supabase
+          .from("rateio_despesas")
+          .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real, status")
+          .eq("despesa_id", mov.id)
+          .order("id"),
+        supabase
+          .from("movimentacoes")
+          .select("id, clientes_id, descricao, valor_rateado, valor_total, contas_areceber_id, reembolso_quitado, status, reference_type, reference_id")
+          .eq("tipo_caixa", "share")
+          .eq("reference_type", "reembolso_share")
+          .eq("reference_id", mov.id)
+          .order("data_vencimento", { ascending: true }),
+        supabase.from("contas_bancarias").select("id, banco, numero_conta").order("banco"),
+      ]);
+      if (rateioError) throw rateioError;
+      if (geradosError) throw geradosError;
+
+      const rateio = (rateioRows || []) as any[];
+      const entries = (gerados || []) as any[];
+      const nomes = Array.from(new Set(rateio.flatMap((r: any) => [r.clientes_nome, r.socios_nome]).filter(Boolean))).sort();
+      setPagadores(nomes);
+      if (!pagador && nomes.length === 1) setPagador(nomes[0]);
+
+      if (entries.length > 0) {
+        setMode("baixar");
+        setPendencias(entries.map((e: any) => ({
+          id: e.id,
+          mov_id: e.id,
+          cliente_id: e.clientes_id ?? null,
+          cliente_nome: rateio.find((r: any) => r.cliente_id === e.clientes_id)?.clientes_nome || "Cliente",
+          socio_nome: rateio.find((r: any) => r.cliente_id === e.clientes_id)?.socios_nome || null,
+          valor_rateado: num(e.valor_rateado ?? e.valor_total),
+          valor_cobranca: num(e.valor_rateado ?? e.valor_total),
+          status: e.status,
+          selected: !e.reembolso_quitado,
+        })));
+      } else {
+        setMode("gerar");
+        setPendencias(rateio.map((r: any) => ({
+          id: r.id,
+          rateio_id: r.id,
+          cliente_id: r.cliente_id ?? null,
+          cliente_nome: r.clientes_nome || "Cliente",
+          socio_nome: r.socios_nome || null,
+          valor_rateado: num(r.valor_rateado),
+          valor_cobranca: num(r.valor_rateado),
+          status: r.status,
+          selected: !["pago", "reembolsado", "quitado"].includes(norm(r.status)),
+        })));
+      }
+
+      setBancos((bancosData || []).map((b: any) => ({ id: b.id, label: `${b.banco || "Banco"}${b.numero_conta ? ` — ${b.numero_conta}` : ""}` })));
+    } catch (e: any) {
+      setError(e.message || "Não foi possível carregar o reembolso.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void carregar(); }, [mov.id]);
+
+  const selecionadas = useMemo(() => pendencias.filter((p) => p.selected), [pendencias]);
+  const esperado = useMemo(() => selecionadas.reduce((sum, p) => sum + p.valor_cobranca, 0), [selecionadas]);
+  const recebidoNum = num(String(valorRecebido).replace(",", "."));
+
+  const toggle = (id: string) => setPendencias((prev) => prev.map((p) => p.id === id ? { ...p, selected: !p.selected } : p));
+  const setAll = (value: boolean) => setPendencias((prev) => prev.map((p) => ({ ...p, selected: value })));
+  const alterarValor = (id: string, value: string) => setPendencias((prev) => prev.map((p) => p.id === id ? { ...p, valor_cobranca: num(value) } : p));
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `reembolsos/${mov.id}/${Date.now()}-${safe}`;
+      const { error: upError } = await supabase.storage.from("n.f-boletos-clients").upload(path, file, { upsert: true });
+      if (upError) throw upError;
+      const { data } = supabase.storage.from("n.f-boletos-clients").getPublicUrl(path);
+      setComprovante(data.publicUrl);
+    } catch (e: any) {
+      setError(e.message || "Erro ao enviar comprovante.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const gerarReembolsos = async () => {
+    setError(null);
+    if (!selecionadas.length) throw new Error("Selecione pelo menos um cliente para gerar o reembolso.");
+    if (esperado <= 0) throw new Error("O valor do rateio selecionado é inválido.");
+    if (mov.status !== "aguardando_reembolso" && !mov.data_pagamento) {
+      throw new Error("A despesa ainda não está marcada como paga pela Share.");
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const criadoPor = authData.user?.id || null;
+
+    for (let i = 0; i < selecionadas.length; i++) {
+      const p = selecionadas[i];
+      const descricao = `${mov.descricao || "Despesa reembolsável"} — ${p.cliente_nome}`;
+      const numero = `REEM-${mov.id.slice(0, 8).toUpperCase()}-${i + 1}`;
+
+      const { data: conta, error: contaError } = await (supabase as any)
+        .from("contas_areceber")
+        .insert({
+          numero,
+          cliente_id: p.cliente_id,
+          cliente_nome: p.cliente_nome,
+          data_criacao: dataRecebimento,
+          data_vencimento: vencimento,
+          valor: p.valor_cobranca,
+          categoria: "REEMBOLSOS ENTRADAS",
+          descricao,
+          status: "pendente",
+          aeronave: mov.aeronave_registro || null,
+          reference_type: "reembolso_share",
+          reference_id: mov.id,
+          criado_por: criadoPor,
+        })
+        .select("id")
+        .single();
+      if (contaError) throw contaError;
+
+      const { data: entrada, error: movError } = await (supabase as any)
+        .from("movimentacoes")
+        .insert({
+          descricao,
+          fluxo: "entrada",
+          tipo_caixa: "share",
+          categoria_nome: "REEMBOLSOS ENTRADAS",
+          grupo_categoria: "REEMBOLSOS ENTRADAS",
+          valor_rateado: p.valor_cobranca,
+          valor_total: p.valor_cobranca,
+          data_emissao: dataRecebimento,
+          data_vencimento: vencimento,
+          status: "aguardando_reembolso",
+          aeronave_id: mov.aeronave_id || null,
+          clientes_id: p.cliente_id,
+          reembolsavel: true,
+          reembolso_quitado: false,
+          contas_areceber_id: conta.id,
+          reference_type: "reembolso_share",
+          reference_id: mov.id,
+          observacoes: [
+            pagadorPrevisto ? `Pagador previsto: ${pagadorPrevisto}` : null,
+            observacoes || null,
+          ].filter(Boolean).join("\n") || null,
+          criado_por: criadoPor,
+        })
+        .select("id")
+        .single();
+      if (movError) throw movError;
+
+      const { error: contaUpdateError } = await (supabase as any)
+        .from("contas_areceber")
+        .update({ movimentacao_id: entrada.id })
+        .eq("id", conta.id);
+      if (contaUpdateError) throw contaUpdateError;
+    }
+
+    onSuccess?.({});
+    onClose();
+  };
+
+  const baixar = async () => {
+    setError(null);
+    if (!selecionadas.length) throw new Error("Selecione pelo menos uma pendência.");
+    if (!pagador.trim()) throw new Error("Informe quem efetivamente pagou o reembolso.");
+    if (esperado <= 0) throw new Error("O valor selecionado é inválido.");
+    if (Math.abs(recebidoNum - esperado) > 0.01) throw new Error(`O valor recebido precisa ser ${formatBRL(esperado)}.`);
+
+    const rateioIds = selecionadas.map((p) => p.rateio_id).filter(Boolean) as string[];
+    await quitarReembolsoLegs({
+      sourceMovId: mov.id,
+      movIds: selecionadas.map((p) => p.mov_id || p.id),
+      rateioIds,
+      valorRecebido: recebidoNum,
+      valorEsperado: esperado,
+      data: dataRecebimento,
+      pagador,
+      banco: bancoId || banco || null,
+      comprovante: comprovante || null,
+      observacoes: observacoes || null,
+    });
+    onSuccess?.({ reembolso_quitado: true });
+    onClose();
+  };
+
+  const submit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (mode === "gerar") await gerarReembolsos();
+      else await baixar();
+    } catch (e: any) {
+      setError(e.message || "Não foi possível concluir o reembolso.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.68)", backdropFilter: "blur(5px)" }} onClick={onClose}>
+      <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${mode === "gerar" ? "bg-amber-500/10 text-amber-300" : "bg-emerald-500/10 text-emerald-300"}`}>
+              {mode === "gerar" ? <Wallet className="h-5 w-5" /> : <HandCoins className="h-5 w-5" />}
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{mode === "gerar" ? "Depois da baixa Share" : "Recebimento do cliente"}</div>
+              <h3 className="text-base font-black text-foreground">{mode === "gerar" ? "Gerar reembolso dessa despesa para o cliente" : "Baixa consolidada de reembolso"}</h3>
+              <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{mov.descricao || "Despesa reembolsável"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="space-y-5 p-5">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-14 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando fluxo do reembolso...</div>
+          ) : (
+            <>
+              <div className={`rounded-xl border p-4 ${mode === "gerar" ? "border-amber-500/20 bg-amber-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Despesa Share</div><div className="mt-1 text-sm font-bold text-foreground">{formatBRL(num(mov.valor_total))}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Etapa</div><div className="mt-1 text-sm font-bold text-foreground">{mode === "gerar" ? "Cobrança de reembolso" : "Recebimento / baixa"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Selecionado</div><div className="mt-1 text-sm font-bold text-foreground">{formatBRL(esperado)}</div></div>
+                </div>
+              </div>
+
+              {mode === "gerar" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div><div className="text-xs font-black uppercase tracking-wider text-foreground">Rateio que deve ser cobrado</div><p className="mt-1 text-xs text-muted-foreground">A solicitação já gravou o rateio. Aqui nasce o contas a receber — não antes.</p></div>
+                    <button type="button" onClick={() => setAll(!pendencias.every((p) => p.selected))} className="text-xs font-bold text-amber-300 hover:text-amber-200">{pendencias.every((p) => p.selected) ? "Desmarcar tudo" : "Marcar tudo"}</button>
+                  </div>
+                  <div className="space-y-2">
+                    {pendencias.map((p) => (
+                      <div key={p.id} className="grid gap-3 rounded-xl border border-border bg-card-secondary/30 p-3 md:grid-cols-[auto_1fr_150px_150px] md:items-center">
+                        <input type="checkbox" checked={p.selected} onChange={() => toggle(p.id)} className="h-4 w-4 accent-amber-500" />
+                        <div className="min-w-0"><div className="truncate text-sm font-bold text-foreground">{p.cliente_nome}</div><div className="text-[11px] text-muted-foreground">{p.socio_nome || "Cotista / cliente"}</div></div>
+                        <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Devido</div><div className="mt-1 text-sm font-semibold text-foreground">{formatBRL(p.valor_rateado)}</div></div>
+                        <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cobrar</div><input className={inputCls + " text-right"} type="number" step="0.01" value={p.valor_cobranca} onChange={(e) => alterarValor(p.id, e.target.value)} /></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vencimento do reembolso</label><input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} className={inputCls} /></div>
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pagador previsto</label><select value={pagadorPrevisto} onChange={(e) => setPagadorPrevisto(e.target.value)} className={inputCls}><option value="">Não informado</option>{pagadores.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</label><input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} className={inputCls} placeholder="Ex.: um cotista assumirá a despesa inteira" /></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-wider text-foreground">Pendências já geradas</div><p className="mt-1 text-xs text-muted-foreground">Selecione uma ou várias contas. Um único recebimento pode quitar várias pendências.</p></div><button type="button" onClick={() => setAll(!pendencias.every((p) => p.selected))} className="text-xs font-bold text-emerald-300 hover:text-emerald-200">{pendencias.every((p) => p.selected) ? "Desmarcar tudo" : "Marcar tudo"}</button></div>
+                  <div className="space-y-2">{pendencias.map((p) => <label key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-card-secondary/30 p-3"><input type="checkbox" checked={p.selected} onChange={() => toggle(p.id)} className="h-4 w-4 accent-emerald-500" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-foreground">{p.cliente_nome}</span><span className="block text-[11px] text-muted-foreground">{p.socio_nome || "Cotista / cliente"}</span></span><span className="text-sm font-black text-foreground">{formatBRL(p.valor_cobranca)}</span></label>)}</div>
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quem pagou de fato</label><select value={pagador} onChange={(e) => setPagador(e.target.value)} className={inputCls}><option value="">Selecione...</option>{pagadores.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data do recebimento</label><input type="date" value={dataRecebimento} onChange={(e) => setDataRecebimento(e.target.value)} className={inputCls} /></div>
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Valor recebido</label><input type="number" step="0.01" value={valorRecebido || esperado || ""} onChange={(e) => setValorRecebido(e.target.value)} className={inputCls + " text-right"} /></div>
+                    <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Banco</label><select value={bancoId} onChange={(e) => { setBancoId(e.target.value); setBanco(bancos.find((b) => b.id === e.target.value)?.label || ""); }} className={inputCls}><option value="">Selecione...</option>{bancos.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select></div>
+                  </div>
+                </div>
+              )}
+
+              {mode === "baixar" && (
+                <div><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Comprovante</label><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card-secondary/50 px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground">{uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {comprovante ? "Trocar comprovante" : "Anexar comprovante"}<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file); }} /></label>{comprovante && <a href={comprovante} target="_blank" rel="noreferrer" className="ml-3 inline-flex items-center gap-1 text-xs text-emerald-300"><FileText className="h-3.5 w-3.5" /> Abrir comprovante</a>}</div>
+              )}
+
+              {error && <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-300">{error}</div>}
+            </>
+          )}
+        </div>
+
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-5 py-3.5">
+          <button onClick={onClose} className="rounded-lg border border-border bg-card-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
+          {!loading && <button onClick={() => void submit()} disabled={saving || uploading} className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-black ${mode === "gerar" ? "bg-amber-400 text-slate-950 hover:bg-amber-300" : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"}`}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}{mode === "gerar" ? "Gerar reembolso" : "Dar baixa no recebimento"}</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+''', encoding='utf-8')
+
+          # 6) Validação rápida de TypeScript/estrutura básica.
+          package = Path('package.json').read_text(encoding='utf-8')
+          print('Arquivos de fluxo atualizados com sucesso.')
+
+          # Commit das alterações.
+          import subprocess
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git', 'add', '--',
+              'src/components/dashboard/financeiro/SolicitacaoPagamentoModal.tsx',
+              'src/components/dashboard/gestor/financeiro-share/FluxoCaixaTab.tsx',
+              'src/components/dashboard/gestor/financeiro-share/BaixaPagamentoModal.tsx',
+              'src/components/dashboard/gestor/financeiro-share/ReembolsoModal.tsx',
+              'src/lib/reembolsoSync.ts'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'fix(financeiro): separar pagamento e reembolso [reembolso-auto-patch]'], check=True)
+          subprocess.run(['git', 'push', 'origin', 'HEAD:fix/fluxo-reembolso-financeiro'], check=True)
