@@ -402,7 +402,7 @@ export default function EmissaoRecibo() {
         numero_recibo: receiptNumber,
         data_max_pagamento: originalForm.prazoMaximoQuitacao || null,
         forma_pagamento: originalForm.formaPagamento?.trim() || null,
-        cliente_id: clienteIdParaSalvar,
+        clientes_id: clienteIdParaSalvar,
         clientes_id: clienteIdParaSalvar,
         colaborador_id: colaboradorIdParaSalvar,
         beneficiario_tipo: beneficiarioTipo,
@@ -493,7 +493,7 @@ export default function EmissaoRecibo() {
             return {
               ...receiptPayload,
               numero_recibo: numeroRecibo,
-              cliente_id: cotista.id_clientes,
+              clientes_id: cotista.id_clientes,
               nome_pagador: isClienteSelecionado ? nomePagador : cliente?.razao_social || "Cliente",
               documento_pagador: isClienteSelecionado
                 ? receiptPayload.documento_pagador
@@ -635,7 +635,7 @@ export default function EmissaoRecibo() {
             descricao: brDescription,
             status: "gerada na emissão de recibo",
             criado_por: currentUserId,
-            cliente_id: normalizeId(originalForm.clienteId),
+            clientes_id: normalizeId(originalForm.clienteId),
             aeronave_registro: aeronaveRegistro,
           };
 
@@ -705,7 +705,7 @@ export default function EmissaoRecibo() {
             const clienteData = clientesAtivos.find((c) => c.id === normalizedClienteId);
             const contaReceberPayload: any = {
               numero: receiptData.numero_recibo || `REC-${receiptData.id.substring(0, 8)}`,
-              cliente_id: normalizedClienteId,
+              clientes_id: normalizedClienteId,
               cliente_nome: clienteData?.razao_social || nomePagador,
               cliente_cnpj: clienteData?.cnpj || originalForm.pagadorDocumento || "",
               categoria: "Clientes - Despesas Reembolsáveis",
@@ -769,7 +769,7 @@ export default function EmissaoRecibo() {
                   await syncClientExpenseMirror({
                     origin: "recibo",
                     originId: receiptData.id,
-                    cliente_id: normalizedClienteId,
+                    clientes_id: normalizedClienteId,
                     aeronave_id: selectedAircraftId,
                     valor: valorRecibo,
                     data_emissao: dataEmissaoStr,
@@ -1109,9 +1109,9 @@ export default function EmissaoRecibo() {
             valor_total_despesa: valorTotalDespesaVal,
             valor_rateado: valorRateadoVal,
             percentual_uso: percentualUsoVal,
-            rateio_cliente: (r.cliente_id || orig.clienteId)
+            rateio_cliente: (r.clientes_id || orig.clienteId)
               ? [{
-                  cliente_id: r.cliente_id || orig.clienteId,
+                  clientes_id: r.clientes_id || orig.clienteId,
                   cliente_nome: cliente?.razao_social || cliente?.nome || null,
                   valor_total_despesa: valorTotalDespesaVal,
                   valor_rateado: valorRateadoVal,
