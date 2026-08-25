@@ -319,6 +319,8 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   const isReembolso = data.receipt_type === 'reembolso';
   const emissor = data.emissor;
   const descriptionText = data.service_description || data.descricao_servico || data.descricao || '—';
+  const attachments = Array.isArray(data.attachments) ? data.attachments : [];
+  const bankSnapshot = data.bank_name || data.bank_pix || data.bank_account || data.bank_agency;
 
   // Parse issue date for signature
   const issueDate = data.issue_date ? new Date(data.issue_date + 'T12:00:00') : new Date();
@@ -439,10 +441,31 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             </View>
           )}
 
+          {bankSnapshot && (
+            <View style={styles.obsSection}>
+              <Text style={styles.infoLabel}>DADOS BANCÁRIOS PARA PAGAMENTO</Text>
+              {data.bank_name && <Text style={styles.infoValue}>Banco: {data.bank_name}</Text>}
+              {data.bank_agency && <Text style={styles.infoValue}>Agência: {data.bank_agency}</Text>}
+              {data.bank_account && <Text style={styles.infoValue}>Conta: {data.bank_account}</Text>}
+              {data.bank_pix && <Text style={styles.infoValue}>PIX: {data.bank_pix}</Text>}
+            </View>
+          )}
+
           {/* DISCLAIMER */}
           <View style={styles.obsSection}>
             <Text style={styles.obsText}>{disclaimerReembolso}</Text>
           </View>
+
+          {attachments.length > 0 && (
+            <View style={styles.obsSection}>
+              <Text style={styles.infoLabel}>ANEXOS DO RECIBO</Text>
+              {attachments.map((anexo: any, index: number) => (
+                <Text key={anexo.id || index} style={styles.obsText}>
+                  • {anexo.tipo || 'anexo'}: {anexo.arquivo_url || anexo.numero_documento || 'arquivo' }
+                </Text>
+              ))}
+            </View>
+          )}
 
           {/* SIGNATURE AREA */}
           <View style={styles.signatureArea}>

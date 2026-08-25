@@ -528,84 +528,9 @@ export default function BaixaPagamentoModal({
         }
       }
 
-      if (comReembolso && !mov.contas_areceber_id) {
-        const porCliente = new Map<string, { nome: string | null; valor: number }>();
-        rateioRows.forEach((r) => {
-          const cid = r.cliente_id || mov.clientes_id;
-          if (!cid) return;
-          const atual = porCliente.get(cid) || { nome: r.clientes_nome || null, valor: 0 };
-          atual.valor += Number(r.valor_rateado) || 0;
-          if (!atual.nome && r.clientes_nome) atual.nome = r.clientes_nome;
-          porCliente.set(cid, atual);
-        });
-        if (porCliente.size === 0 && mov.clientes_id) {
-          porCliente.set(mov.clientes_id, {
-            nome: null,
-            valor: valorRateadoBase || valorTotal,
-          });
-        }
-
-        const clienteIds = Array.from(porCliente.keys());
-        const { data: clientesData } = await supabase
-          .from("clientes")
-          .select("id, razao_social, proprietario, cnpj")
-          .in("id", clienteIds);
-        const clienteMap = new Map(
-          (clientesData || []).map((c: any) => [c.id, c]),
-        );
-
-        const inserts = clienteIds
-          .filter((cid) => (porCliente.get(cid)!.valor || 0) > 0)
-          .map((cid) => {
-            const info = porCliente.get(cid)!;
-            const cli: any = clienteMap.get(cid);
-            return {
-              cliente_id: cid,
-              cliente_nome:
-                cli?.razao_social || cli?.proprietario || info.nome || "Cliente",
-              cliente_cnpj: cli?.cnpj || "—",
-              data_criacao: dataPagamento,
-              data_vencimento: dataPagamento,
-              valor: info.valor,
-              categoria: mov.categoria_nome || "REEMBOLSO",
-              categoria_id: mov.categoria_id || null,
-              descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
-              status: "aguardando_reembolso",
-              arquivo_pdf_url: reciboPdf,
-              comprovante_url: comprovante?.file_url || null,
-              movimentacao_id: mov.id,
-              reference_type: "reembolso_share",
-              reference_id: mov.id,
-              criado_por: criadoPor,
-              aeronave: aeronaveRegistro,
-              banco_recebimento: bancoNome || null,
-              metodo_pagamento: mov.forma_pagamento || null,
-            };
-          });
-
-        if (inserts.length > 0) {
-          const { data: novasContas } = await supabase
-            .from("contas_areceber")
-            .insert(inserts as any)
-            .select("id, cliente_id");
-          const principal =
-            (novasContas || []).find(
-              (c: any) => c.cliente_id === mov.clientes_id,
-            ) || (novasContas || [])[0];
-          if (principal?.id) {
-            updatePayload.contas_areceber_id = principal.id;
-            await supabase
-              .from("movimentacoes")
-              .update({
-                contas_areceber_id: principal.id,
-                // A constraint mov_contas_exclusivas impede contas a pagar e a receber simultâneas.
-                // Depois que a Share paga, o vínculo ativo passa a ser o reembolso do cliente.
-                ...(comReembolso ? { contas_apagar_id: null } : {}),
-              })
-              .eq("id", mov.id);
-          }
-        }
-      }
+      // Reembolsos de cotistas são gerados uma única vez na solicitação de pagamento.
+      // A baixa do fornecedor no caixa Share nunca recria contas_areceber; ela apenas
+      // marca a despesa/contas_apagar como paga e mantém a despesa aguardando reembolso.
 
       if (norm(mov.reference_type) === "despesa_manutencao" || norm(mov.reference_type) === "manutencao") {
         const { data: despesa } = await supabase
@@ -837,7 +762,7 @@ export default function BaixaPagamentoModal({
               color: pagoDiretamente ? "#67e8f9" : "#fbbf24",
             }}
           >
-            {pagoDiretamente ? "Pago diretamente pelo Cliente" : "Despesa Inicial Paga pela Share (gera reembolso)"}
+            {pagoDiretamente ? "Pago diretamente pelo Cliente" : "Despesa Inicial Paga pela Share (reembolsos gerados na solicitação)"}
           </div>
 
           {/* Rateio da despesa */}

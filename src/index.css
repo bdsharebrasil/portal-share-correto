@@ -17,18 +17,18 @@
 
     color-scheme: light;
 
-    --background: 213 38% 94%;
+    --background: 200 38% 94%;
     --foreground: 221 35% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 221 35% 15%;
+    --card: 1 20% 100%;
+    --card-foreground: 197, 66%, 83%;
     --card-secondary: 210 42% 97%;
 
     --surface: 213 38% 94%;
-    --surface-raised: 0 0% 100%;
+    --surface-raised: 197, 66%, 83%;
     --surface-hover: 211 34% 90%;
 
-    --popover: 0 0% 100%;
+    --popover: 207, 66%, 83%;
     --popover-foreground: 220 27% 16%;
 
     --primary: 211 69% 44%;
@@ -46,7 +46,7 @@
     --accent: 210 34% 89%;
     --accent-foreground: 221 35% 15%;
 
-    --border: 216 24% 84%;
+    --border: 201 25% 10%;
     --border-subtle: 214 28% 90%;
     --input: 210 35% 96%;
 
@@ -84,13 +84,13 @@
     --gradient-card:
       linear-gradient(
         180deg,
-        hsl(0 0% 100%),
-        hsl(211 45% 97%)
+        hsl(197, 66%, 83%),
+        hsl(215, 70%, 89%)
       );
 
     --gradient-subtle:
-      radial-gradient(circle at 100% 0%, hsl(207 70% 91% / 0.7), transparent 30%),
-      linear-gradient(180deg, hsl(213 38% 96%), hsl(213 32% 92%));
+      radial-gradient(circle at 100% 0%, hsla(206, 62%, 93%, 0.7), transparent 30%),
+      linear-gradient(180deg, hsl(219, 79%, 87%), hsl(211, 52%, 74%));
 
     /* Shadows */
     --shadow-primary:

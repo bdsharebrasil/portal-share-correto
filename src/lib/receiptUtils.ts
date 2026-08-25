@@ -320,17 +320,17 @@ export async function generateSequentialReceiptNumber(
   clientName: string,
   supabase: any,
   clienteId?: string | null,
-  options?: { aeronaveId?: string | null; socioId?: string | null }
+  options?: { aeronaveId?: string | null; socioId?: string | null; prefix?: string | null }
 ): Promise<string> {
   const today = new Date();
   const year = String(today.getFullYear()).slice(-2);
 
+  let prefix: string | null = (options?.prefix || "").trim().toUpperCase() || null;
+
   // 1) Buscar o código oficial do cliente na tabela cotistas_aeronave
   // Importante: um mesmo cliente pode ter códigos diferentes por aeronave/sócio,
   // então filtramos por aeronave (e sócio) quando informados.
-  let prefix: string | null = null;
-
-  if (clienteId) {
+  if (!prefix && clienteId) {
     const buscarCodigo = async (filtros: { aeronaveId?: string | null; socioId?: string | null }) => {
       let query = supabase
         .from("cotistas_aeronave")
@@ -380,6 +380,10 @@ export async function generateSequentialReceiptNumber(
       const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
       return `REC-${randomNumbers}/${year}`;
     }
+  }
+
+  if (prefix === "SHE") {
+    prefix = "SHE";
   }
 
   // 3) Buscar o maior número já usado com esse prefixo, no ano atual,

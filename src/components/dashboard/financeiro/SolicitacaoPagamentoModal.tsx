@@ -1826,6 +1826,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         }
 
         let capId: string | null = null;
+        let shareMovId: string | null = null;
         const movimentacaoIdsPorCliente: Record<string, string> = {};
 
         if (gerarCaixaCliente) {
@@ -1920,7 +1921,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             ...taxasSubcatFields,
           });
 
-          let shareMovId: string | null = null;
           try {
             shareMovId = await insertAndGetId("movimentacoes", {
               descricao, fluxo: "despesa", tipo_caixa: "share",
@@ -2020,7 +2020,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           if (rateioError) throw rateioError;
         }
 
-        if (gerarContasAReceber && !gerarCaixaCliente) {
+        if (gerarContasAReceber && !gerarCaixaCliente && !gerarContasAPagar) {
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
@@ -2033,99 +2033,50 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
             if (valorCliente <= 0) continue;
 
-            if (!gerarContasAPagar) {
-              try {
+            try {
               await syncSaidaFinancialLegs({
-                  origem: "solicitacao_areceber",
-                  origem_id:
-                    typeof crypto !== "undefined" && crypto.randomUUID
-                      ? crypto.randomUUID()
-                      : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`,
-                  cliente_id: linha.clienteId,
-                  cliente_nome: info?.razaoSocial || "",
-                  cliente_cnpj: info?.cnpj || null,
-                  aeronave_id: aeronaveId || null,
-                  aeronave_registro: aeronaveSel?.matricula || null,
-                  valor: valorCliente,
-                  valor_total_despesa: valorNumericoFinal,
-                  data_emissao: dataComp,
-                  data_vencimento: dataVenc,
-                  status: "pendente",
-                  categoria_origem_label: tipoDespesaLabel || null,
-                  subcategoria: subcategoria1Val || null,
-                  numero_doc: docNum || reciboNum || null,
-                  numero_nf: nfNum || null,
-                  numero_recibo: reciboNum || null,
-                  numero_boleto: boletoNum || null,
-                  nf_url: nfUrl || null,
-                  recibo_url: reciboUrl || null,
-                  boleto_url: boletoUrl || null,
-                  comprovante_url: comprovanteUrl || null,
-                  demonstrativo_url: demonstrativoUrl || null,
-                  descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
-                  observacoes: obsFinal || null,
-                  criado_por: userId,
-                });
-              } catch (arSyncErr: unknown) {
-                console.error("Falha ao sincronizar pernas SAIDA do cliente:", arSyncErr);
-                throw arSyncErr;
-              }
-            } else {
-              const descricaoCliente = clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao;
-              const { data: carRow } = await supabaseClient.from("contas_areceber").insert({
-                numero: docNum || reciboNum || `SP-${Date.now()}`,
+                origem: "solicitacao_areceber",
+                origem_id:
+                  typeof crypto !== "undefined" && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`,
                 cliente_id: linha.clienteId,
                 cliente_nome: info?.razaoSocial || "",
                 cliente_cnpj: info?.cnpj || null,
-                data_criacao: dataComp,
-                data_vencimento: dataVenc,
+                aeronave_id: aeronaveId || null,
+                aeronave_registro: aeronaveSel?.matricula || null,
                 valor: valorCliente,
-                categoria: tipoDespesaLabel || "SOLICITAÇÃO DE PAGAMENTO",
-                descricao: descricaoCliente,
-                status: "pendente",
-                aeronave: aeronaveSel?.matricula || null,
-                reference_type: referenciaTipo || "solicitacao_pagamento",
-                reference_id: referenciaTipo && referenciaId ? referenciaId : null,
-                boleto_url: boletoUrl || null,
-              } as any).select("id").single();
-
-              // Entrada pendente no Caixa Share aguardando o reembolso do cliente
-              await supabaseClient.from("movimentacoes").insert({
-                descricao: `Reembolso — ${descricaoCliente}`,
-                fluxo: "entrada",
-                tipo_caixa: "share",
-                status: "aguardando_reembolso",
-                categoria_id: categoriaContaId,
-                valor_rateado: valorCliente,
-                valor_total: valorNumericoFinal,
+                valor_total_despesa: valorNumericoFinal,
                 data_emissao: dataComp,
                 data_vencimento: dataVenc,
-                percentual_uso: pctCliente,
-                periodicidade,
-                tipo_rateio: tipoRateioFinal,
-                aeronave_id: aeronaveId || null,
-                clientes_id: linha.clienteId,
-                reembolsavel: true,
-                reembolso_quitado: false,
-                numero_recibo: reciboNum,
-                numero_nf: nfNum,
-                numero_boleto: boletoNum,
-                numero_doc: docNum,
-                recibo_url: reciboUrl,
-                nf_url: nfUrl,
-                boleto_url: boletoUrl,
-                demonstrativo_url: demonstrativoUrl,
-                comanda_url: comandaUrl,
-                pago_diretamente: false,
-                contas_areceber_id: (carRow as any)?.id || null,
-                contas_apagar_id: capId || null,
+                status: "pendente",
+                categoria_origem_label: tipoDespesaLabel || null,
+                subcategoria: subcategoria1Val || null,
+                numero_doc: docNum || reciboNum || null,
+                numero_nf: nfNum || null,
+                numero_recibo: reciboNum || null,
+                numero_boleto: boletoNum || null,
+                nf_url: nfUrl || null,
+                recibo_url: reciboUrl || null,
+                boleto_url: boletoUrl || null,
+                comprovante_url: comprovanteUrl || null,
+                demonstrativo_url: demonstrativoUrl || null,
+                descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
                 observacoes: obsFinal || null,
-                reference_type: referenciaTipo || "solicitacao_pagamento",
-                reference_id: referenciaTipo && referenciaId ? referenciaId : null,
                 criado_por: userId,
-              } as any);
+              });
+            } catch (arSyncErr: unknown) {
+              console.error("Falha ao sincronizar pernas SAIDA do cliente:", arSyncErr);
+              throw arSyncErr;
             }
           }
+        }
+
+        if (gerarContasAReceber && gerarContasAPagar) {
+          // Regras de negócio: na solicitação de pagamento com reembolso, a despesa da Share
+          // e o rateio dos cotistas são gerados uma única vez. A criação de contas a receber
+          // e de movimentações de entrada do cliente acontece somente no momento em que a Share
+          // confirma o recebimento do cliente, não no momento da solicitação.
         }
 
       }

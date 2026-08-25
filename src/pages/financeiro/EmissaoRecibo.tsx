@@ -262,6 +262,23 @@ export default function EmissaoRecibo() {
      return trimmed.startsWith("__") ? null : trimmed;
   };
 
+  const buildReceiptAttachments = (receiptId: string, payload: { boletoUrl?: string | null; notaFiscalUrl?: string | null; demonstrativoUrl?: string | null; paymentProofUrl?: string | null; numeroDocumento?: string | null; }) => {
+     const rows: any[] = [];
+     if (payload.boletoUrl) {
+       rows.push({ recibo_id: receiptId, tipo: "boleto", arquivo_url: payload.boletoUrl, numero_documento: payload.numeroDocumento || null });
+     }
+     if (payload.notaFiscalUrl) {
+       rows.push({ recibo_id: receiptId, tipo: "nota_fiscal", arquivo_url: payload.notaFiscalUrl, numero_documento: payload.numeroDocumento || null });
+     }
+     if (payload.demonstrativoUrl) {
+       rows.push({ recibo_id: receiptId, tipo: "demonstrativo", arquivo_url: payload.demonstrativoUrl, numero_documento: payload.numeroDocumento || null });
+     }
+     if (payload.paymentProofUrl) {
+       rows.push({ recibo_id: receiptId, tipo: "comprovante", arquivo_url: payload.paymentProofUrl, numero_documento: payload.numeroDocumento || null });
+     }
+     return rows;
+  };
+
   const handleGenerateReceipt = async (formData: any) => {
     if (isGenerating) return;
     setIsGenerating(true);
@@ -294,10 +311,13 @@ export default function EmissaoRecibo() {
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
 
       const normalizedClienteId = normalizeId(originalForm.clienteId);
+      const colaboradorId = normalizeId(originalForm.colaboradorId || originalForm.beneficiarioId || null);
+      const beneficiarioTipo = originalForm.beneficiarioTipo === "colaborador" || !!colaboradorId ? "colaborador" : "cliente";
       const receiptNumber = await generateSequentialReceiptNumber(
         nomePagador,
         supabase,
-        normalizedClienteId
+        beneficiarioTipo === "cliente" ? normalizedClienteId : null,
+        beneficiarioTipo === "colaborador" ? { prefix: "SHE" } : undefined
       );
 
       const valorTotalDespesa = isRateado
@@ -366,38 +386,41 @@ export default function EmissaoRecibo() {
 
       // ===================== INSERIR RECIBO =====================
       // Mapeamento completo EN → PT conforme schema da tabela recibos
+      const clienteIdParaSalvar = beneficiarioTipo === "cliente" ? normalizedClienteId : null;
+      const colaboradorIdParaSalvar = beneficiarioTipo === "colaborador" ? colaboradorId : null;
       const receiptPayload = {
-        usuario_id: currentUserId,                                                          // user_id
-        nome_pagador: nomePagador,                                                          // payer_name
-        documento_pagador: originalForm.pagadorDocumento?.trim() || "",                    // payer_document
-        endereco_pagador: originalForm.pagadorEndereco?.trim() || null,                    // payer_address
-        cidade_pagador: originalForm.pagadorCidade?.trim() || null,                        // payer_city
-        uf_pagador: originalForm.pagadorUF?.trim() || null,                                // payer_uf
-        valor: valorNumerico,                                                               // amount
-        descricao_servico: (formData.servicoDescricao || "").trim(),                       // service_description
-        tipo_recibo: expectedReceiptType,                                                   // receipt_type
-        data_emissao: originalForm.dataEmissao || new Date().toISOString().split("T")[0], // issue_date
-        numero_recibo: receiptNumber,                                                       // receipt_number
-        data_max_pagamento: originalForm.prazoMaximoQuitacao || null,                       // max_payment_date
-        forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
-        cliente_id: normalizedClienteId,       // cliente_id
-        boleto_url: boletoUrl,                                                              // boleto_url (legacy) / recibos.boleto_url
-        nf_url: notaFiscalUrl,                                                              // recibos.nf_url
-        demonstrativo_url: deceeaUrl || infraeroUrl || null,                                // recibos.demonstrativo_url
-        data_vencimento: originalForm.dataVencimentoBoleto || null,                         // recibos.data_vencimento
+        usuario_id: currentUserId,
+        nome_pagador: nomePagador,
+        documento_pagador: originalForm.pagadorDocumento?.trim() || "",
+        endereco_pagador: originalForm.pagadorEndereco?.trim() || null,
+        cidade_pagador: originalForm.pagadorCidade?.trim() || null,
+        uf_pagador: originalForm.pagadorUF?.trim() || null,
+        valor: valorNumerico,
+        descricao_servico: (formData.servicoDescricao || "").trim(),
+        tipo_recibo: expectedReceiptType,
+        data_emissao: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
+        numero_recibo: receiptNumber,
+        data_max_pagamento: originalForm.prazoMaximoQuitacao || null,
+        forma_pagamento: originalForm.formaPagamento?.trim() || null,
+        cliente_id: clienteIdParaSalvar,
+        clientes_id: clienteIdParaSalvar,
+        colaborador_id: colaboradorIdParaSalvar,
+        beneficiario_tipo: beneficiarioTipo,
+        boleto_url: boletoUrl,
+        nf_url: notaFiscalUrl,
+        demonstrativo_url: deceeaUrl || infraeroUrl || null,
+        data_vencimento: originalForm.dataVencimentoBoleto || null,
         competencia_decea: formData.isDecea ? (originalForm.competenciaDecea || null) : null,
         competencia_infraero: formData.isInfraero ? (originalForm.competenciaInfraero || null) : null,
-        nome_categoria: formData.categoriaNome || originalForm.categoriaNome || null,      // category_name
+        nome_categoria: formData.categoriaNome || originalForm.categoriaNome || null,
         subcategoria_1: originalForm.subcategoriaSel || originalForm.reembolsoSubcategoria || null,
-        numero_documento: originalForm.reembolsoNumeroDocumento                            // doc_number
-          || originalForm.numeroDocumentoDecea
-          || originalForm.numeroDocumentoInfraero
-          || null,
+        subcategoria_2: originalForm.subcategoria2 || null,
+        subcategoria_3: originalForm.subcategoria3 || null,
+        subcategoria_4: originalForm.subcategoria4 || null,
+        numero_documento: originalForm.reembolsoNumeroDocumento || originalForm.numeroDocumentoDecea || originalForm.numeroDocumentoInfraero || null,
         aeronave_id: selectedAircraftId || null,
-        compartilhado: originalForm.reembolsoRateado || false,                             // is_shared
-        percentual: originalForm.reembolsoPorcentagem                                      // percentage
-          ? parseFloat(originalForm.reembolsoPorcentagem)
-          : null,
+        compartilhado: originalForm.reembolsoRateado || false,
+        percentual: originalForm.reembolsoPorcentagem ? parseFloat(originalForm.reembolsoPorcentagem) : null,
         socios_cliente: formData.socioNome || null,
       };
 
@@ -510,6 +533,22 @@ export default function EmissaoRecibo() {
 
       let receiptData = insertedReceipts?.find((receipt) => receipt.numero_recibo === receiptNumber);
       if (!receiptData) throw new Error("Não foi possível identificar o recibo principal gerado.");
+
+      const attachmentRows = (insertedReceipts || []).flatMap((receipt: any) =>
+        buildReceiptAttachments(receipt.id, {
+          boletoUrl: boletoUrl,
+          notaFiscalUrl: notaFiscalUrl,
+          demonstrativoUrl: deceeaUrl || infraeroUrl || null,
+          paymentProofUrl: originalForm.comprovantePagamentoUrl || null,
+          numeroDocumento: originalForm.reembolsoNumeroDocumento || originalForm.numeroDocumentoDecea || originalForm.numeroDocumentoInfraero || null,
+        })
+      );
+      if (attachmentRows.length > 0) {
+        const { error: attachmentError } = await supabase.from("recibos_anexos").insert(attachmentRows);
+        if (attachmentError) {
+          console.error("Erro ao salvar anexos do recibo:", attachmentError);
+        }
+      }
 
       if (
         receiptData.tipo_recibo !== expectedReceiptType ||

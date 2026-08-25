@@ -63,6 +63,24 @@ export const USER_CATEGORY_OPTIONS = USER_CATEGORY_VALUES.map((value) => ({
   label: USER_CATEGORY_LABELS[value],
 }));
 
+const normalizeUserProfileType = (tipo?: UserCategory | string | null) => {
+  const value = String(tipo ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (["colaborador", "colaboradores", "funcionario", "funcionarios", "funcionario", "employee", "employees"].includes(value)) {
+    return "colaborador";
+  }
+
+  if (["cliente", "clientes"].includes(value)) {
+    return "cliente";
+  }
+
+  return value || null;
+};
+
 const createProfilePayload = (
   userId: string,
   email: string,
@@ -73,7 +91,7 @@ const createProfilePayload = (
   email,
   full_name: fullName,
   display_name: fullName,
-  tipo,
+  tipo: normalizeUserProfileType(tipo),
   updated_at: new Date().toISOString(),
 } as any);
 
@@ -110,7 +128,7 @@ export const fetchManagedUsers = async (): Promise<ManagedUser[]> => {
     email: profile.email,
     fullName: profile.full_name,
     displayName: profile.display_name ?? profile.full_name,
-    tipo: profile.tipo ?? null,
+    tipo: normalizeUserProfileType(profile.tipo),
     roles: rolesMap.get(profile.id) ?? [],
     createdAt: profile.criado_em ?? null,
     updatedAt: profile.atualizado_em ?? null,

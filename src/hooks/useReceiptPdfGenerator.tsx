@@ -35,8 +35,40 @@ export const normalizeReceiptForPdf = async (receiptData: any) => {
     }
   }
 
+  let bankSnapshot = {
+    bank_name: receiptData?.bank_name || receiptData?.banco || null,
+    bank_agency: receiptData?.bank_agency || receiptData?.agencia || null,
+    bank_account: receiptData?.bank_account || receiptData?.conta || null,
+    bank_pix: receiptData?.bank_pix || receiptData?.pix || null,
+  };
+
+  const beneficiarioTipo = receiptData?.beneficiario_tipo || (receiptData?.colaborador_id ? "colaborador" : "cliente");
+  if (beneficiarioTipo === "colaborador" && receiptData?.colaborador_id) {
+    const { data: perfil } = await (supabase as any)
+      .from("user_profiles")
+      .select("full_name, cpf, endereco, cidade, uf, bank_name, bank_agency, bank_account, bank_pix")
+      .eq("id", receiptData.colaborador_id)
+      .maybeSingle();
+
+    if (perfil) {
+      bankSnapshot = {
+        bank_name: perfil.bank_name || bankSnapshot.bank_name,
+        bank_agency: perfil.bank_agency || bankSnapshot.bank_agency,
+        bank_account: perfil.bank_account || bankSnapshot.bank_account,
+        bank_pix: perfil.bank_pix || bankSnapshot.bank_pix,
+      };
+    }
+  }
+
+  const { data: anexos } = await (supabase as any)
+    .from("recibos_anexos")
+    .select("id, tipo, arquivo_url, numero_documento")
+    .eq("recibo_id", receiptData?.id)
+    .order("criado_em", { ascending: true });
+
   return {
     ...receiptData,
+    beneficiario_tipo: beneficiarioTipo,
     receipt_number: receiptData.receipt_number || receiptData.numero_recibo || "",
     payer_name: receiptData.payer_name || receiptData.nome_pagador || "",
     payer_document: receiptData.payer_document || receiptData.documento_pagador || "",
@@ -52,6 +84,8 @@ export const normalizeReceiptForPdf = async (receiptData: any) => {
     nome_categoria: receiptData.nome_categoria || null,
     valor: Number(receiptData.valor ?? receiptData.amount ?? 0),
     emissor,
+    attachments: anexos || [],
+    ...bankSnapshot,
   };
 };
 
