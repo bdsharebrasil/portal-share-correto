@@ -910,7 +910,7 @@ export default function RelatorioViagem() {
           const { generatePDF } = await import('@/lib/travelReportPDF');
           const pdfBlob = await generatePDF(pdfData, pdfUserName);
 
-          // Estrutura: {cliente_id}/{matricula}/{numero}.pdf
+          // Estrutura: {clientes_id}/{matricula}/{numero}.pdf
           const matriculaSafe = (reportData.matricula_aeronave || 'SEM-MATRICULA').replace(/[^A-Z0-9-]/gi, '');
           const numeroSafe = savedReport.numero_relatorio.replace(/[\/\s]/g, '-');
           const clientFolderPath = `${reportData.clientes_id}/.keep`;
