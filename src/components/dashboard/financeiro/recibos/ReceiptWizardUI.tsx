@@ -341,38 +341,12 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
     try {
       const { data } = await supabase
         .from("user_profiles")
-        .select("id, full_name, cpf, endereco, cidade, uf, tipo, client_id")
+        .select("id, email, full_name, display_name, avatar_url, endereco, cpf, client_id, employment_status, tipo")
+        .eq("employment_status", "ativo")
+        .eq("tipo", "colaborador")
         .order("full_name", { ascending: true });
 
-      const normalizeProfileType = (value: any) =>
-        String(value ?? "")
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .trim()
-          .toLowerCase();
-
-      const colaboradoresAtivos = (data || []).filter((p: any) => {
-        const profileType = normalizeProfileType(p?.tipo);
-        const isColaboradorType = [
-          "colaborador",
-          "colaboradores",
-          "funcionario",
-          "funcionarios",
-          "funcionário",
-          "funcionarios",
-          "employee",
-          "employees",
-        ].includes(profileType);
-        const isClienteType = ["cliente", "clientes"].includes(profileType);
-        const hasClientRelation = !!p?.client_id;
-
-        if (isColaboradorType) return true;
-        if (!profileType) return !hasClientRelation;
-        if (isClienteType) return false;
-        return !hasClientRelation && !isClienteType;
-      });
-
-      setColaboradores(colaboradoresAtivos);
+      setColaboradores(data || []);
     } catch (err) {
       console.error("Erro ao carregar colaboradores", err);
     }
@@ -475,8 +449,8 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
           pagadorNome: colaborador.full_name || colaborador.nome || "",
           pagadorDocumento: colaborador.cpf || "",
           pagadorEndereco: colaborador.endereco || "",
-          pagadorCidade: colaborador.cidade || "",
-          pagadorUF: colaborador.uf || "",
+          pagadorCidade: "",
+          pagadorUF: "",
         };
       })
     );

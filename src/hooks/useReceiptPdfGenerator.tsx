@@ -46,7 +46,7 @@ export const normalizeReceiptForPdf = async (receiptData: any) => {
   if (beneficiarioTipo === "colaborador" && receiptData?.colaborador_id) {
     const { data: perfil } = await (supabase as any)
       .from("user_profiles")
-      .select("full_name, cpf, endereco, cidade, uf, bank_name, bank_agency, bank_account, bank_pix")
+      .select("full_name, cpf, endereco, bank_name, bank_agency, bank_account, bank_pix")
       .eq("id", receiptData.colaborador_id)
       .maybeSingle();
 
