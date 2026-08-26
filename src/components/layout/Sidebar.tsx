@@ -196,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
       ) : (
-        <aside className="hidden md:fixed md:left-0 md:top-16 md:w-20 md:h-[calc(100vh-4rem)] bg-noite-950 dark:bg-noite-950 backdrop-blur-sm border-r border-white/5 z-50 md:flex flex-col items-center py-4 gap-3 transition-all duration-200 ease-linear overflow-y-auto custom-scrollbar">
+        <aside className="hidden md:fixed md:left-0 md:top-16 md:w-20 md:h-[calc(100vh-4rem)] bg-noite-950 dark:bg-noite-950 backdrop-blur-sm border-r border-white/5 z-50 md:flex flex-col items-center py-4 gap-3 transition-all duration-200 ease-linear overflow-y-auto sidebar-scroll">
           <button aria-label="Fechar menu" onClick={() => setCollapsed(true)} className="w-9 h-9 rounded-full bg-card-secondary/70 border border-border/50 flex items-center justify-center text-foreground hover:bg-card-secondary/90 transition-colors mb-2">
             <ChevronLeft className="h-4 w-4" />
           </button>
