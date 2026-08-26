@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
+import { isDga } from "@/utils/financeiroRules";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import AnexosDinamicosField, {
   type AnexoLinha,
@@ -449,6 +450,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         : statusAtual === "aguardando_reembolso" ? "pago" : (mov.status || "pendente");
       const pagadores = Array.from(new Set(linhas.map((l) => l.pago_por).filter(Boolean)));
       const valorEditado = numOrNull(mov.valor ?? mov.valor_rateado ?? mov.valor_total_despesa);
+      const pagoDiretamenteDga = !String(mov.conta_bancaria || "").trim();
+      const isDgaMovimentacao = isDga(mov);
       const patch: any = {
         descricao: mov.descricao,
         fornecedor_nome: mov.fornecedor_nome,
@@ -465,7 +468,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         valor_pago_real: hasReembolso ? null : numOrNull(mov.valor_pago_real ?? valorEditado),
         status: statusMov,
         pago_por: pagadores.length > 0 ? pagadores.join(", ") : null,
-        pago_diretamente: !hasReembolso,
+        pago_diretamente: isDgaMovimentacao ? pagoDiretamenteDga : !hasReembolso,
         reembolsavel: hasReembolso,
         reembolso_quitado: false,
         observacoes: mov.observacoes || null,
@@ -522,7 +525,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           valor_rateado: numOrNull(l.valor_rateado),
           valor_pago_real: l.modo_pagamento === "reembolso" ? null : numOrNull(l.valor_pago_real ?? l.valor_rateado),
           pago_por: l.modo_pagamento === "reembolso" ? SHARE_BRASIL : (l.pago_por || l.socios_nome || l.clientes_nome || null),
-          pago_diretamente: l.modo_pagamento === "direto",
+          pago_diretamente: isDgaMovimentacao ? pagoDiretamenteDga : l.modo_pagamento === "direto",
           status: l.modo_pagamento === "reembolso" ? "aguardando_reembolso" : (l.status || "pago"),
           atualizado_em: agora,
         };
@@ -571,7 +574,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
             valor_pago_real: temReembolso ? null : linhasDaMovimentacao.length > 0 ? valorPagoDaMovimentacao : patch.valor_pago_real,
             status: statusDaMovimentacao,
             pago_por: pagadoresDaMovimentacao.length > 0 ? pagadoresDaMovimentacao.join(", ") : patch.pago_por,
-            pago_diretamente: !temReembolso,
+            pago_diretamente: isDgaMovimentacao ? pagoDiretamenteDga : !temReembolso,
             reembolsavel: temReembolso,
             reembolso_quitado: false,
             data_pagamento: todosPendentes ? null : patch.data_pagamento,
