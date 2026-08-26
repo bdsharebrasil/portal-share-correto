@@ -20,10 +20,12 @@ export interface VooInfo {
 const normalizar = (numero: string) => numero.trim().toUpperCase();
 
 /**
- * Busca os dados de um voo a partir do numero_voo, usando
- * solicitacoes_reserva_voo como fonte única da verdade (é a única das duas
- * tabelas — a outra é ciclos_voo — com índice único em numero_voo, e a única
- * com piloto_id/copiloto_id estruturados para pré-preencher formulários).
+ * Busca os dados do voo usado pelo checklist de pré-voo.
+ *
+ * Esta consulta é somente de pré-preenchimento. Ela não deve refazer a
+ * consulta enquanto o formulário estiver sendo preenchido, pois uma mudança
+ * de dados do React Query poderia disparar o efeito de inicialização do
+ * diálogo e sobrescrever o que o usuário acabou de digitar.
  */
 export function useVooPorNumero(numeroVoo: string | null | undefined) {
   const numeroNormalizado = numeroVoo ? normalizar(numeroVoo) : "";
@@ -31,6 +33,11 @@ export function useVooPorNumero(numeroVoo: string | null | undefined) {
   return useQuery({
     queryKey: ["voo-por-numero", numeroNormalizado],
     enabled: numeroNormalizado.length > 0,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     queryFn: async (): Promise<VooInfo | null> => {
       const { data, error } = await supabase
         .from("solicitacoes_reserva_voo")
@@ -49,7 +56,7 @@ export function useVooPorNumero(numeroVoo: string | null | undefined) {
       if (!data) return null;
 
       return {
-        numero_voo: data.numero_voo,
+        numero_voo: normalizar(data.numero_voo),
         cliente_id: data.cliente_id,
         aeronave_id: data.aeronave_id,
         origem: data.origem,
