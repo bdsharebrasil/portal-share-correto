@@ -550,9 +550,11 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         queryClient.invalidateQueries({ queryKey: ["contas-pagar"] }),
         queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
         queryClient.invalidateQueries({ queryKey: ["rateio-despesas"] }),
+        queryClient.invalidateQueries({ queryKey: ["inadimplencia"] }),
         queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
       ]);
 
+      window.dispatchEvent(new Event("financeiro:updated"));
       toast.success("Pagamento registrado com sucesso!");
       onPaid();
       onOpenChange(false);

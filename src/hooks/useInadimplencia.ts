@@ -54,6 +54,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
 
   useEffect(() => {
     const invalidateInadimplencia = () => queryClient.invalidateQueries({ queryKey: ["inadimplencia"] });
+    window.addEventListener("financeiro:updated", invalidateInadimplencia);
     const channel = supabase
       .channel("dashboard-inadimplencia")
       .on("postgres_changes", { event: "*", schema: "public", table: "movimentacoes" }, invalidateInadimplencia)
@@ -64,7 +65,8 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      window.removeEventListener("financeiro:updated", invalidateInadimplencia);
+      void supabase.removeChannel(channel);
     };
   }, [queryClient]);
 

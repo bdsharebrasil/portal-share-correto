@@ -3,6 +3,7 @@ import { AlertCircle, Building2, CalendarDays, ChevronDown, ChevronRight, Circle
 import { format, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
+import { CLIENTE_DGA_ID, isDga, isEntrada } from "@/utils/financeiroRules";
 import { ContaPagarExpandedDetails } from "./contas-pagar/ContaPagarExpandedDetails";
 
 type StatusFiltro = "todos" | "abertas" | "paga" | "vencida" | "cancelada";
@@ -12,9 +13,9 @@ const dataLocal = (value: string | null | undefined) => {
   if (!value) return null;
   try { return parseISO(value); } catch { return null; }
 };
-const contaEhReembolso = (conta: any) => Boolean(
+const contaEhReembolso = (conta: any) => !conta._origemDga && (Boolean(
   conta.cliente_id || conta.clientes?.id || normalizar(conta.tipo_caixa) === "cliente"
-) || normalizar(`${conta.categoria || ""} ${conta.descricao || ""}`).includes("reembols");
+) || normalizar(`${conta.categoria || ""} ${conta.descricao || ""}`).includes("reembols"));
 const contaEstaPaga = (conta: any) => {
   const status = normalizar(conta.status);
   return ["paga", "pago", "quitada", "liquidada", "recebida", "recebido"].includes(status) || Boolean(conta.data_pagamento);
@@ -40,14 +41,42 @@ export default function ContasPagarFluxoTab() {
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
-    const { data, error } = await (supabase as any).from("contas_apagar").select(`
-      *, clientes:cliente_id(id, razao_social, proprietario), socios:socios_cliente_id(id, nome),
-      fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento)
-    `).order("data_vencimento", { ascending: true });
-    if (error) {
-      setErro(error.message || "Não foi possível carregar as contas a pagar.");
+    const [contasResult, movimentacoesResult] = await Promise.all([
+      (supabase as any).from("contas_apagar").select(`
+        *, clientes:cliente_id(id, razao_social, proprietario), socios:socios_cliente_id(id, nome),
+        fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento)
+      `).order("data_vencimento", { ascending: true }),
+      (supabase as any).from("movimentacoes").select(`
+        id, descricao, fornecedor_nome, categoria_nome, valor_total, valor_rateado, data_vencimento,
+        data_pagamento, status, tipo_caixa, fluxo, clientes_id, contas_apagar_id, aeronave_registro,
+        numero_doc, numero_nf, clientes:clientes_id(id, razao_social, proprietario)
+      `).or(`tipo_caixa.eq.dga,clientes_id.eq.${CLIENTE_DGA_ID}`),
+    ]);
+    if (contasResult.error || movimentacoesResult.error) {
+      setErro(contasResult.error?.message || movimentacoesResult.error?.message || "Não foi possível carregar as contas a pagar.");
       setContas([]);
-    } else setContas(data || []);
+    } else {
+      const contasApagar = contasResult.data || [];
+      const despesasDga = (movimentacoesResult.data || [])
+        .filter((movimentacao: any) => isDga(movimentacao) && !isEntrada(movimentacao))
+        .filter((movimentacao: any) => !contasApagar.some((conta: any) => conta.movimentacao_id === movimentacao.id || conta.id === movimentacao.contas_apagar_id))
+        .map((movimentacao: any) => ({
+          id: `dga-${movimentacao.id}`,
+          _origemDga: true,
+          descricao: movimentacao.descricao,
+          fornecedor_nome: movimentacao.fornecedor_nome,
+          categoria: movimentacao.categoria_nome,
+          valor: movimentacao.valor_rateado ?? movimentacao.valor_total,
+          data_vencimento: movimentacao.data_vencimento,
+          data_pagamento: movimentacao.data_pagamento,
+          status: movimentacao.status,
+          cliente_id: movimentacao.clientes_id,
+          clientes: movimentacao.clientes,
+          aeronave_registro: movimentacao.aeronave_registro,
+          numero_doc: movimentacao.numero_doc || movimentacao.numero_nf,
+        }));
+      setContas([...contasApagar, ...despesasDga]);
+    }
     setCarregando(false);
   }, []);
 
@@ -88,7 +117,7 @@ export default function ContasPagarFluxoTab() {
   return (
     <div className="space-y-5 p-1 pb-8">
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div><div className="flex items-center gap-2 text-cyan-400"><CircleDollarSign className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-[0.2em]">Compromissos financeiros</span></div><h3 className="mt-1 text-xl font-black text-foreground">Contas a Pagar</h3><p className="mt-1 text-sm text-muted-foreground">Acompanhe somente despesas da empresa e particulares do Caixa Share.</p></div>
+        <div><div className="flex items-center gap-2 text-cyan-400"><CircleDollarSign className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-[0.2em]">Compromissos financeiros</span></div><h3 className="mt-1 text-xl font-black text-foreground">Contas a Pagar</h3><p className="mt-1 text-sm text-muted-foreground">Acompanhe despesas pendentes do Caixa Share e da DGA.</p></div>
         <button onClick={carregar} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-bold text-foreground transition hover:bg-card-secondary"><RefreshCw className={`h-3.5 w-3.5 ${carregando ? "animate-spin" : ""}`} /> Atualizar</button>
       </div>
 
@@ -118,7 +147,7 @@ export default function ContasPagarFluxoTab() {
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-card/90 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="w-10 px-4 py-3" /><th className="px-4 py-3 text-left">Fornecedor / lançamento</th><th className="px-4 py-3 text-left">Vencimento</th><th className="px-4 py-3 text-left">Categoria / cliente</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3 text-center">Status</th></tr></thead><tbody className="divide-y divide-border/80">
           {carregando ? <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">Carregando contas a pagar...</td></tr> : filtradas.length === 0 ? <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">Nenhum lançamento encontrado para estes filtros.</td></tr> : filtradas.map((conta) => {
             const vencida = contaEstaVencida(conta); const paga = contaEstaPaga(conta); const aberto = expandida === conta.id; const cliente = conta.clientes?.razao_social || conta.clientes?.proprietario; const titulo = conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || conta.descricao || "Lançamento sem fornecedor";
-            return <>{<tr key={conta.id} onClick={() => setExpandida(aberto ? null : conta.id)} className={`cursor-pointer text-muted-foreground transition hover:bg-cyan-500/[0.04] ${vencida ? "bg-rose-500/[0.04]" : ""}`}><td className="px-4 py-4 text-muted-foreground">{aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td><td className="px-4 py-4"><div className="font-semibold text-foreground">{titulo}</div><div className="mt-1 text-xs text-muted-foreground">{conta.descricao || "Sem descrição"} · {conta.numero_doc || conta.nf_numero || "Sem documento"}</div></td><td className={`px-4 py-4 font-medium ${vencida ? "text-rose-300" : "text-muted-foreground"}`}>{dataLocal(conta.data_vencimento) ? format(dataLocal(conta.data_vencimento)!, "dd/MM/yyyy") : "-"}</td><td className="px-4 py-4"><div className="text-muted-foreground">{conta.categoria || "Sem categoria"}</div><div className="mt-1 text-xs text-muted-foreground">{cliente || "Caixa Share"}</div></td><td className="px-4 py-4 text-right font-bold text-foreground">{formatBRL(Number(conta.valor || 0))}</td><td className="px-4 py-4 text-center"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${vencida ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : paga ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>{paga ? "Paga" : vencida ? "Vencida" : conta.status || "Agendada"}</span></td></tr>}{aberto && <tr key={`${conta.id}-details`}><td colSpan={6} className="border-b border-border p-0"><ContaPagarExpandedDetails conta={conta} /></td></tr>}</>;
+            return <>{<tr key={conta.id} onClick={() => setExpandida(aberto ? null : conta.id)} className={`cursor-pointer text-muted-foreground transition hover:bg-cyan-500/[0.04] ${vencida ? "bg-rose-500/[0.04]" : ""}`}><td className="px-4 py-4 text-muted-foreground">{aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td><td className="px-4 py-4"><div className="font-semibold text-foreground">{titulo}</div><div className="mt-1 text-xs text-muted-foreground">{conta.descricao || "Sem descrição"} · {conta.numero_doc || conta.nf_numero || "Sem documento"}</div></td><td className={`px-4 py-4 font-medium ${vencida ? "text-rose-300" : "text-muted-foreground"}`}>{dataLocal(conta.data_vencimento) ? format(dataLocal(conta.data_vencimento)!, "dd/MM/yyyy") : "-"}</td><td className="px-4 py-4"><div className="text-muted-foreground">{conta.categoria || "Sem categoria"}</div><div className="mt-1 text-xs text-muted-foreground">{conta._origemDga ? "DGA" : cliente || "Caixa Share"}</div></td><td className="px-4 py-4 text-right font-bold text-foreground">{formatBRL(Number(conta.valor || 0))}</td><td className="px-4 py-4 text-center"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${vencida ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : paga ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>{paga ? "Paga" : vencida ? "Vencida" : conta.status || "Agendada"}</span></td></tr>}{aberto && <tr key={`${conta.id}-details`}><td colSpan={6} className="border-b border-border p-0"><ContaPagarExpandedDetails conta={conta} /></td></tr>}</>;
           })}
         </tbody></table></div>
       </div>

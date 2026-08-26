@@ -302,8 +302,8 @@ export default function FluxoCaixaTab() {
 
   const formatMesAno = (periodo: string) => { const [ano, mesNumero] = periodo.split("-"); return `${mesNumero}/${ano}`; };
 
-  const onBaixaSuccess = async () => { setBaixaMov(null); await load(); await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }); };
-  const onDelete = async (id: string) => { if (!confirm("Deseja realmente excluir esta movimentação?")) return; try { await deleteMovimentacao(id); await load(); } catch (e: any) { setErro(e.message); } };
+  const onBaixaSuccess = async () => { setBaixaMov(null); await load(); await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }); window.dispatchEvent(new Event("financeiro:updated")); };
+  const onDelete = async (id: string) => { if (!confirm("Deseja realmente excluir esta movimentação?")) return; try { await deleteMovimentacao(id); await load(); window.dispatchEvent(new Event("financeiro:updated")); } catch (e: any) { setErro(e.message); } };
   
   const statusExibicao = (m: any) => {
     if (isEntrada(m)) {
