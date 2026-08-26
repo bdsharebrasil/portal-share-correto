@@ -111,7 +111,8 @@ export default function FluxoCaixaTab() {
         .select("id, cliente_nome, cliente_id, aeronave, descricao, valor, data_vencimento, status, reference_type, movimentacao_id, reference_id")
         .in("reference_type", ["reembolso_share", "travel_report", "travel_expense_report"])
         .is("data_recebimento", null)
-        .not("status", "in", "(recebido,recebida,quitado,quitada,cancelado,cancelada)")
+        .is("data_pagamento", null)
+        .not("status", "in", "(pago,paga,recebido,recebida,quitado,quitada,liquidado,liquidada,cancelado,cancelada,estornado,estornada,rejeitado,rejeitada)")
         .order("data_vencimento", { ascending: true, nullsFirst: false })
         .limit(100);
       if (error) throw error;
@@ -147,6 +148,8 @@ export default function FluxoCaixaTab() {
     const channel = supabase
       .channel("fluxo-caixa-atualizacoes")
       .on("postgres_changes", { event: "*", schema: "public", table: "movimentacoes" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contas_areceber" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contas_apagar" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "rateio_despesas" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "socios" }, scheduleRefresh)
