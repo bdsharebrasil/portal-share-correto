@@ -6,7 +6,6 @@ import {
   Copy,
   Mic,
   MicOff,
-  MonitorUp,
   PhoneOff,
   ScreenShare,
   Users,
@@ -157,6 +156,9 @@ export function MeetingRoom({
   const remoteStreamsRef = useRef(new Map<string, MediaStream>());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  const pendingIceCandidatesRef = useRef(
+    new Map<string, RTCIceCandidateInit[]>(),
+  );
   const presenceRef = useRef<PresencePayload>({
     userId,
     nome: userName,
@@ -165,7 +167,7 @@ export function MeetingRoom({
     microphoneOn: true,
   });
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [participants, setParticipants] = useState<MeetingParticipant[]>([]);
   const [cameraOn, setCameraOn] = useState(true);
   const [microphoneOn, setMicrophoneOn] = useState(true);
@@ -174,7 +176,6 @@ export function MeetingRoom({
   const [strokes, setStrokes] = useState<WhiteboardStroke[]>([]);
   const [isCopied, setIsCopied] = useState(false);
   const [participantCount, setParticipantCount] = useState(1);
-  const [turnReady, setTurnReady] = useState(false);
 
   useEffect(() => {
     presenceRef.current = {
@@ -345,8 +346,17 @@ export function MeetingRoom({
     async (signal: SignalPayload) => {
       if (signal.targetId !== userId) return;
       const connection = createPeerConnection(signal.senderId);
+      const addPendingIceCandidates = async () => {
+        const candidates = pendingIceCandidatesRef.current.get(signal.senderId) ?? [];
+        pendingIceCandidatesRef.current.delete(signal.senderId);
+        for (const candidate of candidates) {
+          await connection.addIceCandidate(candidate);
+        }
+      };
+
       if (signal.kind === "offer" && signal.description) {
         await connection.setRemoteDescription(signal.description);
+        await addPendingIceCandidates();
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
         await sendBroadcast("webrtc-signal", {
@@ -359,14 +369,17 @@ export function MeetingRoom({
       }
       if (signal.kind === "answer" && signal.description) {
         await connection.setRemoteDescription(signal.description);
+        await addPendingIceCandidates();
         return;
       }
       if (signal.kind === "candidate" && signal.candidate) {
-        try {
-          await connection.addIceCandidate(signal.candidate);
-        } catch {
-          // ICE candidates can arrive before the remote description on slow clients.
+        if (!connection.remoteDescription) {
+          const pending = pendingIceCandidatesRef.current.get(signal.senderId) ?? [];
+          pending.push(signal.candidate);
+          pendingIceCandidatesRef.current.set(signal.senderId, pending);
+          return;
         }
+        await connection.addIceCandidate(signal.candidate);
       }
     },
     [createPeerConnection, sendBroadcast, userId],
@@ -389,8 +402,6 @@ export function MeetingRoom({
         }
       } catch {
         // O STUN local continua como fallback quando o TURN não responde.
-      } finally {
-        if (!cancelled) setTurnReady(true);
       }
     })();
     const streamPromise = navigator.mediaDevices?.getUserMedia({
@@ -436,7 +447,6 @@ export function MeetingRoom({
   }, []);
 
   useEffect(() => {
-    if (!turnReady) return;
     let disposed = false;
     const channel = supabase.channel(`treinamento-sala-${meeting.id}`, {
       config: {
@@ -520,7 +530,6 @@ export function MeetingRoom({
     onLeave,
     refreshParticipants,
     userId,
-    turnReady,
   ]);
 
   useEffect(() => {
@@ -538,13 +547,13 @@ export function MeetingRoom({
   const currentParticipants = useMemo(() => {
     const local: MeetingParticipant = {
       ...localPresence(),
-      stream: screenStream ?? localStream,
+      stream: localStream,
     };
     return [
       local,
       ...participants.filter((participant) => participant.userId !== userId),
     ];
-  }, [localPresence, localStream, participants, screenStream, userId]);
+  }, [localPresence, localStream, participants, userId]);
 
   async function toggleCamera() {
     const track = localStreamRef.current?.getVideoTracks()[0];
@@ -580,17 +589,20 @@ export function MeetingRoom({
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false,
+        preferCurrentTab: false,
+        selfBrowserSurface: "exclude",
       });
       const track = stream.getVideoTracks()[0];
-      if (!track) return;
+      if (!track) {
+        stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        return;
+      }
       screenStreamRef.current = stream;
-      setScreenStream(stream);
+      setIsScreenSharing(true);
       await replaceVideoTrackForPeers(track);
-      await sendBroadcast("meeting-state", {
-        screenSharing: true,
-        sharedBy: userId,
-      });
-      track.onended = () => void stopScreenShare();
+      track.onended = () => {
+        if (screenStreamRef.current === stream) void stopScreenShare();
+      };
       toast.success("A tela está sendo compartilhada com a sala.");
     } catch {
       toast.info("O compartilhamento de tela foi cancelado.");
@@ -598,16 +610,14 @@ export function MeetingRoom({
   }
 
   async function stopScreenShare() {
-    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    const stream = screenStreamRef.current;
+    if (!stream) return;
     screenStreamRef.current = null;
-    setScreenStream(null);
+    setIsScreenSharing(false);
+    stream.getTracks().forEach((track) => track.stop());
     await replaceVideoTrackForPeers(
       localStreamRef.current?.getVideoTracks()[0] ?? null,
     );
-    await sendBroadcast("meeting-state", {
-      screenSharing: false,
-      sharedBy: null,
-    });
   }
 
   function handleStroke(stroke: WhiteboardStroke) {
@@ -637,7 +647,7 @@ export function MeetingRoom({
 
   async function copyMeetingLink() {
     await navigator.clipboard.writeText(
-      `${window.location.origin}/admin/centro-treinamento/sala-reuniao/${meeting.id}`,
+      `${window.location.origin}${window.location.pathname}#/centro-treinamento/sala-reuniao/${meeting.id}`,
     );
     setIsCopied(true);
     window.setTimeout(() => setIsCopied(false), 1800);
@@ -697,23 +707,6 @@ export function MeetingRoom({
             )}
           </div>
 
-          {isHost && screenStream && (
-            <div className="overflow-hidden rounded-2xl border border-amber-300/30 bg-amber-300/[0.04]">
-              <div className="flex items-center gap-2 border-b border-amber-300/20 px-4 py-3 text-sm font-medium text-amber-100">
-                <MonitorUp className="size-4" /> Pré-visualização da tela
-                compartilhada
-              </div>
-              <video
-                ref={(node) => {
-                  if (node) node.srcObject = screenStream;
-                }}
-                autoPlay
-                playsInline
-                muted
-                className="aspect-video w-full bg-black object-contain"
-              />
-            </div>
-          )}
 
           <Whiteboard
             strokes={strokes}
@@ -835,11 +828,11 @@ export function MeetingRoom({
           <Button
             type="button"
             variant="outline"
-            className={`border-border bg-card text-foreground hover:bg-card-secondary ${screenStream ? "border-amber-300/50 text-amber-100" : ""}`}
+            className={`border-border bg-card text-foreground hover:bg-card-secondary ${isScreenSharing ? "border-amber-300/50 text-amber-100" : ""}`}
             onClick={() => void toggleScreenShare()}
           >
             <ScreenShare className="size-4" />
-            {screenStream ? "Parar compartilhamento" : "Compartilhar tela"}
+            {isScreenSharing ? "Parar compartilhamento" : "Compartilhar tela"}
           </Button>
         )}
         <Button
