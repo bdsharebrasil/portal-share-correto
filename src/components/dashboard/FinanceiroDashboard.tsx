@@ -238,11 +238,11 @@ export function FinanceiroDashboard() {
     },
     {
       icon: Send,
-      label: "PROG. PAGAMENTO",
+      label: "ENVIAR PAGAMENTO",
       route: undefined,
-      iconColor: "text-emerald-400",
-      iconBg: "bg-emerald-500/10",
-      hoverGlow: "hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]",
+      iconColor: "text-primary",
+      iconBg: "bg-primary/10",
+      hoverGlow: "hover:border-primary/60 hover:shadow-primary",
       action: () => setSolicitacaoPagamentoOpen(true)
     },
     {

@@ -1,7 +1,7 @@
 // @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
 import { SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail, History } from "lucide-react";
+import { ArrowRight, CalendarIcon, CheckCircle2, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail, History } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -54,30 +54,36 @@ type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
 type ModoSolicitacao = "SHARE" | "REEMBOLSO" | "DIRETO";
 type CategoriaShareOption = { id: string; nome: string };
 
-const MODOS: { key: ModoSolicitacao; titulo: string; descricao: string; accent: string; dot: string; text: string }[] = [
+const MODOS: { key: ModoSolicitacao; titulo: string; descricao: string; impacto: string; resultado: string; accent: string; dot: string; text: string }[] = [
   {
     key: "SHARE",
     titulo: "Envio de pagamento para o caixa Share",
     descricao: "Despesa da própria Share (luz, compras, administrativo). Gera apenas contas a pagar no caixa Share.",
-    accent: "border-emerald-500/40 bg-emerald-500/[0.07]",
-    dot: "bg-emerald-400",
-    text: "text-emerald-300",
+    impacto: "A Share é a pagadora e a despesa fica no caixa interno.",
+    resultado: "Uma conta a pagar no caixa Share",
+    accent: "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/25",
+    dot: "bg-emerald-500",
+    text: "text-emerald-700 dark:text-emerald-300",
   },
   {
     key: "REEMBOLSO",
     titulo: "Envio despesa cliente com reembolso",
     descricao: "A Share paga adiantado e cobra o reembolso do cliente após a baixa.",
-    accent: "border-amber-500/40 bg-amber-500/[0.07]",
-    dot: "bg-amber-400",
-    text: "text-amber-300",
+    impacto: "A Share paga agora; o cliente reembolsa depois.",
+    resultado: "Despesa Share + reembolso do cliente",
+    accent: "border-amber-500/40 bg-amber-50 dark:bg-amber-950/25",
+    dot: "bg-amber-500",
+    text: "text-amber-700 dark:text-amber-300",
   },
   {
     key: "DIRETO",
     titulo: "Envio cliente direto",
     descricao: "Despesa paga diretamente pelo cliente. Não passa pelo caixa Share, apenas rateio de despesas.",
-    accent: "border-violet-500/40 bg-violet-500/[0.07]",
-    dot: "bg-violet-400",
-    text: "text-violet-300",
+    impacto: "O cliente assume o pagamento direto, sem saída no caixa Share.",
+    resultado: "Lançamento no caixa do cliente",
+    accent: "border-violet-500/40 bg-violet-50 dark:bg-violet-950/25",
+    dot: "bg-violet-500",
+    text: "text-violet-700 dark:text-violet-300",
   },
 ];
 
@@ -131,6 +137,24 @@ interface AnexoDoc {
   socioId?: string | null;
   clienteId?: string | null;
 }
+
+const MODO_RESUMOS: Record<ModoSolicitacao, Array<{ label: string; value: string }>> = {
+  SHARE: [
+    { label: "Quem paga", value: "Caixa Share" },
+    { label: "Para onde vai", value: "Contas a pagar" },
+    { label: "Rateio", value: "Não se aplica" },
+  ],
+  REEMBOLSO: [
+    { label: "Quem paga", value: "Share primeiro" },
+    { label: "Recuperação", value: "Cliente depois" },
+    { label: "Gera", value: "Despesa + reembolso" },
+  ],
+  DIRETO: [
+    { label: "Quem paga", value: "Cliente" },
+    { label: "Caixa Share", value: "Não movimenta" },
+    { label: "Gera", value: "Rateio do cliente" },
+  ],
+};
 
 const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
   { value: "nf", label: "Nota Fiscal" },
@@ -237,12 +261,17 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
 
 export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onOpenTravelReports }: SolicitacaoPagamentoModalProps) {
   const [etapaAtual, setEtapaAtual] = useState(initialData ? 1 : 0);
+  const [concluido, setConcluido] = useState(false);
 
-    const initialReferenceId = initialData?.reference_id ?? null;
+  const initialReferenceId = initialData?.reference_id ?? null;
   const initialModo = initialData?.modo ?? null;
   const initialDataHydratedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (open) setEtapaAtual(initialData ? 1 : 0);
+    if (open) {
+      setEtapaAtual(initialData ? 1 : 0);
+      setConcluido(false);
+      setEmailPayload(null);
+    }
   }, [open, initialReferenceId, initialModo]);
 
   const [tiposDespesa, setTiposDespesa] = useState<TipoDespesaOption[]>([]);
@@ -270,7 +299,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [gerarContasAReceber, setGerarContasAReceber] = useState(false);
   const [gerarCaixaCliente, setGerarCaixaCliente] = useState(false);
 
-  /** Modo da solicitação — exclusivo (clique na opção ativa para desmarcar). */
+  /** Modo da solicitação — determina os passos e lançamentos financeiros do fluxo. */
   const [modo, setModo] = useState<ModoSolicitacao | null>(null);
   const [categoriasShare, setCategoriasShare] = useState<CategoriaShareOption[]>([]);
   const [categoriaShareId, setCategoriaShareId] = useState("");
@@ -362,9 +391,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     }
   }, [modo]);
 
-  /** Regra do usuário: clicar numa opção inativa não troca — é preciso desmarcar a ativa antes. */
+  /** Trocar de fluxo deve ser uma ação direta: a escolha atual é substituída sem exigir um segundo clique. */
   const handleModoClick = (key: ModoSolicitacao) => {
-    setModo((prev) => (prev === key ? null : prev === null ? key : prev));
+    setModo(key);
   };
 
   const isModoShare = modo === "SHARE";
@@ -601,6 +630,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const isReciboFirstMode = isTaxasMode || isSeguroMode || isFistelMode;
   const isRelatorioViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RELATORIO_DE_VIAGEM";
   const isReciboViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RECIBO_DE_VIAGEM";
+  const etapaLabels = isModoShare
+    ? ["Classificação", "Documentos e vencimento"]
+    : isViagemMode
+      ? ["Contexto da viagem", "Origem e rateio", "Fechamento"]
+      : ["Base da despesa", "Clientes e rateio", "Fechamento"];
+  const etapaVisual = isModoShare && etapaAtual === 3 ? 2 : etapaAtual;
+  const etapaLabel = etapaVisual > 0 ? etapaLabels[etapaVisual - 1] : "Escolha o fluxo";
 
   const tipoDespesaSel = useMemo(() => tiposDespesa.find((t) => t.id === tipoDespesa), [tiposDespesa, tipoDespesa]);
   const subcategoriasDisponiveis = useMemo(() => {
@@ -1084,6 +1120,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   }, [referenciaNumero, isRelatorioViagemMode, isReciboViagemMode]);
 
   const valorNumerico = Number(String(valorTotal).replace(",", ".")) || 0;
+  const valorParaRevisao = useMemo(() => {
+    if (taxaRecibosMultiplos.length === 0) return valorNumerico;
+    return +(taxaRecibosMultiplos.reduce((sum, reciboId) => {
+      const recibo = taxaRecibos.find((item) => item.id === reciboId);
+      return sum + (Number(recibo?.valor_total) || 0) / 100;
+    }, 0)).toFixed(2);
+  }, [taxaRecibos, taxaRecibosMultiplos, valorNumerico]);
   const percNumerico = Number(String(percentualUso).replace(",", ".")) || 0;
 
   const isRateioIgualContext = useMemo(() => {
@@ -1237,8 +1280,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     }
   };
 
-  const resetForm = () => {
+  const resetForm = (options: { keepSuccess?: boolean } = {}) => {
     setEtapaAtual(0);
+    if (!options.keepSuccess) {
+      setConcluido(false);
+      setEmailPayload(null);
+    }
     setModo(null); setCategoriaShareId(""); setCategoriaShareLabel("");
     setAeronaveId(""); 
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
@@ -1255,15 +1302,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   const podeAvancar = () => {
     if (etapaAtual === 1) {
-      if (isModoShare) return !!(categoriaShareId && periodicidade);
+      if (isModoShare) return !!(categoriaShareId && periodicidade && descricao.trim() && valorNumerico > 0);
       const baseOk = !!(modo && aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
       if (isViagemMode) return baseOk && (!!clienteId || !!socioId);
-      return baseOk;
+      return baseOk && !!descricao.trim() && valorNumerico > 0;
     }
     if (etapaAtual === 2) {
       if (isModoShare) return true;
-      if (isViagemMode) return !!clienteId;
-      if (!isViagemMode) return clienteLinhas.length > 0 && clienteLinhas.every((l) => !!l.clienteId) && !erroSomaClientes;
+      if (isViagemMode) {
+        if (!clienteId) return false;
+        if (isRelatorioViagemMode) return !!travelReportId;
+        if (isReciboViagemMode) return !!reciboExistenteId;
+        return true;
+      }
+      return clienteLinhas.length > 0 && clienteLinhas.every((l) => !!l.clienteId) && !erroSomaClientes;
     }
     return true;
   };
@@ -1447,6 +1499,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
     if (isViagemMode) {
       if (!clienteId && !socioId) return "Selecione o cliente ou o sócio";
+      if (isRelatorioViagemMode && !travelReportId) return "Selecione o relatório de viagem";
+      if (isReciboViagemMode && !reciboExistenteId) return "Selecione o recibo de viagem";
     } else {
       if (clienteLinhas.length === 0 || clienteLinhas.some((l) => !l.clienteId)) return "Selecione o(s) cliente(s) desta despesa";
       const idsUnicos = new Set(clienteLinhas.map((l) => l.clienteId));
@@ -1536,8 +1590,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         await supabase.from("contas_apagar").update({ movimentacao_id: movIdShare }).eq("id", capIdShare);
 
         toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
-        resetForm();
-        onOpenChange(false);
+        if (rascunho) {
+          resetForm();
+          onOpenChange(false);
+        } else {
+          resetForm({ keepSuccess: true });
+          setConcluido(true);
+          setEtapaAtual(0);
+        }
         return;
       }
 
@@ -1697,8 +1757,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         if (abastecimentoUpdateError) throw abastecimentoUpdateError;
 
         toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
-        resetForm();
-        onOpenChange(false);
+        if (rascunho) {
+          resetForm();
+          onOpenChange(false);
+        } else {
+          resetForm({ keepSuccess: true });
+          setConcluido(true);
+          setEtapaAtual(0);
+        }
         return;
       }
 
@@ -2139,8 +2205,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         });
       }
 
-      resetForm();
-      if (rascunho) onOpenChange(false);
+      resetForm({ keepSuccess: !rascunho });
+      if (rascunho) {
+        onOpenChange(false);
+      } else {
+        setConcluido(true);
+        setEtapaAtual(0);
+      }
     } catch (e: unknown) {
       toast.error(`Erro ao salvar: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -2150,99 +2221,141 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background/70 backdrop-blur-2xl border-white/10 shadow-2xl font-poppins rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <Send className="h-4 w-4 text-emerald-400" />
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-6xl max-h-[min(92vh,900px)] overflow-hidden bg-background text-foreground border-border/80 shadow-elevated rounded-3xl p-0">
+        <DialogHeader className="border-b border-border/70 px-6 py-5 md:px-8">
+          <div className="flex items-start gap-3 pr-8">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
+              {concluido ? <CheckCircle2 className="h-5 w-5" /> : <Send className="h-5 w-5" />}
             </div>
-            Programar Pagamento — {modo === "SHARE" ? "Share" : "Cliente"}
-          </DialogTitle>
-          <DialogDescription>
-            {etapaAtual === 0
-              ? "Escolha o fluxo financeiro que deseja abrir"
-              : `Etapa ${etapaAtual} de 3 — ${etapaAtual === 1 ? "Classificação Básica" : etapaAtual === 2 ? "Rateio e Contexto" : "Dados Finais da Fatura"}`}
-          </DialogDescription>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight md:text-2xl">
+                {concluido ? "Solicitação enviada" : "Enviar pagamento"}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-muted-foreground">
+                {concluido
+                  ? "O lançamento foi registrado e está pronto para acompanhamento."
+                  : etapaAtual === 0
+                    ? "Escolha quem paga. O sistema ajustará automaticamente os lançamentos e próximos passos."
+                    : `Etapa ${etapaVisual} de ${etapaLabels.length} · ${etapaLabel}`}
+              </DialogDescription>
+            </div>
+            {modoCfg && !concluido && (
+              <Badge variant="outline" className={cn("hidden shrink-0 rounded-full px-3 py-1 text-xs font-medium sm:inline-flex", modoCfg.accent, modoCfg.text)}>
+                {modoCfg.resultado}
+              </Badge>
+            )}
+          </div>
+          {!concluido && (
+            <div className="mt-6 flex items-center gap-2" aria-label="Progresso do envio">
+              {etapaLabels.map((label, index) => {
+                const step = index + 1;
+                const active = etapaVisual >= step;
+                return (
+                  <div key={label} className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors", active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{step}</div>
+                    <span className={cn("hidden truncate text-xs font-medium sm:block", active ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+                    {index < etapaLabels.length - 1 && <div className={cn("h-px min-w-4 flex-1", etapaVisual > step ? "bg-primary/60" : "bg-border")} />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="max-h-[calc(min(92vh,900px)-190px)] overflow-y-auto px-6 py-6 md:px-8">
           {etapaAtual === 0 && (
-            <section className="space-y-4 py-2">
-              <div>
-                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Modo da solicitação *</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.
+            concluido ? (
+              <section className="mx-auto flex max-w-2xl flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20 dark:text-emerald-400">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <h2 className="mt-5 text-2xl font-semibold tracking-tight">Solicitação enviada com sucesso</h2>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                  O lançamento foi registrado como pendente e já pode ser acompanhado no histórico de programação.
                 </p>
-              </div>
+                <div className={cn("mt-8 grid w-full gap-3", emailPayload ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
+                  {emailPayload && (
+                    <Button variant="outline" className="h-11" onClick={() => setEmailOpen(true)}>
+                      <Mail className="mr-2 h-4 w-4" /> Notificar cliente por e-mail
+                    </Button>
+                  )}
+                  <Button className="h-11" onClick={() => onOpenChange(false)}>
+                    Concluir
+                  </Button>
+                </div>
+              </section>
+            ) : (
+              <section className="space-y-6 py-1">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">1. Defina a intenção</p>
+                    <h2 className="mt-2 text-xl font-semibold tracking-tight">Quem assume este pagamento?</h2>
+                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                      A escolha abaixo configura o destino financeiro. Você não precisa decidir manualmente quais contas serão criadas.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="w-fit rounded-full px-3 py-1 text-xs text-muted-foreground">3 fluxos financeiros</Badge>
+                </div>
 
-              <div className="grid gap-3">
-                {MODOS.map((m) => {
-                  const ativo = modo === m.key;
-                  const bloqueado = modo !== null && !ativo;
-                  return (
-                    <button
-                      key={m.key}
-                      type="button"
-                      onClick={() => handleModoClick(m.key)}
-                      className={cn(
-                        "w-full text-left rounded-xl border p-4 transition-all",
-                        ativo ? `${m.accent} shadow-lg` : "border-white/10 bg-white/[0.02]",
-                        bloqueado ? "opacity-40 cursor-not-allowed" : "hover:border-white/25",
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className={cn("mt-1 h-3 w-3 shrink-0 rounded-full border", ativo ? `${m.dot} border-transparent` : "border-white/30")} />
-                        <div className="space-y-1">
-                          <p className={cn("text-sm font-semibold", ativo ? m.text : "text-foreground")}>{m.titulo}</p>
-                          <p className="text-xs text-muted-foreground">{m.descricao}</p>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {MODOS.map((m) => {
+                    const ativo = modo === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        aria-pressed={ativo}
+                        onClick={() => handleModoClick(m.key)}
+                        className={cn(
+                          "group flex min-h-[250px] flex-col rounded-2xl border-2 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]",
+                          ativo ? `${m.accent} border-primary/30 shadow-card ring-2 ring-primary/15` : "border-border bg-card hover:border-primary/35",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl bg-muted", ativo && m.text)}>
+                            <span className={cn("h-3 w-3 rounded-full", m.dot)} />
+                          </span>
+                          <ArrowRight className={cn("h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1", ativo && m.text)} />
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        <p className={cn("mt-5 text-base font-semibold leading-snug", ativo ? m.text : "text-foreground")}>{m.titulo}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{m.descricao}</p>
+                        <div className="mt-auto border-t border-border/70 pt-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Resultado</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">{m.resultado}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{m.impacto}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 pt-2">
-                <Button
-                  disabled={!modo}
-                  className="h-auto min-h-16 flex-col items-center justify-center gap-2"
-                  onClick={() => setEtapaAtual(1)}
-                >
-                  <Send className="h-5 w-5" />
-                  <span className="text-sm">Continuar</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto min-h-16 flex-col items-center justify-center gap-2 border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/60"
-                  onClick={() => {
-                    onOpenChange(false);
-                    onOpenTravelReports?.();
-                  }}
-                >
-                  <FileText className="h-5 w-5 text-blue-400" />
-                  <span className="text-sm">Abrir Relatórios de Viagem em fluxo</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto min-h-16 flex-col items-center justify-center gap-2 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/60"
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate("/financeiro/historico-programacao-pagamentos");
-                  }}
-                >
-                  <History className="h-5 w-5 text-emerald-400" />
-                  <span className="text-sm">Histórico de programação</span>
-                </Button>
-              </div>
-            </section>
+                <div className="flex flex-col justify-between gap-4 rounded-2xl bg-muted/50 p-4 sm:flex-row sm:items-center">
+                  <p className="text-sm text-muted-foreground">
+                    {modo ? <><span className="font-medium text-foreground">Fluxo selecionado:</span> {modoCfg?.resultado}</> : "Selecione uma opção para começar."}
+                  </p>
+                  <Button disabled={!modo} className="h-11 shrink-0 px-5" onClick={() => setEtapaAtual(1)}>
+                    Começar preenchimento <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/70 pt-4 text-sm">
+                  <button type="button" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" onClick={() => { onOpenChange(false); onOpenTravelReports?.(); }}>
+                    <FileText className="h-4 w-4 text-blue-600" /> Abrir fluxo de relatório de viagem
+                  </button>
+                  <button type="button" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" onClick={() => { onOpenChange(false); navigate("/financeiro/historico-programacao-pagamentos"); }}>
+                    <History className="h-4 w-4 text-emerald-600" /> Ver histórico de programação
+                  </button>
+                </div>
+              </section>
+            )
           )}
 
           
           {etapaAtual === 1 && (
-            <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center justify-between border-b border-border/70 pb-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <Wallet className="h-4 w-4" /> Classificação
+                  <Wallet className="h-4 w-4" /> {isModoShare ? "Classificação" : "Base da despesa"}
                 </h3>
               </div>
 
@@ -2256,6 +2369,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEtapaAtual(0)}>Trocar modo</Button>
                   </div>
                   <p className="text-xs text-muted-foreground">{modoCfg.descricao}</p>
+                  <div className="mt-3 grid gap-2 border-t border-border/60 pt-3 sm:grid-cols-3">
+                    {MODO_RESUMOS[modoCfg.key].map((item) => (
+                      <div key={item.label}>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{item.label}</p>
+                        <p className="mt-0.5 text-xs font-medium text-foreground">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -2276,7 +2397,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>2. Valor do pagamento (R$) *</Label>
+                    <Label>2. O que será pago? *</Label>
+                    <Textarea value={descricao} onChange={(e) => setDescricao(up(e.target.value))} rows={2} maxLength={500} placeholder="Ex.: Mensalidade do sistema, material de escritório..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>3. Valor do pagamento (R$) *</Label>
                     <Input
                       type="text"
                       inputMode="decimal"
@@ -2414,19 +2539,41 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   </Select>
                 </div>
               )}
-              </>)}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Descrição da despesa *</Label>
+                  <Textarea value={descricao} onChange={(e) => setDescricao(up(e.target.value))} rows={2} maxLength={500} placeholder="Ex.: Manutenção, combustível, taxa aeroportuária..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Valor total (R$) *</Label>
+                  <Input type="text" inputMode="decimal" value={valorTotal} onChange={(e) => setValorTotal(e.target.value)} placeholder="0,00" className="h-11 text-base font-semibold" />
+                  <p className="text-xs text-muted-foreground">Para relatório ou recibo, o valor será preenchido automaticamente na etapa seguinte.</p>
+                </div>
+              </div>
+              </>) }
             </section>
 
           )}
 
           {etapaAtual === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">2. {isViagemMode ? "Confirme o contexto" : "Defina o rateio"}</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight">{isViagemMode ? "Qual é a origem desta viagem?" : "Como essa despesa será distribuída?"}</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                    {isViagemMode ? "Selecione o relatório ou recibo para carregar valores e documentos automaticamente." : "O sistema recalcula os valores por cliente e sócio. Ajuste apenas o que for diferente do padrão."}
+                  </p>
+                </div>
+                {modoCfg && <Badge variant="outline" className={cn("w-fit rounded-full px-3 py-1 text-xs", modoCfg.accent, modoCfg.text)}>{modoCfg.resultado}</Badge>}
+              </div>
               
               {isViagemMode && aeronaveId && (
                 <section className="space-y-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
                   <div className="flex items-center gap-2 border-b border-sky-500/10 pb-3">
-                    <Plane className="h-4 w-4 text-sky-400" />
-                    <h3 className="text-sm font-semibold text-sky-300 uppercase tracking-wide">
+                    <Plane className="h-4 w-4 text-sky-700 dark:text-sky-400" />
+                    <h3 className="text-sm font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wide">
                       {isReciboViagemMode ? "Recibo de Viagem" : "Relatório de Viagem"}
                     </h3>
                   </div>
@@ -2446,7 +2593,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                           </SelectContent>
                         </Select>
                       ) : (
-                        <p className="text-xs text-amber-300">Nenhum relatório encontrado para este cliente{socioId ? "/sócio" : ""} nesta aeronave.</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">Nenhum relatório encontrado para este cliente{socioId ? "/sócio" : ""} nesta aeronave.</p>
                       )}
                     </div>
                   )}
@@ -2470,7 +2617,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                             </SelectContent>
                           </Select>
                         ) : (
-                          <p className="text-xs text-amber-300">Nenhum recibo encontrado para este cliente nesta aeronave.</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300">Nenhum recibo encontrado para este cliente nesta aeronave.</p>
                         )}
                       </div>
                     );
@@ -2492,25 +2639,25 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                   {travelReportSel && (
                     <div className="rounded-xl border border-sky-500/20 bg-background/40 p-4 space-y-2">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <Label className="text-xs uppercase tracking-wide text-sky-300">Pagamento à Tripulação</Label>
-                        <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-200">
+                      <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                        <Label className="text-xs uppercase tracking-wide text-sky-700 dark:text-sky-300">Pagamento à Tripulação</Label>
+                        <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-200">
                           Total: {Number(travelReportSel.total_tripulacao ?? ((Number(travelReportSel.total_trip || 0)) + (Number(travelReportSel.total_trip2 || 0)))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                        <div className="flex justify-between rounded-md bg-muted/60 px-3 py-2">
                           <span className="text-muted-foreground">{travelReportSel.nome_tripulante || "Tripulante 1"}</span>
-                          <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                          <span className="font-medium text-sky-800 dark:text-sky-200">{Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                         </div>
-                        <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                        <div className="flex justify-between rounded-md bg-muted/60 px-3 py-2">
                           <span className="text-muted-foreground">{travelReportSel.nome_tripulante_2 || "Tripulante 2"}</span>
-                          <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                          <span className="font-medium text-sky-800 dark:text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                         </div>
                         {!socioId && Number(travelReportSel.total_clientes || 0) > 0 && valorReceberClienteViagem > 0 && (
                           <div className="flex justify-between rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 md:col-span-2">
-                            <span className="text-emerald-300">A receber do cliente</span>
-                            <span className="font-medium text-emerald-200">{valorReceberClienteViagem.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                            <span className="text-emerald-700 dark:text-emerald-300">A receber do cliente</span>
+                            <span className="font-medium text-emerald-800 dark:text-emerald-200">{valorReceberClienteViagem.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                           </div>
                         )}
                       </div>
@@ -2521,11 +2668,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     <div className="space-y-3 pt-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs uppercase tracking-wide">Rateio por sócio</Label>
-                        <Badge variant="outline" className="border-sky-500/20 bg-sky-500/10 text-sky-300">{linhasRateioPreview.length} linha(s)</Badge>
+                        <Badge variant="outline" className="border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300">{linhasRateioPreview.length} linha(s)</Badge>
                       </div>
                       <div className="space-y-2">
                         {linhasRateioPreview.map((linha, index) => (
-                          <div key={`rv-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 rounded-md border border-white/5 bg-background/50 p-3 text-sm">
+                          <div key={`rv-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 rounded-md border border-border/70 bg-background/50 p-3 text-sm">
                             <div className="font-medium text-foreground">{linha.socio_nome || "Sócio"}</div>
                             <div className="text-muted-foreground">% de uso: {linha.percentual_uso.toFixed(2)}%</div>
                             <div className="text-sky-300">Valor: {linha.valor_rateado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
@@ -2540,8 +2687,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               {isReciboFirstMode && aeronaveId && (
                 <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
                   <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
-                    <FileText className="h-4 w-4 text-indigo-300" />
-                    <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">
+                    <FileText className="h-4 w-4 text-indigo-700 dark:text-indigo-300" />
+                    <h3 className="text-sm font-semibold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">
                       {isTaxasMode ? "Taxas Aeroportuárias — Recibos" : isSeguroMode ? "Seguros — Recibos Emitidos" : "Taxa FISTEL — Recibos Emitidos"}
                     </h3>
                   </div>
@@ -2582,7 +2729,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                   {(!isTaxasMode || taxaOrigem) && clienteLinhas.some((l) => l.clienteId === "__all__") && (
                     <div className="space-y-3 mt-3">
-                      <p className="text-xs text-indigo-200 font-medium">Selecione um recibo para cada cliente:</p>
+                      <p className="text-xs text-indigo-800 dark:text-indigo-200 font-medium">Selecione um recibo para cada cliente:</p>
                       {clientesDaAeronave.map((cliente) => (
                         <div key={cliente.clienteId} className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Recibo para {cliente.razaoSocial}</Label>
@@ -2609,7 +2756,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   {(!isTaxasMode || taxaOrigem) && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
                     <div className="space-y-3 mt-4 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/10">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-indigo-200">Recibos adicionados:</p>
+                        <p className="text-xs font-medium text-indigo-800 dark:text-indigo-200">Recibos adicionados:</p>
                         <Button
                           type="button"
                           size="sm"
@@ -2627,7 +2774,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       </div>
 
                       {taxaRecibosMultiplos.length === 0 ? (
-                        <p className="text-xs text-indigo-300/60">Nenhum recibo adicionado. Selecione um recibo e clique em "Adicionar".</p>
+                        <p className="text-xs text-indigo-700 dark:text-indigo-300/60">Nenhum recibo adicionado. Selecione um recibo e clique em "Adicionar".</p>
                       ) : (
                         <div className="space-y-2">
                           {taxaRecibosMultiplos.map((reciboId, idx) => {
@@ -2661,22 +2808,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     if (!r) return null;
                     return (
                       <div className="rounded-lg border border-indigo-500/30 bg-background/40 p-4 space-y-3">
-                        <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wide">Resumo do Recibo Selecionado</div>
+                        <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Resumo do Recibo Selecionado</div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                           <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium text-indigo-100">{r.numero_documento || "—"}</div></div>
                           <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
                           <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
-                          <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
+                          <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-800 dark:text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
                         </div>
-                        <div className="flex flex-wrap gap-4 pt-2 border-t border-white/5 text-xs">
+                        <div className="flex flex-wrap gap-4 pt-2 border-t border-border/70 text-xs">
                           {r.pdf_url && (
-                            <a href={r.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> PDF do recibo</a>
+                            <a href={r.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-700 dark:text-sky-300 hover:text-sky-600 dark:hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> PDF do recibo</a>
                           )}
                           {r.boleto_url && (
-                            <a href={r.boleto_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"><ExternalLink className="h-3.5 w-3.5" /> Boleto</a>
+                            <a href={r.boleto_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 hover:text-emerald-600 dark:hover:text-emerald-200"><ExternalLink className="h-3.5 w-3.5" /> Boleto</a>
                           )}
                           {r.nf_url && (
-                            <a href={r.nf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200"><ExternalLink className="h-3.5 w-3.5" /> Demonstrativo</a>
+                            <a href={r.nf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-200"><ExternalLink className="h-3.5 w-3.5" /> Demonstrativo</a>
                           )}
                         </div>
                       </div>
@@ -2693,12 +2840,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-emerald-500/10 pb-4">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-emerald-400" />
-                      <h3 className="text-sm font-semibold text-emerald-300 uppercase tracking-wide">Rateio & Clientes</h3>
+                      <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">Rateio & Clientes</h3>
                     </div>
                     
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-3 bg-background/40 px-3 py-2 rounded-lg border border-white/5 shadow-inner">
-                        <Label className="whitespace-nowrap font-medium text-emerald-200">Valor Total (R$) *</Label>
+                      <div className="flex items-center gap-3 bg-background/40 px-3 py-2 rounded-lg border border-border/70 shadow-inner">
+                        <Label className="whitespace-nowrap font-medium text-emerald-800 dark:text-emerald-200">Valor Total (R$) *</Label>
                         <Input 
                           type="text" 
                           inputMode="decimal" 
@@ -2711,7 +2858,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-emerald-100/70">
+                  <p className="text-[11px] text-emerald-900 dark:text-emerald-100/70">
                     {isTaxasMode 
                       ? "Dados de número de documento, boleto e demonstrativo são preenchidos automaticamente do recibo selecionado."
                       : "Cliente e sócio já selecionados na etapa anterior — confirme o valor e a porcentagem da despesa."}
@@ -2736,7 +2883,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                         : +(valorNumerico * (pctCliente / 100)).toFixed(2);
 
                       return (
-                        <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
+                        <div key={linha.uid} className="rounded-lg border border-border bg-background/60 p-4 space-y-4">
                           {!temSocios && (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
                               <div className="lg:col-span-6 space-y-1.5">
@@ -2748,7 +2895,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                       type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="h-9 w-9 text-red-300 hover:text-red-200 hover:bg-red-500/10"
+                                      className="h-9 w-9 text-red-700 dark:text-red-300 hover:text-red-200 hover:bg-red-500/10"
                                       onClick={() => removeClienteLinha(linha.uid)}
                                       title="Excluir este cliente do rateio"
                                     >
@@ -2769,7 +2916,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                   value={linha.valorClienteOverride ?? valorCliente.toFixed(2).replace(".", ",")}
                                   onChange={(e) => updateClienteLinha(linha.uid, { valorClienteOverride: e.target.value })}
                                   placeholder="0,00"
-                                  className="font-medium text-emerald-300"
+                                  className="font-medium text-emerald-700 dark:text-emerald-300"
                                   title="Sugestão calculada pelo % do rateio. Pode ser editado livremente — o ajuste é feito no Fechamento de Balanço."
                                 />
                               </div>
@@ -2778,7 +2925,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                           {isTaxasMode && (linha.numeroDocumentoRecibo || linha.urlBoleto || linha.urlDemonstrativo) && (
                             <div className="rounded-md bg-indigo-500/10 border border-indigo-500/30 p-3 space-y-2">
-                              <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wide">Dados do Recibo (Preenchidos Automaticamente)</div>
+                              <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Dados do Recibo (Preenchidos Automaticamente)</div>
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                                 {linha.numeroDocumentoRecibo && (
                                   <div>
@@ -2789,7 +2936,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                 {linha.urlBoleto && (
                                   <div>
                                     <span className="text-muted-foreground block mb-1">Boleto</span>
-                                    <a href={linha.urlBoleto} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">
+                                    <a href={linha.urlBoleto} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-600 dark:hover:text-sky-200 inline-flex items-center gap-1">
                                       <ExternalLink className="h-3 w-3" /> Abrir
                                     </a>
                                   </div>
@@ -2797,7 +2944,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                 {linha.urlDemonstrativo && (
                                   <div>
                                     <span className="text-muted-foreground block mb-1">Demonstrativo</span>
-                                    <a href={linha.urlDemonstrativo} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">
+                                    <a href={linha.urlDemonstrativo} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-600 dark:hover:text-sky-200 inline-flex items-center gap-1">
                                       <ExternalLink className="h-3 w-3" /> Abrir
                                     </a>
                                   </div>
@@ -2807,10 +2954,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                           )}
 
                           {info && sociosVisiveis.length > 0 && (
-                            <div className="space-y-3 mt-4 pt-4 border-t border-white/5">
+                            <div className="space-y-3 mt-4 pt-4 border-t border-border/70">
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
-                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{sociosVisiveis.length} de {info.socios.length} sócio(s)</Badge>
+                                <Badge variant="outline" className="bg-muted/60 text-[10px] border-border">{sociosVisiveis.length} de {info.socios.length} sócio(s)</Badge>
                               </div>
 
                               <div className="flex flex-wrap gap-2">
@@ -2824,8 +2971,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                       className={cn(
                                         "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
                                         isExcluded
-                                          ? "border-red-500/30 bg-red-500/10 text-red-300 line-through opacity-70"
-                                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                                          ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300 line-through opacity-70"
+                                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20"
                                       )}
                                       title={isExcluded ? "Sócio excluído do rateio — clique para incluir novamente" : "Clique para excluir este sócio do rateio"}
                                     >
@@ -2835,9 +2982,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                 })}
                               </div>
 
-                              <p className="text-[11px] leading-relaxed text-muted-foreground bg-white/5 border border-white/10 rounded-md px-2.5 py-1.5">
-                                Clique no nome de um sócio acima para <span className="text-red-300 font-medium">excluí-lo do rateio</span>.
-                                Ao alterar o % ou o valor R$ de um sócio, os demais são <span className="text-emerald-300 font-medium">recalculados automaticamente</span> proporcionalmente à participação — mas você pode editar cada um individualmente.
+                              <p className="text-[11px] leading-relaxed text-muted-foreground bg-muted/60 border border-border rounded-md px-2.5 py-1.5">
+                                Clique no nome de um sócio acima para <span className="text-red-700 dark:text-red-300 font-medium">excluí-lo do rateio</span>.
+                                Ao alterar o % ou o valor R$ de um sócio, os demais são <span className="text-emerald-700 dark:text-emerald-300 font-medium">recalculados automaticamente</span> proporcionalmente à participação — mas você pode editar cada um individualmente.
                               </p>
 
                               <div className="grid gap-2">
@@ -2891,13 +3038,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                   return (
                                     <>
                                       {linhasSocios.map(({ socio: s, overrideVal, valorOverrideVal, autoPct, hasValorOverride, pctEfetivo, valorSocio }) => (
-                                        <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-white/5 bg-black/20 p-2 text-sm transition-colors hover:bg-black/30">
+                                        <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/60 p-2 text-sm transition-colors hover:bg-muted">
                                           <div className="font-medium text-foreground min-w-[140px] flex-1">{s.nome}</div>
                                           <div className="flex items-center gap-1 text-muted-foreground">
                                             <span className="text-xs whitespace-nowrap">%:</span>
                                             <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={autoPct.toFixed(2)} value={hasValorOverride ? pctEfetivo.toFixed(2) : (overrideVal ?? "")} onChange={(e) => { updateOverrideSocio(linha.uid, s.id, e.target.value); updateValorOverrideSocio(linha.uid, s.id, ""); }} />
                                           </div>
-                                          <div className="flex items-center gap-1 text-emerald-300">
+                                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
                                             <span className="text-xs whitespace-nowrap">R$:</span>
                                             <Input type="text" inputMode="decimal" className="h-7 w-28 text-xs text-right" placeholder={valorSocio.toFixed(2)} value={valorOverrideVal ?? ""} onChange={(e) => updateValorOverrideSocio(linha.uid, s.id, e.target.value)} />
                                             <span className="text-[10px] opacity-60 whitespace-nowrap">
@@ -2908,7 +3055,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                       ))}
                                       <div className={cn(
                                         "text-xs rounded-md p-2 border font-medium",
-                                        somaSociosForaDoEsperado ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                                        somaSociosForaDoEsperado ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                       )}>
                                         Soma dos sócios: {somaPctSocios.toFixed(2)}% {somaSociosForaDoEsperado ? "— ajuste os percentuais para fechar 100%" : "— OK"}
                                       </div>
@@ -2924,7 +3071,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   </div>
 
                   {clienteLinhas.length > 1 && (
-                    <div className={cn("text-xs rounded-md p-2 border font-medium", erroSomaClientes ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300")}>
+                    <div className={cn("text-xs rounded-md p-2 border font-medium", erroSomaClientes ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300")}>
                       Soma de clientes: {somaPercentualClientes.toFixed(2)}% {erroSomaClientes ? `— ${erroSomaClientes}` : "— OK"}
                     </div>
                   )}
@@ -2934,10 +3081,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               {isCombustivelMode && aeronaveId && (
                 <section className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl p-5">
                   <div className="flex items-center gap-2 border-b border-amber-500/10 pb-3">
-                    <Plane className="h-4 w-4 text-amber-300" />
-                    <h3 className="text-sm font-semibold text-amber-200 uppercase tracking-wide">Combustível — Comanda / NF</h3>
+                    <Plane className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                    <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200 uppercase tracking-wide">Combustível — Comanda / NF</h3>
                   </div>
-                  <p className="text-xs text-amber-100/70">
+                  <p className="text-xs text-amber-900 dark:text-amber-100/70">
                     Informe a comanda e/ou o número da NF. Se já existir um abastecimento cadastrado, ele será vinculado; caso contrário, um novo será criado ao salvar.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2957,13 +3104,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   </div>
                   {fuelLookupSearched && !fuelLookupResult && (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-md border border-amber-500/20 bg-amber-500/10 p-3">
-                      <p className="text-xs text-amber-200/80">
+                      <p className="text-xs text-amber-800 dark:text-amber-200/80">
                         Nenhum abastecimento encontrado. Crie um novo para vincular a esta solicitação.
                       </p>
                       <Button
                         type="button"
                         size="sm"
-                        className="bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 text-amber-100"
+                        className="bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100"
                         onClick={() => setNovoAbastOpen(true)}
                       >
                         <Plus className="h-3.5 w-3.5 mr-1" /> Criar novo abastecimento
@@ -2971,7 +3118,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     </div>
                   )}
                   {fuelLookupResult && (
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-900 dark:text-emerald-100">
                       ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   )}
@@ -2983,8 +3130,38 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
           {etapaAtual === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-white/5 pb-3">Informações da Fatura</h3>
+              <section className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Revisão antes do envio</p>
+                    <h3 className="mt-1 text-base font-semibold tracking-tight">Confira o que será registrado</h3>
+                  </div>
+                  <Badge className="w-fit bg-primary text-primary-foreground">
+                    {valorParaRevisao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </Badge>
+                </div>
+                <div className="mt-4 grid gap-4 border-t border-primary/15 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Fluxo</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{modoCfg?.resultado || "Solicitação de pagamento"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Pagador</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{MODO_RESUMOS[modo || "SHARE"]?.[0]?.value || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Vencimento</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">{dataVencimento ? format(dataVencimento, "dd/MM/yyyy", { locale: ptBR }) : "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Descrição</p>
+                    <p className="mt-1 truncate text-sm font-medium text-foreground" title={descricao}>{descricao || "Não informado"}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/70 pb-3">Informações da Fatura</h3>
 
                 {!isViagemMode && !(isCombustivelMode && fuelLookupResult) && (
                   <div className="space-y-1.5">
@@ -2994,20 +3171,24 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 )}
 
                 {isCombustivelMode && fuelLookupResult && (
-                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100 space-y-1">
-                    <div><span className="text-emerald-300 font-semibold">Fornecedor (abastecedor):</span> {fuelLookupResult.abastecedor || fornecedorNome || "—"}</div>
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-900 dark:text-emerald-100 space-y-1">
+                    <div><span className="text-emerald-700 dark:text-emerald-300 font-semibold">Fornecedor (abastecedor):</span> {fuelLookupResult.abastecedor || fornecedorNome || "—"}</div>
                     <div>
-                      <span className="text-emerald-300 font-semibold">Data:</span> {fuelLookupResult.data ? format(new Date(fuelLookupResult.data + "T00:00:00"), "dd/MM/yyyy") : "—"}
+                      <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Data:</span> {fuelLookupResult.data ? format(new Date(fuelLookupResult.data + "T00:00:00"), "dd/MM/yyyy") : "—"}
                       {" · "}
-                      <span className="text-emerald-300 font-semibold">Vencimento:</span> {fuelLookupResult.data_vencimento_boleto ? format(new Date(fuelLookupResult.data_vencimento_boleto + "T00:00:00"), "dd/MM/yyyy") : "—"}
+                      <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Vencimento:</span> {fuelLookupResult.data_vencimento_boleto ? format(new Date(fuelLookupResult.data_vencimento_boleto + "T00:00:00"), "dd/MM/yyyy") : "—"}
                     </div>
-                    <p className="text-emerald-200/70 pt-1">Fornecedor, data de emissão e vencimento vêm do abastecimento vinculado.</p>
+                    <p className="text-emerald-800 dark:text-emerald-200/70 pt-1">Fornecedor, data de emissão e vencimento vêm do abastecimento vinculado.</p>
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <Label>Descrição da Despesa *</Label>
-                  <Textarea value={descricao} onChange={(e) => setDescricao(up(e.target.value))} rows={2} maxLength={500} placeholder="Ex: Manutenção de rotina" />
+                <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Descrição da despesa</p>
+                  {descricao ? (
+                    <p className="mt-2 text-sm leading-relaxed text-foreground">{descricao}</p>
+                  ) : (
+                    <Textarea className="mt-2 bg-background" value={descricao} onChange={(e) => setDescricao(up(e.target.value))} rows={2} maxLength={500} placeholder="Descreva a despesa antes de enviar" />
+                  )}
                 </div>
 
                 {(isRelatorioViagemMode || isReciboViagemMode) && (
@@ -3065,15 +3246,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   <div className="flex items-start gap-3">
                     <Link2 className="mt-0.5 h-5 w-5 text-emerald-400" />
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-emerald-300">Integração Detectada</p>
-                      <p className="text-sm text-emerald-100/80">{referenciaDuplicada.mensagem}</p>
+                      <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Integração Detectada</p>
+                      <p className="text-sm text-emerald-900 dark:text-emerald-100/80">{referenciaDuplicada.mensagem}</p>
                     </div>
                   </div>
                 </section>
               )}
 
-              <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between border-b border-border/70 pb-3">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                     <FileText className="h-4 w-4" /> Documentos e Anexos
                   </h3>
@@ -3084,7 +3265,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                 {isCombustivelMode && fuelLookupResult && (
                   <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                    <p className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">Anexos do abastecimento vinculado</p>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">Anexos do abastecimento vinculado</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                       {[
                         { label: `Comanda${fuelLookupResult.comanda ? ` · ${fuelLookupResult.comanda}` : ""}`, url: fuelLookupResult.comanda_url },
@@ -3094,9 +3275,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       ].map((item, i) => (
                         <div key={i} className="flex items-center gap-2 rounded-md border border-emerald-500/15 bg-background/40 px-3 py-2">
                           <FileText className={cn("h-4 w-4", item.url ? "text-emerald-400" : "text-muted-foreground")} />
-                          <span className="flex-1 truncate text-emerald-100/80">{item.label}</span>
+                          <span className="flex-1 truncate text-emerald-900 dark:text-emerald-100/80">{item.label}</span>
                           {item.url ? (
-                            <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300">
+                            <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-700 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300">
                               <Eye className="h-3.5 w-3.5" /> Ver
                             </a>
                           ) : (
@@ -3105,11 +3286,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                         </div>
                       ))}
                     </div>
-                    <p className="text-[11px] text-emerald-200/70">Estes anexos foram carregados diretamente do registro em <span className="font-mono">abastecimentos</span>.</p>
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-200/70">Estes anexos foram carregados diretamente do registro em <span className="font-mono">abastecimentos</span>.</p>
                   </div>
                 )}
 
-                <div className="rounded-lg border border-white/5 bg-background/50 p-3 space-y-3">
+                <div className="rounded-lg border border-border/70 bg-background/50 p-3 space-y-3">
                   <div className="flex items-center gap-3">
                     <Switch id="usar-recibo-existente" checked={usarReciboExistente} onCheckedChange={setUsarReciboExistente} />
                     <div>
@@ -3138,7 +3319,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                   </SelectContent>
                                 </Select>
                               ) : (
-                                <p className="text-xs text-amber-300">Nenhum recibo encontrado para este cliente.</p>
+                                <p className="text-xs text-amber-700 dark:text-amber-300">Nenhum recibo encontrado para este cliente.</p>
                               )}
                             </div>
                           );
@@ -3156,7 +3337,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 </div>
 
                 {anexos.length === 0 && (
-                  <p className="text-xs text-muted-foreground border border-dashed border-white/10 rounded-lg p-6 text-center bg-white/[0.01]">
+                  <p className="text-xs text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center bg-card">
                     Nenhum arquivo anexado.
                   </p>
                 )}
@@ -3166,7 +3347,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     const preview = previewAnexo(a);
                     const img = isImage(a);
                     return (
-                      <div key={a.id} className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-3 transition hover:bg-background/60">
+                      <div key={a.id} className="rounded-lg border border-border bg-background/40 p-3 space-y-3 transition hover:bg-background/60">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                           <div className="md:col-span-1 flex flex-row md:flex-col items-center gap-1 justify-center">
                             <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveAnexo(a.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
@@ -3203,7 +3384,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                           <div className="md:col-span-3">
                             <label className="flex-1 cursor-pointer block">
                               <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
-                              <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                              <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm hover:bg-muted transition">
                                 {a.arquivo || a.url ? <FileText className="h-4 w-4 text-emerald-400" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
                                 <span className="truncate flex-1">{a.arquivo?.name || a.url || "Procurar arquivo..."}</span>
                               </div>
@@ -3217,8 +3398,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                         </div>
                         {preview && (
                           <div className="flex items-center gap-3 md:pl-10">
-                            {img ? <img src={preview} alt="preview" className="h-12 w-12 rounded object-cover border border-white/10" /> : <div className="h-12 w-12 rounded border border-white/10 bg-white/[0.03] flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>}
-                            <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors">
+                            {img ? <img src={preview} alt="preview" className="h-12 w-12 rounded object-cover border border-border" /> : <div className="h-12 w-12 rounded border border-border bg-muted flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>}
+                            <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300 transition-colors">
                               <Eye className="h-3.5 w-3.5" /> Visualizar anexo
                             </a>
                           </div>
@@ -3232,52 +3413,42 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           )}
         </div>
 
-        <DialogFooter className="gap-3 pt-4 border-t border-white/10 mt-2 flex sm:justify-between w-full">
-          <div className="flex-shrink-0">
-            {etapaAtual > 1 && (
-              <Button variant="ghost" onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 3 ? 1 : prev - 1))} disabled={saving}>
-                Voltar
-              </Button>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2 justify-end">
-            {emailPayload && (
-              <Button
-                variant="outline"
-                onClick={() => setEmailOpen(true)}
-                className="border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
-              >
-                <Mail className="h-4 w-4 mr-2" /> Enviar por e-mail
-              </Button>
-            )}
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancelar
-            </Button>
-
-
-
-            {etapaAtual > 0 && (etapaAtual < 3 ? (
-              <Button 
-                onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 1 ? 3 : prev + 1))} 
-
-                disabled={!podeAvancar() || saving}
-                className="bg-sky-600 hover:bg-sky-500 text-white"
-              >
-                Próxima Etapa
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => handleSalvar(true)} disabled={saving} className="border-white/20">
-                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Salvar Rascunho
+        {!concluido && (
+          <DialogFooter className="gap-3 border-t border-border/70 px-6 py-4 md:px-8 flex sm:justify-between w-full">
+            <div className="flex-shrink-0">
+              {etapaAtual > 1 && (
+                <Button variant="ghost" onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 3 ? 1 : prev - 1))} disabled={saving}>
+                  Voltar
                 </Button>
-                <Button onClick={() => handleSalvar(false)} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
-                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Solicitar Pagamento
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+                Cancelar
+              </Button>
+
+              {etapaAtual > 0 && (etapaAtual < 3 ? (
+                <Button
+                  onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 1 ? 3 : prev + 1))}
+                  disabled={!podeAvancar() || saving}
+                  className="h-11 px-5"
+                >
+                  {isModoShare && etapaAtual === 1 ? "Revisar documentos" : `Continuar para ${etapaLabels[etapaAtual] || "o próximo passo"}`} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </>
-            ))}
-          </div>
-        </DialogFooter>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => handleSalvar(true)} disabled={saving} className="h-11 border-border">
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Salvar rascunho
+                  </Button>
+                  <Button onClick={() => handleSalvar(false)} disabled={saving} className="h-11 bg-primary font-semibold text-primary-foreground shadow-primary">
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Enviar solicitação
+                  </Button>
+                </>
+              ))}
+            </div>
+          </DialogFooter>
+        )}
       </DialogContent>
 
       <Dialog open={novoAbastOpen} onOpenChange={(v) => { setNovoAbastOpen(v); if (!v) resetNovoAbast(); }}>
@@ -3365,7 +3536,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-white/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border">
               <div className="space-y-1.5">
                 <Label>Comanda (arquivo)</Label>
                 <Input type="file" accept="application/pdf,image/*" onChange={(e) => setNovoAbastComandaFile(e.target.files?.[0] || null)} />
