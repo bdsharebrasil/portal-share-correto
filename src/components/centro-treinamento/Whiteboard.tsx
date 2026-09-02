@@ -1,5 +1,4 @@
 import { Eraser, PenLine, Trash2 } from "lucide-react";
-import { Eraser, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
