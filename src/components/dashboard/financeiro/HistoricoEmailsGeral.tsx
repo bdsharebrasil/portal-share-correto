@@ -54,6 +54,21 @@ const formatarData = (v: string) =>
     minute: "2-digit",
   });
 
+const normalizarUrlAnexo = (valor: string | undefined) => {
+  if (!valor) return null;
+  let url = valor.trim();
+  for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+    if (/^https?:\/\//i.test(url)) return url;
+    if (!/^https?:%2f%2f/i.test(url)) return null;
+    try {
+      url = decodeURIComponent(url);
+    } catch {
+      return null;
+    }
+  }
+  return /^https?:\/\//i.test(url) ? url : null;
+};
+
 export function HistoricoEmailsGeral({ refreshKey = 0 }: { refreshKey?: number }) {
   const [rows, setRows] = useState<EmailRow[]>([]);
   const [autores, setAutores] = useState<Record<string, string>>({});
@@ -223,7 +238,7 @@ export function HistoricoEmailsGeral({ refreshKey = 0 }: { refreshKey?: number }
                         {anexos.map((a, i) => (
                           <a
                             key={`${r.id}-anexo-${i}`}
-                            href={a.url || "#"}
+                            href={normalizarUrlAnexo(a.url) || "#"}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-500 hover:bg-sky-500/20"
